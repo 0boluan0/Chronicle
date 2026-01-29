@@ -6,8 +6,13 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		2F8300482F1646EC0023E02F /* Product Requirements Document_ Offline Timeline Activity Tracker (macOS).pdf in Resources */ = {isa = PBXBuildFile; fileRef = 2F8300472F1646EC0023E02F /* Product Requirements Document_ Offline Timeline Activity Tracker (macOS).pdf */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		2F8300392F1646840023E02F /* Chronicle.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Chronicle.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		2F8300472F1646EC0023E02F /* Product Requirements Document_ Offline Timeline Activity Tracker (macOS).pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = "Product Requirements Document_ Offline Timeline Activity Tracker (macOS).pdf"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -34,6 +39,7 @@
 			children = (
 				2F83003B2F1646840023E02F /* Chronicle */,
 				2F83003A2F1646840023E02F /* Products */,
+				2F8300472F1646EC0023E02F /* Product Requirements Document_ Offline Timeline Activity Tracker (macOS).pdf */,
 			);
 			sourceTree = "<group>";
 		};
@@ -109,6 +115,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2F8300482F1646EC0023E02F /* Product Requirements Document_ Offline Timeline Activity Tracker (macOS).pdf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
