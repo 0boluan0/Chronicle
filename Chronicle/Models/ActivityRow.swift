@@ -16,4 +16,7 @@ struct ActivityRow: Identifiable {
     let windowTitle: String?
     let isIdle: Bool
     let tagId: Int64?
+    let ruleTagId: Int64?
+    let userTagOverrideId: Int64?
+    let effectiveTagId: Int64?
 }

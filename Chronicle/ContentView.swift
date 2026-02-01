@@ -17,12 +17,12 @@ struct ContentView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Chronicle")
+            Text(LocalizedStringKey("app.name"))
                 .font(.headline)
 
             Picker("", selection: $selection) {
-                Text("Timeline").tag(Tab.timeline)
-                Text("Stats").tag(Tab.stats)
+                Text(LocalizedStringKey("dashboard.timeline")).tag(Tab.timeline)
+                Text(LocalizedStringKey("dashboard.stats")).tag(Tab.stats)
             }
             .pickerStyle(.segmented)
 

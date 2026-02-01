@@ -140,17 +140,20 @@ final class ReportService {
     ) {
         do {
             let bounds = rangeBounds(for: kind, date: date)
+            let filters = AggregationFilters(includeIdle: true, tagId: nil, appName: nil, bundleId: nil, searchQuery: nil)
             let group = DispatchGroup()
-            var activities: [ActivityRow] = []
-            var markers: [MarkerRow] = []
+            var summary: AggregationSummary?
+            var topApps: [TopItem] = []
+            var topTags: [TopItem] = []
+            var timelineItems: [TimelineItem] = []
             var tags: [TagRow] = []
             var fetchError: Error?
 
             group.enter()
-            DatabaseService.shared.fetchActivitiesOverlappingRange(start: bounds.start, end: bounds.end) { result in
+            AggregationService.shared.computeSummary(rangeStart: bounds.start, rangeEnd: bounds.end, filters: filters) { result in
                 switch result {
-                case .success(let rows):
-                    activities = rows
+                case .success(let value):
+                    summary = value
                 case .failure(let error):
                     fetchError = error
                 }
@@ -158,10 +161,16 @@ final class ReportService {
             }
 
             group.enter()
-            fetchMarkers(for: kind, start: bounds.start, end: bounds.end) { result in
+            AggregationService.shared.computeTopApps(
+                rangeStart: bounds.start,
+                rangeEnd: bounds.end,
+                filters: filters,
+                limit: 10,
+                includeIdle: false
+            ) { result in
                 switch result {
-                case .success(let rows):
-                    markers = rows
+                case .success(let items):
+                    topApps = items
                 case .failure(let error):
                     fetchError = error
                 }
@@ -169,7 +178,35 @@ final class ReportService {
             }
 
             group.enter()
-            DatabaseService.shared.fetchTags { result in
+            AggregationService.shared.computeTopTags(
+                rangeStart: bounds.start,
+                rangeEnd: bounds.end,
+                filters: filters,
+                limit: 10,
+                includeIdle: false
+            ) { result in
+                switch result {
+                case .success(let items):
+                    topTags = items
+                case .failure(let error):
+                    fetchError = error
+                }
+                group.leave()
+            }
+
+            group.enter()
+            AggregationService.shared.fetchTimelineItems(rangeStart: bounds.start, rangeEnd: bounds.end, filters: filters) { result in
+                switch result {
+                case .success(let items):
+                    timelineItems = items
+                case .failure(let error):
+                    fetchError = error
+                }
+                group.leave()
+            }
+
+            group.enter()
+            AggregationService.shared.fetchTags { result in
                 switch result {
                 case .success(let rows):
                     tags = rows
@@ -185,11 +222,22 @@ final class ReportService {
                     return
                 }
 
-                let stats = self.computeStats(
-                    rows: activities,
-                    tags: tags,
-                    rangeStart: bounds.start,
-                    rangeEnd: bounds.end
+                let activities = timelineItems.compactMap { item -> ActivityRow? in
+                    if case .activity(let activity) = item { return activity }
+                    return nil
+                }
+                let markers = timelineItems.compactMap { item -> MarkerRow? in
+                    if case .marker(let marker) = item { return marker }
+                    return nil
+                }
+
+                let stats = ReportStats(
+                    totalSeconds: summary?.totalSeconds ?? 0,
+                    activeSeconds: summary?.activeSeconds ?? 0,
+                    idleSeconds: summary?.idleSeconds ?? 0,
+                    sessionsCount: summary?.sessionsCount ?? 0,
+                    topApps: topApps.map { ReportBucket(name: $0.name, seconds: $0.durationSeconds) },
+                    topTags: topTags.map { ReportBucket(name: $0.name, seconds: $0.durationSeconds) }
                 )
 
                 let content = self.renderReport(
@@ -513,68 +561,7 @@ final class ReportService {
         }
     }
 
-    private func computeStats(
-        rows: [ActivityRow],
-        tags: [TagRow],
-        rangeStart: Int64,
-        rangeEnd: Int64
-    ) -> ReportStats {
-        var total: Int64 = 0
-        var idle: Int64 = 0
-        var sessions = 0
-        var appTotals: [String: Int64] = [:]
-        var tagTotals: [Int64: Int64] = [:]
-
-        let tagLookup = Dictionary(uniqueKeysWithValues: tags.map { ($0.id, $0) })
-        let untaggedKey: Int64 = -1
-
-        for row in rows {
-            let start = max(row.startTime, rangeStart)
-            let end = min(row.endTime, rangeEnd)
-            let duration = max<Int64>(0, end - start)
-            guard duration > 0 else { continue }
-
-            total += duration
-            sessions += 1
-
-            if row.isIdle {
-                idle += duration
-            } else {
-                appTotals[row.appName, default: 0] += duration
-                let bucket = row.tagId ?? untaggedKey
-                tagTotals[bucket, default: 0] += duration
-            }
-        }
-
-        let active = max<Int64>(0, total - idle)
-
-        let topApps = appTotals.map { ReportBucket(name: $0.key, seconds: $0.value) }
-            .sorted { $0.seconds > $1.seconds }
-            .prefix(10)
-
-        let topTags = tagTotals.map { key, seconds in
-            if key == untaggedKey {
-                return ReportBucket(name: "Untagged", seconds: seconds)
-            }
-            if let tag = tagLookup[key] {
-                return ReportBucket(name: tag.name, seconds: seconds)
-            }
-            return ReportBucket(name: "Tag \(key)", seconds: seconds)
-        }
-        .sorted { $0.seconds > $1.seconds }
-        .prefix(10)
-
-        return ReportStats(
-            totalSeconds: total,
-            activeSeconds: active,
-            idleSeconds: idle,
-            sessionsCount: sessions,
-            topApps: Array(topApps),
-            topTags: Array(topTags)
-        )
-    }
-
-    private func markdownTable(headers: [String], rows: [[String]]) -> String {
+        private func markdownTable(headers: [String], rows: [[String]]) -> String {
         guard !rows.isEmpty else {
             return "_No data_"
         }

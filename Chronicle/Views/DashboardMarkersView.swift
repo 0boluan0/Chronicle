@@ -14,6 +14,10 @@ struct DashboardMarkersView: View {
     @State private var searchText = ""
     @State private var isLoading = false
     @State private var lastRefresh: Date?
+    @State private var hasMore = false
+    @State private var isLoadingMore = false
+
+    private let pageSize = 200
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -51,6 +55,14 @@ struct DashboardMarkersView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            if hasMore {
+                Button("Load more") {
+                    loadMoreMarkers()
+                }
+                .buttonStyle(.bordered)
+                .disabled(isLoadingMore)
             }
 
             if let lastRefresh {
@@ -135,17 +147,39 @@ struct DashboardMarkersView: View {
     private func refreshMarkers(reason: String) {
         isLoading = true
         let bounds = appState.dateRangeMode.bounds(for: appState.selectedDate)
-        DatabaseService.shared.fetchMarkersOverlappingRange(start: bounds.start, end: bounds.end) { result in
+        DatabaseService.shared.fetchMarkersOverlappingRange(start: bounds.start, end: bounds.end, limit: pageSize, offset: 0) { result in
             DispatchQueue.main.async {
                 switch result {
                 case .success(let rows):
                     self.markers = rows
+                    self.hasMore = rows.count == self.pageSize
                 case .failure(let error):
                     self.appState.lastDbErrorMessage = error.localizedDescription
+                    self.hasMore = false
                 }
                 self.lastRefresh = Date()
                 self.isLoading = false
                 AppLogger.log("Dashboard markers refresh: \(reason)", category: "ui")
+            }
+        }
+    }
+
+    private func loadMoreMarkers() {
+        if isLoadingMore { return }
+        isLoadingMore = true
+        let bounds = appState.dateRangeMode.bounds(for: appState.selectedDate)
+        let offset = markers.count
+        DatabaseService.shared.fetchMarkersOverlappingRange(start: bounds.start, end: bounds.end, limit: pageSize, offset: offset) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let rows):
+                    self.markers.append(contentsOf: rows)
+                    self.hasMore = rows.count == self.pageSize
+                case .failure(let error):
+                    self.appState.lastDbErrorMessage = error.localizedDescription
+                    self.hasMore = false
+                }
+                self.isLoadingMore = false
             }
         }
     }

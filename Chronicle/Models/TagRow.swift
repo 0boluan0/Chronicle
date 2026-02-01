@@ -32,6 +32,7 @@ struct RuleRow: Identifiable {
     let id: Int64
     var name: String
     var enabled: Bool
+    var matchBundleId: String?
     var matchAppName: String?
     var matchWindowTitle: String?
     var matchMode: RuleMatchMode

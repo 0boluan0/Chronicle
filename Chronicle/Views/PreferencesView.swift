@@ -11,28 +11,29 @@ import UniformTypeIdentifiers
 
 struct PreferencesView: View {
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var languageManager: AppLanguageManager
 
     var body: some View {
         TabView {
             PreferencesTabScrollView {
                 GeneralPreferencesView()
             }
-                .tabItem { Label("General", systemImage: "gearshape") }
+                .tabItem { Label("preferences.general", systemImage: "gearshape") }
 
             PreferencesTabScrollView {
                 AppMappingsView(showHeader: false)
             }
-                .tabItem { Label("Apps", systemImage: "square.stack.3d.up") }
+                .tabItem { Label("preferences.apps", systemImage: "square.stack.3d.up") }
 
             PreferencesTabScrollView {
                 TagsRulesView(showHeader: false)
             }
-                .tabItem { Label("Tags & Rules", systemImage: "tag") }
+                .tabItem { Label("preferences.tags_rules", systemImage: "tag") }
 
             PreferencesTabScrollView {
                 PrivacyPreferencesView()
             }
-                .tabItem { Label("Privacy", systemImage: "hand.raised") }
+                .tabItem { Label("preferences.privacy", systemImage: "hand.raised") }
         }
         .frame(minWidth: 700, minHeight: 520)
     }
@@ -40,6 +41,7 @@ struct PreferencesView: View {
 
 private struct GeneralPreferencesView: View {
     @EnvironmentObject private var appState: AppState
+    @EnvironmentObject private var languageManager: AppLanguageManager
     @State private var allowlistSearch = ""
     @State private var idleDiagnosticsExpanded = false
 #if DEBUG
@@ -64,6 +66,24 @@ private struct GeneralPreferencesView: View {
             Text("When enabled, Chronicle will not record its own app usage.")
                 .font(.caption)
                 .foregroundColor(.secondary)
+
+            GroupBox {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("preferences.language.title")
+                        .font(.headline)
+
+                    Picker("preferences.language.label", selection: $languageManager.currentLanguage) {
+                        Text("language.english").tag("en")
+                        Text("language.zh_hans").tag("zh-Hans")
+                    }
+                    .pickerStyle(.segmented)
+
+                    Text("preferences.language.note")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
 
             idleSettingsSection
             trackingQualitySection

@@ -17,6 +17,10 @@ struct AppMappingsView: View {
     @State private var showUncategorizedOnly = false
     @State private var showUntaggedOnly = false
     @State private var lastActionMessage: String?
+    @State private var isLoadingMappings = false
+    @State private var hasMoreMappings = false
+
+    private let pageSize = 200
 
     let showHeader: Bool
 
@@ -76,6 +80,14 @@ struct AppMappingsView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+
+            if hasMoreMappings {
+                Button("Load more") {
+                    loadMappings(reset: false)
+                }
+                .buttonStyle(.bordered)
+                .disabled(isLoadingMappings)
+            }
         }
         .onAppear {
             reloadData()
@@ -116,29 +128,38 @@ struct AppMappingsView: View {
     }
 
     private func reloadData() {
-        let group = DispatchGroup()
-        var fetchedMappings: [AppMappingRow] = []
-        var fetchedTags: [TagRow] = []
-
-        group.enter()
-        DatabaseService.shared.fetchAppMappings { result in
-            if case .success(let rows) = result {
-                fetchedMappings = rows
-            }
-            group.leave()
-        }
-
-        group.enter()
+        loadMappings(reset: true)
         DatabaseService.shared.fetchTags { result in
-            if case .success(let rows) = result {
-                fetchedTags = rows
+            DispatchQueue.main.async {
+                if case .success(let rows) = result {
+                    self.tags = rows
+                }
             }
-            group.leave()
         }
+    }
 
-        group.notify(queue: .main) {
-            self.appMappings = fetchedMappings
-            self.tags = fetchedTags
+    private func loadMappings(reset: Bool) {
+        if isLoadingMappings { return }
+        isLoadingMappings = true
+        let offset = reset ? 0 : appMappings.count
+        DatabaseService.shared.fetchAppMappings(limit: pageSize, offset: offset) { result in
+            DispatchQueue.main.async {
+                self.isLoadingMappings = false
+                switch result {
+                case .success(let rows):
+                    if reset {
+                        self.appMappings = rows
+                    } else {
+                        self.appMappings.append(contentsOf: rows)
+                    }
+                    self.hasMoreMappings = rows.count == self.pageSize
+                case .failure:
+                    if reset {
+                        self.appMappings = []
+                    }
+                    self.hasMoreMappings = false
+                }
+            }
         }
     }
 
@@ -147,10 +168,10 @@ struct AppMappingsView: View {
             DispatchQueue.main.async {
                 switch result {
                 case .success:
-                    self.lastActionMessage = "Updated tag for \(mapping.appName)."
+                    self.lastActionMessage = String(format: L("apps.status.updated_tag"), mapping.appName)
                     NotificationCenter.default.post(name: ActivityTracker.didRecordSessionNotification, object: nil)
                 case .failure(let error):
-                    self.lastActionMessage = "Update failed: \(error.localizedDescription)"
+                    self.lastActionMessage = String(format: L("apps.status.update_failed"), error.localizedDescription)
                 }
             }
         }
@@ -168,10 +189,10 @@ struct AppMappingsView: View {
             DispatchQueue.main.async {
                 switch result {
                 case .success(let updated):
-                    self.lastActionMessage = "Applied to today: updated \(updated) rows."
+                    self.lastActionMessage = String(format: L("apps.status.applied_today"), updated)
                     NotificationCenter.default.post(name: ActivityTracker.didRecordSessionNotification, object: nil)
                 case .failure(let error):
-                    self.lastActionMessage = "Apply failed: \(error.localizedDescription)"
+                    self.lastActionMessage = String(format: L("apps.status.apply_failed"), error.localizedDescription)
                 }
             }
         }
@@ -188,10 +209,10 @@ struct AppMappingsView: View {
             DispatchQueue.main.async {
                 switch result {
                 case .success(let updated):
-                    self.lastActionMessage = "Applied to all time: updated \(updated) rows."
+                    self.lastActionMessage = String(format: L("apps.status.applied_all"), updated)
                     NotificationCenter.default.post(name: ActivityTracker.didRecordSessionNotification, object: nil)
                 case .failure(let error):
-                    self.lastActionMessage = "Apply failed: \(error.localizedDescription)"
+                    self.lastActionMessage = String(format: L("apps.status.apply_failed"), error.localizedDescription)
                 }
             }
         }

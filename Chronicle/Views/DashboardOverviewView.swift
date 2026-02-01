@@ -25,6 +25,10 @@ struct DashboardOverviewView: View {
 
     @State private var activities: [ActivityRow] = []
     @State private var tags: [TagRow] = []
+    @State private var dailyRowsState: [GanttRowData] = []
+    @State private var weeklyRowsState: [WeeklyRowData] = []
+    @State private var weekDayLabelsState: [String] = []
+    @State private var weekDayStartsState: [Int64] = []
     @State private var isLoading = false
     @State private var lastRefresh: Date?
     @State private var mode: OverviewMode = .apps
@@ -267,71 +271,26 @@ struct DashboardOverviewView: View {
     }
 
     private var dailyRows: [GanttRowData] {
-        let bounds = rangeBounds
-        let tagLookup = Dictionary(uniqueKeysWithValues: tags.map { ($0.id, $0) })
-        let filtered = activities.filter { activity in
-            if !appState.includeIdleInTimeline && activity.isIdle {
-                return false
-            }
-            return activity.endTime > bounds.start && activity.startTime < bounds.end
-        }
-
-        switch mode {
-        case .apps:
-            return buildAppRows(activities: filtered, tagLookup: tagLookup, bounds: bounds)
-        case .tags:
-            return buildTagRows(activities: filtered, tagLookup: tagLookup, bounds: bounds)
-        }
+        dailyRowsState
     }
+
 
     private var weeklyRows: [WeeklyRowData] {
-        let dayEpochs = weekDayStarts
-        let dayEndEpochs = weekDayEnds
-        let tagLookup = Dictionary(uniqueKeysWithValues: tags.map { ($0.id, $0) })
-        let filtered = activities.filter { activity in
-            if !appState.includeIdleInTimeline && activity.isIdle {
-                return false
-            }
-            return activity.endTime > dayEpochs.first ?? 0 && activity.startTime < dayEndEpochs.last ?? 0
-        }
-
-        switch mode {
-        case .apps:
-            return buildWeeklyAppRows(activities: filtered, dayEpochs: dayEpochs, dayEndEpochs: dayEndEpochs)
-        case .tags:
-            return buildWeeklyTagRows(activities: filtered, tagLookup: tagLookup, dayEpochs: dayEpochs, dayEndEpochs: dayEndEpochs)
-        }
+        weeklyRowsState
     }
+
 
     private var weekDayLabels: [String] {
-        let calendar = Calendar.current
-        let interval = calendar.dateInterval(of: .weekOfYear, for: appState.selectedDate)
-        let start = interval?.start ?? calendar.startOfDay(for: appState.selectedDate)
-        return (0..<7).compactMap { offset in
-            guard let date = calendar.date(byAdding: .day, value: offset, to: start) else { return nil }
-            return Self.weekdayFormatter.string(from: date)
-        }
+        weekDayLabelsState
     }
+
 
     private var weekDayStarts: [Int64] {
-        weekDayInfo.starts
+        weekDayStartsState
     }
 
-    private var weekDayEnds: [Int64] {
-        weekDayInfo.ends
-    }
 
-    private var weekDayInfo: (starts: [Int64], ends: [Int64]) {
-        let calendar = Calendar.current
-        let interval = calendar.dateInterval(of: .weekOfYear, for: appState.selectedDate)
-        let startDate = interval?.start ?? calendar.startOfDay(for: appState.selectedDate)
-        let dayStarts: [Date] = (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: startDate) }
-        let starts = dayStarts.map { Int64($0.timeIntervalSince1970) }
-        let ends = dayStarts.map { Int64(calendar.date(byAdding: .day, value: 1, to: $0)?.timeIntervalSince1970 ?? $0.timeIntervalSince1970 + 86400) }
-        return (starts: starts, ends: ends)
-    }
-
-    private func buildAppRows(
+            private func buildAppRows(
         activities: [ActivityRow],
         tagLookup: [Int64: TagRow],
         bounds: (start: Int64, end: Int64)
@@ -378,13 +337,13 @@ struct DashboardOverviewView: View {
             let tagName: String
             let color: Color
             if key == -1 {
-                tagName = "Untagged"
+                tagName = L("Untagged")
                 color = Color.gray.opacity(0.6)
             } else if let tag = tagLookup[key] {
                 tagName = tag.name
                 color = Color(hex: tag.color ?? "") ?? Color.gray.opacity(0.6)
             } else {
-                tagName = "Tag \(key)"
+                tagName = String(format: L("Tag %d"), key)
                 color = Color.gray.opacity(0.6)
             }
 
@@ -463,13 +422,13 @@ struct DashboardOverviewView: View {
             let title: String
             let color: Color
             if key == -1 {
-                title = "Untagged"
+                title = L("Untagged")
                 color = Color.gray.opacity(0.6)
             } else if let tag = tagLookup[key] {
                 title = tag.name
                 color = Color(hex: tag.color ?? "") ?? Color.gray.opacity(0.6)
             } else {
-                title = "Tag \(key)"
+                title = String(format: L("Tag %d"), key)
                 color = Color.gray.opacity(0.6)
             }
             return WeeklyRowData(id: "tag-\(key)", title: title, color: color, dailyTotals: dailyTotals, totalSeconds: totalSeconds)
@@ -493,7 +452,7 @@ struct DashboardOverviewView: View {
                 tagName = tag.name
                 tagColorHex = tag.color
             } else if activity.tagId == nil {
-                tagName = "Untagged"
+                tagName = L("Untagged")
                 tagColorHex = nil
             } else {
                 tagName = nil
@@ -589,7 +548,7 @@ struct DashboardOverviewView: View {
             guard end > start else { continue }
             let selection = GanttSelection(
                 title: overlay.appName,
-                subtitle: "Rapid switch",
+                subtitle: L("Rapid switch"),
                 rangeLabel: nil,
                 start: start,
                 end: end,
@@ -668,18 +627,8 @@ struct DashboardOverviewView: View {
 
 #if DEBUG
     private var debugCompactionText: String {
-        let bounds = rangeBounds
-        let tagLookup = Dictionary(uniqueKeysWithValues: tags.map { ($0.id, $0) })
-        let filtered = activities.filter { activity in
-            if !appState.includeIdleInTimeline && activity.isIdle {
-                return false
-            }
-            return activity.endTime > bounds.start && activity.startTime < bounds.end
-        }
-        let rawSegments = buildSegments(activities: filtered, bounds: bounds, tagLookup: tagLookup)
-        let before = rawSegments.count
-        let after = compactSegments(rawSegments, mode: mode).count
-        return "segments before: \(before), after compaction: \(after)"
+        let totalSegments = dailyRowsState.reduce(0) { $0 + $1.segments.count }
+        return "segments rendered: \(totalSegments)"
     }
 #endif
 
@@ -700,37 +649,72 @@ struct DashboardOverviewView: View {
     private func refreshData(reason: String) {
         isLoading = true
         let bounds = rangeBounds
+        let includeIdle = appState.includeIdleInTimeline
+        let ganttMode: AggregationGanttMode = mode == .apps ? .apps : .tags
 
         let group = DispatchGroup()
-        var newActivities: [ActivityRow] = []
-        var newTags: [TagRow] = []
+        var newDailyRows: [GanttRowData] = []
+        var newWeeklyRows: [WeeklyRowData] = []
+        var newWeekLabels: [String] = []
+        var newWeekStarts: [Int64] = []
         var errorMessage: String?
 
-        group.enter()
-        DatabaseService.shared.fetchActivitiesOverlappingRange(start: bounds.start, end: bounds.end) { result in
-            switch result {
-            case .success(let rows):
-                newActivities = rows
-            case .failure(let error):
-                errorMessage = error.localizedDescription
+        if isDailyView {
+            group.enter()
+            AggregationService.shared.computeGanttRows(
+                rangeStart: bounds.start,
+                rangeEnd: bounds.end,
+                mode: ganttMode,
+                includeIdle: includeIdle,
+                topN: topN,
+                gridIntervalMinutes: gridIntervalMinutes,
+                overlays: appState.rapidSwitchOverlays
+            ) { result in
+                switch result {
+                case .success(let rows):
+                    newDailyRows = rows
+                case .failure(let error):
+                    errorMessage = error.localizedDescription
+                }
+                group.leave()
             }
-            group.leave()
-        }
-
-        group.enter()
-        DatabaseService.shared.fetchTags { result in
-            switch result {
-            case .success(let rows):
-                newTags = rows
-            case .failure(let error):
-                errorMessage = error.localizedDescription
+        } else {
+            group.enter()
+            let calendar = Calendar.current
+            let interval = calendar.dateInterval(of: .weekOfYear, for: appState.selectedDate)
+            let weekStart = interval?.start ?? calendar.startOfDay(for: appState.selectedDate)
+            AggregationService.shared.computeDailyBucketsForWeek(
+                weekStart: weekStart,
+                mode: ganttMode,
+                limit: topN,
+                includeIdle: includeIdle
+            ) { result in
+                switch result {
+                case .success(let payload):
+                    let (rows, labels, starts, _) = payload
+                    newWeekLabels = labels
+                    newWeekStarts = starts
+                    newWeeklyRows = rows.map { row in
+                        WeeklyRowData(
+                            id: row.id,
+                            title: row.title,
+                            color: Color(hex: row.colorHex ?? "") ?? Color.blue,
+                            dailyTotals: row.dailyTotals,
+                            totalSeconds: row.totalSeconds
+                        )
+                    }
+                case .failure(let error):
+                    errorMessage = error.localizedDescription
+                }
+                group.leave()
             }
-            group.leave()
         }
 
         group.notify(queue: .main) {
-            self.activities = newActivities
-            self.tags = newTags
+            self.dailyRowsState = newDailyRows
+            self.weeklyRowsState = newWeeklyRows
+            self.weekDayLabelsState = newWeekLabels
+            self.weekDayStartsState = newWeekStarts
             self.isLoading = false
             self.lastRefresh = Date()
             if let errorMessage {
@@ -802,20 +786,5 @@ private struct IdleLegendSwatch: View {
             }
             .frame(width: 16, height: 10)
         }
-    }
-}
-
-private extension Color {
-    init?(hex: String) {
-        let cleaned = hex.trimmingCharacters(in: .whitespacesAndNewlines)
-            .replacingOccurrences(of: "#", with: "")
-        guard cleaned.count == 6,
-              let value = Int(cleaned, radix: 16) else {
-            return nil
-        }
-        let red = Double((value >> 16) & 0xFF) / 255.0
-        let green = Double((value >> 8) & 0xFF) / 255.0
-        let blue = Double(value & 0xFF) / 255.0
-        self.init(.sRGB, red: red, green: green, blue: blue, opacity: 1.0)
     }
 }

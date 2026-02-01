@@ -1,0 +1,3 @@
+[
+  {"ts": 5000, "type": "app_activated", "bundle_id": "com.apple.dt.Xcode", "app_name": "Xcode", "window_title": "Project", "payload": null}
+]

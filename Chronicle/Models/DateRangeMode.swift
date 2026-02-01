@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SwiftUI
 
 enum DateRangeMode: String, CaseIterable, Identifiable {
     case day
@@ -14,14 +15,14 @@ enum DateRangeMode: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var title: String {
+    var titleKey: LocalizedStringKey {
         switch self {
         case .day:
-            return "Day"
+            return "range.day"
         case .week:
-            return "Week"
+            return "range.week"
         case .month:
-            return "Month"
+            return "range.month"
         }
     }
 
@@ -55,14 +56,14 @@ enum DateRangeMode: String, CaseIterable, Identifiable {
         }
     }
 
-    func title(for date: Date) -> String {
+    func titleKey(for date: Date) -> LocalizedStringKey {
         switch self {
         case .day:
-            return "Selected Day"
+            return "range.selected_day"
         case .week:
-            return "Selected Week"
+            return "range.selected_week"
         case .month:
-            return "Selected Month"
+            return "range.selected_month"
         }
     }
 }

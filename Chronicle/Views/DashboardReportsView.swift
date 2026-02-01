@@ -60,7 +60,7 @@ struct DashboardReportsView: View {
                         chooseFolder { url in
                             do {
                                 try settings.updateCsvFolderBookmark(url: url)
-                                csvStatus = "CSV folder updated."
+                                csvStatus = L("reports.csv.folder_updated")
                             } catch {
                                 csvStatus = error.localizedDescription
                             }
@@ -86,7 +86,7 @@ struct DashboardReportsView: View {
 
                     Picker("Range", selection: $csvRangeMode) {
                         ForEach(CSVRangeMode.allCases) { mode in
-                            Text(mode.title).tag(mode)
+                            Text(mode.titleKey).tag(mode)
                         }
                     }
                     .pickerStyle(.segmented)
@@ -120,7 +120,7 @@ struct DashboardReportsView: View {
                             chooseFolder { url in
                                 do {
                                     try settings.updateCsvFolderBookmark(url: url)
-                                    csvStatus = "CSV folder updated."
+                                csvStatus = L("reports.csv.folder_updated")
                                 } catch {
                                     csvStatus = error.localizedDescription
                                 }
@@ -151,7 +151,7 @@ struct DashboardReportsView: View {
                         chooseFolder { url in
                             do {
                                 try settings.updateDailyFolderBookmark(url: url)
-                                dailyStatus = "Daily folder updated."
+                                dailyStatus = L("reports.daily.folder_updated")
                             } catch {
                                 dailyStatus = error.localizedDescription
                             }
@@ -213,7 +213,7 @@ struct DashboardReportsView: View {
                             chooseFolder { url in
                                 do {
                                     try settings.updateDailyFolderBookmark(url: url)
-                                    dailyStatus = "Daily folder updated."
+                                dailyStatus = L("reports.daily.folder_updated")
                                 } catch {
                                     dailyStatus = error.localizedDescription
                                 }
@@ -244,7 +244,7 @@ struct DashboardReportsView: View {
                         chooseFolder { url in
                             do {
                                 try settings.updateWeeklyFolderBookmark(url: url)
-                                weeklyStatus = "Weekly folder updated."
+                                weeklyStatus = L("reports.weekly.folder_updated")
                             } catch {
                                 weeklyStatus = error.localizedDescription
                             }
@@ -306,7 +306,7 @@ struct DashboardReportsView: View {
                             chooseFolder { url in
                                 do {
                                     try settings.updateWeeklyFolderBookmark(url: url)
-                                    weeklyStatus = "Weekly folder updated."
+                                weeklyStatus = L("reports.weekly.folder_updated")
                                 } catch {
                                     weeklyStatus = error.localizedDescription
                                 }
@@ -320,12 +320,12 @@ struct DashboardReportsView: View {
     }
 
     private func generateDaily(date: Date) {
-        dailyStatus = "Generating..."
+        dailyStatus = L("reports.status.generating")
         ReportService.shared.generateDailyReport(date: date) { result in
             DispatchQueue.main.async {
                 switch result {
                 case .success(let info):
-                    dailyStatus = "Daily report saved: \(info.fileName)"
+                    dailyStatus = String(format: L("reports.daily.saved"), info.fileName)
                 case .failure(let error):
                     dailyStatus = error.localizedDescription + " (re-select folder if needed)"
                 }
@@ -334,12 +334,12 @@ struct DashboardReportsView: View {
     }
 
     private func generateWeekly(date: Date) {
-        weeklyStatus = "Generating..."
+        weeklyStatus = L("reports.status.generating")
         ReportService.shared.generateWeeklyReport(for: date) { result in
             DispatchQueue.main.async {
                 switch result {
                 case .success(let info):
-                    weeklyStatus = "Weekly report saved: \(info.fileName)"
+                    weeklyStatus = String(format: L("reports.weekly.saved"), info.fileName)
                 case .failure(let error):
                     weeklyStatus = error.localizedDescription + " (re-select folder if needed)"
                 }
@@ -348,13 +348,13 @@ struct DashboardReportsView: View {
     }
 
     private func exportCsv() {
-        csvStatus = "Exporting..."
+        csvStatus = L("reports.status.exporting")
         let range = csvExportRange()
         ReportService.shared.exportCSV(range: range) { result in
             DispatchQueue.main.async {
                 switch result {
                 case .success(let info):
-                    csvStatus = "CSV exported: \(info.fileName)"
+                    csvStatus = String(format: L("reports.csv.saved"), info.fileName)
                 case .failure(let error):
                     csvStatus = error.localizedDescription + " (re-select folder if needed)"
                 }
@@ -394,7 +394,7 @@ struct DashboardReportsView: View {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = false
-        panel.prompt = "Choose Folder"
+        panel.prompt = L("reports.choose_folder")
         panel.begin { response in
             if response == .OK, let url = panel.url {
                 onSelect(url)
@@ -405,7 +405,7 @@ struct DashboardReportsView: View {
     private func handleOpenFolder(result: Result<Void, Error>) -> String {
         switch result {
         case .success:
-            return "Opened folder."
+            return L("reports.opened_folder")
         case .failure(let error):
             return error.localizedDescription + " (re-select folder if needed)"
         }
@@ -452,16 +452,16 @@ private enum CSVRangeMode: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var title: String {
+    var titleKey: LocalizedStringKey {
         switch self {
         case .day:
-            return "Day"
+            return "range.day"
         case .week:
-            return "Week"
+            return "range.week"
         case .month:
-            return "Month"
+            return "range.month"
         case .custom:
-            return "Custom"
+            return "range.custom"
         }
     }
 }

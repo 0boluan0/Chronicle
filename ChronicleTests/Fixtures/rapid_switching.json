@@ -1,0 +1,5 @@
+[
+  {"ts": 4000, "type": "app_activated", "bundle_id": "com.apple.Safari", "app_name": "Safari", "window_title": null, "payload": null},
+  {"ts": 4001, "type": "app_activated", "bundle_id": "com.apple.Terminal", "app_name": "Terminal", "window_title": null, "payload": null},
+  {"ts": 4002, "type": "app_activated", "bundle_id": "com.apple.Safari", "app_name": "Safari", "window_title": null, "payload": null}
+]

@@ -28,7 +28,7 @@ struct StatsView: View {
 
             Picker("Range", selection: $appState.dateRangeMode) {
                 ForEach(DateRangeMode.allCases) { range in
-                    Text(range.title).tag(range)
+                    Text(range.titleKey).tag(range)
                 }
             }
             .pickerStyle(.segmented)
@@ -240,137 +240,113 @@ struct StatsView: View {
         isLoading = true
         let bounds = appState.dateRangeMode.bounds(for: appState.selectedDate)
         let group = DispatchGroup()
-        var activityRows: [ActivityRow] = []
-        var markerRows: [MarkerRow] = []
+        let filters = AggregationFilters(includeIdle: true, tagId: nil, appName: nil, bundleId: nil, searchQuery: nil)
+        var summaryResult: AggregationSummary?
+        var topAppsResult: [TopItem] = []
+        var topTagsResult: [TopItem] = []
+        var timelineItems: [TimelineItem] = []
         var tagRows: [TagRow] = []
-        var activityError: Error?
-        var markerError: Error?
-        var tagError: Error?
+        var firstError: Error?
 
         group.enter()
-        DatabaseService.shared.fetchActivitiesOverlappingRange(start: bounds.start, end: bounds.end) { result in
-            switch result {
-            case .success(let rows):
-                activityRows = rows
-            case .failure(let error):
-                activityError = error
+        AggregationService.shared.computeSummary(rangeStart: bounds.start, rangeEnd: bounds.end, filters: filters) { result in
+            if case .success(let summary) = result {
+                summaryResult = summary
+            } else if case .failure(let error) = result {
+                firstError = error
             }
             group.leave()
         }
 
         group.enter()
-        DatabaseService.shared.fetchMarkersOverlappingRange(start: bounds.start, end: bounds.end) { result in
-            switch result {
-            case .success(let rows):
-                markerRows = rows
-            case .failure(let error):
-                markerError = error
+        AggregationService.shared.computeTopApps(
+            rangeStart: bounds.start,
+            rangeEnd: bounds.end,
+            filters: filters,
+            limit: 8,
+            includeIdle: appState.includeIdleInCharts
+        ) { result in
+            if case .success(let items) = result {
+                topAppsResult = items
+            } else if case .failure(let error) = result {
+                firstError = error
             }
             group.leave()
         }
 
         group.enter()
-        DatabaseService.shared.fetchTags { result in
-            switch result {
-            case .success(let rows):
+        AggregationService.shared.computeTopTags(
+            rangeStart: bounds.start,
+            rangeEnd: bounds.end,
+            filters: filters,
+            limit: 6,
+            includeIdle: appState.includeIdleInCharts
+        ) { result in
+            if case .success(let items) = result {
+                topTagsResult = items
+            } else if case .failure(let error) = result {
+                firstError = error
+            }
+            group.leave()
+        }
+
+        group.enter()
+        AggregationService.shared.fetchTimelineItems(rangeStart: bounds.start, rangeEnd: bounds.end, filters: filters) { result in
+            if case .success(let items) = result {
+                timelineItems = items
+            } else if case .failure(let error) = result {
+                firstError = error
+            }
+            group.leave()
+        }
+
+        group.enter()
+        AggregationService.shared.fetchTags { result in
+            if case .success(let rows) = result {
                 tagRows = rows
-            case .failure(let error):
-                tagError = error
+            } else if case .failure(let error) = result {
+                firstError = error
             }
             group.leave()
         }
 
-        group.notify(queue: .global(qos: .userInitiated)) {
-            let computed = computeStats(
-                rows: activityRows,
-                tags: tagRows,
-                dayStart: bounds.start,
-                dayEnd: bounds.end,
-                includeIdleInCharts: self.appState.includeIdleInCharts
+        group.notify(queue: .main) {
+            let markers = timelineItems.compactMap { item -> MarkerRow? in
+                if case .marker(let marker) = item { return marker }
+                return nil
+            }
+            let activities = timelineItems.compactMap { item -> ActivityRow? in
+                if case .activity(let activity) = item { return activity }
+                return nil
+            }
+
+            let switchCounts = activities.reduce(into: [String: Int]()) { result, activity in
+                result[activity.appName, default: 0] += 1
+            }
+            let switchItems = switchCounts.map { AppSwitches(appName: $0.key, count: $0.value) }
+                .sorted { $0.count > $1.count }
+                .prefix(5)
+
+            self.summary = SummaryMetrics(
+                totalSeconds: summaryResult?.totalSeconds ?? 0,
+                activeSeconds: summaryResult?.activeSeconds ?? 0,
+                idleSeconds: summaryResult?.idleSeconds ?? 0,
+                sessions: summaryResult?.sessionsCount ?? 0
             )
-            let sortedTopApps = computed.topApps.sorted { $0.seconds > $1.seconds }.prefix(8)
-            let sortedTopTags = computed.topTags.sorted { $0.seconds > $1.seconds }.prefix(6)
-            let sortedSwitches = computed.topSwitches.sorted { $0.count > $1.count }.prefix(5)
-
-            DispatchQueue.main.async {
-                self.summary = computed.summary
-                self.topApps = Array(sortedTopApps)
-                self.topTags = Array(sortedTopTags)
-                self.topSwitches = Array(sortedSwitches)
-                self.markerCount = markerRows.count
-                self.recentMarkers = markerRows
-                self.isLoading = false
-                self.lastRefresh = Date()
-
-                if let error = activityError ?? markerError ?? tagError {
-                    self.appState.lastDbErrorMessage = error.localizedDescription
-                } else {
-                    self.appState.lastDbErrorMessage = nil
-                }
+            self.topApps = topAppsResult.map { AppDuration(appName: $0.name, seconds: $0.durationSeconds) }
+            let tagLookup = Dictionary(uniqueKeysWithValues: tagRows.map { ($0.id, $0) })
+            self.topTags = topTagsResult.map { item in
+                let color = item.tagId.flatMap { tagLookup[$0]?.color }
+                return TagDuration(tagId: item.tagId, name: item.name, color: color, seconds: item.durationSeconds)
             }
+            self.topSwitches = Array(switchItems)
+            self.markerCount = summaryResult?.markersCount ?? markers.count
+            self.recentMarkers = markers
+            self.isLoading = false
+            self.lastRefresh = Date()
+
+            self.appState.lastDbErrorMessage = firstError?.localizedDescription
         }
-    }
-
-    private func computeStats(
-        rows: [ActivityRow],
-        tags: [TagRow],
-        dayStart: Int64,
-        dayEnd: Int64,
-        includeIdleInCharts: Bool
-    ) -> StatsComputation {
-        var total: Int64 = 0
-        var idle: Int64 = 0
-        var sessions = 0
-        var appTotals: [String: Int64] = [:]
-        var appCounts: [String: Int] = [:]
-        var tagTotals: [Int64: Int64] = [:]
-
-        let tagLookup = Dictionary(uniqueKeysWithValues: tags.map { ($0.id, $0) })
-        let untaggedKey: Int64 = -1
-
-        for row in rows {
-            let start = max(row.startTime, dayStart)
-            let end = min(row.endTime, dayEnd)
-            let duration = max<Int64>(0, end - start)
-            guard duration > 0 else { continue }
-
-            total += duration
-            sessions += 1
-
-            if row.isIdle {
-                idle += duration
-                if includeIdleInCharts {
-                    appTotals[row.appName, default: 0] += duration
-                    appCounts[row.appName, default: 0] += 1
-                }
-            } else {
-                appTotals[row.appName, default: 0] += duration
-                appCounts[row.appName, default: 0] += 1
-                let bucket = row.tagId ?? untaggedKey
-                tagTotals[bucket, default: 0] += duration
-            }
-        }
-
-        let active = max<Int64>(0, total - idle)
-
-        let topApps = appTotals.map { AppDuration(appName: $0.key, seconds: $0.value) }
-        let topSwitches = appCounts.map { AppSwitches(appName: $0.key, count: $0.value) }
-        let topTags = tagTotals.map { key, seconds in
-            if key == untaggedKey {
-                return TagDuration(tagId: nil, name: "Untagged", color: nil, seconds: seconds)
-            }
-            if let tag = tagLookup[key] {
-                return TagDuration(tagId: tag.id, name: tag.name, color: tag.color, seconds: seconds)
-            }
-            return TagDuration(tagId: key, name: "Tag \(key)", color: nil, seconds: seconds)
-        }
-
-        return StatsComputation(
-            summary: SummaryMetrics(totalSeconds: total, activeSeconds: active, idleSeconds: idle, sessions: sessions),
-            topApps: topApps,
-            topTags: topTags,
-            topSwitches: topSwitches
-        )
     }
 
     private func formatDuration(_ seconds: Int64) -> String {
@@ -428,13 +404,6 @@ private struct TagDuration: Identifiable {
     let name: String
     let color: String?
     let seconds: Int64
-}
-
-private struct StatsComputation {
-    let summary: SummaryMetrics
-    let topApps: [AppDuration]
-    let topTags: [TagDuration]
-    let topSwitches: [AppSwitches]
 }
 
 private struct SummaryCard: View {
@@ -577,21 +546,6 @@ private struct TopTagRow: View {
             return parsed
         }
         return Color.gray.opacity(0.6)
-    }
-}
-
-private extension Color {
-    init?(hex: String) {
-        let cleaned = hex.trimmingCharacters(in: .whitespacesAndNewlines)
-            .replacingOccurrences(of: "#", with: "")
-        guard cleaned.count == 6,
-              let value = Int(cleaned, radix: 16) else {
-            return nil
-        }
-        let red = Double((value >> 16) & 0xFF) / 255.0
-        let green = Double((value >> 8) & 0xFF) / 255.0
-        let blue = Double(value & 0xFF) / 255.0
-        self.init(.sRGB, red: red, green: green, blue: blue, opacity: 1.0)
     }
 }
 

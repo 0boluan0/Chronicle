@@ -234,12 +234,12 @@ struct GanttRowView: View {
             lines.append(subtitle)
         }
         lines.append(TimeFormatters.timeRange(start: segment.start, end: segment.end))
-        lines.append("Duration: \(segment.selection.durationText)")
+        lines.append(String(format: L("Duration: %@"), segment.selection.durationText))
         if segment.isIdle {
-            lines.append("Idle")
+            lines.append(L("Idle"))
         }
         if segment.isOverlay {
-            lines.append("Overlay")
+            lines.append(L("Overlay"))
         }
         return lines.joined(separator: "\n")
     }
@@ -275,20 +275,5 @@ private struct IdleHatchView: View {
             }
         }
         .allowsHitTesting(false)
-    }
-}
-
-private extension Color {
-    init?(hex: String) {
-        let cleaned = hex.trimmingCharacters(in: .whitespacesAndNewlines)
-            .replacingOccurrences(of: "#", with: "")
-        guard cleaned.count == 6,
-              let value = Int(cleaned, radix: 16) else {
-            return nil
-        }
-        let red = Double((value >> 16) & 0xFF) / 255.0
-        let green = Double((value >> 8) & 0xFF) / 255.0
-        let blue = Double(value & 0xFF) / 255.0
-        self.init(.sRGB, red: red, green: green, blue: blue, opacity: 1.0)
     }
 }

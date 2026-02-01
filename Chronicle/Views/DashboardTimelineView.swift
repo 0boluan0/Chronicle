@@ -13,9 +13,11 @@ struct DashboardTimelineView: View {
     @State private var activities: [ActivityRow] = []
     @State private var markers: [MarkerRow] = []
     @State private var tags: [TagRow] = []
+    @State private var rules: [RuleRow] = []
     @State private var isLoading = false
     @State private var displayLimit = 200
     @State private var lastRefresh: Date?
+    @State private var activeTagPickerActivityId: Int64?
 
     private let untaggedFilterValue: Int64 = -2
 
@@ -42,7 +44,17 @@ struct DashboardTimelineView: View {
                                 ForEach(group.items) { item in
                                     switch item {
                                     case .activity(let activity):
-                                        TimelineRowView(activity: activity, tag: tagForActivity(activity), maxTitleLines: 2)
+                                        TimelineRowView(
+                                            activity: activity,
+                                            tag: tagForActivity(activity),
+                                            maxTitleLines: 2,
+                                            tagPopoverPresented: tagPopoverBinding(for: activity),
+                                            tagPopoverContent: tagPopoverContent(for: activity),
+                                            showsManualIndicator: activity.userTagOverrideId != nil
+                                        )
+                                        .contextMenu {
+                                            tagContextMenu(for: activity)
+                                        }
                                     case .marker(let marker):
                                         MarkerRowView(marker: marker)
                                     }
@@ -56,6 +68,7 @@ struct DashboardTimelineView: View {
                 if hasMoreItems {
                     Button("Load more") {
                         displayLimit += 200
+                        refreshData(reason: "load more", resetLimit: false)
                     }
                     .buttonStyle(.bordered)
                     .padding(.top, 12)
@@ -155,11 +168,11 @@ struct DashboardTimelineView: View {
                 Toggle("Include Idle", isOn: $appState.includeIdleInTimeline)
                     .toggleStyle(.switch)
 
-                Picker("Range", selection: $appState.dateRangeMode) {
-                    ForEach(DateRangeMode.allCases) { range in
-                        Text(range.title).tag(range)
+                    Picker("Range", selection: $appState.dateRangeMode) {
+                        ForEach(DateRangeMode.allCases) { range in
+                            Text(range.titleKey).tag(range)
+                        }
                     }
-                }
                 .pickerStyle(.segmented)
                 .frame(width: 200)
 
@@ -289,6 +302,109 @@ struct DashboardTimelineView: View {
         return tags.first { $0.id == tagId }
     }
 
+    private func tagPopoverBinding(for activity: ActivityRow) -> Binding<Bool> {
+        Binding(
+            get: { activeTagPickerActivityId == activity.id },
+            set: { isPresented in
+                if isPresented {
+                    activeTagPickerActivityId = activity.id
+                } else if activeTagPickerActivityId == activity.id {
+                    activeTagPickerActivityId = nil
+                }
+            }
+        )
+    }
+
+    private func tagPopoverContent(for activity: ActivityRow) -> AnyView {
+        AnyView(
+            TagPickerPopover(
+                activity: activity,
+                tags: tags,
+                autoSourceText: autoSourceLabel(for: activity),
+                overrideText: overrideLabel(for: activity),
+                onSelect: { tagId in
+                    setUserOverride(activity: activity, tagId: tagId)
+                }
+            )
+            .frame(width: 240)
+            .padding(10)
+        )
+    }
+
+    @ViewBuilder
+    private func tagContextMenu(for activity: ActivityRow) -> some View {
+        Button(L("tag.picker.use_auto")) {
+            setUserOverride(activity: activity, tagId: nil)
+        }
+        Divider()
+        ForEach(tags) { tag in
+            Button(tag.name) {
+                setUserOverride(activity: activity, tagId: tag.id)
+            }
+        }
+    }
+
+    private func autoSourceLabel(for activity: ActivityRow) -> String {
+        let evaluation = TaggingEngine.evaluate(
+            activity: TaggingEngine.ActivityDescriptor(
+                bundleId: activity.bundleId,
+                appName: activity.appName,
+                windowTitle: activity.windowTitle
+            ),
+            rules: rules
+        )
+        if evaluation.ruleMatched, let ruleTagId = evaluation.ruleTagId, let tag = tags.first(where: { $0.id == ruleTagId }) {
+            return String(format: L("tag.auto_rule_format"), tag.name)
+        }
+        if activity.userTagOverrideId == nil, let tagId = activity.tagId, let tag = tags.first(where: { $0.id == tagId }) {
+            return String(format: L("tag.auto_mapping_format"), tag.name)
+        }
+        return L("tag.auto_none")
+    }
+
+    private func overrideLabel(for activity: ActivityRow) -> String? {
+        guard let overrideId = activity.userTagOverrideId else { return nil }
+        if let tag = tags.first(where: { $0.id == overrideId }) {
+            return String(format: L("tag.override_format"), tag.name)
+        }
+        return String(format: L("tag.override_format"), L("Untagged"))
+    }
+
+    private func setUserOverride(activity: ActivityRow, tagId: Int64?) {
+        applyOverrideLocally(activityId: activity.id, tagId: tagId)
+        DatabaseService.shared.setUserTagOverride(activityId: activity.id, tagId: tagId) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    self.refreshData(reason: "tag override")
+                    NotificationCenter.default.post(name: ActivityTracker.didRecordSessionNotification, object: nil)
+                case .failure(let error):
+                    self.appState.lastDbErrorMessage = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    private func applyOverrideLocally(activityId: Int64, tagId: Int64?) {
+        activities = activities.map { activity in
+            guard activity.id == activityId else { return activity }
+            let effectiveTagId = tagId ?? activity.ruleTagId
+            return ActivityRow(
+                id: activity.id,
+                startTime: activity.startTime,
+                endTime: activity.endTime,
+                appName: activity.appName,
+                bundleId: activity.bundleId,
+                windowTitle: activity.windowTitle,
+                isIdle: activity.isIdle,
+                tagId: effectiveTagId,
+                ruleTagId: activity.ruleTagId,
+                userTagOverrideId: tagId,
+                effectiveTagId: effectiveTagId
+            )
+        }
+    }
+
     private var isTodaySelected: Bool {
         Calendar.current.isDateInToday(appState.selectedDate)
     }
@@ -299,68 +415,77 @@ struct DashboardTimelineView: View {
         }
     }
 
-    private func refreshData(reason: String) {
+    private func refreshData(reason: String, resetLimit: Bool = true) {
         isLoading = true
-        displayLimit = 200
+        if resetLimit {
+            displayLimit = 200
+        }
         let bounds = rangeBounds
-        DispatchQueue.global(qos: .userInitiated).async {
-            let group = DispatchGroup()
-            var newActivities: [ActivityRow] = []
-            var newMarkers: [MarkerRow] = []
-            var newTags: [TagRow] = []
-            var errorMessage: String?
+        let filters = AggregationFilters(
+            includeIdle: appState.includeIdleInTimeline,
+            tagId: nil,
+            appName: nil,
+            bundleId: nil,
+            searchQuery: appState.searchQuery
+        )
 
-            group.enter()
-            DatabaseService.shared.fetchActivitiesOverlappingRange(start: bounds.start, end: bounds.end) { result in
-                switch result {
-                case .success(let rows):
-                    newActivities = rows
-                case .failure(let error):
-                    errorMessage = error.localizedDescription
-                }
-                group.leave()
-            }
+        let group = DispatchGroup()
+        var newItems: [TimelineItem] = []
+        var newTags: [TagRow] = []
+        var newRules: [RuleRow] = []
+        var errorMessage: String?
 
-            group.enter()
-            DatabaseService.shared.fetchMarkersOverlappingRange(start: bounds.start, end: bounds.end) { result in
-                switch result {
-                case .success(let rows):
-                    newMarkers = rows
-                case .failure(let error):
-                    errorMessage = error.localizedDescription
-                }
-                group.leave()
+        group.enter()
+        AggregationService.shared.fetchTimelineItems(rangeStart: bounds.start, rangeEnd: bounds.end, filters: filters, limit: displayLimit) { result in
+            switch result {
+            case .success(let items):
+                newItems = items
+            case .failure(let error):
+                errorMessage = error.localizedDescription
             }
+            group.leave()
+        }
 
-            group.enter()
-            DatabaseService.shared.fetchTags { result in
-                switch result {
-                case .success(let rows):
-                    newTags = rows
-                case .failure(let error):
-                    errorMessage = error.localizedDescription
-                }
-                group.leave()
+        group.enter()
+        AggregationService.shared.fetchTags { result in
+            switch result {
+            case .success(let rows):
+                newTags = rows
+            case .failure(let error):
+                errorMessage = error.localizedDescription
             }
+            group.leave()
+        }
 
-            group.notify(queue: .main) {
-                self.activities = newActivities
-                self.markers = newMarkers
-                self.tags = newTags
-                self.lastRefresh = Date()
-                self.isLoading = false
-                if !self.appFilterOptions.contains(self.appState.selectedAppFilterName) {
-                    self.appState.selectedAppFilterName = "All Apps"
-                }
-                if self.appState.selectedTagFilterId >= 0,
-                   !self.tags.contains(where: { $0.id == self.appState.selectedTagFilterId }) {
-                    self.appState.selectedTagFilterId = -1
-                }
-                if let errorMessage {
-                    self.appState.lastDbErrorMessage = errorMessage
-                }
-                AppLogger.log("Dashboard refresh: \(reason)", category: "ui")
+        group.enter()
+        DatabaseService.shared.fetchRules { result in
+            switch result {
+            case .success(let rows):
+                newRules = rows
+            case .failure(let error):
+                errorMessage = error.localizedDescription
             }
+            group.leave()
+        }
+
+        group.notify(queue: .main) {
+            self.activities = newItems.compactMap { if case .activity(let a) = $0 { return a }; return nil }
+            self.markers = newItems.compactMap { if case .marker(let m) = $0 { return m }; return nil }
+            self.tags = newTags
+            self.rules = newRules
+            self.lastRefresh = Date()
+            self.isLoading = false
+            if !self.appFilterOptions.contains(self.appState.selectedAppFilterName) {
+                self.appState.selectedAppFilterName = "All Apps"
+            }
+            if self.appState.selectedTagFilterId >= 0,
+               !self.tags.contains(where: { $0.id == self.appState.selectedTagFilterId }) {
+                self.appState.selectedTagFilterId = -1
+            }
+            if let errorMessage {
+                self.appState.lastDbErrorMessage = errorMessage
+            }
+            AppLogger.log("Dashboard refresh: \(reason)", category: "ui")
         }
     }
 
@@ -394,6 +519,54 @@ struct DashboardTimelineView: View {
         formatter.timeZone = TimeZone.current
         return formatter
     }()
+}
+
+private struct TagPickerPopover: View {
+    let activity: ActivityRow
+    let tags: [TagRow]
+    let autoSourceText: String
+    let overrideText: String?
+    let onSelect: (Int64?) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(L("tag.picker.title"))
+                .font(.headline)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(autoSourceText)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                if let overrideText {
+                    Text(overrideText)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            Divider()
+
+            Button(L("tag.picker.use_auto")) {
+                onSelect(nil)
+            }
+            .buttonStyle(.bordered)
+
+            if tags.isEmpty {
+                Text(L("tag.picker.no_tags"))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } else {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(tags) { tag in
+                        Button(tag.name) {
+                            onSelect(tag.id)
+                        }
+                        .buttonStyle(.borderless)
+                    }
+                }
+            }
+        }
+    }
 }
 
 #Preview {

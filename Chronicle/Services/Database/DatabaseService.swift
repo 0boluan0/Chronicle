@@ -15,6 +15,10 @@ final class DatabaseService {
     private var db: OpaquePointer?
     private var isInitialized = false
     private var hasBundleIdColumn = false
+    private var hasRuleTagColumn = false
+    private var hasUserTagOverrideColumn = false
+    private var hasEffectiveTagColumn = false
+    private var hasRulesBundleIdColumn = false
 
     private let appSupportURL: URL
     private let databaseURL: URL
@@ -70,14 +74,25 @@ final class DatabaseService {
         "com.apple.ActivityMonitor": ("Activity Monitor", "System")
     ]
 
-    private init() {
-        let appSupportBase = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-        let appName = Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String ?? "Chronicle"
-        let appSupport = (appSupportBase ?? URL(fileURLWithPath: NSTemporaryDirectory()))
-            .appendingPathComponent(appName, isDirectory: true)
-        appSupportURL = appSupport
-        databaseURL = appSupport.appendingPathComponent("activity.sqlite")
+    private init(databaseURL: URL? = nil, appSupportURL: URL? = nil) {
+        if let databaseURL = databaseURL {
+            self.databaseURL = databaseURL
+            self.appSupportURL = appSupportURL ?? databaseURL.deletingLastPathComponent()
+        } else {
+            let appSupportBase = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+            let appName = Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String ?? "Chronicle"
+            let appSupport = (appSupportBase ?? URL(fileURLWithPath: NSTemporaryDirectory()))
+                .appendingPathComponent(appName, isDirectory: true)
+            self.appSupportURL = appSupport
+            self.databaseURL = appSupport.appendingPathComponent("activity.sqlite")
+        }
     }
+
+    #if DEBUG
+    static func makeTestInstance(databaseURL: URL) -> DatabaseService {
+        DatabaseService(databaseURL: databaseURL)
+    }
+    #endif
 
     var databasePath: String {
         databaseURL.path
@@ -125,12 +140,142 @@ final class DatabaseService {
                 )
                 let changes = self.sqliteChanges()
                 AppLogger.log("Insert success op=insert_activity id=\(rowId) changes=\(changes) start_time=\(start) end_time=\(end)", category: "db")
+                AggregationService.shared.recordDatabaseChange(rangeStart: start, rangeEnd: end)
                 completion(.success(rowId))
             } catch let error as DatabaseError {
                 AppLogger.log("Insert failed: \(error.logDescription)", category: "db")
                 completion(.failure(error))
             } catch {
                 AppLogger.log("Insert failed: \(error.localizedDescription)", category: "db")
+                completion(.failure(error))
+            }
+        }
+    }
+
+    func insertRawEvent(_ event: RawEvent, completion: @escaping (Result<Int64, Error>) -> Void) {
+        if Thread.isMainThread {
+            AppLogger.log("Warning: insertRawEvent called on main thread", category: "db")
+        }
+
+        queue.async { [self] in
+            do {
+                try self.openDatabaseIfNeeded()
+                let rowId = try self.insertRawEventInternal(event)
+                completion(.success(rowId))
+            } catch let error as DatabaseError {
+                AppLogger.log("Insert raw event failed: \(error.logDescription)", category: "db")
+                completion(.failure(error))
+            } catch {
+                AppLogger.log("Insert raw event failed: \(error.localizedDescription)", category: "db")
+                completion(.failure(error))
+            }
+        }
+    }
+
+    func fetchRawEvents(start: Int64, end: Int64, completion: @escaping (Result<[RawEvent], Error>) -> Void) {
+        if Thread.isMainThread {
+            AppLogger.log("Warning: fetchRawEvents called on main thread", category: "db")
+        }
+
+        queue.async { [self] in
+            do {
+                try self.openDatabaseIfNeeded()
+                let events = try self.fetchRawEventsInternal(start: start, end: end)
+                completion(.success(events))
+            } catch let error as DatabaseError {
+                AppLogger.log("Fetch raw events failed: \(error.logDescription)", category: "db")
+                completion(.failure(error))
+            } catch {
+                AppLogger.log("Fetch raw events failed: \(error.localizedDescription)", category: "db")
+                completion(.failure(error))
+            }
+        }
+    }
+
+    func deleteActivitiesInRange(start: Int64, end: Int64, completion: @escaping (Result<Int, Error>) -> Void) {
+        if Thread.isMainThread {
+            AppLogger.log("Warning: deleteActivitiesInRange called on main thread", category: "db")
+        }
+
+        queue.async { [self] in
+            do {
+                try self.openDatabaseIfNeeded()
+                let deleted = try self.deleteActivitiesInRangeInternal(start: start, end: end)
+                AggregationService.shared.recordDatabaseChange(rangeStart: start, rangeEnd: end)
+                completion(.success(deleted))
+            } catch let error as DatabaseError {
+                AppLogger.log("Delete activities failed: \(error.logDescription)", category: "db")
+                completion(.failure(error))
+            } catch {
+                AppLogger.log("Delete activities failed: \(error.localizedDescription)", category: "db")
+                completion(.failure(error))
+            }
+        }
+    }
+
+    func rebuildSessionsFromRawEvents(
+        rangeStart: Int64,
+        rangeEnd: Int64,
+        lookbackSeconds: Int64 = 600,
+        completion: @escaping (Result<SessionNormalizer.ReplaySummary, Error>) -> Void
+    ) {
+        if Thread.isMainThread {
+            AppLogger.log("Warning: rebuildSessionsFromRawEvents called on main thread", category: "db")
+        }
+
+        queue.async { [self] in
+            do {
+                try self.openDatabaseIfNeeded()
+                let start = max(0, rangeStart - lookbackSeconds)
+                let events = try self.fetchRawEventsInternal(start: start, end: rangeEnd)
+                try self.execute(sql: "BEGIN IMMEDIATE;")
+                _ = try self.deleteActivitiesInRangeInternal(start: rangeStart, end: rangeEnd)
+
+                let sink = SessionNormalizer.ReplaySink(
+                    insertActivity: { [self] start, end, appName, bundleId, windowTitle, isIdle, tagId in
+                        try self.insertActivityInternal(
+                            start: start,
+                            end: end,
+                            appName: appName,
+                            bundleId: bundleId,
+                            windowTitle: windowTitle,
+                            isIdle: isIdle,
+                            tagId: tagId
+                        )
+                    },
+                    updateEndTime: { [self] id, endTime in
+                        try self.updateActivityEndTimeInternal(id: id, endTime: endTime)
+                    },
+                    resolveTag: { [self] bundleId, appName, windowTitle in
+                        try self.resolveTagForActivityInternal(
+                            bundleId: bundleId,
+                            appName: appName,
+                            windowTitle: windowTitle
+                        )
+                    }
+                )
+
+                let summary = try SessionNormalizer.shared.replay(
+                    events: events,
+                    rangeStart: rangeStart,
+                    rangeEnd: rangeEnd,
+                    sink: sink
+                )
+                try self.execute(sql: "COMMIT;")
+                do {
+                    _ = try self.recomputeTagsInternal(rangeStart: rangeStart, rangeEnd: rangeEnd)
+                } catch {
+                    AppLogger.log("Recompute tags after rebuild failed: \(error.localizedDescription)", category: "db")
+                }
+                AggregationService.shared.recordDatabaseChange(rangeStart: rangeStart, rangeEnd: rangeEnd)
+                completion(.success(summary))
+            } catch let error as DatabaseError {
+                try? self.execute(sql: "ROLLBACK;")
+                AppLogger.log("Rebuild sessions failed: \(error.logDescription)", category: "db")
+                completion(.failure(error))
+            } catch {
+                try? self.execute(sql: "ROLLBACK;")
+                AppLogger.log("Rebuild sessions failed: \(error.localizedDescription)", category: "db")
                 completion(.failure(error))
             }
         }
@@ -155,6 +300,11 @@ final class DatabaseService {
                     AppLogger.log("Update end_time warning op=update_activity_end_time id=\(id) changes=0 end_time=\(endTime)", category: "db")
                 } else {
                     AppLogger.log("Update end_time success op=update_activity_end_time id=\(id) changes=\(changes) end_time=\(endTime)", category: "db")
+                }
+                if let bounds = try? self.fetchActivityBoundsInternal(id: id) {
+                    AggregationService.shared.recordDatabaseChange(rangeStart: bounds.start, rangeEnd: bounds.end)
+                } else {
+                    AggregationService.shared.recordDatabaseChange(rangeStart: endTime, rangeEnd: endTime + 1)
                 }
                 completion(.success(()))
             } catch let error as DatabaseError {
@@ -195,6 +345,8 @@ final class DatabaseService {
     func fetchActivitiesOverlappingRange(
         start: Int64,
         end: Int64,
+        limit: Int? = nil,
+        offset: Int? = nil,
         completion: @escaping (Result<[ActivityRow], Error>) -> Void
     ) {
         if Thread.isMainThread {
@@ -204,7 +356,7 @@ final class DatabaseService {
         queue.async { [self] in
             do {
                 try self.openDatabaseIfNeeded()
-                let rows = try self.fetchActivitiesOverlappingRangeInternal(start: start, end: end)
+                let rows = try self.fetchActivitiesOverlappingRangeInternal(start: start, end: end, limit: limit, offset: offset)
                 AppLogger.log("Fetch overlapping activities success rows=\(rows.count)", category: "db")
                 completion(.success(rows))
             } catch let error as DatabaseError {
@@ -257,6 +409,7 @@ final class DatabaseService {
                 let rowId = try self.insertMarkerInternal(timestamp: timestamp, text: text)
                 let changes = self.sqliteChanges()
                 AppLogger.log("Insert marker success op=insert_marker id=\(rowId) changes=\(changes) timestamp=\(timestamp)", category: "db")
+                AggregationService.shared.recordDatabaseChange(rangeStart: timestamp, rangeEnd: timestamp + 1)
                 completion(.success(rowId))
             } catch let error as DatabaseError {
                 AppLogger.log("Insert marker failed: \(error.logDescription)", category: "db")
@@ -296,6 +449,8 @@ final class DatabaseService {
     func fetchMarkersOverlappingRange(
         start: Int64,
         end: Int64,
+        limit: Int? = nil,
+        offset: Int? = nil,
         completion: @escaping (Result<[MarkerRow], Error>) -> Void
     ) {
         if Thread.isMainThread {
@@ -305,7 +460,7 @@ final class DatabaseService {
         queue.async { [self] in
             do {
                 try self.openDatabaseIfNeeded()
-                let rows = try self.fetchMarkersInternal(dayStart: start, dayEnd: end)
+                let rows = try self.fetchMarkersInternal(dayStart: start, dayEnd: end, limit: limit, offset: offset)
                 AppLogger.log("Fetch markers range success rows=\(rows.count)", category: "db")
                 completion(.success(rows))
             } catch let error as DatabaseError {
@@ -454,6 +609,7 @@ final class DatabaseService {
                 let rowId = try self.insertRuleInternal(
                     name: name,
                     enabled: enabled,
+                    matchBundleId: nil,
                     matchAppName: matchAppName,
                     matchWindowTitle: matchWindowTitle,
                     matchMode: matchMode,
@@ -462,6 +618,7 @@ final class DatabaseService {
                 )
                 let changes = self.sqliteChanges()
                 AppLogger.log("Insert rule success id=\(rowId) changes=\(changes)", category: "db")
+                MaintenanceService.shared.suggestRecomputeTags()
                 completion(.success(rowId))
             } catch let error as DatabaseError {
                 AppLogger.log("Insert rule failed: \(error.logDescription)", category: "db")
@@ -486,6 +643,7 @@ final class DatabaseService {
                 try self.openDatabaseIfNeeded()
                 try self.updateRuleInternal(rule: rule)
                 AppLogger.log("Update rule success id=\(rule.id)", category: "db")
+                MaintenanceService.shared.suggestRecomputeTags()
                 completion(.success(()))
             } catch let error as DatabaseError {
                 AppLogger.log("Update rule failed: \(error.logDescription)", category: "db")
@@ -510,6 +668,7 @@ final class DatabaseService {
                 try self.openDatabaseIfNeeded()
                 try self.deleteRuleInternal(id: id)
                 AppLogger.log("Delete rule success id=\(id)", category: "db")
+                MaintenanceService.shared.suggestRecomputeTags()
                 completion(.success(()))
             } catch let error as DatabaseError {
                 AppLogger.log("Delete rule failed: \(error.logDescription)", category: "db")
@@ -521,7 +680,7 @@ final class DatabaseService {
         }
     }
 
-    func fetchAppMappings(completion: @escaping (Result<[AppMappingRow], Error>) -> Void) {
+    func fetchAppMappings(limit: Int? = nil, offset: Int? = nil, completion: @escaping (Result<[AppMappingRow], Error>) -> Void) {
         if Thread.isMainThread {
             AppLogger.log("Warning: fetchAppMappings called on main thread", category: "db")
         }
@@ -529,7 +688,7 @@ final class DatabaseService {
         queue.async { [self] in
             do {
                 try self.openDatabaseIfNeeded()
-                let rows = try self.fetchAppMappingsInternal()
+                let rows = try self.fetchAppMappingsInternal(limit: limit, offset: offset)
                 AppLogger.log("Fetch app mappings success rows=\(rows.count)", category: "db")
                 completion(.success(rows))
             } catch let error as DatabaseError {
@@ -601,42 +760,12 @@ final class DatabaseService {
         queue.async { [self] in
             do {
                 try self.openDatabaseIfNeeded()
-                let rules = try self.fetchRulesInternal(enabledOnly: true)
-                let matched = self.firstMatchingRule(rules: rules, appName: appName, windowTitle: windowTitle)
-                let ruleTagId = matched?.tagId
-
-                let mappingTagId: Int64?
-                if let bundleId, !bundleId.isEmpty {
-                    let nowEpoch = Int64(Date().timeIntervalSince1970)
-                    if var mapping = try self.fetchAppMappingInternal(bundleId: bundleId) {
-                        if mapping.appName != appName {
-                            mapping.appName = appName
-                            mapping.updatedAt = nowEpoch
-                            try self.updateAppMappingInternal(mapping: mapping)
-                        }
-                        mappingTagId = mapping.tagId
-                    } else {
-                        let defaultTagName = Self.defaultAppMappings[bundleId]?.tagName
-                        let defaultTagId = defaultTagName.flatMap { try? self.fetchTagIdByName($0) }
-                        _ = try self.insertAppMappingInternal(
-                            bundleId: bundleId,
-                            appName: appName,
-                            tagId: defaultTagId,
-                            updatedAt: nowEpoch
-                        )
-                        mappingTagId = defaultTagId
-                    }
-                } else {
-                    mappingTagId = nil
-                }
-
-                if let ruleTagId {
-                    completion(.success(ruleTagId))
-                } else if matched != nil {
-                    completion(.success(nil))
-                } else {
-                    completion(.success(mappingTagId))
-                }
+                let tagId = try self.resolveTagForActivityInternal(
+                    bundleId: bundleId,
+                    appName: appName,
+                    windowTitle: windowTitle
+                )
+                completion(.success(tagId))
             } catch let error as DatabaseError {
                 AppLogger.log("Resolve tag for activity failed: \(error.logDescription)", category: "db")
                 completion(.failure(error))
@@ -661,6 +790,7 @@ final class DatabaseService {
                 try self.openDatabaseIfNeeded()
                 try self.updateAppMappingTagInternal(id: id, tagId: tagId)
                 AppLogger.log("Update app mapping tag success id=\(id)", category: "db")
+                MaintenanceService.shared.suggestRecomputeTags()
                 completion(.success(()))
             } catch let error as DatabaseError {
                 AppLogger.log("Update app mapping tag failed: \(error.logDescription)", category: "db")
@@ -695,6 +825,11 @@ final class DatabaseService {
                     dayEnd: dayEnd
                 )
                 AppLogger.log("Apply tag to activities updated=\(updated)", category: "db")
+                if let dayStart, let dayEnd {
+                    AggregationService.shared.recordDatabaseChange(rangeStart: dayStart, rangeEnd: dayEnd)
+                } else {
+                    AggregationService.shared.recordDatabaseChange(rangeStart: 0, rangeEnd: Int64.max)
+                }
                 completion(.success(updated))
             } catch let error as DatabaseError {
                 AppLogger.log("Apply tag to activities failed: \(error.logDescription)", category: "db")
@@ -718,9 +853,14 @@ final class DatabaseService {
         queue.async { [self] in
             do {
                 try self.openDatabaseIfNeeded()
-                try self.updateActivityTagInternal(id: activityId, tagId: tagId)
+                try self.updateActivityUserOverrideInternal(id: activityId, userTagOverrideId: tagId)
                 let changes = self.sqliteChanges()
                 AppLogger.log("Update activity tag success id=\(activityId) changes=\(changes)", category: "db")
+                if let bounds = try? self.fetchActivityBoundsInternal(id: activityId) {
+                    AggregationService.shared.recordDatabaseChange(rangeStart: bounds.start, rangeEnd: bounds.end)
+                } else {
+                    AggregationService.shared.recordDatabaseChange(rangeStart: 0, rangeEnd: Int64.max)
+                }
                 completion(.success(()))
             } catch let error as DatabaseError {
                 AppLogger.log("Update activity tag failed: \(error.logDescription)", category: "db")
@@ -732,11 +872,20 @@ final class DatabaseService {
         }
     }
 
+    func setUserTagOverride(
+        activityId: Int64,
+        tagId: Int64?,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        updateActivityTag(activityId: activityId, tagId: tagId, completion: completion)
+    }
+
     func applyRuleToActivity(
         activityId: Int64,
         appName: String,
         windowTitle: String?,
         isIdle: Bool,
+        bundleId: String? = nil,
         completion: @escaping (Result<Int64?, Error>) -> Void
     ) {
         if Thread.isMainThread {
@@ -750,16 +899,18 @@ final class DatabaseService {
                     return
                 }
                 try self.openDatabaseIfNeeded()
-                let rules = try self.fetchRulesInternal(enabledOnly: true)
-                let matched = self.firstMatchingRule(rules: rules, appName: appName, windowTitle: windowTitle)
-                let tagId = matched?.tagId
-                if let tagId {
-                    try self.updateActivityTagInternal(id: activityId, tagId: tagId)
-                    AppLogger.log("Applied rule id=\(matched?.id ?? -1) to activity id=\(activityId)", category: "db")
+                let ruleTagId = try self.resolveTagForActivityInternal(
+                    bundleId: bundleId,
+                    appName: appName,
+                    windowTitle: windowTitle
+                )
+                try self.updateActivityRuleTagInternal(id: activityId, ruleTagId: ruleTagId)
+                if let bounds = try? self.fetchActivityBoundsInternal(id: activityId) {
+                    AggregationService.shared.recordDatabaseChange(rangeStart: bounds.start, rangeEnd: bounds.end)
                 } else {
-                    try self.updateActivityTagInternal(id: activityId, tagId: nil)
+                    AggregationService.shared.recordDatabaseChange(rangeStart: 0, rangeEnd: Int64.max)
                 }
-                completion(.success(tagId))
+                completion(.success(ruleTagId))
             } catch let error as DatabaseError {
                 AppLogger.log("Apply rule failed: \(error.logDescription)", category: "db")
                 completion(.failure(error))
@@ -782,42 +933,60 @@ final class DatabaseService {
         queue.async { [self] in
             do {
                 try self.openDatabaseIfNeeded()
-                let rules = try self.fetchRulesInternal(enabledOnly: true)
-                let activities = try self.fetchActivitiesOverlappingRangeInternal(start: dayStart, end: dayEnd)
-                var updated = 0
-                try self.execute(sql: "BEGIN IMMEDIATE TRANSACTION;")
-                do {
-                    for activity in activities {
-                        if activity.isIdle {
-                            if activity.tagId != nil {
-                                try self.updateActivityTagInternal(id: activity.id, tagId: nil)
-                                updated += 1
-                            }
-                            continue
-                        }
-                        let matched = self.firstMatchingRule(
-                            rules: rules,
-                            appName: activity.appName,
-                            windowTitle: activity.windowTitle
-                        )
-                        let desiredTagId = matched?.tagId
-                        if activity.tagId != desiredTagId {
-                            try self.updateActivityTagInternal(id: activity.id, tagId: desiredTagId)
-                            updated += 1
-                        }
-                    }
-                    try self.execute(sql: "COMMIT;")
-                } catch {
-                    try? self.execute(sql: "ROLLBACK;")
-                    throw error
-                }
+                let updated = try self.recomputeTagsInternal(rangeStart: dayStart, rangeEnd: dayEnd)
                 AppLogger.log("Apply rules to day updated=\(updated)", category: "db")
+                AggregationService.shared.recordDatabaseChange(rangeStart: dayStart, rangeEnd: dayEnd)
                 completion(.success(updated))
             } catch let error as DatabaseError {
                 AppLogger.log("Apply rules to day failed: \(error.logDescription)", category: "db")
                 completion(.failure(error))
             } catch {
                 AppLogger.log("Apply rules to day failed: \(error.localizedDescription)", category: "db")
+                completion(.failure(error))
+            }
+        }
+    }
+
+    func recomputeTags(
+        rangeStart: Int64,
+        rangeEnd: Int64,
+        completion: @escaping (Result<Int, Error>) -> Void
+    ) {
+        if Thread.isMainThread {
+            AppLogger.log("Warning: recomputeTags called on main thread", category: "db")
+        }
+
+        queue.async { [self] in
+            do {
+                try self.openDatabaseIfNeeded()
+                let updated = try self.recomputeTagsInternal(rangeStart: rangeStart, rangeEnd: rangeEnd)
+                AggregationService.shared.recordDatabaseChange(rangeStart: rangeStart, rangeEnd: rangeEnd)
+                completion(.success(updated))
+            } catch let error as DatabaseError {
+                AppLogger.log("Recompute tags failed: \(error.logDescription)", category: "db")
+                completion(.failure(error))
+            } catch {
+                AppLogger.log("Recompute tags failed: \(error.localizedDescription)", category: "db")
+                completion(.failure(error))
+            }
+        }
+    }
+
+    func runHealthChecks(completion: @escaping (Result<HealthCheckReport, Error>) -> Void) {
+        if Thread.isMainThread {
+            AppLogger.log("Warning: runHealthChecks called on main thread", category: "db")
+        }
+
+        queue.async { [self] in
+            do {
+                try self.openDatabaseIfNeeded()
+                let report = try self.runHealthChecksInternal()
+                completion(.success(report))
+            } catch let error as DatabaseError {
+                AppLogger.log("Health checks failed: \(error.logDescription)", category: "db")
+                completion(.failure(error))
+            } catch {
+                AppLogger.log("Health checks failed: \(error.localizedDescription)", category: "db")
                 completion(.failure(error))
             }
         }
@@ -1025,10 +1194,26 @@ final class DatabaseService {
             AppLogger.log("Schema migrations failed: \(error.localizedDescription)", category: "db")
         }
         hasBundleIdColumn = (try? activitiesColumnExists("bundle_id")) ?? false
+        hasRuleTagColumn = (try? activitiesColumnExists("rule_tag_id")) ?? false
+        hasUserTagOverrideColumn = (try? activitiesColumnExists("user_tag_override_id")) ?? false
+        hasEffectiveTagColumn = (try? activitiesColumnExists("effective_tag_id")) ?? false
+        hasRulesBundleIdColumn = (try? rulesColumnExists("match_bundle_id")) ?? false
         do {
             try createActivityIndexes()
         } catch {
             AppLogger.log("Create activity indexes failed: \(error.localizedDescription)", category: "db")
+        }
+        do {
+            try createMarkerIndexes()
+        } catch {
+            AppLogger.log("Create marker indexes failed: \(error.localizedDescription)", category: "db")
+        }
+        if (try? tableExists("RawEvents")) ?? false {
+            do {
+                try createRawEventIndexes()
+            } catch {
+                AppLogger.log("Create raw event indexes failed: \(error.localizedDescription)", category: "db")
+            }
         }
         do {
             try ensureDefaultTagsIfNeeded()
@@ -1053,7 +1238,10 @@ final class DatabaseService {
             bundle_id TEXT,
             window_title TEXT,
             is_idle INTEGER NOT NULL DEFAULT 0,
-            tag_id INTEGER
+            tag_id INTEGER,
+            rule_tag_id INTEGER,
+            user_tag_override_id INTEGER,
+            effective_tag_id INTEGER
         );
         """
 
@@ -1078,6 +1266,7 @@ final class DatabaseService {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL,
             enabled INTEGER NOT NULL DEFAULT 1,
+            match_bundle_id TEXT,
             match_app_name TEXT,
             match_window_title TEXT,
             match_mode TEXT NOT NULL DEFAULT 'contains',
@@ -1108,17 +1297,37 @@ final class DatabaseService {
     private func createActivityIndexes() throws {
         let indexStartTime = "CREATE INDEX IF NOT EXISTS idx_activities_start_time ON Activities(start_time);"
         let indexEndTime = "CREATE INDEX IF NOT EXISTS idx_activities_end_time ON Activities(end_time);"
+        let indexStartEnd = "CREATE INDEX IF NOT EXISTS idx_activities_start_end ON Activities(start_time, end_time);"
         let indexAppName = "CREATE INDEX IF NOT EXISTS idx_activities_app_name ON Activities(app_name);"
         let indexTagId = "CREATE INDEX IF NOT EXISTS idx_activities_tag_id ON Activities(tag_id);"
         let indexIsIdle = "CREATE INDEX IF NOT EXISTS idx_activities_is_idle ON Activities(is_idle);"
+        let indexIsIdleStart = "CREATE INDEX IF NOT EXISTS idx_activities_is_idle_start ON Activities(is_idle, start_time);"
         try execute(sql: indexStartTime)
         try execute(sql: indexEndTime)
+        try execute(sql: indexStartEnd)
         try execute(sql: indexAppName)
         try execute(sql: indexTagId)
         try execute(sql: indexIsIdle)
+        try execute(sql: indexIsIdleStart)
+        if hasRuleTagColumn {
+            let indexRuleTag = "CREATE INDEX IF NOT EXISTS idx_activities_rule_tag_id ON Activities(rule_tag_id);"
+            try execute(sql: indexRuleTag)
+        }
+        if hasUserTagOverrideColumn {
+            let indexUserTag = "CREATE INDEX IF NOT EXISTS idx_activities_user_tag_override_id ON Activities(user_tag_override_id);"
+            try execute(sql: indexUserTag)
+        }
+        if hasEffectiveTagColumn {
+            let indexEffectiveTag = "CREATE INDEX IF NOT EXISTS idx_activities_effective_tag_id ON Activities(effective_tag_id);"
+            try execute(sql: indexEffectiveTag)
+            let indexEffectiveTagStart = "CREATE INDEX IF NOT EXISTS idx_activities_effective_tag_id_start ON Activities(effective_tag_id, start_time);"
+            try execute(sql: indexEffectiveTagStart)
+        }
         if hasBundleIdColumn {
             let indexBundleId = "CREATE INDEX IF NOT EXISTS idx_activities_bundle_id ON Activities(bundle_id);"
             try execute(sql: indexBundleId)
+            let indexBundleIdStart = "CREATE INDEX IF NOT EXISTS idx_activities_bundle_id_start ON Activities(bundle_id, start_time);"
+            try execute(sql: indexBundleIdStart)
         }
     }
 
@@ -1136,6 +1345,35 @@ final class DatabaseService {
         try execute(sql: indexTag)
     }
 
+    private func createRawEventsTableIfNeeded() throws {
+        let sql = """
+        CREATE TABLE IF NOT EXISTS RawEvents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ts INTEGER NOT NULL,
+            type TEXT NOT NULL,
+            bundle_id TEXT,
+            app_name TEXT,
+            window_title TEXT,
+            payload TEXT
+        );
+        """
+        try execute(sql: sql)
+    }
+
+    private func createRawEventIndexes() throws {
+        let idxTs = "CREATE INDEX IF NOT EXISTS idx_rawevents_ts ON RawEvents(ts);"
+        let idxType = "CREATE INDEX IF NOT EXISTS idx_rawevents_type ON RawEvents(type);"
+        let idxTypeTs = "CREATE INDEX IF NOT EXISTS idx_rawevents_type_ts ON RawEvents(type, ts);"
+        try execute(sql: idxTs)
+        try execute(sql: idxType)
+        try execute(sql: idxTypeTs)
+    }
+
+    private func createMarkerIndexes() throws {
+        let idxTimestamp = "CREATE INDEX IF NOT EXISTS idx_markers_timestamp ON Markers(timestamp);"
+        try execute(sql: idxTimestamp)
+    }
+
     private struct SchemaMigration {
         let id: String
         let apply: () throws -> Void
@@ -1147,6 +1385,16 @@ final class DatabaseService {
         let migrations: [SchemaMigration] = [
             SchemaMigration(id: "2026_01_add_bundle_id") { [self] in
                 try migrateAddBundleIdColumnIfNeeded()
+            },
+            SchemaMigration(id: "2026_02_raw_events") { [self] in
+                try createRawEventsTableIfNeeded()
+                try createRawEventIndexes()
+            },
+            SchemaMigration(id: "2026_03_effective_tag_columns") { [self] in
+                try migrateAddEffectiveTagColumnsIfNeeded()
+            },
+            SchemaMigration(id: "2026_04_rules_match_bundle_id") { [self] in
+                try migrateAddRulesBundleIdColumnIfNeeded()
             }
         ]
 
@@ -1293,6 +1541,27 @@ final class DatabaseService {
         return false
     }
 
+    private func rulesColumnExists(_ name: String) throws -> Bool {
+        let sql = "PRAGMA table_info(Rules);"
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "prepare", sql: sql, message: message)
+            throw DatabaseError.prepareFailed(message, sql: sql)
+        }
+        defer { sqlite3_finalize(statement) }
+
+        while sqlite3_step(statement) == SQLITE_ROW {
+            guard let nameC = sqlite3_column_text(statement, 1) else { continue }
+            let columnName = String(cString: nameC)
+            if columnName == name {
+                return true
+            }
+        }
+
+        return false
+    }
+
     private func migrateAddBundleIdColumnIfNeeded() throws {
         if try activitiesColumnExists("bundle_id") {
             hasBundleIdColumn = true
@@ -1301,6 +1570,47 @@ final class DatabaseService {
         AppLogger.log("Migration: adding Activities.bundle_id", category: "db")
         try execute(sql: "ALTER TABLE Activities ADD COLUMN bundle_id TEXT;")
         hasBundleIdColumn = true
+    }
+
+    private func migrateAddEffectiveTagColumnsIfNeeded() throws {
+        var didAlter = false
+        if !(try activitiesColumnExists("rule_tag_id")) {
+            AppLogger.log("Migration: adding Activities.rule_tag_id", category: "db")
+            try execute(sql: "ALTER TABLE Activities ADD COLUMN rule_tag_id INTEGER;")
+            didAlter = true
+        }
+        if !(try activitiesColumnExists("user_tag_override_id")) {
+            AppLogger.log("Migration: adding Activities.user_tag_override_id", category: "db")
+            try execute(sql: "ALTER TABLE Activities ADD COLUMN user_tag_override_id INTEGER;")
+            didAlter = true
+        }
+        if !(try activitiesColumnExists("effective_tag_id")) {
+            AppLogger.log("Migration: adding Activities.effective_tag_id", category: "db")
+            try execute(sql: "ALTER TABLE Activities ADD COLUMN effective_tag_id INTEGER;")
+            didAlter = true
+        }
+        if didAlter {
+            try execute(sql: "UPDATE Activities SET rule_tag_id = tag_id, effective_tag_id = tag_id WHERE tag_id IS NOT NULL AND rule_tag_id IS NULL;")
+        }
+        if didAlter {
+            hasRuleTagColumn = true
+            hasUserTagOverrideColumn = true
+            hasEffectiveTagColumn = true
+        } else {
+            hasRuleTagColumn = (try? activitiesColumnExists("rule_tag_id")) ?? false
+            hasUserTagOverrideColumn = (try? activitiesColumnExists("user_tag_override_id")) ?? false
+            hasEffectiveTagColumn = (try? activitiesColumnExists("effective_tag_id")) ?? false
+        }
+    }
+
+    private func migrateAddRulesBundleIdColumnIfNeeded() throws {
+        if try rulesColumnExists("match_bundle_id") {
+            hasRulesBundleIdColumn = true
+            return
+        }
+        AppLogger.log("Migration: adding Rules.match_bundle_id", category: "db")
+        try execute(sql: "ALTER TABLE Rules ADD COLUMN match_bundle_id TEXT;")
+        hasRulesBundleIdColumn = true
     }
 
     private func ensureDefaultTagsIfNeeded() throws {
@@ -1360,13 +1670,16 @@ final class DatabaseService {
                 bundle_id TEXT,
                 window_title TEXT,
                 is_idle INTEGER NOT NULL DEFAULT 0,
-                tag_id INTEGER
+                tag_id INTEGER,
+                rule_tag_id INTEGER,
+                user_tag_override_id INTEGER,
+                effective_tag_id INTEGER
             );
             """
             let copyActivities: String
             if hasBundleId {
                 copyActivities = """
-                INSERT INTO Activities_new (id, start_time, end_time, app_name, bundle_id, window_title, is_idle, tag_id)
+                INSERT INTO Activities_new (id, start_time, end_time, app_name, bundle_id, window_title, is_idle, tag_id, rule_tag_id, user_tag_override_id, effective_tag_id)
                 SELECT id,
                        start_time,
                        COALESCE(end_time, start_time),
@@ -1374,12 +1687,15 @@ final class DatabaseService {
                        bundle_id,
                        window_title,
                        COALESCE(is_idle, 0),
+                       tag_id,
+                       tag_id,
+                       NULL,
                        tag_id
                 FROM Activities;
                 """
             } else {
                 copyActivities = """
-                INSERT INTO Activities_new (id, start_time, end_time, app_name, bundle_id, window_title, is_idle, tag_id)
+                INSERT INTO Activities_new (id, start_time, end_time, app_name, bundle_id, window_title, is_idle, tag_id, rule_tag_id, user_tag_override_id, effective_tag_id)
                 SELECT id,
                        start_time,
                        COALESCE(end_time, start_time),
@@ -1387,6 +1703,9 @@ final class DatabaseService {
                        NULL,
                        window_title,
                        COALESCE(is_idle, 0),
+                       tag_id,
+                       tag_id,
+                       NULL,
                        tag_id
                 FROM Activities;
                 """
@@ -1448,17 +1767,46 @@ final class DatabaseService {
         isIdle: Bool,
         tagId: Int64?
     ) throws -> Int64 {
+        let ruleTagId: Int64?
+        if isIdle {
+            ruleTagId = nil
+        } else {
+            ruleTagId = try resolveTagForActivityInternal(
+                bundleId: bundleId,
+                appName: appName,
+                windowTitle: windowTitle
+            )
+        }
+        let userOverrideTagId = tagId
+        let effectiveTagId = userOverrideTagId ?? ruleTagId
+        let persistedTagId = effectiveTagId
+
+        let hasExtendedTagColumns = hasRuleTagColumn || hasUserTagOverrideColumn || hasEffectiveTagColumn
         let sql: String
         if hasBundleIdColumn {
-            sql = """
-            INSERT INTO Activities (start_time, end_time, app_name, bundle_id, window_title, is_idle, tag_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?);
-            """
+            if hasExtendedTagColumns {
+                sql = """
+                INSERT INTO Activities (start_time, end_time, app_name, bundle_id, window_title, is_idle, tag_id, rule_tag_id, user_tag_override_id, effective_tag_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                """
+            } else {
+                sql = """
+                INSERT INTO Activities (start_time, end_time, app_name, bundle_id, window_title, is_idle, tag_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?);
+                """
+            }
         } else {
-            sql = """
-            INSERT INTO Activities (start_time, end_time, app_name, window_title, is_idle, tag_id)
-            VALUES (?, ?, ?, ?, ?, ?);
-            """
+            if hasExtendedTagColumns {
+                sql = """
+                INSERT INTO Activities (start_time, end_time, app_name, window_title, is_idle, tag_id, rule_tag_id, user_tag_override_id, effective_tag_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+                """
+            } else {
+                sql = """
+                INSERT INTO Activities (start_time, end_time, app_name, window_title, is_idle, tag_id)
+                VALUES (?, ?, ?, ?, ?, ?);
+                """
+            }
         }
 
         var statement: OpaquePointer?
@@ -1493,10 +1841,33 @@ final class DatabaseService {
         try bind(sql: sql, result: sqlite3_bind_int(statement, index, isIdle ? 1 : 0), detail: "is_idle")
         index += 1
 
-        if let tagId {
-            try bind(sql: sql, result: sqlite3_bind_int64(statement, index, tagId), detail: "tag_id")
+        if let persistedTagId {
+            try bind(sql: sql, result: sqlite3_bind_int64(statement, index, persistedTagId), detail: "tag_id")
         } else {
             try bind(sql: sql, result: sqlite3_bind_null(statement, index), detail: "tag_id")
+        }
+        index += 1
+
+        if hasExtendedTagColumns {
+            if let ruleTagId {
+                try bind(sql: sql, result: sqlite3_bind_int64(statement, index, ruleTagId), detail: "rule_tag_id")
+            } else {
+                try bind(sql: sql, result: sqlite3_bind_null(statement, index), detail: "rule_tag_id")
+            }
+            index += 1
+
+            if let userOverrideTagId {
+                try bind(sql: sql, result: sqlite3_bind_int64(statement, index, userOverrideTagId), detail: "user_tag_override_id")
+            } else {
+                try bind(sql: sql, result: sqlite3_bind_null(statement, index), detail: "user_tag_override_id")
+            }
+            index += 1
+
+            if let effectiveTagId {
+                try bind(sql: sql, result: sqlite3_bind_int64(statement, index, effectiveTagId), detail: "effective_tag_id")
+            } else {
+                try bind(sql: sql, result: sqlite3_bind_null(statement, index), detail: "effective_tag_id")
+            }
         }
 
         let stepResult = sqlite3_step(statement)
@@ -1533,6 +1904,279 @@ final class DatabaseService {
             logSQLiteError(operation: "step", sql: sql, message: message)
             throw DatabaseError.stepFailed(message, sql: sql)
         }
+    }
+
+    private func insertRawEventInternal(_ event: RawEvent) throws -> Int64 {
+        let sql = """
+        INSERT INTO RawEvents (ts, type, bundle_id, app_name, window_title, payload)
+        VALUES (?, ?, ?, ?, ?, ?);
+        """
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "prepare", sql: sql, message: message)
+            throw DatabaseError.prepareFailed(message, sql: sql)
+        }
+        defer { sqlite3_finalize(statement) }
+
+        try bind(sql: sql, result: sqlite3_bind_int64(statement, 1, event.timestamp), detail: "ts")
+        try bind(sql: sql, result: sqlite3_bind_text(statement, 2, event.type.rawValue, -1, sqliteTransientDestructor), detail: "type")
+        if let bundleId = event.bundleId {
+            try bind(sql: sql, result: sqlite3_bind_text(statement, 3, bundleId, -1, sqliteTransientDestructor), detail: "bundle_id")
+        } else {
+            try bind(sql: sql, result: sqlite3_bind_null(statement, 3), detail: "bundle_id")
+        }
+        if let appName = event.appName {
+            try bind(sql: sql, result: sqlite3_bind_text(statement, 4, appName, -1, sqliteTransientDestructor), detail: "app_name")
+        } else {
+            try bind(sql: sql, result: sqlite3_bind_null(statement, 4), detail: "app_name")
+        }
+        if let title = event.windowTitle {
+            try bind(sql: sql, result: sqlite3_bind_text(statement, 5, title, -1, sqliteTransientDestructor), detail: "window_title")
+        } else {
+            try bind(sql: sql, result: sqlite3_bind_null(statement, 5), detail: "window_title")
+        }
+        if let payload = event.payload {
+            try bind(sql: sql, result: sqlite3_bind_text(statement, 6, payload, -1, sqliteTransientDestructor), detail: "payload")
+        } else {
+            try bind(sql: sql, result: sqlite3_bind_null(statement, 6), detail: "payload")
+        }
+
+        let stepResult = sqlite3_step(statement)
+        guard stepResult == SQLITE_DONE else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "step", sql: sql, message: message)
+            throw DatabaseError.stepFailed(message, sql: sql)
+        }
+        return sqlite3_last_insert_rowid(db)
+    }
+
+    private func fetchRawEventsInternal(start: Int64, end: Int64) throws -> [RawEvent] {
+        let sql = """
+        SELECT id, ts, type, bundle_id, app_name, window_title, payload
+        FROM RawEvents
+        WHERE ts >= ? AND ts <= ?
+        ORDER BY ts ASC, id ASC;
+        """
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "prepare", sql: sql, message: message)
+            throw DatabaseError.prepareFailed(message, sql: sql)
+        }
+        defer { sqlite3_finalize(statement) }
+
+        try bind(sql: sql, result: sqlite3_bind_int64(statement, 1, start), detail: "start")
+        try bind(sql: sql, result: sqlite3_bind_int64(statement, 2, end), detail: "end")
+
+        var events: [RawEvent] = []
+        while true {
+            let stepResult = sqlite3_step(statement)
+            if stepResult == SQLITE_ROW {
+                let id = sqlite3_column_int64(statement, 0)
+                let ts = sqlite3_column_int64(statement, 1)
+                let typeText = sqlite3_column_text(statement, 2)
+                let typeString = typeText != nil ? String(cString: typeText!) : ""
+                let bundleId = sqlite3_column_text(statement, 3).flatMap { String(cString: $0) }
+                let appName = sqlite3_column_text(statement, 4).flatMap { String(cString: $0) }
+                let windowTitle = sqlite3_column_text(statement, 5).flatMap { String(cString: $0) }
+                let payload = sqlite3_column_text(statement, 6).flatMap { String(cString: $0) }
+                let type = RawEventType(rawValue: typeString) ?? .appActivated
+                events.append(RawEvent(
+                    id: id,
+                    timestamp: ts,
+                    type: type,
+                    bundleId: bundleId,
+                    appName: appName,
+                    windowTitle: windowTitle,
+                    payload: payload
+                ))
+            } else if stepResult == SQLITE_DONE {
+                break
+            } else {
+                let message = sqliteErrorMessage(db)
+                logSQLiteError(operation: "step", sql: sql, message: message)
+                throw DatabaseError.stepFailed(message, sql: sql)
+            }
+        }
+        return events
+    }
+
+    private func deleteActivitiesInRangeInternal(start: Int64, end: Int64) throws -> Int {
+        let sql = "DELETE FROM Activities WHERE start_time < ? AND end_time > ?;"
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "prepare", sql: sql, message: message)
+            throw DatabaseError.prepareFailed(message, sql: sql)
+        }
+        defer { sqlite3_finalize(statement) }
+        try bind(sql: sql, result: sqlite3_bind_int64(statement, 1, end), detail: "end")
+        try bind(sql: sql, result: sqlite3_bind_int64(statement, 2, start), detail: "start")
+        let stepResult = sqlite3_step(statement)
+        guard stepResult == SQLITE_DONE else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "step", sql: sql, message: message)
+            throw DatabaseError.stepFailed(message, sql: sql)
+        }
+        return Int(sqlite3_changes(db))
+    }
+
+    private func resolveTagForActivityInternal(
+        bundleId: String?,
+        appName: String,
+        windowTitle: String?
+    ) throws -> Int64? {
+        let rules = try fetchRulesInternal(enabledOnly: true)
+        let evaluation = TaggingEngine.evaluate(
+            activity: TaggingEngine.ActivityDescriptor(
+                bundleId: bundleId,
+                appName: appName,
+                windowTitle: windowTitle
+            ),
+            rules: rules
+        )
+        let ruleTagId = evaluation.ruleTagId
+
+        let mappingTagId: Int64?
+        if let bundleId, !bundleId.isEmpty {
+            let nowEpoch = Int64(Date().timeIntervalSince1970)
+            if var mapping = try fetchAppMappingInternal(bundleId: bundleId) {
+                if mapping.appName != appName {
+                    mapping.appName = appName
+                    mapping.updatedAt = nowEpoch
+                    try updateAppMappingInternal(mapping: mapping)
+                }
+                mappingTagId = mapping.tagId
+            } else {
+                let defaultTagName = Self.defaultAppMappings[bundleId]?.tagName
+                let defaultTagId = defaultTagName.flatMap { try? fetchTagIdByName($0) }
+                _ = try insertAppMappingInternal(
+                    bundleId: bundleId,
+                    appName: appName,
+                    tagId: defaultTagId,
+                    updatedAt: nowEpoch
+                )
+                mappingTagId = defaultTagId
+            }
+        } else {
+            mappingTagId = nil
+        }
+
+        if evaluation.ruleMatched {
+            return ruleTagId
+        }
+        return mappingTagId
+    }
+
+    private func recomputeTagsInternal(rangeStart: Int64, rangeEnd: Int64) throws -> Int {
+        let activities = try fetchActivitiesOverlappingRangeInternal(start: rangeStart, end: rangeEnd, limit: nil, offset: nil)
+        let rules = try fetchRulesInternal(enabledOnly: true)
+        let useExtended = hasRuleTagColumn || hasEffectiveTagColumn || hasUserTagOverrideColumn
+        var updatedCount = 0
+
+        func resolveMappingTagId(bundleId: String, appName: String) throws -> Int64? {
+            let nowEpoch = Int64(Date().timeIntervalSince1970)
+            if var mapping = try fetchAppMappingInternal(bundleId: bundleId) {
+                if mapping.appName != appName {
+                    mapping.appName = appName
+                    mapping.updatedAt = nowEpoch
+                    try updateAppMappingInternal(mapping: mapping)
+                }
+                return mapping.tagId
+            }
+            let defaultTagName = Self.defaultAppMappings[bundleId]?.tagName
+            let defaultTagId = defaultTagName.flatMap { try? fetchTagIdByName($0) }
+            _ = try insertAppMappingInternal(
+                bundleId: bundleId,
+                appName: appName,
+                tagId: defaultTagId,
+                updatedAt: nowEpoch
+            )
+            return defaultTagId
+        }
+
+        try execute(sql: "BEGIN IMMEDIATE TRANSACTION;")
+        do {
+            var updateStatement: OpaquePointer?
+            if useExtended {
+                let sql = """
+                UPDATE Activities
+                SET rule_tag_id = ?,
+                    effective_tag_id = COALESCE(user_tag_override_id, ?),
+                    tag_id = COALESCE(user_tag_override_id, ?)
+                WHERE id = ?;
+                """
+                guard sqlite3_prepare_v2(db, sql, -1, &updateStatement, nil) == SQLITE_OK else {
+                    let message = sqliteErrorMessage(db)
+                    logSQLiteError(operation: "prepare", sql: sql, message: message)
+                    throw DatabaseError.prepareFailed(message, sql: sql)
+                }
+            }
+            defer { sqlite3_finalize(updateStatement) }
+
+            for activity in activities {
+                let ruleTagId: Int64?
+                if activity.isIdle {
+                    ruleTagId = nil
+                } else {
+                    let evaluation = TaggingEngine.evaluate(
+                        activity: TaggingEngine.ActivityDescriptor(
+                            bundleId: activity.bundleId,
+                            appName: activity.appName,
+                            windowTitle: activity.windowTitle
+                        ),
+                        rules: rules
+                    )
+                    if evaluation.ruleMatched {
+                        ruleTagId = evaluation.ruleTagId
+                    } else if let bundleId = activity.bundleId, !bundleId.isEmpty {
+                        ruleTagId = try resolveMappingTagId(bundleId: bundleId, appName: activity.appName)
+                    } else {
+                        ruleTagId = nil
+                    }
+                }
+
+                let desiredEffective = activity.userTagOverrideId ?? ruleTagId
+                if activity.ruleTagId == ruleTagId && activity.effectiveTagId == desiredEffective {
+                    continue
+                }
+
+                if useExtended, let statement = updateStatement {
+                    sqlite3_reset(statement)
+                    sqlite3_clear_bindings(statement)
+
+                    if let ruleTagId {
+                        try bind(sql: "UPDATE Activities", result: sqlite3_bind_int64(statement, 1, ruleTagId), detail: "rule_tag_id")
+                        try bind(sql: "UPDATE Activities", result: sqlite3_bind_int64(statement, 2, ruleTagId), detail: "effective_tag_id")
+                        try bind(sql: "UPDATE Activities", result: sqlite3_bind_int64(statement, 3, ruleTagId), detail: "tag_id")
+                    } else {
+                        try bind(sql: "UPDATE Activities", result: sqlite3_bind_null(statement, 1), detail: "rule_tag_id")
+                        try bind(sql: "UPDATE Activities", result: sqlite3_bind_null(statement, 2), detail: "effective_tag_id")
+                        try bind(sql: "UPDATE Activities", result: sqlite3_bind_null(statement, 3), detail: "tag_id")
+                    }
+                    try bind(sql: "UPDATE Activities", result: sqlite3_bind_int64(statement, 4, activity.id), detail: "id")
+
+                    let stepResult = sqlite3_step(statement)
+                    guard stepResult == SQLITE_DONE else {
+                        let message = sqliteErrorMessage(db)
+                        logSQLiteError(operation: "step", sql: "UPDATE Activities", message: message)
+                        throw DatabaseError.stepFailed(message, sql: "UPDATE Activities")
+                    }
+                } else {
+                    try updateActivityTagInternal(id: activity.id, tagId: desiredEffective)
+                }
+
+                updatedCount += 1
+            }
+
+            try execute(sql: "COMMIT;")
+        } catch {
+            try? execute(sql: "ROLLBACK;")
+            throw error
+        }
+
+        return updatedCount
     }
 
     private func insertMarkerInternal(timestamp: Int64, text: String) throws -> Int64 {
@@ -1658,7 +2302,20 @@ final class DatabaseService {
     private func deleteTagInternal(id: Int64) throws {
         try execute(sql: "BEGIN IMMEDIATE TRANSACTION;")
         do {
-            let clearSql = "UPDATE Activities SET tag_id = NULL WHERE tag_id = ?;"
+            let useExtended = hasRuleTagColumn || hasEffectiveTagColumn || hasUserTagOverrideColumn
+            let clearSql: String
+            if useExtended {
+                clearSql = """
+                UPDATE Activities
+                SET tag_id = CASE WHEN tag_id = ? THEN NULL ELSE tag_id END,
+                    rule_tag_id = CASE WHEN rule_tag_id = ? THEN NULL ELSE rule_tag_id END,
+                    user_tag_override_id = CASE WHEN user_tag_override_id = ? THEN NULL ELSE user_tag_override_id END,
+                    effective_tag_id = CASE WHEN effective_tag_id = ? THEN NULL ELSE effective_tag_id END
+                WHERE tag_id = ? OR rule_tag_id = ? OR user_tag_override_id = ? OR effective_tag_id = ?;
+                """
+            } else {
+                clearSql = "UPDATE Activities SET tag_id = NULL WHERE tag_id = ?;"
+            }
             var clearStmt: OpaquePointer?
             guard sqlite3_prepare_v2(db, clearSql, -1, &clearStmt, nil) == SQLITE_OK else {
                 let message = sqliteErrorMessage(db)
@@ -1666,7 +2323,18 @@ final class DatabaseService {
                 throw DatabaseError.prepareFailed(message, sql: clearSql)
             }
             defer { sqlite3_finalize(clearStmt) }
-            try bind(sql: clearSql, result: sqlite3_bind_int64(clearStmt, 1, id), detail: "tag_id")
+            if useExtended {
+                try bind(sql: clearSql, result: sqlite3_bind_int64(clearStmt, 1, id), detail: "tag_id")
+                try bind(sql: clearSql, result: sqlite3_bind_int64(clearStmt, 2, id), detail: "rule_tag_id")
+                try bind(sql: clearSql, result: sqlite3_bind_int64(clearStmt, 3, id), detail: "user_tag_override_id")
+                try bind(sql: clearSql, result: sqlite3_bind_int64(clearStmt, 4, id), detail: "effective_tag_id")
+                try bind(sql: clearSql, result: sqlite3_bind_int64(clearStmt, 5, id), detail: "tag_id_where")
+                try bind(sql: clearSql, result: sqlite3_bind_int64(clearStmt, 6, id), detail: "rule_tag_id_where")
+                try bind(sql: clearSql, result: sqlite3_bind_int64(clearStmt, 7, id), detail: "user_tag_override_id_where")
+                try bind(sql: clearSql, result: sqlite3_bind_int64(clearStmt, 8, id), detail: "effective_tag_id_where")
+            } else {
+                try bind(sql: clearSql, result: sqlite3_bind_int64(clearStmt, 1, id), detail: "tag_id")
+            }
             let clearResult = sqlite3_step(clearStmt)
             guard clearResult == SQLITE_DONE else {
                 let message = sqliteErrorMessage(db)
@@ -1722,12 +2390,20 @@ final class DatabaseService {
         throw DatabaseError.stepFailed(message, sql: sql)
     }
 
-    private func fetchAppMappingsInternal() throws -> [AppMappingRow] {
-        let sql = """
+    private func fetchAppMappingsInternal(limit: Int? = nil, offset: Int? = nil) throws -> [AppMappingRow] {
+        var sql = """
         SELECT id, bundle_id, app_name, tag_id, updated_at
         FROM AppMappings
-        ORDER BY app_name COLLATE NOCASE ASC;
+        ORDER BY app_name COLLATE NOCASE ASC
         """
+        let applyLimit = limit != nil || (offset ?? 0) > 0
+        if applyLimit {
+            sql += " LIMIT ?"
+            if let offset, offset > 0 {
+                sql += " OFFSET ?"
+            }
+        }
+        sql += ";"
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
             let message = sqliteErrorMessage(db)
@@ -1735,6 +2411,16 @@ final class DatabaseService {
             throw DatabaseError.prepareFailed(message, sql: sql)
         }
         defer { sqlite3_finalize(statement) }
+
+        if applyLimit {
+            var bindIndex: Int32 = 1
+            let limitValue = min(limit ?? Int(Int32.max), Int(Int32.max))
+            try bind(sql: sql, result: sqlite3_bind_int(statement, bindIndex, Int32(limitValue)), detail: "limit")
+            bindIndex += 1
+            if let offset, offset > 0 {
+                try bind(sql: sql, result: sqlite3_bind_int(statement, bindIndex, Int32(offset)), detail: "offset")
+            }
+        }
 
         var rows: [AppMappingRow] = []
         while true {
@@ -1913,11 +2599,17 @@ final class DatabaseService {
         dayStart: Int64?,
         dayEnd: Int64?
     ) throws -> Int {
+        let useExtended = hasRuleTagColumn || hasEffectiveTagColumn || hasUserTagOverrideColumn
         var sql = """
         UPDATE Activities
-        SET tag_id = ?
-        WHERE
+        SET
         """
+        if useExtended {
+            sql += "rule_tag_id = ?, effective_tag_id = COALESCE(user_tag_override_id, ?), tag_id = COALESCE(user_tag_override_id, ?)"
+        } else {
+            sql += "tag_id = ?"
+        }
+        sql += "\nWHERE\n"
         if hasBundleIdColumn {
             sql += "(bundle_id = ? OR (bundle_id IS NULL AND app_name = ?))"
         } else {
@@ -1937,12 +2629,30 @@ final class DatabaseService {
         defer { sqlite3_finalize(statement) }
 
         var index: Int32 = 1
-        if let tagId {
-            try bind(sql: sql, result: sqlite3_bind_int64(statement, index, tagId), detail: "tag_id")
+        if useExtended {
+            if let tagId {
+                try bind(sql: sql, result: sqlite3_bind_int64(statement, index, tagId), detail: "rule_tag_id")
+                index += 1
+                try bind(sql: sql, result: sqlite3_bind_int64(statement, index, tagId), detail: "effective_tag_id")
+                index += 1
+                try bind(sql: sql, result: sqlite3_bind_int64(statement, index, tagId), detail: "tag_id")
+                index += 1
+            } else {
+                try bind(sql: sql, result: sqlite3_bind_null(statement, index), detail: "rule_tag_id")
+                index += 1
+                try bind(sql: sql, result: sqlite3_bind_null(statement, index), detail: "effective_tag_id")
+                index += 1
+                try bind(sql: sql, result: sqlite3_bind_null(statement, index), detail: "tag_id")
+                index += 1
+            }
         } else {
-            try bind(sql: sql, result: sqlite3_bind_null(statement, index), detail: "tag_id")
+            if let tagId {
+                try bind(sql: sql, result: sqlite3_bind_int64(statement, index, tagId), detail: "tag_id")
+            } else {
+                try bind(sql: sql, result: sqlite3_bind_null(statement, index), detail: "tag_id")
+            }
+            index += 1
         }
-        index += 1
 
         if hasBundleIdColumn {
             try bind(sql: sql, result: sqlite3_bind_text(statement, index, bundleId, -1, sqliteTransientDestructor), detail: "bundle_id")
@@ -1972,16 +2682,17 @@ final class DatabaseService {
 
     private func fetchRulesInternal(enabledOnly: Bool) throws -> [RuleRow] {
         let sql: String
+        let bundleColumn = hasRulesBundleIdColumn ? "match_bundle_id" : "NULL AS match_bundle_id"
         if enabledOnly {
             sql = """
-            SELECT id, name, enabled, match_app_name, match_window_title, match_mode, tag_id, priority
+            SELECT id, name, enabled, \(bundleColumn), match_app_name, match_window_title, match_mode, tag_id, priority
             FROM Rules
             WHERE enabled = 1
             ORDER BY priority DESC, id ASC;
             """
         } else {
             sql = """
-            SELECT id, name, enabled, match_app_name, match_window_title, match_mode, tag_id, priority
+            SELECT id, name, enabled, \(bundleColumn), match_app_name, match_window_title, match_mode, tag_id, priority
             FROM Rules
             ORDER BY priority DESC, id ASC;
             """
@@ -2002,33 +2713,40 @@ final class DatabaseService {
                 let id = sqlite3_column_int64(statement, 0)
                 let name = String(cString: sqlite3_column_text(statement, 1))
                 let enabled = sqlite3_column_int(statement, 2) == 1
-                let matchAppName: String?
+                let matchBundleId: String?
                 if sqlite3_column_type(statement, 3) == SQLITE_NULL {
+                    matchBundleId = nil
+                } else {
+                    matchBundleId = String(cString: sqlite3_column_text(statement, 3))
+                }
+                let matchAppName: String?
+                if sqlite3_column_type(statement, 4) == SQLITE_NULL {
                     matchAppName = nil
                 } else {
-                    matchAppName = String(cString: sqlite3_column_text(statement, 3))
+                    matchAppName = String(cString: sqlite3_column_text(statement, 4))
                 }
                 let matchWindowTitle: String?
-                if sqlite3_column_type(statement, 4) == SQLITE_NULL {
+                if sqlite3_column_type(statement, 5) == SQLITE_NULL {
                     matchWindowTitle = nil
                 } else {
-                    matchWindowTitle = String(cString: sqlite3_column_text(statement, 4))
+                    matchWindowTitle = String(cString: sqlite3_column_text(statement, 5))
                 }
-                let modeRaw = String(cString: sqlite3_column_text(statement, 5))
+                let modeRaw = String(cString: sqlite3_column_text(statement, 6))
                 let matchMode = RuleMatchMode(rawValue: modeRaw) ?? .contains
                 let tagId: Int64?
-                if sqlite3_column_type(statement, 6) == SQLITE_NULL {
+                if sqlite3_column_type(statement, 7) == SQLITE_NULL {
                     tagId = nil
                 } else {
-                    tagId = sqlite3_column_int64(statement, 6)
+                    tagId = sqlite3_column_int64(statement, 7)
                 }
-                let priority = Int(sqlite3_column_int(statement, 7))
+                let priority = Int(sqlite3_column_int(statement, 8))
 
                 rows.append(
                     RuleRow(
                         id: id,
                         name: name,
                         enabled: enabled,
+                        matchBundleId: matchBundleId,
                         matchAppName: matchAppName,
                         matchWindowTitle: matchWindowTitle,
                         matchMode: matchMode,
@@ -2051,16 +2769,25 @@ final class DatabaseService {
     private func insertRuleInternal(
         name: String,
         enabled: Bool,
+        matchBundleId: String?,
         matchAppName: String?,
         matchWindowTitle: String?,
         matchMode: RuleMatchMode,
         tagId: Int64?,
         priority: Int
     ) throws -> Int64 {
-        let sql = """
-        INSERT INTO Rules (name, enabled, match_app_name, match_window_title, match_mode, tag_id, priority)
-        VALUES (?, ?, ?, ?, ?, ?, ?);
-        """
+        let sql: String
+        if hasRulesBundleIdColumn {
+            sql = """
+            INSERT INTO Rules (name, enabled, match_bundle_id, match_app_name, match_window_title, match_mode, tag_id, priority)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+            """
+        } else {
+            sql = """
+            INSERT INTO Rules (name, enabled, match_app_name, match_window_title, match_mode, tag_id, priority)
+            VALUES (?, ?, ?, ?, ?, ?, ?);
+            """
+        }
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
             let message = sqliteErrorMessage(db)
@@ -2071,23 +2798,36 @@ final class DatabaseService {
 
         try bind(sql: sql, result: sqlite3_bind_text(statement, 1, name, -1, sqliteTransientDestructor), detail: "name")
         try bind(sql: sql, result: sqlite3_bind_int(statement, 2, enabled ? 1 : 0), detail: "enabled")
+        var index: Int32 = 3
+        if hasRulesBundleIdColumn {
+            if let matchBundleId, !matchBundleId.isEmpty {
+                try bind(sql: sql, result: sqlite3_bind_text(statement, index, matchBundleId, -1, sqliteTransientDestructor), detail: "match_bundle_id")
+            } else {
+                try bind(sql: sql, result: sqlite3_bind_null(statement, index), detail: "match_bundle_id")
+            }
+            index += 1
+        }
         if let matchAppName, !matchAppName.isEmpty {
-            try bind(sql: sql, result: sqlite3_bind_text(statement, 3, matchAppName, -1, sqliteTransientDestructor), detail: "match_app_name")
+            try bind(sql: sql, result: sqlite3_bind_text(statement, index, matchAppName, -1, sqliteTransientDestructor), detail: "match_app_name")
         } else {
-            try bind(sql: sql, result: sqlite3_bind_null(statement, 3), detail: "match_app_name")
+            try bind(sql: sql, result: sqlite3_bind_null(statement, index), detail: "match_app_name")
         }
+        index += 1
         if let matchWindowTitle, !matchWindowTitle.isEmpty {
-            try bind(sql: sql, result: sqlite3_bind_text(statement, 4, matchWindowTitle, -1, sqliteTransientDestructor), detail: "match_window_title")
+            try bind(sql: sql, result: sqlite3_bind_text(statement, index, matchWindowTitle, -1, sqliteTransientDestructor), detail: "match_window_title")
         } else {
-            try bind(sql: sql, result: sqlite3_bind_null(statement, 4), detail: "match_window_title")
+            try bind(sql: sql, result: sqlite3_bind_null(statement, index), detail: "match_window_title")
         }
-        try bind(sql: sql, result: sqlite3_bind_text(statement, 5, matchMode.rawValue, -1, sqliteTransientDestructor), detail: "match_mode")
+        index += 1
+        try bind(sql: sql, result: sqlite3_bind_text(statement, index, matchMode.rawValue, -1, sqliteTransientDestructor), detail: "match_mode")
+        index += 1
         if let tagId {
-            try bind(sql: sql, result: sqlite3_bind_int64(statement, 6, tagId), detail: "tag_id")
+            try bind(sql: sql, result: sqlite3_bind_int64(statement, index, tagId), detail: "tag_id")
         } else {
-            try bind(sql: sql, result: sqlite3_bind_null(statement, 6), detail: "tag_id")
+            try bind(sql: sql, result: sqlite3_bind_null(statement, index), detail: "tag_id")
         }
-        try bind(sql: sql, result: sqlite3_bind_int(statement, 7, Int32(priority)), detail: "priority")
+        index += 1
+        try bind(sql: sql, result: sqlite3_bind_int(statement, index, Int32(priority)), detail: "priority")
 
         let stepResult = sqlite3_step(statement)
         guard stepResult == SQLITE_DONE else {
@@ -2100,11 +2840,20 @@ final class DatabaseService {
     }
 
     private func updateRuleInternal(rule: RuleRow) throws {
-        let sql = """
-        UPDATE Rules
-        SET name = ?, enabled = ?, match_app_name = ?, match_window_title = ?, match_mode = ?, tag_id = ?, priority = ?
-        WHERE id = ?;
-        """
+        let sql: String
+        if hasRulesBundleIdColumn {
+            sql = """
+            UPDATE Rules
+            SET name = ?, enabled = ?, match_bundle_id = ?, match_app_name = ?, match_window_title = ?, match_mode = ?, tag_id = ?, priority = ?
+            WHERE id = ?;
+            """
+        } else {
+            sql = """
+            UPDATE Rules
+            SET name = ?, enabled = ?, match_app_name = ?, match_window_title = ?, match_mode = ?, tag_id = ?, priority = ?
+            WHERE id = ?;
+            """
+        }
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
             let message = sqliteErrorMessage(db)
@@ -2115,24 +2864,38 @@ final class DatabaseService {
 
         try bind(sql: sql, result: sqlite3_bind_text(statement, 1, rule.name, -1, sqliteTransientDestructor), detail: "name")
         try bind(sql: sql, result: sqlite3_bind_int(statement, 2, rule.enabled ? 1 : 0), detail: "enabled")
+        var index: Int32 = 3
+        if hasRulesBundleIdColumn {
+            if let matchBundleId = rule.matchBundleId, !matchBundleId.isEmpty {
+                try bind(sql: sql, result: sqlite3_bind_text(statement, index, matchBundleId, -1, sqliteTransientDestructor), detail: "match_bundle_id")
+            } else {
+                try bind(sql: sql, result: sqlite3_bind_null(statement, index), detail: "match_bundle_id")
+            }
+            index += 1
+        }
         if let matchAppName = rule.matchAppName, !matchAppName.isEmpty {
-            try bind(sql: sql, result: sqlite3_bind_text(statement, 3, matchAppName, -1, sqliteTransientDestructor), detail: "match_app_name")
+            try bind(sql: sql, result: sqlite3_bind_text(statement, index, matchAppName, -1, sqliteTransientDestructor), detail: "match_app_name")
         } else {
-            try bind(sql: sql, result: sqlite3_bind_null(statement, 3), detail: "match_app_name")
+            try bind(sql: sql, result: sqlite3_bind_null(statement, index), detail: "match_app_name")
         }
+        index += 1
         if let matchWindowTitle = rule.matchWindowTitle, !matchWindowTitle.isEmpty {
-            try bind(sql: sql, result: sqlite3_bind_text(statement, 4, matchWindowTitle, -1, sqliteTransientDestructor), detail: "match_window_title")
+            try bind(sql: sql, result: sqlite3_bind_text(statement, index, matchWindowTitle, -1, sqliteTransientDestructor), detail: "match_window_title")
         } else {
-            try bind(sql: sql, result: sqlite3_bind_null(statement, 4), detail: "match_window_title")
+            try bind(sql: sql, result: sqlite3_bind_null(statement, index), detail: "match_window_title")
         }
-        try bind(sql: sql, result: sqlite3_bind_text(statement, 5, rule.matchMode.rawValue, -1, sqliteTransientDestructor), detail: "match_mode")
+        index += 1
+        try bind(sql: sql, result: sqlite3_bind_text(statement, index, rule.matchMode.rawValue, -1, sqliteTransientDestructor), detail: "match_mode")
+        index += 1
         if let tagId = rule.tagId {
-            try bind(sql: sql, result: sqlite3_bind_int64(statement, 6, tagId), detail: "tag_id")
+            try bind(sql: sql, result: sqlite3_bind_int64(statement, index, tagId), detail: "tag_id")
         } else {
-            try bind(sql: sql, result: sqlite3_bind_null(statement, 6), detail: "tag_id")
+            try bind(sql: sql, result: sqlite3_bind_null(statement, index), detail: "tag_id")
         }
-        try bind(sql: sql, result: sqlite3_bind_int(statement, 7, Int32(rule.priority)), detail: "priority")
-        try bind(sql: sql, result: sqlite3_bind_int64(statement, 8, rule.id), detail: "id")
+        index += 1
+        try bind(sql: sql, result: sqlite3_bind_int(statement, index, Int32(rule.priority)), detail: "priority")
+        index += 1
+        try bind(sql: sql, result: sqlite3_bind_int64(statement, index, rule.id), detail: "id")
 
         let stepResult = sqlite3_step(statement)
         guard stepResult == SQLITE_DONE else {
@@ -2186,34 +2949,124 @@ final class DatabaseService {
         }
     }
 
+    private func updateActivityRuleTagInternal(id: Int64, ruleTagId: Int64?) throws {
+        guard hasRuleTagColumn || hasEffectiveTagColumn || hasUserTagOverrideColumn else {
+            try updateActivityTagInternal(id: id, tagId: ruleTagId)
+            return
+        }
+        let sql = """
+        UPDATE Activities
+        SET rule_tag_id = ?,
+            effective_tag_id = COALESCE(user_tag_override_id, ?),
+            tag_id = COALESCE(user_tag_override_id, ?)
+        WHERE id = ?;
+        """
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "prepare", sql: sql, message: message)
+            throw DatabaseError.prepareFailed(message, sql: sql)
+        }
+        defer { sqlite3_finalize(statement) }
+
+        if let ruleTagId {
+            try bind(sql: sql, result: sqlite3_bind_int64(statement, 1, ruleTagId), detail: "rule_tag_id")
+            try bind(sql: sql, result: sqlite3_bind_int64(statement, 2, ruleTagId), detail: "effective_tag_id")
+            try bind(sql: sql, result: sqlite3_bind_int64(statement, 3, ruleTagId), detail: "tag_id")
+        } else {
+            try bind(sql: sql, result: sqlite3_bind_null(statement, 1), detail: "rule_tag_id")
+            try bind(sql: sql, result: sqlite3_bind_null(statement, 2), detail: "effective_tag_id")
+            try bind(sql: sql, result: sqlite3_bind_null(statement, 3), detail: "tag_id")
+        }
+        try bind(sql: sql, result: sqlite3_bind_int64(statement, 4, id), detail: "id")
+
+        let stepResult = sqlite3_step(statement)
+        guard stepResult == SQLITE_DONE else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "step", sql: sql, message: message)
+            throw DatabaseError.stepFailed(message, sql: sql)
+        }
+    }
+
+    private func updateActivityUserOverrideInternal(id: Int64, userTagOverrideId: Int64?) throws {
+        guard hasRuleTagColumn || hasEffectiveTagColumn || hasUserTagOverrideColumn else {
+            try updateActivityTagInternal(id: id, tagId: userTagOverrideId)
+            return
+        }
+        let sql = """
+        UPDATE Activities
+        SET user_tag_override_id = ?,
+            effective_tag_id = COALESCE(?, rule_tag_id),
+            tag_id = COALESCE(?, rule_tag_id)
+        WHERE id = ?;
+        """
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "prepare", sql: sql, message: message)
+            throw DatabaseError.prepareFailed(message, sql: sql)
+        }
+        defer { sqlite3_finalize(statement) }
+
+        if let userTagOverrideId {
+            try bind(sql: sql, result: sqlite3_bind_int64(statement, 1, userTagOverrideId), detail: "user_tag_override_id")
+            try bind(sql: sql, result: sqlite3_bind_int64(statement, 2, userTagOverrideId), detail: "effective_tag_id")
+            try bind(sql: sql, result: sqlite3_bind_int64(statement, 3, userTagOverrideId), detail: "tag_id")
+        } else {
+            try bind(sql: sql, result: sqlite3_bind_null(statement, 1), detail: "user_tag_override_id")
+            try bind(sql: sql, result: sqlite3_bind_null(statement, 2), detail: "effective_tag_id")
+            try bind(sql: sql, result: sqlite3_bind_null(statement, 3), detail: "tag_id")
+        }
+        try bind(sql: sql, result: sqlite3_bind_int64(statement, 4, id), detail: "id")
+
+        let stepResult = sqlite3_step(statement)
+        guard stepResult == SQLITE_DONE else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "step", sql: sql, message: message)
+            throw DatabaseError.stepFailed(message, sql: sql)
+        }
+    }
+
     private func firstMatchingRule(
         rules: [RuleRow],
+        bundleId: String?,
         appName: String,
         windowTitle: String?
     ) -> RuleRow? {
-        for rule in rules {
-            guard rule.enabled else { continue }
-            guard rule.tagId != nil else { continue }
-            if ruleMatches(rule: rule, appName: appName, windowTitle: windowTitle) {
+        let sortedRules = rules.sorted { lhs, rhs in
+            if lhs.priority != rhs.priority {
+                return lhs.priority > rhs.priority
+            }
+            return lhs.id < rhs.id
+        }
+        for rule in sortedRules where rule.enabled {
+            if ruleMatches(rule: rule, bundleId: bundleId, appName: appName, windowTitle: windowTitle) {
                 return rule
             }
         }
         return nil
     }
 
-    private func ruleMatches(rule: RuleRow, appName: String, windowTitle: String?) -> Bool {
+    private func ruleMatches(rule: RuleRow, bundleId: String?, appName: String, windowTitle: String?) -> Bool {
+        let bundleNeedle = rule.matchBundleId?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let appNeedle = rule.matchAppName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let titleNeedle = rule.matchWindowTitle?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
 
-        let appMatches = matchString(haystack: appName, needle: appNeedle, mode: rule.matchMode)
-        if !appMatches {
-            return false
+        if !bundleNeedle.isEmpty {
+            guard let bundleId, !bundleId.isEmpty else { return false }
+            if !matchString(haystack: bundleId, needle: bundleNeedle, mode: rule.matchMode) {
+                return false
+            }
+        } else if !appNeedle.isEmpty {
+            if !matchString(haystack: appName, needle: appNeedle, mode: rule.matchMode) {
+                return false
+            }
         }
 
         if titleNeedle.isEmpty {
             return true
         }
-        guard let windowTitle else {
+        guard let windowTitle, !windowTitle.isEmpty else {
             return false
         }
         return matchString(haystack: windowTitle, needle: titleNeedle, mode: rule.matchMode)
@@ -2229,6 +3082,16 @@ final class DatabaseService {
         case .equals:
             return haystack.compare(needle, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
         }
+    }
+
+    private func todayRange() -> (start: Int64, end: Int64) {
+        let calendar = Calendar.current
+        let startDate = calendar.startOfDay(for: Date())
+        let endDate = calendar.date(byAdding: .day, value: 1, to: startDate) ?? startDate
+        return (
+            Int64(startDate.timeIntervalSince1970),
+            Int64(endDate.timeIntervalSince1970)
+        )
     }
 
     private func deleteActivityInternal(id: Int64) throws {
@@ -2278,30 +3141,31 @@ final class DatabaseService {
     }
 
     private var activitySelectColumns: String {
-        if hasBundleIdColumn {
-            return "id, start_time, end_time, app_name, bundle_id, window_title, is_idle, tag_id"
-        }
-        return "id, start_time, end_time, app_name, NULL AS bundle_id, window_title, is_idle, tag_id"
+        let bundleColumn = hasBundleIdColumn ? "bundle_id" : "NULL AS bundle_id"
+        let ruleColumn = hasRuleTagColumn ? "rule_tag_id" : "NULL AS rule_tag_id"
+        let userColumn = hasUserTagOverrideColumn ? "user_tag_override_id" : "NULL AS user_tag_override_id"
+        let effectiveColumn = hasEffectiveTagColumn ? "effective_tag_id" : "NULL AS effective_tag_id"
+        return "id, start_time, end_time, app_name, \(bundleColumn), window_title, is_idle, tag_id, \(ruleColumn), \(userColumn), \(effectiveColumn)"
     }
 
     private var activitySummaryColumns: String {
-        if hasBundleIdColumn {
-            return "id, start_time, end_time, app_name, bundle_id, tag_id, is_idle"
-        }
-        return "id, start_time, end_time, app_name, NULL AS bundle_id, tag_id, is_idle"
+        let bundleColumn = hasBundleIdColumn ? "bundle_id" : "NULL AS bundle_id"
+        let effectiveColumn = hasEffectiveTagColumn ? "effective_tag_id" : "NULL AS effective_tag_id"
+        return "id, start_time, end_time, app_name, \(bundleColumn), tag_id, \(effectiveColumn), is_idle"
     }
 
     private func readActivitySummary(statement: OpaquePointer) -> ActivitySummary {
         let bundleId = sqlite3_column_text(statement, 4).flatMap { String(cString: $0) }
         let tagId = sqlite3_column_type(statement, 5) == SQLITE_NULL ? nil : sqlite3_column_int64(statement, 5)
-        let isIdle = sqlite3_column_int(statement, 6) != 0
+        let effectiveTagId = sqlite3_column_type(statement, 6) == SQLITE_NULL ? nil : sqlite3_column_int64(statement, 6)
+        let isIdle = sqlite3_column_int(statement, 7) != 0
         return ActivitySummary(
             id: sqlite3_column_int64(statement, 0),
             startTime: sqlite3_column_int64(statement, 1),
             endTime: sqlite3_column_int64(statement, 2),
             appName: String(cString: sqlite3_column_text(statement, 3)),
             bundleId: bundleId,
-            tagId: tagId,
+            tagId: effectiveTagId ?? tagId,
             isIdle: isIdle
         )
     }
@@ -2351,13 +3215,21 @@ final class DatabaseService {
         return try readActivityRows(statement: statement, sql: sql)
     }
 
-    private func fetchActivitiesOverlappingRangeInternal(start: Int64, end: Int64) throws -> [ActivityRow] {
-        let sql = """
+    private func fetchActivitiesOverlappingRangeInternal(start: Int64, end: Int64, limit: Int?, offset: Int?) throws -> [ActivityRow] {
+        var sql = """
         SELECT \(activitySelectColumns)
         FROM Activities
         WHERE start_time < ? AND end_time > ?
-        ORDER BY start_time DESC;
+        ORDER BY start_time DESC
         """
+        let applyLimit = limit != nil || (offset ?? 0) > 0
+        if applyLimit {
+            sql += " LIMIT ?"
+            if let offset, offset > 0 {
+                sql += " OFFSET ?"
+            }
+        }
+        sql += ";"
 
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
@@ -2367,10 +3239,47 @@ final class DatabaseService {
         }
         defer { sqlite3_finalize(statement) }
 
-        try bind(sql: sql, result: sqlite3_bind_int64(statement, 1, end), detail: "end")
-        try bind(sql: sql, result: sqlite3_bind_int64(statement, 2, start), detail: "start")
+        var bindIndex: Int32 = 1
+        try bind(sql: sql, result: sqlite3_bind_int64(statement, bindIndex, end), detail: "end")
+        bindIndex += 1
+        try bind(sql: sql, result: sqlite3_bind_int64(statement, bindIndex, start), detail: "start")
+        bindIndex += 1
+        if applyLimit {
+            let limitValue = min(limit ?? Int(Int32.max), Int(Int32.max))
+            try bind(sql: sql, result: sqlite3_bind_int(statement, bindIndex, Int32(limitValue)), detail: "limit")
+            bindIndex += 1
+            if let offset, offset > 0 {
+                try bind(sql: sql, result: sqlite3_bind_int(statement, bindIndex, Int32(offset)), detail: "offset")
+            }
+        }
 
         return try readActivityRows(statement: statement, sql: sql)
+    }
+
+    private func fetchActivityBoundsInternal(id: Int64) throws -> (start: Int64, end: Int64)? {
+        let sql = "SELECT start_time, end_time FROM Activities WHERE id = ? LIMIT 1;"
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "prepare", sql: sql, message: message)
+            throw DatabaseError.prepareFailed(message, sql: sql)
+        }
+        defer { sqlite3_finalize(statement) }
+
+        try bind(sql: sql, result: sqlite3_bind_int64(statement, 1, id), detail: "id")
+        let stepResult = sqlite3_step(statement)
+        if stepResult == SQLITE_ROW {
+            let start = sqlite3_column_int64(statement, 0)
+            let end = sqlite3_column_int64(statement, 1)
+            return (start: start, end: end)
+        }
+        if stepResult == SQLITE_DONE {
+            return nil
+        }
+
+        let message = sqliteErrorMessage(db)
+        logSQLiteError(operation: "step", sql: sql, message: message)
+        throw DatabaseError.stepFailed(message, sql: sql)
     }
 
     private func fetchRecentActivitiesInternal(limit: Int) throws -> [ActivityRow] {
@@ -2394,13 +3303,21 @@ final class DatabaseService {
         return try readActivityRows(statement: statement, sql: sql)
     }
 
-    private func fetchMarkersInternal(dayStart: Int64, dayEnd: Int64) throws -> [MarkerRow] {
-        let sql = """
+    private func fetchMarkersInternal(dayStart: Int64, dayEnd: Int64, limit: Int? = nil, offset: Int? = nil) throws -> [MarkerRow] {
+        var sql = """
         SELECT id, timestamp, text
         FROM Markers
         WHERE timestamp >= ? AND timestamp < ?
-        ORDER BY timestamp DESC;
+        ORDER BY timestamp DESC
         """
+        let applyLimit = limit != nil || (offset ?? 0) > 0
+        if applyLimit {
+            sql += " LIMIT ?"
+            if let offset, offset > 0 {
+                sql += " OFFSET ?"
+            }
+        }
+        sql += ";"
 
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
@@ -2410,8 +3327,19 @@ final class DatabaseService {
         }
         defer { sqlite3_finalize(statement) }
 
-        try bind(sql: sql, result: sqlite3_bind_int64(statement, 1, dayStart), detail: "dayStart")
-        try bind(sql: sql, result: sqlite3_bind_int64(statement, 2, dayEnd), detail: "dayEnd")
+        var bindIndex: Int32 = 1
+        try bind(sql: sql, result: sqlite3_bind_int64(statement, bindIndex, dayStart), detail: "dayStart")
+        bindIndex += 1
+        try bind(sql: sql, result: sqlite3_bind_int64(statement, bindIndex, dayEnd), detail: "dayEnd")
+        bindIndex += 1
+        if applyLimit {
+            let limitValue = min(limit ?? Int(Int32.max), Int(Int32.max))
+            try bind(sql: sql, result: sqlite3_bind_int(statement, bindIndex, Int32(limitValue)), detail: "limit")
+            bindIndex += 1
+            if let offset, offset > 0 {
+                try bind(sql: sql, result: sqlite3_bind_int(statement, bindIndex, Int32(offset)), detail: "offset")
+            }
+        }
 
         return try readMarkerRows(statement: statement, sql: sql)
     }
@@ -2753,12 +3681,11 @@ final class DatabaseService {
 
                 let isIdle = sqlite3_column_int(statement, 6) == 1
 
-                let tagId: Int64?
-                if sqlite3_column_type(statement, 7) == SQLITE_NULL {
-                    tagId = nil
-                } else {
-                    tagId = sqlite3_column_int64(statement, 7)
-                }
+                let tagId: Int64? = sqlite3_column_type(statement, 7) == SQLITE_NULL ? nil : sqlite3_column_int64(statement, 7)
+                let ruleTagId: Int64? = sqlite3_column_type(statement, 8) == SQLITE_NULL ? nil : sqlite3_column_int64(statement, 8)
+                let userTagOverrideId: Int64? = sqlite3_column_type(statement, 9) == SQLITE_NULL ? nil : sqlite3_column_int64(statement, 9)
+                let effectiveTagId: Int64? = sqlite3_column_type(statement, 10) == SQLITE_NULL ? nil : sqlite3_column_int64(statement, 10)
+                let resolvedTagId = effectiveTagId ?? tagId
 
                 rows.append(
                     ActivityRow(
@@ -2769,7 +3696,10 @@ final class DatabaseService {
                         bundleId: bundleId,
                         windowTitle: windowTitle,
                         isIdle: isIdle,
-                        tagId: tagId
+                        tagId: resolvedTagId,
+                        ruleTagId: ruleTagId,
+                        userTagOverrideId: userTagOverrideId,
+                        effectiveTagId: effectiveTagId ?? resolvedTagId
                     )
                 )
             } else if stepResult == SQLITE_DONE {
@@ -2858,6 +3788,189 @@ final class DatabaseService {
 
     private var sqliteTransientDestructor: sqlite3_destructor_type {
         unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+    }
+    private func runHealthChecksInternal() throws -> HealthCheckReport {
+        var issues: [HealthCheckIssue] = []
+        var metrics: [String: String] = [:]
+
+        let requiredActivityColumns: Set<String> = [
+            "start_time",
+            "end_time",
+            "is_idle",
+            "bundle_id",
+            "rule_tag_id",
+            "user_tag_override_id",
+            "effective_tag_id"
+        ]
+        let requiredRawEventColumns: Set<String> = [
+            "ts",
+            "type",
+            "bundle_id",
+            "app_name",
+            "window_title",
+            "payload"
+        ]
+        let requiredActivityIndexes: Set<String> = [
+            "idx_activities_start_time",
+            "idx_activities_end_time",
+            "idx_activities_start_end",
+            "idx_activities_app_name",
+            "idx_activities_tag_id",
+            "idx_activities_is_idle",
+            "idx_activities_is_idle_start",
+            "idx_activities_bundle_id",
+            "idx_activities_bundle_id_start",
+            "idx_activities_rule_tag_id",
+            "idx_activities_user_tag_override_id",
+            "idx_activities_effective_tag_id",
+            "idx_activities_effective_tag_id_start"
+        ]
+        let requiredRawEventIndexes: Set<String> = [
+            "idx_rawevents_ts",
+            "idx_rawevents_type",
+            "idx_rawevents_type_ts"
+        ]
+        let requiredMarkerIndexes: Set<String> = [
+            "idx_markers_timestamp"
+        ]
+
+        if !(try tableExists("Activities")) {
+            issues.append(HealthCheckIssue(severity: .error, message: "Missing table: Activities", details: nil))
+        } else {
+            let columns = try fetchColumnNames(table: "Activities")
+            for col in requiredActivityColumns where !columns.contains(col) {
+                issues.append(HealthCheckIssue(severity: .error, message: "Activities missing column: \(col)", details: nil))
+            }
+
+            let indexes = try fetchIndexNames(table: "Activities")
+            for idx in requiredActivityIndexes where !indexes.contains(idx) {
+                issues.append(HealthCheckIssue(severity: .warning, message: "Activities missing index: \(idx)", details: nil))
+            }
+        }
+
+        if !(try tableExists("RawEvents")) {
+            issues.append(HealthCheckIssue(severity: .error, message: "Missing table: RawEvents", details: nil))
+        } else {
+            let columns = try fetchColumnNames(table: "RawEvents")
+            for col in requiredRawEventColumns where !columns.contains(col) {
+                issues.append(HealthCheckIssue(severity: .error, message: "RawEvents missing column: \(col)", details: nil))
+            }
+
+            let indexes = try fetchIndexNames(table: "RawEvents")
+            for idx in requiredRawEventIndexes where !indexes.contains(idx) {
+                issues.append(HealthCheckIssue(severity: .warning, message: "RawEvents missing index: \(idx)", details: nil))
+            }
+        }
+
+        if !(try tableExists("Markers")) {
+            issues.append(HealthCheckIssue(severity: .warning, message: "Missing table: Markers", details: nil))
+        } else {
+            let indexes = try fetchIndexNames(table: "Markers")
+            for idx in requiredMarkerIndexes where !indexes.contains(idx) {
+                issues.append(HealthCheckIssue(severity: .warning, message: "Markers missing index: \(idx)", details: nil))
+            }
+        }
+
+        if !(try tableExists("SchemaMigrations")) {
+            issues.append(HealthCheckIssue(severity: .warning, message: "Missing table: SchemaMigrations", details: nil))
+        }
+
+        let nullEndCount = try fetchCount(sql: "SELECT COUNT(*) FROM Activities WHERE end_time IS NULL;")
+        metrics["activities_end_time_null"] = String(nullEndCount)
+        if nullEndCount > 0 {
+            issues.append(HealthCheckIssue(severity: .error, message: "Activities with NULL end_time: \(nullEndCount)", details: nil))
+        }
+
+        let invalidRangeCount = try fetchCount(sql: "SELECT COUNT(*) FROM Activities WHERE end_time < start_time;")
+        metrics["activities_invalid_range"] = String(invalidRangeCount)
+        if invalidRangeCount > 0 {
+            issues.append(HealthCheckIssue(severity: .error, message: "Activities with end_time < start_time: \(invalidRangeCount)", details: nil))
+        }
+
+        let overlapCount = try fetchCount(sql: """
+        SELECT COUNT(*) FROM (
+            SELECT 1
+            FROM Activities a
+            JOIN Activities b
+              ON a.id < b.id
+             AND a.bundle_id IS NOT NULL
+             AND a.bundle_id = b.bundle_id
+             AND a.start_time < b.end_time
+             AND b.start_time < a.end_time
+            LIMIT 1000
+        );
+        """)
+        metrics["activities_overlap_sample"] = String(overlapCount)
+        if overlapCount > 0 {
+            issues.append(HealthCheckIssue(severity: .warning, message: "Overlapping sessions for same bundle_id detected (sampled)", details: nil))
+        }
+
+        let rawEventOutOfOrderCount = try fetchCount(sql: """
+        SELECT COUNT(*) FROM (
+            SELECT ts, LAG(ts) OVER (ORDER BY id) AS prev_ts
+            FROM RawEvents
+        )
+        WHERE prev_ts IS NOT NULL AND ts < prev_ts;
+        """)
+        metrics["rawevents_out_of_order"] = String(rawEventOutOfOrderCount)
+        if rawEventOutOfOrderCount > 0 {
+            issues.append(HealthCheckIssue(severity: .warning, message: "RawEvents out of order: \(rawEventOutOfOrderCount)", details: nil))
+        }
+
+        return HealthCheckReport(checkedAt: Date(), issues: issues, metrics: metrics)
+    }
+
+    private func fetchColumnNames(table: String) throws -> Set<String> {
+        let sql = "PRAGMA table_info(\(table));"
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "prepare", sql: sql, message: message)
+            throw DatabaseError.prepareFailed(message, sql: sql)
+        }
+        defer { sqlite3_finalize(statement) }
+
+        var result = Set<String>()
+        while sqlite3_step(statement) == SQLITE_ROW {
+            guard let nameC = sqlite3_column_text(statement, 1) else { continue }
+            result.insert(String(cString: nameC))
+        }
+        return result
+    }
+
+    private func fetchIndexNames(table: String) throws -> Set<String> {
+        let sql = "PRAGMA index_list(\(table));"
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "prepare", sql: sql, message: message)
+            throw DatabaseError.prepareFailed(message, sql: sql)
+        }
+        defer { sqlite3_finalize(statement) }
+
+        var result = Set<String>()
+        while sqlite3_step(statement) == SQLITE_ROW {
+            guard let nameC = sqlite3_column_text(statement, 1) else { continue }
+            result.insert(String(cString: nameC))
+        }
+        return result
+    }
+
+    private func fetchCount(sql: String) throws -> Int {
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "prepare", sql: sql, message: message)
+            throw DatabaseError.prepareFailed(message, sql: sql)
+        }
+        defer { sqlite3_finalize(statement) }
+
+        guard sqlite3_step(statement) == SQLITE_ROW else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "step", sql: sql, message: message)
+            throw DatabaseError.stepFailed(message, sql: sql)
+        }
+        return Int(sqlite3_column_int(statement, 0))
     }
 }
 

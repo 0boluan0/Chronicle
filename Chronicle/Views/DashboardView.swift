@@ -22,25 +22,25 @@ struct DashboardView: View {
 
         var id: String { rawValue }
 
-        var title: String {
+        var titleKey: LocalizedStringKey {
             switch self {
             case .timeline:
-                return "Timeline"
+                return "dashboard.timeline"
             case .overview:
-                return "Overview"
+                return "dashboard.overview"
             case .stats:
-                return "Stats"
+                return "dashboard.stats"
             case .reports:
-                return "Reports"
+                return "dashboard.reports"
             case .apps:
-                return "Apps"
+                return "dashboard.apps"
             case .tagsRules:
-                return "Tags & Rules"
+                return "dashboard.tags_rules"
             case .markers:
-                return "Markers"
+                return "dashboard.markers"
 #if DEBUG
             case .debug:
-                return "Debug"
+                return "dashboard.debug"
 #endif
             }
         }
@@ -95,7 +95,7 @@ struct DashboardView: View {
                 }
             )) {
                 ForEach(Section.allCases) { section in
-                    Label(section.title, systemImage: section.systemImage)
+                    Label(section.titleKey, systemImage: section.systemImage)
                         .tag(section)
                 }
             }
@@ -108,7 +108,7 @@ struct DashboardView: View {
                 Button {
                     PreferencesWindowController.shared.show()
                 } label: {
-                    Label("Preferences", systemImage: "gearshape")
+                    Label("preferences.title", systemImage: "gearshape")
                 }
             }
         }

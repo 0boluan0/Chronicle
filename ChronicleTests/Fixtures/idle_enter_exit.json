@@ -1,0 +1,5 @@
+[
+  {"ts": 2000, "type": "app_activated", "bundle_id": "com.apple.Safari", "app_name": "Safari", "window_title": null, "payload": null},
+  {"ts": 2300, "type": "idle_enter", "bundle_id": null, "app_name": null, "window_title": null, "payload": {"idleSeconds": 300}},
+  {"ts": 2400, "type": "idle_exit", "bundle_id": "com.apple.Safari", "app_name": "Safari", "window_title": null, "payload": null}
+]

@@ -12,11 +12,24 @@ struct TimelineRowView: View {
     let activity: ActivityRow
     let tag: TagRow?
     let maxTitleLines: Int?
+    let tagPopoverPresented: Binding<Bool>?
+    let tagPopoverContent: AnyView?
+    let showsManualIndicator: Bool
 
-    init(activity: ActivityRow, tag: TagRow?, maxTitleLines: Int? = 2) {
+    init(
+        activity: ActivityRow,
+        tag: TagRow?,
+        maxTitleLines: Int? = 2,
+        tagPopoverPresented: Binding<Bool>? = nil,
+        tagPopoverContent: AnyView? = nil,
+        showsManualIndicator: Bool = false
+    ) {
         self.activity = activity
         self.tag = tag
         self.maxTitleLines = maxTitleLines
+        self.tagPopoverPresented = tagPopoverPresented
+        self.tagPopoverContent = tagPopoverContent
+        self.showsManualIndicator = showsManualIndicator
     }
 
     var body: some View {
@@ -64,7 +77,12 @@ struct TimelineRowView: View {
                     .font(.caption2)
                     .foregroundColor(.secondary)
 
-                TagBadgeView(tag: tag)
+                TagBadgeView(
+                    tag: tag,
+                    isManualOverride: showsManualIndicator,
+                    popoverPresented: tagPopoverPresented,
+                    popoverContent: tagPopoverContent
+                )
             }
         }
         .padding(8)
@@ -76,7 +94,7 @@ struct TimelineRowView: View {
 
     private var appIcon: NSImage {
         if activity.isIdle {
-            return NSImage(systemSymbolName: "moon.zzz", accessibilityDescription: "Idle") ?? NSImage()
+            return NSImage(systemSymbolName: "moon.zzz", accessibilityDescription: L("Idle")) ?? NSImage()
         }
         if let cached = IconCache.icons[activity.appName] {
             return cached
@@ -105,25 +123,50 @@ private enum IconCache {
 
 private struct TagBadgeView: View {
     let tag: TagRow?
+    let isManualOverride: Bool
+    let popoverPresented: Binding<Bool>?
+    let popoverContent: AnyView?
 
     var body: some View {
-        Text(label)
-            .font(.caption2)
-            .foregroundColor(textColor)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(backgroundColor)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 4)
-                    .stroke(borderColor, lineWidth: 1)
-            )
+        if let popoverPresented, let popoverContent {
+            Button {
+                popoverPresented.wrappedValue = true
+            } label: {
+                badgeContent
+            }
+            .buttonStyle(.plain)
+            .popover(isPresented: popoverPresented) {
+                popoverContent
+            }
+        } else {
+            badgeContent
+        }
+    }
+
+    private var badgeContent: some View {
+        HStack(spacing: 4) {
+            Text(label)
+            if isManualOverride {
+                Image(systemName: "hand.point.left.fill")
+                    .font(.caption2)
+            }
+        }
+        .font(.caption2)
+        .foregroundColor(textColor)
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(
+            RoundedRectangle(cornerRadius: 4)
+                .fill(backgroundColor)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(borderColor, lineWidth: 1)
+        )
     }
 
     private var label: String {
-        tag?.name ?? "Untagged"
+        tag?.name ?? L("Untagged")
     }
 
     private var backgroundColor: Color {
@@ -150,20 +193,5 @@ private struct TagBadgeView: View {
     private var tagColor: Color? {
         guard let hex = tag?.color else { return nil }
         return Color(hex: hex)
-    }
-}
-
-private extension Color {
-    init?(hex: String) {
-        let cleaned = hex.trimmingCharacters(in: .whitespacesAndNewlines)
-            .replacingOccurrences(of: "#", with: "")
-        guard cleaned.count == 6,
-              let value = Int(cleaned, radix: 16) else {
-            return nil
-        }
-        let red = Double((value >> 16) & 0xFF) / 255.0
-        let green = Double((value >> 8) & 0xFF) / 255.0
-        let blue = Double(value & 0xFF) / 255.0
-        self.init(.sRGB, red: red, green: green, blue: blue, opacity: 1.0)
     }
 }

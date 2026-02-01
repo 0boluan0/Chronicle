@@ -145,7 +145,7 @@ struct TagsManagementView: View {
                 case .success(let rows):
                     self.tags = rows
                 case .failure(let error):
-                    self.lastActionMessage = "Fetch tags failed: \(error.localizedDescription)"
+                    self.lastActionMessage = String(format: L("tags.status.fetch_failed"), error.localizedDescription)
                 }
             }
         }
@@ -160,10 +160,10 @@ struct TagsManagementView: View {
                 case .success:
                     self.newTagName = ""
                     self.newTagColorHex = TagColorPalette.defaultHex
-                    self.lastActionMessage = "Tag added."
+                    self.lastActionMessage = L("tags.status.added")
                     self.reloadTags()
                 case .failure(let error):
-                    self.lastActionMessage = "Tag add failed: \(error.localizedDescription)"
+                    self.lastActionMessage = String(format: L("tags.status.add_failed"), error.localizedDescription)
                 }
             }
         }
@@ -174,10 +174,10 @@ struct TagsManagementView: View {
             DispatchQueue.main.async {
                 switch result {
                 case .success:
-                    self.lastActionMessage = "Tag updated."
+                    self.lastActionMessage = L("tags.status.updated")
                     self.reloadTags()
                 case .failure(let error):
-                    self.lastActionMessage = "Tag update failed: \(error.localizedDescription)"
+                    self.lastActionMessage = String(format: L("tags.status.update_failed"), error.localizedDescription)
                 }
             }
         }
@@ -188,10 +188,10 @@ struct TagsManagementView: View {
             DispatchQueue.main.async {
                 switch result {
                 case .success:
-                    self.lastActionMessage = "Tag deleted."
+                    self.lastActionMessage = L("tags.status.deleted")
                     self.reloadTags()
                 case .failure(let error):
-                    self.lastActionMessage = "Tag delete failed: \(error.localizedDescription)"
+                    self.lastActionMessage = String(format: L("tags.status.delete_failed"), error.localizedDescription)
                 }
             }
         }
@@ -199,8 +199,10 @@ struct TagsManagementView: View {
 }
 
 struct RulesManagementView: View {
+    @EnvironmentObject private var appState: AppState
     @State private var rules: [RuleRow] = []
     @State private var tags: [TagRow] = []
+    @State private var appMappings: [AppMappingRow] = []
     @State private var lastActionMessage: String?
     @State private var newRuleName = ""
 
@@ -250,12 +252,18 @@ struct RulesManagementView: View {
                                 RuleEditorRow(
                                     rule: rule,
                                     tags: tags,
+                                    appMappings: appMappings,
                                     onSave: updateRule,
                                     onDelete: { deleteRule(id: rule.id) }
                                 )
                             }
                         }
                     }
+
+                    Button(L("rules.recompute_range")) {
+                        recomputeForCurrentRange()
+                    }
+                    .buttonStyle(.bordered)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -270,6 +278,7 @@ struct RulesManagementView: View {
         let group = DispatchGroup()
         var fetchedRules: [RuleRow] = []
         var fetchedTags: [TagRow] = []
+        var fetchedMappings: [AppMappingRow] = []
 
         group.enter()
         DatabaseService.shared.fetchRules { result in
@@ -287,9 +296,18 @@ struct RulesManagementView: View {
             group.leave()
         }
 
+        group.enter()
+        DatabaseService.shared.fetchAppMappings { result in
+            if case .success(let rows) = result {
+                fetchedMappings = rows
+            }
+            group.leave()
+        }
+
         group.notify(queue: .main) {
             self.rules = fetchedRules
             self.tags = fetchedTags
+            self.appMappings = fetchedMappings
         }
     }
 
@@ -309,10 +327,10 @@ struct RulesManagementView: View {
                 switch result {
                 case .success:
                     self.newRuleName = ""
-                    self.lastActionMessage = "Rule added."
+                    self.lastActionMessage = L("rules.status.added")
                     self.reloadData()
                 case .failure(let error):
-                    self.lastActionMessage = "Rule add failed: \(error.localizedDescription)"
+                    self.lastActionMessage = String(format: L("rules.status.add_failed"), error.localizedDescription)
                 }
             }
         }
@@ -323,10 +341,10 @@ struct RulesManagementView: View {
             DispatchQueue.main.async {
                 switch result {
                 case .success:
-                    self.lastActionMessage = "Rule updated."
+                    self.lastActionMessage = L("rules.status.updated")
                     self.reloadData()
                 case .failure(let error):
-                    self.lastActionMessage = "Rule update failed: \(error.localizedDescription)"
+                    self.lastActionMessage = String(format: L("rules.status.update_failed"), error.localizedDescription)
                 }
             }
         }
@@ -337,10 +355,24 @@ struct RulesManagementView: View {
             DispatchQueue.main.async {
                 switch result {
                 case .success:
-                    self.lastActionMessage = "Rule deleted."
+                    self.lastActionMessage = L("rules.status.deleted")
                     self.reloadData()
                 case .failure(let error):
-                    self.lastActionMessage = "Rule delete failed: \(error.localizedDescription)"
+                    self.lastActionMessage = String(format: L("rules.status.delete_failed"), error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    private func recomputeForCurrentRange() {
+        let bounds = appState.dateRangeMode.bounds(for: appState.selectedDate)
+        DatabaseService.shared.recomputeTags(rangeStart: bounds.start, rangeEnd: bounds.end) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let count):
+                    self.lastActionMessage = String(format: L("rules.status.recomputed"), count)
+                case .failure(let error):
+                    self.lastActionMessage = String(format: L("rules.status.recompute_failed"), error.localizedDescription)
                 }
             }
         }
@@ -402,6 +434,7 @@ private struct TagEditorRow: View {
 private struct RuleEditorRow: View {
     let rule: RuleRow
     let tags: [TagRow]
+    let appMappings: [AppMappingRow]
     let onSave: (RuleRow) -> Void
     let onDelete: () -> Void
 
@@ -412,12 +445,15 @@ private struct RuleEditorRow: View {
     @State private var matchMode: RuleMatchMode
     @State private var selectedTagId: Int64
     @State private var priority: Int
+    @State private var selectedBundleId: String
 
     private let unassignedTagId: Int64 = -1
+    private let anyBundleId: String = "__any__"
 
-    init(rule: RuleRow, tags: [TagRow], onSave: @escaping (RuleRow) -> Void, onDelete: @escaping () -> Void) {
+    init(rule: RuleRow, tags: [TagRow], appMappings: [AppMappingRow], onSave: @escaping (RuleRow) -> Void, onDelete: @escaping () -> Void) {
         self.rule = rule
         self.tags = tags
+        self.appMappings = appMappings
         self.onSave = onSave
         self.onDelete = onDelete
         _name = State(initialValue: rule.name)
@@ -427,6 +463,7 @@ private struct RuleEditorRow: View {
         _matchMode = State(initialValue: rule.matchMode)
         _selectedTagId = State(initialValue: rule.tagId ?? unassignedTagId)
         _priority = State(initialValue: rule.priority)
+        _selectedBundleId = State(initialValue: rule.matchBundleId ?? anyBundleId)
     }
 
     var body: some View {
@@ -448,6 +485,27 @@ private struct RuleEditorRow: View {
             }
 
             HStack(spacing: 8) {
+                Picker(L("rules.target_app"), selection: $selectedBundleId) {
+                    Text(L("rules.any_app")).tag(anyBundleId)
+                    ForEach(appOptions) { app in
+                        HStack(spacing: 6) {
+                            Image(nsImage: icon(for: app))
+                                .resizable()
+                                .frame(width: 14, height: 14)
+                                .cornerRadius(3)
+                            VStack(alignment: .leading, spacing: 0) {
+                                Text(app.appName)
+                                Text(app.bundleId)
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .tag(app.bundleId)
+                    }
+                }
+                .frame(width: 260)
+                .labelsHidden()
+
                 TextField("Match app name", text: $matchAppName)
                     .textFieldStyle(.roundedBorder)
                 TextField("Match window title", text: $matchWindowTitle)
@@ -484,16 +542,29 @@ private struct RuleEditorRow: View {
         let appName = matchAppName.trimmingCharacters(in: .whitespacesAndNewlines)
         let windowTitle = matchWindowTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         let tagId = selectedTagId == unassignedTagId ? nil : selectedTagId
+        let bundleId = selectedBundleId == anyBundleId ? nil : selectedBundleId
         return RuleRow(
             id: rule.id,
             name: trimmedName.isEmpty ? rule.name : trimmedName,
             enabled: enabled,
+            matchBundleId: bundleId,
             matchAppName: appName.isEmpty ? nil : appName,
             matchWindowTitle: windowTitle.isEmpty ? nil : windowTitle,
             matchMode: matchMode,
             tagId: tagId,
             priority: priority
         )
+    }
+
+    private var appOptions: [AppMappingRow] {
+        appMappings.sorted { $0.appName.localizedCaseInsensitiveCompare($1.appName) == .orderedAscending }
+    }
+
+    private func icon(for app: AppMappingRow) -> NSImage {
+        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: app.bundleId) {
+            return NSWorkspace.shared.icon(forFile: url.path)
+        }
+        return NSWorkspace.shared.icon(forFileType: "app")
     }
 }
 
@@ -512,30 +583,6 @@ private struct ColorSwatchView: View {
 
     private var color: Color? {
         Color(hex: hex)
-    }
-}
-
-private extension Color {
-    init?(hex: String) {
-        let cleaned = hex.trimmingCharacters(in: .whitespacesAndNewlines)
-            .replacingOccurrences(of: "#", with: "")
-        guard cleaned.count == 6,
-              let value = Int(cleaned, radix: 16) else {
-            return nil
-        }
-        let red = Double((value >> 16) & 0xFF) / 255.0
-        let green = Double((value >> 8) & 0xFF) / 255.0
-        let blue = Double(value & 0xFF) / 255.0
-        self.init(.sRGB, red: red, green: green, blue: blue, opacity: 1.0)
-    }
-
-    func toHexString() -> String? {
-        let nsColor = NSColor(self)
-        guard let rgb = nsColor.usingColorSpace(.sRGB) else { return nil }
-        let red = Int(round(rgb.redComponent * 255))
-        let green = Int(round(rgb.greenComponent * 255))
-        let blue = Int(round(rgb.blueComponent * 255))
-        return String(format: "#%02X%02X%02X", red, green, blue)
     }
 }
 
@@ -679,4 +726,5 @@ private struct TagColorPopoverContent: View {
 #Preview {
     TagsRulesView()
         .padding()
+        .environmentObject(AppState.shared)
 }

@@ -372,38 +372,33 @@ struct TimelineView: View {
         addDebugEvent("Refresh: \(reason)")
 
         let bounds = appState.dateRangeMode.bounds(for: appState.selectedDate)
+        let filters = AggregationFilters(
+            includeIdle: appState.includeIdleInTimeline,
+            tagId: nil,
+            appName: nil,
+            bundleId: nil,
+            searchQuery: appState.searchQuery
+        )
+
         let group = DispatchGroup()
-        var newActivities: [ActivityRow] = []
-        var newMarkers: [MarkerRow] = []
+        var newItems: [TimelineItem] = []
         var newTags: [TagRow] = []
-        var activityError: Error?
-        var markerError: Error?
+        var itemError: Error?
         var tagError: Error?
 
         group.enter()
-        DatabaseService.shared.fetchActivitiesOverlappingRange(start: bounds.start, end: bounds.end) { result in
+        AggregationService.shared.fetchTimelineItems(rangeStart: bounds.start, rangeEnd: bounds.end, filters: filters) { result in
             switch result {
-            case .success(let rows):
-                newActivities = rows
+            case .success(let items):
+                newItems = items
             case .failure(let error):
-                activityError = error
+                itemError = error
             }
             group.leave()
         }
 
         group.enter()
-        DatabaseService.shared.fetchMarkersOverlappingRange(start: bounds.start, end: bounds.end) { result in
-            switch result {
-            case .success(let rows):
-                newMarkers = rows
-            case .failure(let error):
-                markerError = error
-            }
-            group.leave()
-        }
-
-        group.enter()
-        DatabaseService.shared.fetchTags { result in
+        AggregationService.shared.fetchTags { result in
             switch result {
             case .success(let rows):
                 newTags = rows
@@ -414,14 +409,14 @@ struct TimelineView: View {
         }
 
         group.notify(queue: .main) {
-            self.activities = newActivities
-            self.markers = newMarkers
+            self.timelineItems = newItems
+            self.activities = newItems.compactMap { if case .activity(let a) = $0 { return a }; return nil }
+            self.markers = newItems.compactMap { if case .marker(let m) = $0 { return m }; return nil }
             self.tags = newTags
-            self.timelineItems = self.buildTimelineItems(activities: newActivities, markers: newMarkers)
             self.isLoading = false
             self.lastRefresh = Date()
 
-            if let error = activityError ?? markerError ?? tagError {
+            if let error = itemError ?? tagError {
                 self.appState.lastDbErrorMessage = error.localizedDescription
             } else {
                 self.appState.lastDbErrorMessage = nil
@@ -429,12 +424,6 @@ struct TimelineView: View {
         }
     }
 
-    private func buildTimelineItems(activities: [ActivityRow], markers: [MarkerRow]) -> [TimelineItem] {
-        var items: [TimelineItem] = []
-        items.append(contentsOf: activities.map { TimelineItem.activity($0) })
-        items.append(contentsOf: markers.map { TimelineItem.marker($0) })
-        return items.sorted { $0.timestamp > $1.timestamp }
-    }
 
     private var tagLookup: [Int64: TagRow] {
         Dictionary(uniqueKeysWithValues: tags.map { ($0.id, $0) })

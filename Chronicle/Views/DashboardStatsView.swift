@@ -23,7 +23,7 @@ struct DashboardStatsView: View {
 
             Picker("Range", selection: $appState.dateRangeMode) {
                 ForEach(DateRangeMode.allCases) { range in
-                    Text(range.title).tag(range)
+                    Text(range.titleKey).tag(range)
                 }
             }
             .pickerStyle(.segmented)
@@ -149,7 +149,18 @@ struct DashboardStatsView: View {
     }
 
     private var rangeTitle: String {
-        appState.dateRangeMode.title(for: appState.selectedDate)
+        L(rangeTitleKey)
+    }
+
+    private var rangeTitleKey: String {
+        switch appState.dateRangeMode {
+        case .day:
+            return "range.selected_day"
+        case .week:
+            return "range.selected_week"
+        case .month:
+            return "range.selected_month"
+        }
     }
 
     private func refreshStats(reason: String) {
@@ -157,19 +168,18 @@ struct DashboardStatsView: View {
         let bounds = rangeBounds
 
         let group = DispatchGroup()
-        var activities: [ActivityRow] = []
+        let filters = AggregationFilters(includeIdle: true, tagId: nil, appName: nil, bundleId: nil, searchQuery: nil)
+        var summary: AggregationSummary?
+        var topApps: [TopItem] = []
+        var topTags: [TopItem] = []
         var tagRows: [TagRow] = []
-        var markerRows: [MarkerRow] = []
         var errorMessage: String?
 
         group.enter()
-        DatabaseService.shared.fetchActivitiesOverlappingRange(
-            start: bounds.start,
-            end: bounds.end
-        ) { result in
+        AggregationService.shared.computeSummary(rangeStart: bounds.start, rangeEnd: bounds.end, filters: filters) { result in
             switch result {
-            case .success(let rows):
-                activities = rows
+            case .success(let value):
+                summary = value
             case .failure(let error):
                 errorMessage = error.localizedDescription
             }
@@ -177,7 +187,41 @@ struct DashboardStatsView: View {
         }
 
         group.enter()
-        DatabaseService.shared.fetchTags { result in
+        AggregationService.shared.computeTopApps(
+            rangeStart: bounds.start,
+            rangeEnd: bounds.end,
+            filters: filters,
+            limit: 10,
+            includeIdle: appState.includeIdleInCharts
+        ) { result in
+            switch result {
+            case .success(let items):
+                topApps = items
+            case .failure(let error):
+                errorMessage = error.localizedDescription
+            }
+            group.leave()
+        }
+
+        group.enter()
+        AggregationService.shared.computeTopTags(
+            rangeStart: bounds.start,
+            rangeEnd: bounds.end,
+            filters: filters,
+            limit: 10,
+            includeIdle: appState.includeIdleInCharts
+        ) { result in
+            switch result {
+            case .success(let items):
+                topTags = items
+            case .failure(let error):
+                errorMessage = error.localizedDescription
+            }
+            group.leave()
+        }
+
+        group.enter()
+        AggregationService.shared.fetchTags { result in
             switch result {
             case .success(let rows):
                 tagRows = rows
@@ -187,102 +231,33 @@ struct DashboardStatsView: View {
             group.leave()
         }
 
-        group.enter()
-        DatabaseService.shared.fetchMarkersOverlappingRange(start: bounds.start, end: bounds.end) { result in
-            switch result {
-            case .success(let rows):
-                markerRows = rows
-            case .failure(let error):
-                errorMessage = error.localizedDescription
-            }
-            group.leave()
-        }
-
-        group.notify(queue: .global(qos: .userInitiated)) {
-            let rangeStats = computeStats(
-                rows: activities,
-                tags: tagRows,
-                rangeStart: bounds.start,
-                rangeEnd: bounds.end,
-                markerCount: markerRows.count,
-                includeIdleInCharts: self.appState.includeIdleInCharts
+        group.notify(queue: .main) {
+            let rangeStats = RangeStats(
+                summary: SummaryMetrics(
+                    totalSeconds: summary?.totalSeconds ?? 0,
+                    activeSeconds: summary?.activeSeconds ?? 0,
+                    idleSeconds: summary?.idleSeconds ?? 0,
+                    sessions: summary?.sessionsCount ?? 0
+                ),
+                topApps: topApps.map { AppDuration(appName: $0.name, seconds: $0.durationSeconds) },
+                topTags: topTags.map { item in
+                    let tagLookup = Dictionary(uniqueKeysWithValues: tagRows.map { ($0.id, $0) })
+                    let color = item.tagId.flatMap { tagLookup[$0]?.color }
+                    return TagDuration(tagId: item.tagId, name: item.name, color: color, seconds: item.durationSeconds)
+                },
+                markersCount: summary?.markersCount ?? 0
             )
 
-            DispatchQueue.main.async {
-                self.rangeStats = rangeStats
-                self.lastRefresh = Date()
-                self.isLoading = false
-                if let errorMessage {
-                    self.appState.lastDbErrorMessage = errorMessage
-                }
-                AppLogger.log("Dashboard stats refresh: \(reason)", category: "ui")
+            self.rangeStats = rangeStats
+            self.lastRefresh = Date()
+            self.isLoading = false
+            if let errorMessage {
+                self.appState.lastDbErrorMessage = errorMessage
             }
+            AppLogger.log("Dashboard stats refresh: \(reason)", category: "ui")
         }
     }
 
-    private func computeStats(
-        rows: [ActivityRow],
-        tags: [TagRow],
-        rangeStart: Int64,
-        rangeEnd: Int64,
-        markerCount: Int,
-        includeIdleInCharts: Bool
-    ) -> RangeStats {
-        var total: Int64 = 0
-        var idle: Int64 = 0
-        var sessions = 0
-        var appTotals: [String: Int64] = [:]
-        var tagTotals: [Int64: Int64] = [:]
-
-        let tagLookup = Dictionary(uniqueKeysWithValues: tags.map { ($0.id, $0) })
-        let untaggedKey: Int64 = -1
-
-        for row in rows {
-            let start = max(row.startTime, rangeStart)
-            let end = min(row.endTime, rangeEnd)
-            let duration = max<Int64>(0, end - start)
-            guard duration > 0 else { continue }
-
-            total += duration
-            sessions += 1
-
-            if row.isIdle {
-                idle += duration
-                if includeIdleInCharts {
-                    appTotals[row.appName, default: 0] += duration
-                }
-            } else {
-                appTotals[row.appName, default: 0] += duration
-                let bucket = row.tagId ?? untaggedKey
-                tagTotals[bucket, default: 0] += duration
-            }
-        }
-
-        let active = max<Int64>(0, total - idle)
-
-        let topApps = appTotals.map { AppDuration(appName: $0.key, seconds: $0.value) }
-            .sorted { $0.seconds > $1.seconds }
-            .prefix(6)
-
-        let topTags = tagTotals.map { key, seconds in
-            if key == untaggedKey {
-                return TagDuration(tagId: nil, name: "Untagged", color: nil, seconds: seconds)
-            }
-            if let tag = tagLookup[key] {
-                return TagDuration(tagId: tag.id, name: tag.name, color: tag.color, seconds: seconds)
-            }
-            return TagDuration(tagId: key, name: "Tag \(key)", color: nil, seconds: seconds)
-        }
-        .sorted { $0.seconds > $1.seconds }
-        .prefix(6)
-
-        return RangeStats(
-            summary: SummaryMetrics(totalSeconds: total, activeSeconds: active, idleSeconds: idle, sessions: sessions),
-            topApps: Array(topApps),
-            topTags: Array(topTags),
-            markersCount: markerCount
-        )
-    }
 
     private var isTodaySelected: Bool {
         Calendar.current.isDateInToday(appState.selectedDate)
@@ -509,21 +484,6 @@ private struct TopTagRow: View {
             return parsed
         }
         return Color.gray.opacity(0.6)
-    }
-}
-
-private extension Color {
-    init?(hex: String) {
-        let cleaned = hex.trimmingCharacters(in: .whitespacesAndNewlines)
-            .replacingOccurrences(of: "#", with: "")
-        guard cleaned.count == 6,
-              let value = Int(cleaned, radix: 16) else {
-            return nil
-        }
-        let red = Double((value >> 16) & 0xFF) / 255.0
-        let green = Double((value >> 8) & 0xFF) / 255.0
-        let blue = Double(value & 0xFF) / 255.0
-        self.init(.sRGB, red: red, green: green, blue: blue, opacity: 1.0)
     }
 }
 
