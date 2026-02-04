@@ -417,6 +417,7 @@
 				PRODUCT_NAME = ChronicleTests;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Chronicle.app/Contents/MacOS/Chronicle";
 			};
 			name = Debug;
@@ -441,6 +442,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.Chronicle.ChronicleTests;
 				PRODUCT_NAME = ChronicleTests;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited)";
+				SWIFT_VERSION = 5.0;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Chronicle.app/Contents/MacOS/Chronicle";
 			};
 			name = Release;
