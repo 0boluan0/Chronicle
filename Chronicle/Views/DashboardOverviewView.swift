@@ -44,6 +44,11 @@ struct DashboardOverviewView: View {
             headerView
 
             controlsView
+            if appState.countOverlaysInTotals {
+                Text("Totals include overlays")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
 
             legendView
 
@@ -90,10 +95,10 @@ struct DashboardOverviewView: View {
         .onReceive(NotificationCenter.default.publisher(for: ActivityTracker.didRecordSessionNotification)) { _ in
             refreshData(reason: "activity tracker")
         }
-        .onChange(of: appState.selectedDate) { _, _ in
+        .onChange(of: appState.selectedDate) { _ in
             refreshData(reason: "date changed")
         }
-        .onChange(of: appState.dateRangeMode) { _, _ in
+        .onChange(of: appState.dateRangeMode) { _ in
             refreshData(reason: "range changed")
         }
     }
@@ -186,15 +191,20 @@ struct DashboardOverviewView: View {
             legendItem(title: "Idle") {
                 IdleLegendSwatch()
             }
+            legendItem(title: "Untagged") {
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(neutralRowColor.opacity(0.55))
+                    .frame(width: 16, height: 10)
+            }
             legendItem(title: "Tagged") {
                 RoundedRectangle(cornerRadius: 3)
-                    .fill(Color.blue.opacity(0.7))
+                    .fill(Color(nsColor: .systemTeal).opacity(0.6))
                     .frame(width: 16, height: 10)
             }
             legendItem(title: "Overlay") {
                 RoundedRectangle(cornerRadius: 3)
                     .stroke(style: StrokeStyle(lineWidth: 1, dash: [3, 2]))
-                    .foregroundColor(Color.blue.opacity(0.6))
+                    .foregroundColor(DesignSystem.Colors.secondaryText.opacity(0.6))
                     .frame(width: 16, height: 10)
             }
         }
@@ -633,7 +643,7 @@ struct DashboardOverviewView: View {
 #endif
 
     private func colorForApp(_ appName: String) -> Color {
-        return Color.blue
+        return neutralRowColor
     }
 
     private func shiftDate(by days: Int) {
@@ -698,7 +708,7 @@ struct DashboardOverviewView: View {
                         WeeklyRowData(
                             id: row.id,
                             title: row.title,
-                            color: Color(hex: row.colorHex ?? "") ?? Color.blue,
+                            color: Color(hex: row.colorHex ?? "") ?? neutralRowColor,
                             dailyTotals: row.dailyTotals,
                             totalSeconds: row.totalSeconds
                         )
@@ -734,6 +744,10 @@ struct DashboardOverviewView: View {
         let isOverlay: Bool
         let tagColorHex: String?
         let selection: GanttSelection
+    }
+
+    private var neutralRowColor: Color {
+        Color(nsColor: .systemGray)
     }
 
     private static let dateFormatter: DateFormatter = {

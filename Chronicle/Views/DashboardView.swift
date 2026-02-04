@@ -12,9 +12,6 @@ struct DashboardView: View {
         case timeline
         case overview
         case stats
-        case reports
-        case apps
-        case tagsRules
         case markers
 #if DEBUG
         case debug
@@ -30,12 +27,6 @@ struct DashboardView: View {
                 return "dashboard.overview"
             case .stats:
                 return "dashboard.stats"
-            case .reports:
-                return "dashboard.reports"
-            case .apps:
-                return "dashboard.apps"
-            case .tagsRules:
-                return "dashboard.tags_rules"
             case .markers:
                 return "dashboard.markers"
 #if DEBUG
@@ -53,12 +44,6 @@ struct DashboardView: View {
                 return "rectangle.3.group"
             case .stats:
                 return "chart.bar"
-            case .reports:
-                return "doc.text"
-            case .apps:
-                return "square.stack.3d.up"
-            case .tagsRules:
-                return "tag"
             case .markers:
                 return "pin"
 #if DEBUG
@@ -69,7 +54,7 @@ struct DashboardView: View {
         }
 
         static var allCases: [Section] {
-            var sections: [Section] = [.timeline, .overview, .stats, .reports, .apps, .tagsRules, .markers]
+            var sections: [Section] = [.timeline, .overview, .stats, .markers]
 #if DEBUG
             sections.append(.debug)
 #endif
@@ -80,7 +65,13 @@ struct DashboardView: View {
     @AppStorage("dashboard.selectedSection") private var selectedSectionRaw = Section.timeline.rawValue
 
     private var selectedSection: Section {
-        get { Section(rawValue: selectedSectionRaw) ?? .timeline }
+        get {
+            let candidate = Section(rawValue: selectedSectionRaw) ?? .timeline
+            if Section.allCases.contains(candidate) {
+                return candidate
+            }
+            return .timeline
+        }
         set { selectedSectionRaw = newValue.rawValue }
     }
 
@@ -124,12 +115,6 @@ struct DashboardView: View {
             DashboardOverviewView()
         case .stats:
             DashboardStatsView()
-        case .reports:
-            DashboardReportsView()
-        case .apps:
-            DashboardAppsView()
-        case .tagsRules:
-            DashboardTagsRulesView()
         case .markers:
             DashboardMarkersView()
 #if DEBUG

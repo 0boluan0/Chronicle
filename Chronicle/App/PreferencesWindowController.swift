@@ -34,6 +34,9 @@ final class PreferencesWindowController {
         }
 
         NSApp.activate(ignoringOtherApps: true)
+        if window?.isMiniaturized == true {
+            window?.deminiaturize(nil)
+        }
         window?.makeKeyAndOrderFront(nil)
         AppLogger.log("Preferences opened", category: "ui")
     }

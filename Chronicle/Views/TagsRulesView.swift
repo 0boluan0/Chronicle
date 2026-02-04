@@ -33,10 +33,10 @@ struct TagsRulesView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
             if showHeader {
                 Text("Tags & Rules")
-                    .font(.title2.weight(.semibold))
+                    .font(DesignSystem.Typography.title)
             }
 
             Picker("Section", selection: $selection) {
@@ -45,6 +45,7 @@ struct TagsRulesView: View {
                 }
             }
             .pickerStyle(.segmented)
+            .tint(DesignSystem.Colors.accentSkyBlue)
 
             Divider()
 
@@ -64,7 +65,7 @@ struct TagsManagementView: View {
     @State private var tags: [TagRow] = []
     @State private var newTagName = ""
     @State private var newTagColorHex: String? = TagColorPalette.defaultHex
-    @State private var lastActionMessage: String?
+    @State private var lastActionMessage: StatusMessage?
     @State private var activeColorPopoverId: UUID?
     @State private var newTagPopoverId = UUID()
 
@@ -75,25 +76,21 @@ struct TagsManagementView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
             if showHeader {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Tags")
-                        .font(.title2.weight(.semibold))
+                        .font(DesignSystem.Typography.title)
                     Text("Create and edit tags used to classify your timeline.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
             }
 
-            if let lastActionMessage {
-                Text(lastActionMessage)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
+            statusView(lastActionMessage)
 
-            GroupBox {
-                VStack(alignment: .leading, spacing: 12) {
+            SectionCard {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
                     HStack(spacing: 8) {
                         TextField("Tag name", text: $newTagName)
                             .textFieldStyle(.roundedBorder)
@@ -101,6 +98,7 @@ struct TagsManagementView: View {
                             addTag()
                         }
                         .buttonStyle(.borderedProminent)
+                        .tint(DesignSystem.Colors.accentSkyBlue)
                         .disabled(newTagName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
 
@@ -113,9 +111,7 @@ struct TagsManagementView: View {
                     )
 
                     if tags.isEmpty {
-                        Text("No tags yet.")
-                            .foregroundColor(.secondary)
-                            .font(.caption)
+                        EmptyStateView(title: "No tags yet.")
                     } else {
                         VStack(alignment: .leading, spacing: 8) {
                             ForEach(tags) { tag in
@@ -145,7 +141,10 @@ struct TagsManagementView: View {
                 case .success(let rows):
                     self.tags = rows
                 case .failure(let error):
-                    self.lastActionMessage = String(format: L("tags.status.fetch_failed"), error.localizedDescription)
+                    self.lastActionMessage = StatusMessage(
+                        text: String(format: L("tags.status.fetch_failed"), error.localizedDescription),
+                        isError: true
+                    )
                 }
             }
         }
@@ -160,10 +159,13 @@ struct TagsManagementView: View {
                 case .success:
                     self.newTagName = ""
                     self.newTagColorHex = TagColorPalette.defaultHex
-                    self.lastActionMessage = L("tags.status.added")
+                    self.lastActionMessage = StatusMessage(text: L("tags.status.added"), isError: false)
                     self.reloadTags()
                 case .failure(let error):
-                    self.lastActionMessage = String(format: L("tags.status.add_failed"), error.localizedDescription)
+                    self.lastActionMessage = StatusMessage(
+                        text: String(format: L("tags.status.add_failed"), error.localizedDescription),
+                        isError: true
+                    )
                 }
             }
         }
@@ -174,10 +176,13 @@ struct TagsManagementView: View {
             DispatchQueue.main.async {
                 switch result {
                 case .success:
-                    self.lastActionMessage = L("tags.status.updated")
+                    self.lastActionMessage = StatusMessage(text: L("tags.status.updated"), isError: false)
                     self.reloadTags()
                 case .failure(let error):
-                    self.lastActionMessage = String(format: L("tags.status.update_failed"), error.localizedDescription)
+                    self.lastActionMessage = StatusMessage(
+                        text: String(format: L("tags.status.update_failed"), error.localizedDescription),
+                        isError: true
+                    )
                 }
             }
         }
@@ -188,10 +193,13 @@ struct TagsManagementView: View {
             DispatchQueue.main.async {
                 switch result {
                 case .success:
-                    self.lastActionMessage = L("tags.status.deleted")
+                    self.lastActionMessage = StatusMessage(text: L("tags.status.deleted"), isError: false)
                     self.reloadTags()
                 case .failure(let error):
-                    self.lastActionMessage = String(format: L("tags.status.delete_failed"), error.localizedDescription)
+                    self.lastActionMessage = StatusMessage(
+                        text: String(format: L("tags.status.delete_failed"), error.localizedDescription),
+                        isError: true
+                    )
                 }
             }
         }
@@ -203,7 +211,7 @@ struct RulesManagementView: View {
     @State private var rules: [RuleRow] = []
     @State private var tags: [TagRow] = []
     @State private var appMappings: [AppMappingRow] = []
-    @State private var lastActionMessage: String?
+    @State private var lastActionMessage: StatusMessage?
     @State private var newRuleName = ""
 
     let showHeader: Bool
@@ -213,25 +221,21 @@ struct RulesManagementView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
             if showHeader {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Rules")
-                        .font(.title2.weight(.semibold))
+                        .font(DesignSystem.Typography.title)
                     Text("Rules auto-tag activities based on app or window title.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
             }
 
-            if let lastActionMessage {
-                Text(lastActionMessage)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
+            statusView(lastActionMessage)
 
-            GroupBox {
-                VStack(alignment: .leading, spacing: 12) {
+            SectionCard {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
                     HStack(spacing: 8) {
                         TextField("Rule name", text: $newRuleName)
                             .textFieldStyle(.roundedBorder)
@@ -239,13 +243,12 @@ struct RulesManagementView: View {
                             addRule()
                         }
                         .buttonStyle(.borderedProminent)
+                        .tint(DesignSystem.Colors.accentSkyBlue)
                         .disabled(newRuleName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
 
                     if rules.isEmpty {
-                        Text("No rules yet.")
-                            .foregroundColor(.secondary)
-                            .font(.caption)
+                        EmptyStateView(title: "No rules yet.")
                     } else {
                         VStack(alignment: .leading, spacing: 10) {
                             ForEach(rules) { rule in
@@ -327,10 +330,13 @@ struct RulesManagementView: View {
                 switch result {
                 case .success:
                     self.newRuleName = ""
-                    self.lastActionMessage = L("rules.status.added")
+                    self.lastActionMessage = StatusMessage(text: L("rules.status.added"), isError: false)
                     self.reloadData()
                 case .failure(let error):
-                    self.lastActionMessage = String(format: L("rules.status.add_failed"), error.localizedDescription)
+                    self.lastActionMessage = StatusMessage(
+                        text: String(format: L("rules.status.add_failed"), error.localizedDescription),
+                        isError: true
+                    )
                 }
             }
         }
@@ -341,10 +347,13 @@ struct RulesManagementView: View {
             DispatchQueue.main.async {
                 switch result {
                 case .success:
-                    self.lastActionMessage = L("rules.status.updated")
+                    self.lastActionMessage = StatusMessage(text: L("rules.status.updated"), isError: false)
                     self.reloadData()
                 case .failure(let error):
-                    self.lastActionMessage = String(format: L("rules.status.update_failed"), error.localizedDescription)
+                    self.lastActionMessage = StatusMessage(
+                        text: String(format: L("rules.status.update_failed"), error.localizedDescription),
+                        isError: true
+                    )
                 }
             }
         }
@@ -355,10 +364,13 @@ struct RulesManagementView: View {
             DispatchQueue.main.async {
                 switch result {
                 case .success:
-                    self.lastActionMessage = L("rules.status.deleted")
+                    self.lastActionMessage = StatusMessage(text: L("rules.status.deleted"), isError: false)
                     self.reloadData()
                 case .failure(let error):
-                    self.lastActionMessage = String(format: L("rules.status.delete_failed"), error.localizedDescription)
+                    self.lastActionMessage = StatusMessage(
+                        text: String(format: L("rules.status.delete_failed"), error.localizedDescription),
+                        isError: true
+                    )
                 }
             }
         }
@@ -370,9 +382,15 @@ struct RulesManagementView: View {
             DispatchQueue.main.async {
                 switch result {
                 case .success(let count):
-                    self.lastActionMessage = String(format: L("rules.status.recomputed"), count)
+                    self.lastActionMessage = StatusMessage(
+                        text: String(format: L("rules.status.recomputed"), count),
+                        isError: false
+                    )
                 case .failure(let error):
-                    self.lastActionMessage = String(format: L("rules.status.recompute_failed"), error.localizedDescription)
+                    self.lastActionMessage = StatusMessage(
+                        text: String(format: L("rules.status.recompute_failed"), error.localizedDescription),
+                        isError: true
+                    )
                 }
             }
         }
@@ -384,6 +402,7 @@ private struct TagEditorRow: View {
     let onSave: (TagRow) -> Void
     let onDelete: () -> Void
     @Binding var activePopoverId: UUID?
+    @State private var isHovering = false
 
     @State private var name: String
     @State private var colorHex: String?
@@ -427,6 +446,23 @@ private struct TagEditorRow: View {
                 onDelete()
             }
             .buttonStyle(.bordered)
+            .tint(.red)
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .fill(DesignSystem.Colors.cardBackground)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .stroke(DesignSystem.Colors.separator.opacity(isHovering ? 0.6 : 0.25), lineWidth: 1)
+        )
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .fill(DesignSystem.Colors.separator.opacity(isHovering ? 0.06 : 0.0))
+        )
+        .onHover { hovering in
+            isHovering = hovering
         }
     }
 }
@@ -446,6 +482,7 @@ private struct RuleEditorRow: View {
     @State private var selectedTagId: Int64
     @State private var priority: Int
     @State private var selectedBundleId: String
+    @State private var isHovering = false
 
     private let unassignedTagId: Int64 = -1
     private let anyBundleId: String = "__any__"
@@ -528,13 +565,25 @@ private struct RuleEditorRow: View {
                     onDelete()
                 }
                 .buttonStyle(.bordered)
+                .tint(.red)
             }
         }
-        .padding(8)
+        .padding(DesignSystem.Spacing.sm)
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(Color(nsColor: .controlBackgroundColor))
+                .fill(DesignSystem.Colors.cardBackground)
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(DesignSystem.Colors.separator.opacity(isHovering ? 0.6 : 0.25), lineWidth: 1)
+        )
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(DesignSystem.Colors.separator.opacity(isHovering ? 0.06 : 0.0))
+        )
+        .onHover { hovering in
+            isHovering = hovering
+        }
     }
 
     private var updatedRule: RuleRow {
@@ -719,6 +768,24 @@ private struct TagColorPopoverContent: View {
         hex = colorHex
         if let parsed = Color(hex: colorHex) {
             colorSelection = parsed
+        }
+    }
+}
+
+private struct StatusMessage {
+    let text: String
+    let isError: Bool
+}
+
+@ViewBuilder
+private func statusView(_ status: StatusMessage?) -> some View {
+    if let status {
+        if status.isError {
+            ErrorStateView(title: L("status.action_failed"), message: status.text)
+        } else {
+            Text(status.text)
+                .font(DesignSystem.Typography.caption)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
         }
     }
 }

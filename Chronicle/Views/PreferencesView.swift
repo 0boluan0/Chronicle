@@ -10,32 +10,115 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct PreferencesView: View {
-    @EnvironmentObject private var appState: AppState
-    @EnvironmentObject private var languageManager: AppLanguageManager
+    enum Section: String, CaseIterable, Identifiable {
+        case general
+        case tags
+        case export
+        case privacy
+#if DEBUG
+        case debug
+#endif
+
+        var id: String { rawValue }
+
+        var titleKey: LocalizedStringKey {
+            switch self {
+            case .general:
+                return "preferences.general"
+            case .tags:
+                return "preferences.tags"
+            case .export:
+                return "preferences.export"
+            case .privacy:
+                return "preferences.privacy"
+#if DEBUG
+            case .debug:
+                return "preferences.debug"
+#endif
+            }
+        }
+
+        var systemImage: String {
+            switch self {
+            case .general:
+                return "gearshape"
+            case .tags:
+                return "tag"
+            case .export:
+                return "arrow.up.doc"
+            case .privacy:
+                return "hand.raised"
+#if DEBUG
+            case .debug:
+                return "ladybug"
+#endif
+            }
+        }
+
+        static var allCases: [Section] {
+            var sections: [Section] = [.general, .tags, .export, .privacy]
+#if DEBUG
+            sections.append(.debug)
+#endif
+            return sections
+        }
+    }
+
+    @AppStorage("preferences.selectedSection") private var selectedSectionRaw = Section.general.rawValue
+
+    private var selectedSection: Section {
+        get { Section(rawValue: selectedSectionRaw) ?? .general }
+        set { selectedSectionRaw = newValue.rawValue }
+    }
 
     var body: some View {
-        TabView {
-            PreferencesTabScrollView {
-                GeneralPreferencesView()
+        NavigationSplitView {
+            List(selection: Binding<Section?>(
+                get: { selectedSection },
+                set: { newValue in
+                    if let newValue {
+                        selectedSectionRaw = newValue.rawValue
+                    }
+                }
+            )) {
+                ForEach(Section.allCases) { section in
+                    Label(section.titleKey, systemImage: section.systemImage)
+                        .tag(section)
+                }
             }
-                .tabItem { Label("preferences.general", systemImage: "gearshape") }
-
-            PreferencesTabScrollView {
-                AppMappingsView(showHeader: false)
-            }
-                .tabItem { Label("preferences.apps", systemImage: "square.stack.3d.up") }
-
-            PreferencesTabScrollView {
-                TagsRulesView(showHeader: false)
-            }
-                .tabItem { Label("preferences.tags_rules", systemImage: "tag") }
-
-            PreferencesTabScrollView {
-                PrivacyPreferencesView()
-            }
-                .tabItem { Label("preferences.privacy", systemImage: "hand.raised") }
+            .listStyle(.sidebar)
+        } detail: {
+            detailView
         }
         .frame(minWidth: 700, minHeight: 520)
+    }
+
+    @ViewBuilder
+    private var detailView: some View {
+        switch selectedSection {
+        case .general:
+            PreferencesSectionScrollView {
+                GeneralPreferencesView()
+            }
+        case .tags:
+            PreferencesSectionScrollView {
+                TagsPreferencesView()
+            }
+        case .export:
+            PreferencesSectionScrollView {
+                DashboardReportsView(showTitle: true, useScrollView: false)
+            }
+        case .privacy:
+            PreferencesSectionScrollView {
+                PrivacyPreferencesView()
+            }
+#if DEBUG
+        case .debug:
+            PreferencesSectionScrollView {
+                DebugPreferencesView()
+            }
+#endif
+        }
     }
 }
 
@@ -55,11 +138,13 @@ private struct GeneralPreferencesView: View {
             Text("General")
                 .font(.title2.weight(.semibold))
 
-            Toggle("Launch at Login", isOn: $appState.launchAtLoginEnabled)
+            Toggle("Launch at Login", isOn: launchAtLoginBinding)
 
-            Text("Launch at Login is a placeholder and will be wired up later.")
-                .font(.caption)
-                .foregroundColor(.secondary)
+            if let launchAtLoginMessage {
+                Text(launchAtLoginMessage)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
 
             Toggle("Ignore Chronicle itself", isOn: $appState.ignoreChronicleSelf)
 
@@ -88,16 +173,29 @@ private struct GeneralPreferencesView: View {
             idleSettingsSection
             trackingQualitySection
 
-#if DEBUG
-            Toggle("Enable Debug Logging", isOn: $appState.debugLoggingEnabled)
-
-            Text("Debug logging shows verbose console output for troubleshooting.")
-                .font(.caption)
-                .foregroundColor(.secondary)
-#endif
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
+
+    private var launchAtLoginBinding: Binding<Bool> {
+        Binding(
+            get: { appState.launchAtLoginEnabled },
+            set: { newValue in
+                do {
+                    let status = try LaunchAtLoginManager.shared.setEnabled(newValue)
+                    appState.launchAtLoginEnabled = status != .disabled
+                    launchAtLoginMessage = status == .requiresApproval
+                        ? L("login_items.needs_approval")
+                        : nil
+                } catch {
+                    appState.launchAtLoginEnabled = false
+                    launchAtLoginMessage = String(format: L("login_items.update_failed"), error.localizedDescription)
+                }
+            }
+        )
+    }
+
+    @State private var launchAtLoginMessage: String?
 
     private var trackingQualitySection: some View {
         GroupBox {
@@ -137,6 +235,12 @@ private struct GeneralPreferencesView: View {
                             .frame(width: 80, alignment: .leading)
                     }
                 }
+
+                Toggle("Count rapid-switch overlays in totals (may exceed 24h/day)", isOn: $appState.countOverlaysInTotals)
+
+                Text("Totals and top lists will include overlay durations when enabled.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Rapid switch window")
@@ -519,6 +623,16 @@ private struct AllowlistItem: Identifiable {
     let icon: NSImage
 }
 
+private struct TagsPreferencesView: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            TagsRulesView()
+            AppMappingsView()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 private struct PrivacyPreferencesView: View {
     @State private var showWipeConfirm = false
     @State private var wipeMessage: String?
@@ -601,12 +715,37 @@ private struct PrivacyPreferencesView: View {
     }
 }
 
+#if DEBUG
+private struct DebugPreferencesView: View {
+    @EnvironmentObject private var appState: AppState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
+            Text("Debug")
+                .font(DesignSystem.Typography.title)
+
+            SectionCard {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    Toggle("Enable Debug Logging", isOn: $appState.debugLoggingEnabled)
+                        .toggleStyle(.switch)
+
+                    Text("Debug logging shows verbose console output for troubleshooting.")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+}
+#endif
+
 #Preview {
     PreferencesView()
         .padding()
 }
 
-private struct PreferencesTabScrollView<Content: View>: View {
+private struct PreferencesSectionScrollView<Content: View>: View {
     let content: Content
 
     init(@ViewBuilder content: () -> Content) {

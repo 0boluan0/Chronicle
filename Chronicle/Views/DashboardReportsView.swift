@@ -9,30 +9,29 @@ import AppKit
 import SwiftUI
 
 struct DashboardReportsView: View {
+    var showTitle: Bool = true
+    var useScrollView: Bool = true
+
     @EnvironmentObject private var appState: AppState
     @ObservedObject private var settings = ReportSettings.shared
 
-    @State private var dailyStatus: String?
-    @State private var weeklyStatus: String?
-    @State private var csvStatus: String?
+    @State private var dailyStatus: StatusMessage?
+    @State private var weeklyStatus: StatusMessage?
+    @State private var csvStatus: StatusMessage?
     @State private var csvRangeMode: CSVRangeMode = .day
     @State private var customStartDate = Date()
     @State private var customEndDate = Date()
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                Text("Reports")
-                    .font(.title2.weight(.semibold))
-
-                csvSection
-
-                dailySection
-
-                weeklySection
+        Group {
+            if useScrollView {
+                ScrollView {
+                    reportsContent
+                        .padding(20)
+                }
+            } else {
+                reportsContent
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(20)
         }
         .onAppear {
             syncCsvRange(with: appState.dateRangeMode)
@@ -40,6 +39,22 @@ struct DashboardReportsView: View {
         .onChange(of: appState.dateRangeMode) { _, newValue in
             syncCsvRange(with: newValue)
         }
+    }
+
+    private var reportsContent: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            if showTitle {
+                Text(L("preferences.export"))
+                    .font(.title2.weight(.semibold))
+            }
+
+            csvSection
+
+            dailySection
+
+            weeklySection
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var csvSection: some View {
@@ -54,21 +69,23 @@ struct DashboardReportsView: View {
                 Text("Folder: \(settings.csvFolderDisplayPath)")
                     .font(.caption)
                     .foregroundColor(.secondary)
+                statusLine(folderStatusLine(for: .csv))
 
                 HStack(spacing: 8) {
                     Button("Choose Folder") {
                         chooseFolder { url in
                             do {
                                 try settings.updateCsvFolderBookmark(url: url)
-                                csvStatus = L("reports.csv.folder_updated")
+                                settings.setDiagnostics(nil, for: .csv)
+                                csvStatus = StatusMessage(text: L("reports.csv.folder_updated"), isError: false)
                             } catch {
-                                csvStatus = error.localizedDescription
+                                csvStatus = StatusMessage(text: error.localizedDescription, isError: true)
                             }
                         }
                     }
                     .buttonStyle(.bordered)
 
-                    Button("Open CSV Folder") {
+                    Button("Open Folder") {
                         csvStatus = handleOpenFolder(result: ReportService.shared.openCsvFolder())
                     }
                     .buttonStyle(.bordered)
@@ -80,7 +97,7 @@ struct DashboardReportsView: View {
                 }
 
                 HStack(spacing: 12) {
-                    Text("Range")
+                    Text("Export Range")
                         .font(.caption)
                         .foregroundColor(.secondary)
 
@@ -101,17 +118,14 @@ struct DashboardReportsView: View {
 
                     Spacer()
 
-                    Button("Export CSV") {
+                    Button("Export Now") {
                         exportCsv()
                     }
                     .buttonStyle(.borderedProminent)
                 }
 
-                if let csvStatus {
-                    Text(csvStatus)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
+                statusLine(csvStatus)
+                statusLine(lastRunLine(for: .csv))
 
                 if let diagnostics = settings.csvDiagnostics, diagnostics.errorDescription != nil {
                     diagnosticsView(
@@ -120,9 +134,10 @@ struct DashboardReportsView: View {
                             chooseFolder { url in
                                 do {
                                     try settings.updateCsvFolderBookmark(url: url)
-                                csvStatus = L("reports.csv.folder_updated")
+                                    settings.setDiagnostics(nil, for: .csv)
+                                    csvStatus = StatusMessage(text: L("reports.csv.folder_updated"), isError: false)
                                 } catch {
-                                    csvStatus = error.localizedDescription
+                                    csvStatus = StatusMessage(text: error.localizedDescription, isError: true)
                                 }
                             }
                         }
@@ -137,7 +152,7 @@ struct DashboardReportsView: View {
         GroupBox {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
-                    Text("Daily Report")
+                    Text("Daily Markdown")
                         .font(.headline)
                     Spacer()
                 }
@@ -145,21 +160,23 @@ struct DashboardReportsView: View {
                 Text("Folder: \(settings.dailyFolderDisplayPath)")
                     .font(.caption)
                     .foregroundColor(.secondary)
+                statusLine(folderStatusLine(for: .daily))
 
                 HStack(spacing: 8) {
                     Button("Choose Folder") {
                         chooseFolder { url in
                             do {
                                 try settings.updateDailyFolderBookmark(url: url)
-                                dailyStatus = L("reports.daily.folder_updated")
+                                settings.setDiagnostics(nil, for: .daily)
+                                dailyStatus = StatusMessage(text: L("reports.daily.folder_updated"), isError: false)
                             } catch {
-                                dailyStatus = error.localizedDescription
+                                dailyStatus = StatusMessage(text: error.localizedDescription, isError: true)
                             }
                         }
                     }
                     .buttonStyle(.bordered)
 
-                    Button("Open Daily Folder") {
+                    Button("Open Folder") {
                         dailyStatus = handleOpenFolder(result: ReportService.shared.openDailyFolder())
                     }
                     .buttonStyle(.bordered)
@@ -175,7 +192,7 @@ struct DashboardReportsView: View {
 
                 TextEditor(text: $settings.dailyTemplateText)
                     .font(.system(size: 12, design: .monospaced))
-                    .frame(minHeight: 180)
+                    .frame(minHeight: 180, maxHeight: 240)
                     .overlay(
                         RoundedRectangle(cornerRadius: 8)
                             .stroke(Color.gray.opacity(0.2), lineWidth: 1)
@@ -189,7 +206,7 @@ struct DashboardReportsView: View {
 
                     Spacer()
 
-                    Button("Generate for Selected Day") {
+                    Button("Generate Selected Day") {
                         generateDaily(date: appState.selectedDate)
                     }
                     .buttonStyle(.borderedProminent)
@@ -200,11 +217,8 @@ struct DashboardReportsView: View {
                     .buttonStyle(.borderedProminent)
                 }
 
-                if let dailyStatus {
-                    Text(dailyStatus)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
+                statusLine(dailyStatus)
+                statusLine(lastRunLine(for: .daily))
 
                 if let diagnostics = settings.dailyDiagnostics, diagnostics.errorDescription != nil {
                     diagnosticsView(
@@ -213,9 +227,10 @@ struct DashboardReportsView: View {
                             chooseFolder { url in
                                 do {
                                     try settings.updateDailyFolderBookmark(url: url)
-                                dailyStatus = L("reports.daily.folder_updated")
+                                    settings.setDiagnostics(nil, for: .daily)
+                                    dailyStatus = StatusMessage(text: L("reports.daily.folder_updated"), isError: false)
                                 } catch {
-                                    dailyStatus = error.localizedDescription
+                                    dailyStatus = StatusMessage(text: error.localizedDescription, isError: true)
                                 }
                             }
                         }
@@ -230,7 +245,7 @@ struct DashboardReportsView: View {
         GroupBox {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
-                    Text("Weekly Report")
+                    Text("Weekly Markdown")
                         .font(.headline)
                     Spacer()
                 }
@@ -238,21 +253,23 @@ struct DashboardReportsView: View {
                 Text("Folder: \(settings.weeklyFolderDisplayPath)")
                     .font(.caption)
                     .foregroundColor(.secondary)
+                statusLine(folderStatusLine(for: .weekly))
 
                 HStack(spacing: 8) {
                     Button("Choose Folder") {
                         chooseFolder { url in
                             do {
                                 try settings.updateWeeklyFolderBookmark(url: url)
-                                weeklyStatus = L("reports.weekly.folder_updated")
+                                settings.setDiagnostics(nil, for: .weekly)
+                                weeklyStatus = StatusMessage(text: L("reports.weekly.folder_updated"), isError: false)
                             } catch {
-                                weeklyStatus = error.localizedDescription
+                                weeklyStatus = StatusMessage(text: error.localizedDescription, isError: true)
                             }
                         }
                     }
                     .buttonStyle(.bordered)
 
-                    Button("Open Weekly Folder") {
+                    Button("Open Folder") {
                         weeklyStatus = handleOpenFolder(result: ReportService.shared.openWeeklyFolder())
                     }
                     .buttonStyle(.bordered)
@@ -268,7 +285,7 @@ struct DashboardReportsView: View {
 
                 TextEditor(text: $settings.weeklyTemplateText)
                     .font(.system(size: 12, design: .monospaced))
-                    .frame(minHeight: 180)
+                    .frame(minHeight: 180, maxHeight: 240)
                     .overlay(
                         RoundedRectangle(cornerRadius: 8)
                             .stroke(Color.gray.opacity(0.2), lineWidth: 1)
@@ -282,7 +299,7 @@ struct DashboardReportsView: View {
 
                     Spacer()
 
-                    Button("Generate for Selected Week") {
+                    Button("Generate Selected Week") {
                         generateWeekly(date: appState.selectedDate)
                     }
                     .buttonStyle(.borderedProminent)
@@ -293,11 +310,8 @@ struct DashboardReportsView: View {
                     .buttonStyle(.borderedProminent)
                 }
 
-                if let weeklyStatus {
-                    Text(weeklyStatus)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
+                statusLine(weeklyStatus)
+                statusLine(lastRunLine(for: .weekly))
 
                 if let diagnostics = settings.weeklyDiagnostics, diagnostics.errorDescription != nil {
                     diagnosticsView(
@@ -306,9 +320,10 @@ struct DashboardReportsView: View {
                             chooseFolder { url in
                                 do {
                                     try settings.updateWeeklyFolderBookmark(url: url)
-                                weeklyStatus = L("reports.weekly.folder_updated")
+                                    settings.setDiagnostics(nil, for: .weekly)
+                                    weeklyStatus = StatusMessage(text: L("reports.weekly.folder_updated"), isError: false)
                                 } catch {
-                                    weeklyStatus = error.localizedDescription
+                                    weeklyStatus = StatusMessage(text: error.localizedDescription, isError: true)
                                 }
                             }
                         }
@@ -320,43 +335,55 @@ struct DashboardReportsView: View {
     }
 
     private func generateDaily(date: Date) {
-        dailyStatus = L("reports.status.generating")
+        dailyStatus = StatusMessage(text: L("reports.status.generating"), isError: false)
         ReportService.shared.generateDailyReport(date: date) { result in
             DispatchQueue.main.async {
                 switch result {
                 case .success(let info):
-                    dailyStatus = String(format: L("reports.daily.saved"), info.fileName)
+                    let message = String(format: L("reports.daily.saved"), info.fileName)
+                    dailyStatus = StatusMessage(text: message, isError: false)
+                    settings.recordExportResult(kind: .daily, message: message, isError: false)
                 case .failure(let error):
-                    dailyStatus = error.localizedDescription + " (re-select folder if needed)"
+                    let message = error.localizedDescription + " (re-select folder if needed)"
+                    dailyStatus = StatusMessage(text: message, isError: true)
+                    settings.recordExportResult(kind: .daily, message: message, isError: true)
                 }
             }
         }
     }
 
     private func generateWeekly(date: Date) {
-        weeklyStatus = L("reports.status.generating")
+        weeklyStatus = StatusMessage(text: L("reports.status.generating"), isError: false)
         ReportService.shared.generateWeeklyReport(for: date) { result in
             DispatchQueue.main.async {
                 switch result {
                 case .success(let info):
-                    weeklyStatus = String(format: L("reports.weekly.saved"), info.fileName)
+                    let message = String(format: L("reports.weekly.saved"), info.fileName)
+                    weeklyStatus = StatusMessage(text: message, isError: false)
+                    settings.recordExportResult(kind: .weekly, message: message, isError: false)
                 case .failure(let error):
-                    weeklyStatus = error.localizedDescription + " (re-select folder if needed)"
+                    let message = error.localizedDescription + " (re-select folder if needed)"
+                    weeklyStatus = StatusMessage(text: message, isError: true)
+                    settings.recordExportResult(kind: .weekly, message: message, isError: true)
                 }
             }
         }
     }
 
     private func exportCsv() {
-        csvStatus = L("reports.status.exporting")
+        csvStatus = StatusMessage(text: L("reports.status.exporting"), isError: false)
         let range = csvExportRange()
         ReportService.shared.exportCSV(range: range) { result in
             DispatchQueue.main.async {
                 switch result {
                 case .success(let info):
-                    csvStatus = String(format: L("reports.csv.saved"), info.fileName)
+                    let message = String(format: L("reports.csv.saved"), info.fileName)
+                    csvStatus = StatusMessage(text: message, isError: false)
+                    settings.recordExportResult(kind: .csv, message: message, isError: false)
                 case .failure(let error):
-                    csvStatus = error.localizedDescription + " (re-select folder if needed)"
+                    let message = error.localizedDescription + " (re-select folder if needed)"
+                    csvStatus = StatusMessage(text: message, isError: true)
+                    settings.recordExportResult(kind: .csv, message: message, isError: true)
                 }
             }
         }
@@ -402,33 +429,33 @@ struct DashboardReportsView: View {
         }
     }
 
-    private func handleOpenFolder(result: Result<Void, Error>) -> String {
+    private func handleOpenFolder(result: Result<Void, Error>) -> StatusMessage {
         switch result {
         case .success:
-            return L("reports.opened_folder")
+            return StatusMessage(text: L("reports.opened_folder"), isError: false)
         case .failure(let error):
-            return error.localizedDescription + " (re-select folder if needed)"
+            return StatusMessage(text: error.localizedDescription + " (re-select folder if needed)", isError: true)
         }
     }
 
     private func diagnosticsView(_ diagnostics: ReportExportDiagnostics, reselectAction: @escaping () -> Void) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Export Diagnostics")
-                .font(.caption.weight(.semibold))
+            HStack(spacing: 6) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundColor(.orange)
+                Text(L("reports.folder.issue_title"))
+                    .font(.caption.weight(.semibold))
+            }
             if let errorDescription = diagnostics.errorDescription {
-                Text("Error: \(errorDescription)")
+                Text(errorDescription)
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
-            Text("Resolved URL: \(diagnostics.resolvedURL ?? "n/a")")
-                .font(.caption)
-                .foregroundColor(.secondary)
-            Text("Bookmark stale: \(diagnostics.bookmarkStale.map { $0 ? "true" : "false" } ?? "n/a")")
-                .font(.caption)
-                .foregroundColor(.secondary)
-            Text("startAccessing: \(diagnostics.startAccessing.map { $0 ? "true" : "false" } ?? "n/a")")
-                .font(.caption)
-                .foregroundColor(.secondary)
+            if let resolvedURL = diagnostics.resolvedURL {
+                Text(resolvedURL)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
 
             Button("Re-select Folder") {
                 reselectAction()
@@ -441,6 +468,60 @@ struct DashboardReportsView: View {
             RoundedRectangle(cornerRadius: 8)
                 .fill(Color(nsColor: .controlBackgroundColor))
         )
+    }
+
+    private func folderStatusLine(for kind: ReportFolderKind) -> StatusMessage {
+        if settings.bookmarkData(for: kind) == nil {
+            return StatusMessage(text: L("reports.folder.not_set"), isError: true)
+        }
+        if let diagnostics = diagnostics(for: kind), let error = diagnostics.errorDescription {
+            let message = String(format: L("reports.folder.issue"), error)
+            return StatusMessage(text: message, isError: true)
+        }
+        return StatusMessage(text: L("reports.folder.selected"), isError: false)
+    }
+
+    private func lastRunLine(for kind: ReportFolderKind) -> StatusMessage {
+        let (timestamp, message, isError): (Double, String?, Bool) = {
+            switch kind {
+            case .daily:
+                return (settings.lastDailyExportAt, settings.lastDailyExportMessage, settings.lastDailyExportIsError)
+            case .weekly:
+                return (settings.lastWeeklyExportAt, settings.lastWeeklyExportMessage, settings.lastWeeklyExportIsError)
+            case .csv:
+                return (settings.lastCsvExportAt, settings.lastCsvExportMessage, settings.lastCsvExportIsError)
+            }
+        }()
+
+        guard timestamp > 0 else {
+            return StatusMessage(text: L("reports.status.not_run"), isError: false)
+        }
+        let date = Date(timeIntervalSince1970: timestamp)
+        let formatted = Self.statusDateFormatter.string(from: date)
+        let fallback = isError ? L("reports.status.failed") : L("reports.status.success")
+        let resultText = (message?.isEmpty == false) ? (message ?? fallback) : fallback
+        let line = String(format: L("reports.status.last_run"), formatted, resultText)
+        return StatusMessage(text: line, isError: isError)
+    }
+
+    private func diagnostics(for kind: ReportFolderKind) -> ReportExportDiagnostics? {
+        switch kind {
+        case .daily:
+            return settings.dailyDiagnostics
+        case .weekly:
+            return settings.weeklyDiagnostics
+        case .csv:
+            return settings.csvDiagnostics
+        }
+    }
+
+    @ViewBuilder
+    private func statusLine(_ status: StatusMessage?) -> some View {
+        if let status {
+            Text(status.text)
+                .font(.caption)
+                .foregroundColor(status.isError ? .red : .secondary)
+        }
     }
 }
 
@@ -469,4 +550,20 @@ private enum CSVRangeMode: String, CaseIterable, Identifiable {
 #Preview {
     DashboardReportsView()
         .environmentObject(AppState.shared)
+}
+
+private struct StatusMessage {
+    let text: String
+    let isError: Bool
+}
+
+private extension DashboardReportsView {
+    static let statusDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .short
+        formatter.locale = Locale.current
+        formatter.timeZone = TimeZone.current
+        return formatter
+    }()
 }

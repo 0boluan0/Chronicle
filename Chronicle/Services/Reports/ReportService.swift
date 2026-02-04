@@ -140,7 +140,14 @@ final class ReportService {
     ) {
         do {
             let bounds = rangeBounds(for: kind, date: date)
-            let filters = AggregationFilters(includeIdle: true, tagId: nil, appName: nil, bundleId: nil, searchQuery: nil)
+            let filters = AggregationFilters(
+                includeIdle: true,
+                countOverlaysInTotals: AppState.shared.countOverlaysInTotals,
+                tagId: nil,
+                appName: nil,
+                bundleId: nil,
+                searchQuery: nil
+            )
             let group = DispatchGroup()
             var summary: AggregationSummary?
             var topApps: [TopItem] = []

@@ -51,6 +51,33 @@ final class ReportSettings: ObservableObject {
     @Published var lastExportedWeek: String? {
         didSet { saveString(lastExportedWeek, key: Keys.lastExportedWeek) }
     }
+    @Published var lastDailyExportAt: Double {
+        didSet { UserDefaults.standard.set(lastDailyExportAt, forKey: Keys.lastDailyExportAt) }
+    }
+    @Published var lastWeeklyExportAt: Double {
+        didSet { UserDefaults.standard.set(lastWeeklyExportAt, forKey: Keys.lastWeeklyExportAt) }
+    }
+    @Published var lastCsvExportAt: Double {
+        didSet { UserDefaults.standard.set(lastCsvExportAt, forKey: Keys.lastCsvExportAt) }
+    }
+    @Published var lastDailyExportMessage: String? {
+        didSet { saveString(lastDailyExportMessage, key: Keys.lastDailyExportMessage) }
+    }
+    @Published var lastWeeklyExportMessage: String? {
+        didSet { saveString(lastWeeklyExportMessage, key: Keys.lastWeeklyExportMessage) }
+    }
+    @Published var lastCsvExportMessage: String? {
+        didSet { saveString(lastCsvExportMessage, key: Keys.lastCsvExportMessage) }
+    }
+    @Published var lastDailyExportIsError: Bool {
+        didSet { UserDefaults.standard.set(lastDailyExportIsError, forKey: Keys.lastDailyExportIsError) }
+    }
+    @Published var lastWeeklyExportIsError: Bool {
+        didSet { UserDefaults.standard.set(lastWeeklyExportIsError, forKey: Keys.lastWeeklyExportIsError) }
+    }
+    @Published var lastCsvExportIsError: Bool {
+        didSet { UserDefaults.standard.set(lastCsvExportIsError, forKey: Keys.lastCsvExportIsError) }
+    }
 
     static let defaultDailyTemplate = """
     # Daily Report - {{date}}
@@ -111,6 +138,15 @@ final class ReportSettings: ObservableObject {
         static let overwriteCsvExports = "reports.overwriteCsvExports"
         static let lastExportedDay = "reports.lastExportedDay"
         static let lastExportedWeek = "reports.lastExportedWeek"
+        static let lastDailyExportAt = "reports.lastDailyExportAt"
+        static let lastWeeklyExportAt = "reports.lastWeeklyExportAt"
+        static let lastCsvExportAt = "reports.lastCsvExportAt"
+        static let lastDailyExportMessage = "reports.lastDailyExportMessage"
+        static let lastWeeklyExportMessage = "reports.lastWeeklyExportMessage"
+        static let lastCsvExportMessage = "reports.lastCsvExportMessage"
+        static let lastDailyExportIsError = "reports.lastDailyExportIsError"
+        static let lastWeeklyExportIsError = "reports.lastWeeklyExportIsError"
+        static let lastCsvExportIsError = "reports.lastCsvExportIsError"
     }
 
     private init() {
@@ -137,6 +173,15 @@ final class ReportSettings: ObservableObject {
         overwriteCsvExports = defaults.bool(forKey: Keys.overwriteCsvExports)
         lastExportedDay = defaults.string(forKey: Keys.lastExportedDay)
         lastExportedWeek = defaults.string(forKey: Keys.lastExportedWeek)
+        lastDailyExportAt = defaults.double(forKey: Keys.lastDailyExportAt)
+        lastWeeklyExportAt = defaults.double(forKey: Keys.lastWeeklyExportAt)
+        lastCsvExportAt = defaults.double(forKey: Keys.lastCsvExportAt)
+        lastDailyExportMessage = defaults.string(forKey: Keys.lastDailyExportMessage)
+        lastWeeklyExportMessage = defaults.string(forKey: Keys.lastWeeklyExportMessage)
+        lastCsvExportMessage = defaults.string(forKey: Keys.lastCsvExportMessage)
+        lastDailyExportIsError = defaults.bool(forKey: Keys.lastDailyExportIsError)
+        lastWeeklyExportIsError = defaults.bool(forKey: Keys.lastWeeklyExportIsError)
+        lastCsvExportIsError = defaults.bool(forKey: Keys.lastCsvExportIsError)
     }
 
     func resetDailyTemplate() {
@@ -270,6 +315,24 @@ final class ReportSettings: ObservableObject {
             weeklyDiagnostics = diagnostics
         case .csv:
             csvDiagnostics = diagnostics
+        }
+    }
+
+    func recordExportResult(kind: ReportFolderKind, message: String, isError: Bool, date: Date = Date()) {
+        let timestamp = date.timeIntervalSince1970
+        switch kind {
+        case .daily:
+            lastDailyExportAt = timestamp
+            lastDailyExportMessage = message
+            lastDailyExportIsError = isError
+        case .weekly:
+            lastWeeklyExportAt = timestamp
+            lastWeeklyExportMessage = message
+            lastWeeklyExportIsError = isError
+        case .csv:
+            lastCsvExportAt = timestamp
+            lastCsvExportMessage = message
+            lastCsvExportIsError = isError
         }
     }
 }

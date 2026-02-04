@@ -19,6 +19,7 @@ final class DatabaseService {
     private var hasUserTagOverrideColumn = false
     private var hasEffectiveTagColumn = false
     private var hasRulesBundleIdColumn = false
+    private var hasAppMappingsTaggingModeColumn = false
 
     private let appSupportURL: URL
     private let databaseURL: URL
@@ -734,6 +735,7 @@ final class DatabaseService {
                     bundleId: bundleId,
                     appName: appName,
                     tagId: tagId,
+                    taggingMode: .auto,
                     updatedAt: nowEpoch
                 )
                 completion(.success(tagId))
@@ -802,6 +804,32 @@ final class DatabaseService {
         }
     }
 
+    func updateAppMappingTaggingMode(
+        id: Int64,
+        mode: AppTaggingMode,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        if Thread.isMainThread {
+            AppLogger.log("Warning: updateAppMappingTaggingMode called on main thread", category: "db")
+        }
+
+        queue.async { [self] in
+            do {
+                try self.openDatabaseIfNeeded()
+                try self.updateAppMappingTaggingModeInternal(id: id, mode: mode)
+                AppLogger.log("Update app mapping tagging mode success id=\(id) mode=\(mode.rawValue)", category: "db")
+                MaintenanceService.shared.suggestRecomputeTags()
+                completion(.success(()))
+            } catch let error as DatabaseError {
+                AppLogger.log("Update app mapping tagging mode failed: \(error.logDescription)", category: "db")
+                completion(.failure(error))
+            } catch {
+                AppLogger.log("Update app mapping tagging mode failed: \(error.localizedDescription)", category: "db")
+                completion(.failure(error))
+            }
+        }
+    }
+
     func applyTagToActivities(
         bundleId: String,
         appName: String,
@@ -836,6 +864,45 @@ final class DatabaseService {
                 completion(.failure(error))
             } catch {
                 AppLogger.log("Apply tag to activities failed: \(error.localizedDescription)", category: "db")
+                completion(.failure(error))
+            }
+        }
+    }
+
+    func applyTaggingModeToActivities(
+        bundleId: String,
+        appName: String,
+        mode: AppTaggingMode,
+        dayStart: Int64?,
+        dayEnd: Int64?,
+        completion: @escaping (Result<Int, Error>) -> Void
+    ) {
+        if Thread.isMainThread {
+            AppLogger.log("Warning: applyTaggingModeToActivities called on main thread", category: "db")
+        }
+
+        queue.async { [self] in
+            do {
+                try self.openDatabaseIfNeeded()
+                let updated = try self.applyTaggingModeToActivitiesInternal(
+                    bundleId: bundleId,
+                    appName: appName,
+                    mode: mode,
+                    dayStart: dayStart,
+                    dayEnd: dayEnd
+                )
+                AppLogger.log("Apply tagging mode to activities updated=\(updated)", category: "db")
+                if let dayStart, let dayEnd {
+                    AggregationService.shared.recordDatabaseChange(rangeStart: dayStart, rangeEnd: dayEnd)
+                } else {
+                    AggregationService.shared.recordDatabaseChange(rangeStart: 0, rangeEnd: Int64.max)
+                }
+                completion(.success(updated))
+            } catch let error as DatabaseError {
+                AppLogger.log("Apply tagging mode failed: \(error.logDescription)", category: "db")
+                completion(.failure(error))
+            } catch {
+                AppLogger.log("Apply tagging mode failed: \(error.localizedDescription)", category: "db")
                 completion(.failure(error))
             }
         }
@@ -1198,6 +1265,7 @@ final class DatabaseService {
         hasUserTagOverrideColumn = (try? activitiesColumnExists("user_tag_override_id")) ?? false
         hasEffectiveTagColumn = (try? activitiesColumnExists("effective_tag_id")) ?? false
         hasRulesBundleIdColumn = (try? rulesColumnExists("match_bundle_id")) ?? false
+        hasAppMappingsTaggingModeColumn = (try? appMappingsColumnExists("tagging_mode")) ?? false
         do {
             try createActivityIndexes()
         } catch {
@@ -1281,7 +1349,8 @@ final class DatabaseService {
             bundle_id TEXT NOT NULL UNIQUE,
             app_name TEXT NOT NULL,
             tag_id INTEGER,
-            updated_at INTEGER NOT NULL
+            updated_at INTEGER NOT NULL,
+            tagging_mode TEXT NOT NULL DEFAULT 'auto'
         );
         """
 
@@ -1395,6 +1464,9 @@ final class DatabaseService {
             },
             SchemaMigration(id: "2026_04_rules_match_bundle_id") { [self] in
                 try migrateAddRulesBundleIdColumnIfNeeded()
+            },
+            SchemaMigration(id: "2026_05_app_mappings_tagging_mode") { [self] in
+                try migrateAddAppMappingsTaggingModeIfNeeded()
             }
         ]
 
@@ -1562,6 +1634,26 @@ final class DatabaseService {
         return false
     }
 
+    private func appMappingsColumnExists(_ name: String) throws -> Bool {
+        let sql = "PRAGMA table_info(AppMappings);"
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "prepare", sql: sql, message: message)
+            throw DatabaseError.prepareFailed(message, sql: sql)
+        }
+        defer { sqlite3_finalize(statement) }
+
+        while sqlite3_step(statement) == SQLITE_ROW {
+            guard let nameC = sqlite3_column_text(statement, 1) else { continue }
+            let columnName = String(cString: nameC)
+            if columnName == name {
+                return true
+            }
+        }
+        return false
+    }
+
     private func migrateAddBundleIdColumnIfNeeded() throws {
         if try activitiesColumnExists("bundle_id") {
             hasBundleIdColumn = true
@@ -1613,6 +1705,16 @@ final class DatabaseService {
         hasRulesBundleIdColumn = true
     }
 
+    private func migrateAddAppMappingsTaggingModeIfNeeded() throws {
+        if try appMappingsColumnExists("tagging_mode") {
+            hasAppMappingsTaggingModeColumn = true
+            return
+        }
+        AppLogger.log("Migration: adding AppMappings.tagging_mode", category: "db")
+        try execute(sql: "ALTER TABLE AppMappings ADD COLUMN tagging_mode TEXT NOT NULL DEFAULT 'auto';")
+        hasAppMappingsTaggingModeColumn = true
+    }
+
     private func ensureDefaultTagsIfNeeded() throws {
         let sql = "SELECT COUNT(*) FROM Tags;"
         var statement: OpaquePointer?
@@ -1651,6 +1753,7 @@ final class DatabaseService {
                 bundleId: bundleId,
                 appName: details.name,
                 tagId: tagId,
+                taggingMode: .auto,
                 updatedAt: nowEpoch
             )
         }
@@ -1768,17 +1871,21 @@ final class DatabaseService {
         tagId: Int64?
     ) throws -> Int64 {
         let ruleTagId: Int64?
+        let autoTagId: Int64?
         if isIdle {
             ruleTagId = nil
+            autoTagId = nil
         } else {
-            ruleTagId = try resolveTagForActivityInternal(
+            let resolution = try resolveTagIdsForActivityInternal(
                 bundleId: bundleId,
                 appName: appName,
                 windowTitle: windowTitle
             )
+            ruleTagId = resolution.ruleTagId
+            autoTagId = resolution.autoTagId
         }
         let userOverrideTagId = tagId
-        let effectiveTagId = userOverrideTagId ?? ruleTagId
+        let effectiveTagId = userOverrideTagId ?? autoTagId
         let persistedTagId = effectiveTagId
 
         let hasExtendedTagColumns = hasRuleTagColumn || hasUserTagOverrideColumn || hasEffectiveTagColumn
@@ -2027,6 +2134,15 @@ final class DatabaseService {
         appName: String,
         windowTitle: String?
     ) throws -> Int64? {
+        let result = try resolveTagIdsForActivityInternal(bundleId: bundleId, appName: appName, windowTitle: windowTitle)
+        return result.autoTagId
+    }
+
+    private func resolveTagIdsForActivityInternal(
+        bundleId: String?,
+        appName: String,
+        windowTitle: String?
+    ) throws -> (ruleTagId: Int64?, autoTagId: Int64?) {
         let rules = try fetchRulesInternal(enabledOnly: true)
         let evaluation = TaggingEngine.evaluate(
             activity: TaggingEngine.ActivityDescriptor(
@@ -2038,7 +2154,8 @@ final class DatabaseService {
         )
         let ruleTagId = evaluation.ruleTagId
 
-        let mappingTagId: Int64?
+        var mappingTagId: Int64?
+        var mappingMode: AppTaggingMode = .auto
         if let bundleId, !bundleId.isEmpty {
             let nowEpoch = Int64(Date().timeIntervalSince1970)
             if var mapping = try fetchAppMappingInternal(bundleId: bundleId) {
@@ -2048,6 +2165,7 @@ final class DatabaseService {
                     try updateAppMappingInternal(mapping: mapping)
                 }
                 mappingTagId = mapping.tagId
+                mappingMode = mapping.taggingMode
             } else {
                 let defaultTagName = Self.defaultAppMappings[bundleId]?.tagName
                 let defaultTagId = defaultTagName.flatMap { try? fetchTagIdByName($0) }
@@ -2055,27 +2173,45 @@ final class DatabaseService {
                     bundleId: bundleId,
                     appName: appName,
                     tagId: defaultTagId,
+                    taggingMode: .auto,
                     updatedAt: nowEpoch
                 )
                 mappingTagId = defaultTagId
+                mappingMode = .auto
             }
         } else {
             mappingTagId = nil
         }
 
-        if evaluation.ruleMatched {
-            return ruleTagId
+        let ruleResolved: Int64?
+        let autoResolved: Int64?
+        switch mappingMode {
+        case .manualOnly:
+            ruleResolved = nil
+            autoResolved = nil
+        case .mappingOnly:
+            ruleResolved = nil
+            autoResolved = mappingTagId
+        case .auto:
+            if evaluation.ruleMatched {
+                ruleResolved = ruleTagId
+                autoResolved = ruleTagId
+            } else {
+                ruleResolved = nil
+                autoResolved = mappingTagId
+            }
         }
-        return mappingTagId
+
+        return (ruleResolved, autoResolved)
     }
 
     private func recomputeTagsInternal(rangeStart: Int64, rangeEnd: Int64) throws -> Int {
         let activities = try fetchActivitiesOverlappingRangeInternal(start: rangeStart, end: rangeEnd, limit: nil, offset: nil)
         let rules = try fetchRulesInternal(enabledOnly: true)
-        let useExtended = hasRuleTagColumn || hasEffectiveTagColumn || hasUserTagOverrideColumn
+        let useExtended = hasRuleTagColumn && hasEffectiveTagColumn && hasUserTagOverrideColumn
         var updatedCount = 0
 
-        func resolveMappingTagId(bundleId: String, appName: String) throws -> Int64? {
+        func resolveMappingInfo(bundleId: String, appName: String) throws -> (tagId: Int64?, mode: AppTaggingMode) {
             let nowEpoch = Int64(Date().timeIntervalSince1970)
             if var mapping = try fetchAppMappingInternal(bundleId: bundleId) {
                 if mapping.appName != appName {
@@ -2083,7 +2219,7 @@ final class DatabaseService {
                     mapping.updatedAt = nowEpoch
                     try updateAppMappingInternal(mapping: mapping)
                 }
-                return mapping.tagId
+                return (mapping.tagId, mapping.taggingMode)
             }
             let defaultTagName = Self.defaultAppMappings[bundleId]?.tagName
             let defaultTagId = defaultTagName.flatMap { try? fetchTagIdByName($0) }
@@ -2091,9 +2227,10 @@ final class DatabaseService {
                 bundleId: bundleId,
                 appName: appName,
                 tagId: defaultTagId,
+                taggingMode: .auto,
                 updatedAt: nowEpoch
             )
-            return defaultTagId
+            return (defaultTagId, .auto)
         }
 
         try execute(sql: "BEGIN IMMEDIATE TRANSACTION;")
@@ -2103,8 +2240,8 @@ final class DatabaseService {
                 let sql = """
                 UPDATE Activities
                 SET rule_tag_id = ?,
-                    effective_tag_id = COALESCE(user_tag_override_id, ?),
-                    tag_id = COALESCE(user_tag_override_id, ?)
+                    effective_tag_id = ?,
+                    tag_id = ?
                 WHERE id = ?;
                 """
                 guard sqlite3_prepare_v2(db, sql, -1, &updateStatement, nil) == SQLITE_OK else {
@@ -2116,9 +2253,19 @@ final class DatabaseService {
             defer { sqlite3_finalize(updateStatement) }
 
             for activity in activities {
+                var mappingTagId: Int64?
+                var mappingMode: AppTaggingMode = .auto
+                if !activity.isIdle, let bundleId = activity.bundleId, !bundleId.isEmpty {
+                    let info = try resolveMappingInfo(bundleId: bundleId, appName: activity.appName)
+                    mappingTagId = info.tagId
+                    mappingMode = info.mode
+                }
+
                 let ruleTagId: Int64?
+                let autoTagId: Int64?
                 if activity.isIdle {
                     ruleTagId = nil
+                    autoTagId = nil
                 } else {
                     let evaluation = TaggingEngine.evaluate(
                         activity: TaggingEngine.ActivityDescriptor(
@@ -2128,16 +2275,25 @@ final class DatabaseService {
                         ),
                         rules: rules
                     )
-                    if evaluation.ruleMatched {
-                        ruleTagId = evaluation.ruleTagId
-                    } else if let bundleId = activity.bundleId, !bundleId.isEmpty {
-                        ruleTagId = try resolveMappingTagId(bundleId: bundleId, appName: activity.appName)
-                    } else {
+                    switch mappingMode {
+                    case .manualOnly:
                         ruleTagId = nil
+                        autoTagId = nil
+                    case .mappingOnly:
+                        ruleTagId = nil
+                        autoTagId = mappingTagId
+                    case .auto:
+                        if evaluation.ruleMatched {
+                            ruleTagId = evaluation.ruleTagId
+                            autoTagId = evaluation.ruleTagId
+                        } else {
+                            ruleTagId = nil
+                            autoTagId = mappingTagId
+                        }
                     }
                 }
 
-                let desiredEffective = activity.userTagOverrideId ?? ruleTagId
+                let desiredEffective = activity.userTagOverrideId ?? autoTagId
                 if activity.ruleTagId == ruleTagId && activity.effectiveTagId == desiredEffective {
                     continue
                 }
@@ -2148,10 +2304,13 @@ final class DatabaseService {
 
                     if let ruleTagId {
                         try bind(sql: "UPDATE Activities", result: sqlite3_bind_int64(statement, 1, ruleTagId), detail: "rule_tag_id")
-                        try bind(sql: "UPDATE Activities", result: sqlite3_bind_int64(statement, 2, ruleTagId), detail: "effective_tag_id")
-                        try bind(sql: "UPDATE Activities", result: sqlite3_bind_int64(statement, 3, ruleTagId), detail: "tag_id")
                     } else {
                         try bind(sql: "UPDATE Activities", result: sqlite3_bind_null(statement, 1), detail: "rule_tag_id")
+                    }
+                    if let desiredEffective {
+                        try bind(sql: "UPDATE Activities", result: sqlite3_bind_int64(statement, 2, desiredEffective), detail: "effective_tag_id")
+                        try bind(sql: "UPDATE Activities", result: sqlite3_bind_int64(statement, 3, desiredEffective), detail: "tag_id")
+                    } else {
                         try bind(sql: "UPDATE Activities", result: sqlite3_bind_null(statement, 2), detail: "effective_tag_id")
                         try bind(sql: "UPDATE Activities", result: sqlite3_bind_null(statement, 3), detail: "tag_id")
                     }
@@ -2391,8 +2550,9 @@ final class DatabaseService {
     }
 
     private func fetchAppMappingsInternal(limit: Int? = nil, offset: Int? = nil) throws -> [AppMappingRow] {
+        let taggingColumn = hasAppMappingsTaggingModeColumn ? "tagging_mode" : "NULL"
         var sql = """
-        SELECT id, bundle_id, app_name, tag_id, updated_at
+        SELECT id, bundle_id, app_name, tag_id, updated_at, \(taggingColumn) AS tagging_mode
         FROM AppMappings
         ORDER BY app_name COLLATE NOCASE ASC
         """
@@ -2436,13 +2596,22 @@ final class DatabaseService {
                     tagId = sqlite3_column_int64(statement, 3)
                 }
                 let updatedAt = sqlite3_column_int64(statement, 4)
+                let taggingModeRaw: String?
+                if sqlite3_column_type(statement, 5) == SQLITE_NULL {
+                    taggingModeRaw = nil
+                } else if let rawC = sqlite3_column_text(statement, 5) {
+                    taggingModeRaw = String(cString: rawC)
+                } else {
+                    taggingModeRaw = nil
+                }
                 rows.append(
                     AppMappingRow(
                         id: id,
                         bundleId: bundleId,
                         appName: appName,
                         tagId: tagId,
-                        updatedAt: updatedAt
+                        updatedAt: updatedAt,
+                        taggingMode: AppTaggingMode.from(rawValue: taggingModeRaw)
                     )
                 )
             } else if stepResult == SQLITE_DONE {
@@ -2458,8 +2627,9 @@ final class DatabaseService {
     }
 
     private func fetchAppMappingInternal(bundleId: String) throws -> AppMappingRow? {
+        let taggingColumn = hasAppMappingsTaggingModeColumn ? "tagging_mode" : "NULL"
         let sql = """
-        SELECT id, bundle_id, app_name, tag_id, updated_at
+        SELECT id, bundle_id, app_name, tag_id, updated_at, \(taggingColumn) AS tagging_mode
         FROM AppMappings
         WHERE bundle_id = ?
         LIMIT 1;
@@ -2485,12 +2655,21 @@ final class DatabaseService {
                 tagId = sqlite3_column_int64(statement, 3)
             }
             let updatedAt = sqlite3_column_int64(statement, 4)
+            let taggingModeRaw: String?
+            if sqlite3_column_type(statement, 5) == SQLITE_NULL {
+                taggingModeRaw = nil
+            } else if let rawC = sqlite3_column_text(statement, 5) {
+                taggingModeRaw = String(cString: rawC)
+            } else {
+                taggingModeRaw = nil
+            }
             return AppMappingRow(
                 id: id,
                 bundleId: bundleIdValue,
                 appName: appName,
                 tagId: tagId,
-                updatedAt: updatedAt
+                updatedAt: updatedAt,
+                taggingMode: AppTaggingMode.from(rawValue: taggingModeRaw)
             )
         }
         if stepResult == SQLITE_DONE {
@@ -2506,12 +2685,21 @@ final class DatabaseService {
         bundleId: String,
         appName: String,
         tagId: Int64?,
+        taggingMode: AppTaggingMode,
         updatedAt: Int64
     ) throws -> Int64 {
-        let sql = """
-        INSERT INTO AppMappings (bundle_id, app_name, tag_id, updated_at)
-        VALUES (?, ?, ?, ?);
-        """
+        let sql: String
+        if hasAppMappingsTaggingModeColumn {
+            sql = """
+            INSERT INTO AppMappings (bundle_id, app_name, tag_id, tagging_mode, updated_at)
+            VALUES (?, ?, ?, ?, ?);
+            """
+        } else {
+            sql = """
+            INSERT INTO AppMappings (bundle_id, app_name, tag_id, updated_at)
+            VALUES (?, ?, ?, ?);
+            """
+        }
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
             let message = sqliteErrorMessage(db)
@@ -2520,14 +2708,22 @@ final class DatabaseService {
         }
         defer { sqlite3_finalize(statement) }
 
-        try bind(sql: sql, result: sqlite3_bind_text(statement, 1, bundleId, -1, sqliteTransientDestructor), detail: "bundle_id")
-        try bind(sql: sql, result: sqlite3_bind_text(statement, 2, appName, -1, sqliteTransientDestructor), detail: "app_name")
+        var bindIndex: Int32 = 1
+        try bind(sql: sql, result: sqlite3_bind_text(statement, bindIndex, bundleId, -1, sqliteTransientDestructor), detail: "bundle_id")
+        bindIndex += 1
+        try bind(sql: sql, result: sqlite3_bind_text(statement, bindIndex, appName, -1, sqliteTransientDestructor), detail: "app_name")
+        bindIndex += 1
         if let tagId {
-            try bind(sql: sql, result: sqlite3_bind_int64(statement, 3, tagId), detail: "tag_id")
+            try bind(sql: sql, result: sqlite3_bind_int64(statement, bindIndex, tagId), detail: "tag_id")
         } else {
-            try bind(sql: sql, result: sqlite3_bind_null(statement, 3), detail: "tag_id")
+            try bind(sql: sql, result: sqlite3_bind_null(statement, bindIndex), detail: "tag_id")
         }
-        try bind(sql: sql, result: sqlite3_bind_int64(statement, 4, updatedAt), detail: "updated_at")
+        bindIndex += 1
+        if hasAppMappingsTaggingModeColumn {
+            try bind(sql: sql, result: sqlite3_bind_text(statement, bindIndex, taggingMode.rawValue, -1, sqliteTransientDestructor), detail: "tagging_mode")
+            bindIndex += 1
+        }
+        try bind(sql: sql, result: sqlite3_bind_int64(statement, bindIndex, updatedAt), detail: "updated_at")
 
         let stepResult = sqlite3_step(statement)
         guard stepResult == SQLITE_DONE else {
@@ -2540,11 +2736,20 @@ final class DatabaseService {
     }
 
     private func updateAppMappingInternal(mapping: AppMappingRow) throws {
-        let sql = """
-        UPDATE AppMappings
-        SET app_name = ?, updated_at = ?
-        WHERE id = ?;
-        """
+        let sql: String
+        if hasAppMappingsTaggingModeColumn {
+            sql = """
+            UPDATE AppMappings
+            SET app_name = ?, tagging_mode = ?, updated_at = ?
+            WHERE id = ?;
+            """
+        } else {
+            sql = """
+            UPDATE AppMappings
+            SET app_name = ?, updated_at = ?
+            WHERE id = ?;
+            """
+        }
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
             let message = sqliteErrorMessage(db)
@@ -2553,9 +2758,16 @@ final class DatabaseService {
         }
         defer { sqlite3_finalize(statement) }
 
-        try bind(sql: sql, result: sqlite3_bind_text(statement, 1, mapping.appName, -1, sqliteTransientDestructor), detail: "app_name")
-        try bind(sql: sql, result: sqlite3_bind_int64(statement, 2, mapping.updatedAt), detail: "updated_at")
-        try bind(sql: sql, result: sqlite3_bind_int64(statement, 3, mapping.id), detail: "id")
+        var bindIndex: Int32 = 1
+        try bind(sql: sql, result: sqlite3_bind_text(statement, bindIndex, mapping.appName, -1, sqliteTransientDestructor), detail: "app_name")
+        bindIndex += 1
+        if hasAppMappingsTaggingModeColumn {
+            try bind(sql: sql, result: sqlite3_bind_text(statement, bindIndex, mapping.taggingMode.rawValue, -1, sqliteTransientDestructor), detail: "tagging_mode")
+            bindIndex += 1
+        }
+        try bind(sql: sql, result: sqlite3_bind_int64(statement, bindIndex, mapping.updatedAt), detail: "updated_at")
+        bindIndex += 1
+        try bind(sql: sql, result: sqlite3_bind_int64(statement, bindIndex, mapping.id), detail: "id")
 
         let stepResult = sqlite3_step(statement)
         guard stepResult == SQLITE_DONE else {
@@ -2581,6 +2793,30 @@ final class DatabaseService {
             try bind(sql: sql, result: sqlite3_bind_null(statement, 1), detail: "tag_id")
         }
         let nowEpoch = Int64(Date().timeIntervalSince1970)
+        try bind(sql: sql, result: sqlite3_bind_int64(statement, 2, nowEpoch), detail: "updated_at")
+        try bind(sql: sql, result: sqlite3_bind_int64(statement, 3, id), detail: "id")
+
+        let stepResult = sqlite3_step(statement)
+        guard stepResult == SQLITE_DONE else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "step", sql: sql, message: message)
+            throw DatabaseError.stepFailed(message, sql: sql)
+        }
+    }
+
+    private func updateAppMappingTaggingModeInternal(id: Int64, mode: AppTaggingMode) throws {
+        guard hasAppMappingsTaggingModeColumn else { return }
+        let sql = "UPDATE AppMappings SET tagging_mode = ?, updated_at = ? WHERE id = ?;"
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "prepare", sql: sql, message: message)
+            throw DatabaseError.prepareFailed(message, sql: sql)
+        }
+        defer { sqlite3_finalize(statement) }
+
+        let nowEpoch = Int64(Date().timeIntervalSince1970)
+        try bind(sql: sql, result: sqlite3_bind_text(statement, 1, mode.rawValue, -1, sqliteTransientDestructor), detail: "tagging_mode")
         try bind(sql: sql, result: sqlite3_bind_int64(statement, 2, nowEpoch), detail: "updated_at")
         try bind(sql: sql, result: sqlite3_bind_int64(statement, 3, id), detail: "id")
 
@@ -2678,6 +2914,184 @@ final class DatabaseService {
         }
 
         return Int(sqliteChanges())
+    }
+
+    private func fetchActivitiesForAppInternal(
+        bundleId: String,
+        appName: String,
+        dayStart: Int64?,
+        dayEnd: Int64?
+    ) throws -> [ActivityRow] {
+        var sql = """
+        SELECT \(activitySelectColumns)
+        FROM Activities
+        WHERE
+        """
+        if hasBundleIdColumn {
+            sql += "(bundle_id = ? OR (bundle_id IS NULL AND app_name = ?))"
+        } else {
+            sql += "app_name = ?"
+        }
+        if dayStart != nil, dayEnd != nil {
+            sql += " AND start_time >= ? AND start_time < ?"
+        }
+        sql += " ORDER BY start_time DESC;"
+
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "prepare", sql: sql, message: message)
+            throw DatabaseError.prepareFailed(message, sql: sql)
+        }
+        defer { sqlite3_finalize(statement) }
+
+        var index: Int32 = 1
+        if hasBundleIdColumn {
+            try bind(sql: sql, result: sqlite3_bind_text(statement, index, bundleId, -1, sqliteTransientDestructor), detail: "bundle_id")
+            index += 1
+            try bind(sql: sql, result: sqlite3_bind_text(statement, index, appName, -1, sqliteTransientDestructor), detail: "app_name")
+            index += 1
+        } else {
+            try bind(sql: sql, result: sqlite3_bind_text(statement, index, appName, -1, sqliteTransientDestructor), detail: "app_name")
+            index += 1
+        }
+        if let dayStart, let dayEnd {
+            try bind(sql: sql, result: sqlite3_bind_int64(statement, index, dayStart), detail: "dayStart")
+            index += 1
+            try bind(sql: sql, result: sqlite3_bind_int64(statement, index, dayEnd), detail: "dayEnd")
+        }
+
+        return try readActivityRows(statement: statement, sql: sql)
+    }
+
+    private func applyTaggingModeToActivitiesInternal(
+        bundleId: String,
+        appName: String,
+        mode: AppTaggingMode,
+        dayStart: Int64?,
+        dayEnd: Int64?
+    ) throws -> Int {
+        let activities = try fetchActivitiesForAppInternal(
+            bundleId: bundleId,
+            appName: appName,
+            dayStart: dayStart,
+            dayEnd: dayEnd
+        )
+        guard !activities.isEmpty else { return 0 }
+
+        let useExtended = hasRuleTagColumn && hasEffectiveTagColumn && hasUserTagOverrideColumn
+        let rules = try fetchRulesInternal(enabledOnly: true)
+        let nowEpoch = Int64(Date().timeIntervalSince1970)
+
+        var mappingTagId: Int64?
+        if var mapping = try fetchAppMappingInternal(bundleId: bundleId) {
+            if mapping.appName != appName {
+                mapping.appName = appName
+                mapping.updatedAt = nowEpoch
+                try updateAppMappingInternal(mapping: mapping)
+            }
+            mappingTagId = mapping.tagId
+        } else {
+            let defaultTagName = Self.defaultAppMappings[bundleId]?.tagName
+            let defaultTagId = defaultTagName.flatMap { try? fetchTagIdByName($0) }
+            _ = try insertAppMappingInternal(
+                bundleId: bundleId,
+                appName: appName,
+                tagId: defaultTagId,
+                taggingMode: mode,
+                updatedAt: nowEpoch
+            )
+            mappingTagId = defaultTagId
+        }
+
+        var updateStatement: OpaquePointer?
+        if useExtended {
+            let sql = """
+            UPDATE Activities
+            SET rule_tag_id = ?,
+                effective_tag_id = ?,
+                tag_id = ?
+            WHERE id = ?;
+            """
+            guard sqlite3_prepare_v2(db, sql, -1, &updateStatement, nil) == SQLITE_OK else {
+                let message = sqliteErrorMessage(db)
+                logSQLiteError(operation: "prepare", sql: sql, message: message)
+                throw DatabaseError.prepareFailed(message, sql: sql)
+            }
+        }
+        defer { sqlite3_finalize(updateStatement) }
+
+        var updated = 0
+        for activity in activities {
+            if activity.isIdle || activity.bundleId == nil || activity.bundleId?.isEmpty == true {
+                continue
+            }
+
+            let evaluation = TaggingEngine.evaluate(
+                activity: TaggingEngine.ActivityDescriptor(
+                    bundleId: activity.bundleId,
+                    appName: activity.appName,
+                    windowTitle: activity.windowTitle
+                ),
+                rules: rules
+            )
+
+            let ruleTagId: Int64?
+            let autoTagId: Int64?
+            switch mode {
+            case .manualOnly:
+                ruleTagId = nil
+                autoTagId = nil
+            case .mappingOnly:
+                ruleTagId = nil
+                autoTagId = mappingTagId
+            case .auto:
+                if evaluation.ruleMatched {
+                    ruleTagId = evaluation.ruleTagId
+                    autoTagId = evaluation.ruleTagId
+                } else {
+                    ruleTagId = nil
+                    autoTagId = mappingTagId
+                }
+            }
+
+            let desiredEffective = activity.userTagOverrideId ?? autoTagId
+            if activity.ruleTagId == ruleTagId && activity.effectiveTagId == desiredEffective {
+                continue
+            }
+
+            if useExtended, let statement = updateStatement {
+                sqlite3_reset(statement)
+                sqlite3_clear_bindings(statement)
+
+                if let ruleTagId {
+                    try bind(sql: "UPDATE Activities", result: sqlite3_bind_int64(statement, 1, ruleTagId), detail: "rule_tag_id")
+                } else {
+                    try bind(sql: "UPDATE Activities", result: sqlite3_bind_null(statement, 1), detail: "rule_tag_id")
+                }
+                if let desiredEffective {
+                    try bind(sql: "UPDATE Activities", result: sqlite3_bind_int64(statement, 2, desiredEffective), detail: "effective_tag_id")
+                    try bind(sql: "UPDATE Activities", result: sqlite3_bind_int64(statement, 3, desiredEffective), detail: "tag_id")
+                } else {
+                    try bind(sql: "UPDATE Activities", result: sqlite3_bind_null(statement, 2), detail: "effective_tag_id")
+                    try bind(sql: "UPDATE Activities", result: sqlite3_bind_null(statement, 3), detail: "tag_id")
+                }
+                try bind(sql: "UPDATE Activities", result: sqlite3_bind_int64(statement, 4, activity.id), detail: "id")
+
+                let stepResult = sqlite3_step(statement)
+                guard stepResult == SQLITE_DONE else {
+                    let message = sqliteErrorMessage(db)
+                    logSQLiteError(operation: "step", sql: "UPDATE Activities", message: message)
+                    throw DatabaseError.stepFailed(message, sql: "UPDATE Activities")
+                }
+            } else {
+                try updateActivityTagInternal(id: activity.id, tagId: desiredEffective)
+            }
+
+            updated += 1
+        }
+
+        return updated
     }
 
     private func fetchRulesInternal(enabledOnly: Bool) throws -> [RuleRow] {

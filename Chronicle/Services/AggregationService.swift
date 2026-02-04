@@ -10,6 +10,7 @@ import SwiftUI
 
 struct AggregationFilters: Hashable {
     var includeIdle: Bool
+    var countOverlaysInTotals: Bool
     var tagId: Int64?
     var appName: String?
     var bundleId: String?
@@ -17,6 +18,7 @@ struct AggregationFilters: Hashable {
 
     static let `default` = AggregationFilters(
         includeIdle: true,
+        countOverlaysInTotals: false,
         tagId: nil,
         appName: nil,
         bundleId: nil,
@@ -202,6 +204,15 @@ final class AggregationService {
                 total += duration
                 if activity.isIdle { idle += duration }
             }
+            if filters.countOverlaysInTotals {
+                let overlayTotal = self.overlayContributions(
+                    rangeStart: rangeStart,
+                    rangeEnd: rangeEnd,
+                    filters: filters,
+                    activities: activities
+                ).reduce(0) { $0 + $1.durationSeconds }
+                total += overlayTotal
+            }
             let summary = AggregationSummary(
                 totalSeconds: total,
                 activeSeconds: max(0, total - idle),
@@ -239,10 +250,15 @@ final class AggregationService {
             case .success(let rows):
                 self.queue.async {
                     let filteredActivities = self.applyActivityFilters(rows, filters: filters)
+                    let overlayContributions = filters.countOverlaysInTotals
+                        ? self.overlayContributions(rangeStart: rangeStart, rangeEnd: rangeEnd, filters: filters, activities: rows)
+                        : []
+                    let overlayTotal = overlayContributions.reduce(0) { $0 + $1.durationSeconds }
                     let activeBase = self.activeBaseSeconds(
                         activities: filteredActivities,
                         rangeStart: rangeStart,
-                        rangeEnd: rangeEnd
+                        rangeEnd: rangeEnd,
+                        overlayTotal: overlayTotal
                     )
 
                     var buckets: [String: Bucket] = [:]
@@ -261,6 +277,19 @@ final class AggregationService {
                         )
                         bucket.durationSeconds += duration
                         bucket.sessionCount += 1
+                        buckets[key] = bucket
+                    }
+                    for overlay in overlayContributions {
+                        let key = overlay.bundleId ?? overlay.appName
+                        var bucket = buckets[key] ?? Bucket(
+                            id: key,
+                            name: overlay.appName,
+                            bundleId: overlay.bundleId,
+                            tagId: nil,
+                            durationSeconds: 0,
+                            sessionCount: 0
+                        )
+                        bucket.durationSeconds += overlay.durationSeconds
                         buckets[key] = bucket
                     }
 
@@ -339,10 +368,15 @@ final class AggregationService {
 
             let filteredActivities = self.applyActivityFilters(activities, filters: filters)
             let tagLookup = Dictionary(uniqueKeysWithValues: tags.map { ($0.id, $0) })
+            let overlayContributions = filters.countOverlaysInTotals
+                ? self.overlayContributions(rangeStart: rangeStart, rangeEnd: rangeEnd, filters: filters, activities: activities)
+                : []
+            let overlayTotal = overlayContributions.reduce(0) { $0 + $1.durationSeconds }
             let activeBase = self.activeBaseSeconds(
                 activities: filteredActivities,
                 rangeStart: rangeStart,
-                rangeEnd: rangeEnd
+                rangeEnd: rangeEnd,
+                overlayTotal: overlayTotal
             )
 
             var buckets: [String: Bucket] = [:]
@@ -370,6 +404,28 @@ final class AggregationService {
                 )
                 bucket.durationSeconds += duration
                 bucket.sessionCount += 1
+                buckets[key] = bucket
+            }
+            for overlay in overlayContributions {
+                let key: String
+                let name: String
+                let tagId = overlay.tagId
+                if let tagId, let tag = tagLookup[tagId] {
+                    key = "tag-\(tagId)"
+                    name = tag.name
+                } else {
+                    key = "tag-untagged"
+                    name = L("stats.untagged")
+                }
+                var bucket = buckets[key] ?? Bucket(
+                    id: key,
+                    name: name,
+                    bundleId: nil,
+                    tagId: tagId,
+                    durationSeconds: 0,
+                    sessionCount: 0
+                )
+                bucket.durationSeconds += overlay.durationSeconds
                 buckets[key] = bucket
             }
 
@@ -417,7 +473,14 @@ final class AggregationService {
         let rangeStart = dayStarts.first ?? Int64(weekStart.timeIntervalSince1970)
         let rangeEnd = (dayStarts.last ?? rangeStart) + daySeconds
 
-        let filters = AggregationFilters(includeIdle: includeIdle, tagId: nil, appName: nil, bundleId: nil, searchQuery: nil)
+        let filters = AggregationFilters(
+            includeIdle: includeIdle,
+            countOverlaysInTotals: false,
+            tagId: nil,
+            appName: nil,
+            bundleId: nil,
+            searchQuery: nil
+        )
 
         let group = DispatchGroup()
         var activities: [ActivityRow] = []
@@ -574,7 +637,14 @@ final class AggregationService {
                 tagLookup: tagLookup
             )
 
-            let compacted = self.compactSegments(segments, gridIntervalMinutes: gridIntervalMinutes, mode: mode)
+            let rawTotals = self.totalSecondsByKey(segments: segments)
+            let compacted = self.compactSegments(
+                segments,
+                rangeStart: rangeStart,
+                rangeEnd: rangeEnd,
+                gridIntervalMinutes: gridIntervalMinutes,
+                mode: mode
+            )
             let overlaySegments = self.buildOverlaySegments(overlays: overlays, rangeStart: rangeStart, rangeEnd: rangeEnd)
 
             let rows = self.buildRows(
@@ -582,7 +652,7 @@ final class AggregationService {
                 overlaySegments: overlaySegments,
                 mode: mode,
                 topN: topN,
-                tagLookup: tagLookup
+                rawTotals: rawTotals
             )
             completion(.success(rows))
         }
@@ -597,6 +667,13 @@ final class AggregationService {
         var tagId: Int64?
         var durationSeconds: Int64
         var sessionCount: Int
+    }
+
+    private struct OverlayContribution {
+        let bundleId: String?
+        let appName: String
+        let tagId: Int64?
+        let durationSeconds: Int64
     }
 
     private struct CacheEntry<Value> {
@@ -665,7 +742,7 @@ final class AggregationService {
         return Double(value) / Double(total)
     }
 
-    private func activeBaseSeconds(activities: [ActivityRow], rangeStart: Int64, rangeEnd: Int64) -> Int64 {
+    private func activeBaseSeconds(activities: [ActivityRow], rangeStart: Int64, rangeEnd: Int64, overlayTotal: Int64 = 0) -> Int64 {
         var total: Int64 = 0
         var idle: Int64 = 0
         for activity in activities {
@@ -673,7 +750,7 @@ final class AggregationService {
             total += duration
             if activity.isIdle { idle += duration }
         }
-        return max(0, total - idle)
+        return max(0, (total + overlayTotal) - idle)
     }
 
     private func applyActivityFilters(_ activities: [ActivityRow], filters: AggregationFilters) -> [ActivityRow] {
@@ -696,6 +773,77 @@ final class AggregationService {
             }
             return true
         }
+    }
+
+    private func overlayContributions(
+        rangeStart: Int64,
+        rangeEnd: Int64,
+        filters: AggregationFilters,
+        activities: [ActivityRow]
+    ) -> [OverlayContribution] {
+        let overlays = AppState.shared.rapidSwitchOverlays
+        guard !overlays.isEmpty else { return [] }
+
+        let lookup = overlayTagLookup(activities: activities)
+        let query = filters.searchQuery?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        var results: [OverlayContribution] = []
+
+        for overlay in overlays {
+            let start = max(rangeStart, overlay.startTime)
+            let end = min(rangeEnd, overlay.endTime)
+            let duration = max(0, end - start)
+            guard duration > 0 else { continue }
+
+            if let bundleId = filters.bundleId, overlay.bundleId != bundleId { continue }
+            if let appName = filters.appName, overlay.appName != appName { continue }
+            if let query, !query.isEmpty {
+                if !overlay.appName.lowercased().contains(query) { continue }
+            }
+
+            let tagId: Int64?
+            if let bundleId = overlay.bundleId, let value = lookup["bundle:\(bundleId)"] {
+                tagId = value
+            } else if let value = lookup["name:\(overlay.appName)"] {
+                tagId = value
+            } else {
+                tagId = nil
+            }
+
+            if let filterTag = filters.tagId {
+                if filterTag == -1 {
+                    if tagId != nil { continue }
+                } else if tagId != filterTag {
+                    continue
+                }
+            }
+
+            results.append(OverlayContribution(
+                bundleId: overlay.bundleId,
+                appName: overlay.appName,
+                tagId: tagId,
+                durationSeconds: duration
+            ))
+        }
+
+        return results
+    }
+
+    private func overlayTagLookup(activities: [ActivityRow]) -> [String: Int64?] {
+        var lookup: [String: Int64?] = [:]
+        for activity in activities where !activity.isIdle {
+            let tagId = activity.effectiveTagId ?? activity.tagId
+            if let bundleId = activity.bundleId {
+                let key = "bundle:\(bundleId)"
+                if lookup[key] == nil {
+                    lookup[key] = tagId
+                }
+            }
+            let nameKey = "name:\(activity.appName)"
+            if lookup[nameKey] == nil {
+                lookup[nameKey] = tagId
+            }
+        }
+        return lookup
     }
 
     private func applyMarkerFilters(_ markers: [MarkerRow], filters: AggregationFilters) -> [MarkerRow] {
@@ -721,6 +869,8 @@ final class AggregationService {
     private struct SegmentBuilder {
         var start: Int64
         var end: Int64
+        var rawStart: Int64
+        var rawEnd: Int64
         let appName: String
         let bundleId: String?
         let tagId: Int64?
@@ -770,6 +920,8 @@ final class AggregationService {
             return SegmentBuilder(
                 start: clampedStart,
                 end: clampedEnd,
+                rawStart: clampedStart,
+                rawEnd: clampedEnd,
                 appName: activity.appName,
                 bundleId: activity.bundleId,
                 tagId: activity.tagId,
@@ -803,6 +955,8 @@ final class AggregationService {
             return SegmentBuilder(
                 start: clampedStart,
                 end: clampedEnd,
+                rawStart: clampedStart,
+                rawEnd: clampedEnd,
                 appName: overlay.appName,
                 bundleId: overlay.bundleId,
                 tagId: nil,
@@ -816,11 +970,15 @@ final class AggregationService {
 
     private func compactSegments(
         _ segments: [SegmentBuilder],
+        rangeStart: Int64,
+        rangeEnd: Int64,
         gridIntervalMinutes: Int,
         mode: AggregationGanttMode
     ) -> [GanttSegmentData] {
         let sorted = segments.sorted { $0.start < $1.start }
-        let snapBin: Int64 = gridIntervalMinutes >= 60 ? 60 : 30
+        let rangeSeconds = max(Int64(1), rangeEnd - rangeStart)
+        let snapBin = snapBinSeconds(rangeSeconds: rangeSeconds, gridIntervalMinutes: gridIntervalMinutes)
+        let mergeGapSeconds = visualMergeGapSeconds(rangeSeconds: rangeSeconds, gridIntervalMinutes: gridIntervalMinutes)
         var result: [GanttSegmentData] = []
         var working: [SegmentBuilder] = []
 
@@ -830,6 +988,8 @@ final class AggregationService {
             var adjusted = SegmentBuilder(
                 start: snappedStart,
                 end: max(snappedStart, snappedEnd),
+                rawStart: segment.rawStart,
+                rawEnd: segment.rawEnd,
                 appName: segment.appName,
                 bundleId: segment.bundleId,
                 tagId: segment.tagId,
@@ -841,8 +1001,10 @@ final class AggregationService {
 
             if let lastIndex = working.indices.last {
                 let last = working[lastIndex]
-                if canMerge(last, adjusted, mode: mode) {
+                if canMerge(last, adjusted, mode: mode, mergeGapSeconds: mergeGapSeconds) {
                     working[lastIndex].end = max(last.end, adjusted.end)
+                    working[lastIndex].rawStart = min(last.rawStart, adjusted.rawStart)
+                    working[lastIndex].rawEnd = max(last.rawEnd, adjusted.rawEnd)
                 } else {
                     working.append(adjusted)
                 }
@@ -856,9 +1018,9 @@ final class AggregationService {
                 title: segment.selection.title,
                 subtitle: segment.selection.subtitle,
                 rangeLabel: segment.selection.rangeLabel,
-                start: segment.start,
-                end: segment.end,
-                durationText: TimeFormatters.durationText(start: segment.start, end: segment.end),
+                start: segment.rawStart,
+                end: segment.rawEnd,
+                durationText: TimeFormatters.durationText(start: segment.rawStart, end: segment.rawEnd),
                 isIdle: segment.isIdle,
                 isOverlay: segment.isOverlay
             )
@@ -874,15 +1036,21 @@ final class AggregationService {
         return result
     }
 
-    private func canMerge(_ lhs: SegmentBuilder, _ rhs: SegmentBuilder, mode: AggregationGanttMode) -> Bool {
+    private func canMerge(
+        _ lhs: SegmentBuilder,
+        _ rhs: SegmentBuilder,
+        mode: AggregationGanttMode,
+        mergeGapSeconds: Int64
+    ) -> Bool {
         if lhs.isOverlay != rhs.isOverlay { return false }
         if lhs.isIdle != rhs.isIdle { return false }
         if mode == .tags {
             if lhs.tagId != rhs.tagId { return false }
         } else {
             if lhs.bundleId != rhs.bundleId { return false }
+            if lhs.tagId != rhs.tagId { return false }
         }
-        return rhs.start <= lhs.end
+        return (rhs.start - lhs.end) <= mergeGapSeconds
     }
 
     private func buildRows(
@@ -890,11 +1058,11 @@ final class AggregationService {
         overlaySegments: [SegmentBuilder],
         mode: AggregationGanttMode,
         topN: Int,
-        tagLookup: [Int64: TagRow]
+        rawTotals: [String: Int64]
     ) -> [GanttRowData] {
         var primaryMap: [String: [GanttSegmentData]] = [:]
         var overlayMap: [String: [GanttSegmentData]] = [:]
-        var totals: [String: Int64] = [:]
+        var totals = rawTotals
         var titles: [String: String] = [:]
         var colors: [String: Color] = [:]
 
@@ -904,14 +1072,13 @@ final class AggregationService {
             case .apps:
                 key = segment.selection.title
                 titles[key] = segment.selection.title
-                colors[key] = colorForTag(segment.tagColorHex)
+                colors[key] = neutralSegmentColor
             case .tags:
                 key = segment.selection.title
                 titles[key] = segment.selection.title
                 colors[key] = colorForTag(segment.tagColorHex)
             }
             primaryMap[key, default: []].append(segment)
-            totals[key, default: 0] += max(0, segment.end - segment.start)
         }
 
         for overlay in overlaySegments {
@@ -940,7 +1107,7 @@ final class AggregationService {
         let sortedKeys = totals.sorted { $0.value > $1.value }.map { $0.key }.prefix(max(0, topN))
         let rows: [GanttRowData] = sortedKeys.map { key in
             let title = titles[key] ?? key
-            let color = colors[key] ?? colorForTag(nil)
+            let color = colors[key] ?? neutralSegmentColor
             return GanttRowData(
                 id: key,
                 title: title,
@@ -954,8 +1121,41 @@ final class AggregationService {
     }
 
     private func colorForTag(_ hex: String?) -> Color {
-        guard let hex else { return Color.blue }
-        return Color(hex: hex) ?? Color.blue
+        guard let hex, let color = Color(hex: hex) else { return neutralSegmentColor }
+        return color
+    }
+
+    private var neutralSegmentColor: Color {
+        Color(nsColor: .systemGray)
+    }
+
+    private func totalSecondsByKey(segments: [SegmentBuilder]) -> [String: Int64] {
+        var totals: [String: Int64] = [:]
+        for segment in segments {
+            let key = segment.selection.title
+            totals[key, default: 0] += max(0, segment.rawEnd - segment.rawStart)
+        }
+        return totals
+    }
+
+    private func visualMergeGapSeconds(rangeSeconds: Int64, gridIntervalMinutes: Int) -> Int64 {
+        if rangeSeconds >= 7 * 24 * 60 * 60 {
+            return 600
+        }
+        if gridIntervalMinutes >= 60 {
+            return 120
+        }
+        return 60
+    }
+
+    private func snapBinSeconds(rangeSeconds: Int64, gridIntervalMinutes: Int) -> Int64 {
+        if rangeSeconds >= 7 * 24 * 60 * 60 {
+            return 300
+        }
+        if gridIntervalMinutes >= 60 {
+            return 120
+        }
+        return 60
     }
 
     private func snapStart(_ value: Int64, bin: Int64) -> Int64 {

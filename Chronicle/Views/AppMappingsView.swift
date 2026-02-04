@@ -16,7 +16,7 @@ struct AppMappingsView: View {
     @State private var searchText = ""
     @State private var showUncategorizedOnly = false
     @State private var showUntaggedOnly = false
-    @State private var lastActionMessage: String?
+    @State private var lastActionMessage: StatusMessage?
     @State private var isLoadingMappings = false
     @State private var hasMoreMappings = false
 
@@ -29,57 +29,60 @@ struct AppMappingsView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
             if showHeader {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Apps")
-                        .font(.title2.weight(.semibold))
+                        .font(DesignSystem.Typography.title)
                     Text("Assign a tag to each application. New sessions will inherit the tag automatically.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                     Text("Rules override app mappings when a rule matches.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
             }
 
-            HStack(spacing: 8) {
-                TextField("Search apps", text: $searchText)
-                    .textFieldStyle(.roundedBorder)
-                Toggle("Only Uncategorized", isOn: $showUncategorizedOnly)
-                Toggle("Only Untagged", isOn: $showUntaggedOnly)
-                Button("Refresh") {
-                    reloadData()
+            SectionCard {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    HStack(spacing: DesignSystem.Spacing.sm) {
+                        TextField("Search apps", text: $searchText)
+                            .textFieldStyle(.roundedBorder)
+                        Toggle("Only Uncategorized", isOn: $showUncategorizedOnly)
+                        Toggle("Only Untagged", isOn: $showUntaggedOnly)
+                        Button("Refresh") {
+                            reloadData()
+                        }
+                        .buttonStyle(.bordered)
+                    }
+
+                    statusView(lastActionMessage)
                 }
-                .buttonStyle(.bordered)
             }
 
-            if let lastActionMessage {
-                Text(lastActionMessage)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                if filteredMappings.isEmpty {
-                    Text("No app mappings yet. Use your apps to populate the list.")
-                        .foregroundColor(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                } else {
-                    ForEach($appMappings) { $mapping in
-                        if shouldShow(mapping: mapping) {
-                            AppMappingRowView(
-                                mapping: $mapping,
-                                tags: tags,
-                                onUpdateTag: updateMappingTag,
-                                onApplyToDay: applyMappingToDay,
-                                onApplyAllTime: applyMappingToAllTime
-                            )
+            SectionCard {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    if filteredMappings.isEmpty {
+                        EmptyStateView(title: "No app mappings yet. Use your apps to populate the list.")
+                    } else {
+                        ForEach($appMappings) { $mapping in
+                            if shouldShow(mapping: mapping) {
+                                AppMappingRowView(
+                                    mapping: $mapping,
+                                    tags: tags,
+                                    onUpdateTag: updateMappingTag,
+                                    onUpdateMode: updateMappingTaggingMode,
+                                    onApplyToDay: applyMappingToDay,
+                                    onApplyAllTime: applyMappingToAllTime,
+                                    onApplyModeToDay: applyModeToDay,
+                                    onApplyModeToAllTime: applyModeToAllTime
+                                )
+                            }
                         }
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
 
             if hasMoreMappings {
                 Button("Load more") {
@@ -153,11 +156,15 @@ struct AppMappingsView: View {
                         self.appMappings.append(contentsOf: rows)
                     }
                     self.hasMoreMappings = rows.count == self.pageSize
-                case .failure:
+                case .failure(let error):
                     if reset {
                         self.appMappings = []
                     }
                     self.hasMoreMappings = false
+                    self.lastActionMessage = StatusMessage(
+                        text: String(format: L("apps.status.update_failed"), error.localizedDescription),
+                        isError: true
+                    )
                 }
             }
         }
@@ -168,10 +175,35 @@ struct AppMappingsView: View {
             DispatchQueue.main.async {
                 switch result {
                 case .success:
-                    self.lastActionMessage = String(format: L("apps.status.updated_tag"), mapping.appName)
+                    self.lastActionMessage = StatusMessage(
+                        text: String(format: L("apps.status.updated_tag"), mapping.appName),
+                        isError: false
+                    )
                     NotificationCenter.default.post(name: ActivityTracker.didRecordSessionNotification, object: nil)
                 case .failure(let error):
-                    self.lastActionMessage = String(format: L("apps.status.update_failed"), error.localizedDescription)
+                    self.lastActionMessage = StatusMessage(
+                        text: String(format: L("apps.status.update_failed"), error.localizedDescription),
+                        isError: true
+                    )
+                }
+            }
+        }
+    }
+
+    private func updateMappingTaggingMode(mapping: AppMappingRow, mode: AppTaggingMode) {
+        DatabaseService.shared.updateAppMappingTaggingMode(id: mapping.id, mode: mode) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    self.lastActionMessage = StatusMessage(
+                        text: String(format: L("apps.status.updated_mode"), mapping.appName),
+                        isError: false
+                    )
+                case .failure(let error):
+                    self.lastActionMessage = StatusMessage(
+                        text: String(format: L("apps.status.update_failed"), error.localizedDescription),
+                        isError: true
+                    )
                 }
             }
         }
@@ -189,10 +221,16 @@ struct AppMappingsView: View {
             DispatchQueue.main.async {
                 switch result {
                 case .success(let updated):
-                    self.lastActionMessage = String(format: L("apps.status.applied_today"), updated)
+                    self.lastActionMessage = StatusMessage(
+                        text: String(format: L("apps.status.applied_today"), updated),
+                        isError: false
+                    )
                     NotificationCenter.default.post(name: ActivityTracker.didRecordSessionNotification, object: nil)
                 case .failure(let error):
-                    self.lastActionMessage = String(format: L("apps.status.apply_failed"), error.localizedDescription)
+                    self.lastActionMessage = StatusMessage(
+                        text: String(format: L("apps.status.apply_failed"), error.localizedDescription),
+                        isError: true
+                    )
                 }
             }
         }
@@ -209,10 +247,69 @@ struct AppMappingsView: View {
             DispatchQueue.main.async {
                 switch result {
                 case .success(let updated):
-                    self.lastActionMessage = String(format: L("apps.status.applied_all"), updated)
+                    self.lastActionMessage = StatusMessage(
+                        text: String(format: L("apps.status.applied_all"), updated),
+                        isError: false
+                    )
                     NotificationCenter.default.post(name: ActivityTracker.didRecordSessionNotification, object: nil)
                 case .failure(let error):
-                    self.lastActionMessage = String(format: L("apps.status.apply_failed"), error.localizedDescription)
+                    self.lastActionMessage = StatusMessage(
+                        text: String(format: L("apps.status.apply_failed"), error.localizedDescription),
+                        isError: true
+                    )
+                }
+            }
+        }
+    }
+
+    private func applyModeToDay(mapping: AppMappingRow, mode: AppTaggingMode) {
+        let bounds = dayBounds(for: appState.selectedDate)
+        DatabaseService.shared.applyTaggingModeToActivities(
+            bundleId: mapping.bundleId,
+            appName: mapping.appName,
+            mode: mode,
+            dayStart: bounds.start,
+            dayEnd: bounds.end
+        ) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let updated):
+                    self.lastActionMessage = StatusMessage(
+                        text: String(format: L("apps.status.applied_mode_today"), updated),
+                        isError: false
+                    )
+                    NotificationCenter.default.post(name: ActivityTracker.didRecordSessionNotification, object: nil)
+                case .failure(let error):
+                    self.lastActionMessage = StatusMessage(
+                        text: String(format: L("apps.status.apply_failed"), error.localizedDescription),
+                        isError: true
+                    )
+                }
+            }
+        }
+    }
+
+    private func applyModeToAllTime(mapping: AppMappingRow, mode: AppTaggingMode) {
+        DatabaseService.shared.applyTaggingModeToActivities(
+            bundleId: mapping.bundleId,
+            appName: mapping.appName,
+            mode: mode,
+            dayStart: nil,
+            dayEnd: nil
+        ) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let updated):
+                    self.lastActionMessage = StatusMessage(
+                        text: String(format: L("apps.status.applied_mode_all"), updated),
+                        isError: false
+                    )
+                    NotificationCenter.default.post(name: ActivityTracker.didRecordSessionNotification, object: nil)
+                case .failure(let error):
+                    self.lastActionMessage = StatusMessage(
+                        text: String(format: L("apps.status.apply_failed"), error.localizedDescription),
+                        isError: true
+                    )
                 }
             }
         }
@@ -231,53 +328,100 @@ private struct AppMappingRowView: View {
     @Binding var mapping: AppMappingRow
     let tags: [TagRow]
     let onUpdateTag: (AppMappingRow, Int64?) -> Void
+    let onUpdateMode: (AppMappingRow, AppTaggingMode) -> Void
     let onApplyToDay: (AppMappingRow, Int64?) -> Void
     let onApplyAllTime: (AppMappingRow, Int64?) -> Void
+    let onApplyModeToDay: (AppMappingRow, AppTaggingMode) -> Void
+    let onApplyModeToAllTime: (AppMappingRow, AppTaggingMode) -> Void
 
     private let unassignedTagId: Int64 = -1
+    @State private var isHovering = false
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
-            Image(nsImage: appIcon)
-                .resizable()
-                .frame(width: 28, height: 28)
-                .cornerRadius(6)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .center, spacing: 12) {
+                Image(nsImage: appIcon)
+                    .resizable()
+                    .frame(width: 28, height: 28)
+                    .cornerRadius(6)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(mapping.appName)
-                    .font(.system(size: 13, weight: .semibold))
-                Text(mapping.bundleId)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(mapping.appName)
+                        .font(.system(size: 13, weight: .semibold))
+                    Text(mapping.bundleId)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .textSelection(.enabled)
+                }
+
+                Spacer(minLength: 12)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Picker("Tag", selection: selectedTagBinding) {
+                        Text("Unassigned").tag(unassignedTagId)
+                        ForEach(tags) { tag in
+                            Text(tag.name).tag(tag.id)
+                        }
+                    }
+                    .frame(width: 180)
+
+                    Picker("Tagging Mode", selection: selectedModeBinding) {
+                        ForEach(AppTaggingMode.allCases) { mode in
+                            Text(mode.displayName).tag(mode)
+                        }
+                    }
+                    .frame(width: 180)
+                }
+
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        Button("Apply Today") {
+                            onApplyToDay(mapping, mapping.tagId)
+                        }
+                        .buttonStyle(.bordered)
+
+                        Button("Apply All") {
+                            onApplyAllTime(mapping, mapping.tagId)
+                        }
+                        .buttonStyle(.bordered)
+                    }
+
+                    HStack(spacing: 6) {
+                        Button("Apply Mode Today") {
+                            onApplyModeToDay(mapping, mapping.taggingMode)
+                        }
+                        .buttonStyle(.bordered)
+
+                        Button("Apply Mode All") {
+                            onApplyModeToAllTime(mapping, mapping.taggingMode)
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
+            }
+
+            if mapping.taggingMode == .manualOnly {
+                Text("Manual only: future sessions stay untagged unless you override a specific entry.")
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
-
-            Spacer(minLength: 12)
-
-            Picker("Tag", selection: selectedTagBinding) {
-                Text("Unassigned").tag(unassignedTagId)
-                ForEach(tags) { tag in
-                    Text(tag.name).tag(tag.id)
-                }
-            }
-            .frame(width: 180)
-
-            HStack(spacing: 6) {
-                Button("Apply Today") {
-                    onApplyToDay(mapping, mapping.tagId)
-                }
-                .buttonStyle(.bordered)
-
-                Button("Apply All") {
-                    onApplyAllTime(mapping, mapping.tagId)
-                }
-                .buttonStyle(.bordered)
-            }
         }
-        .padding(8)
+        .padding(DesignSystem.Spacing.sm)
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(Color(nsColor: .controlBackgroundColor))
+                .fill(DesignSystem.Colors.cardBackground)
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(DesignSystem.Colors.separator.opacity(isHovering ? 0.6 : 0.25), lineWidth: 1)
+        )
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(DesignSystem.Colors.separator.opacity(isHovering ? 0.06 : 0.0))
+        )
+        .onHover { hovering in
+            isHovering = hovering
+        }
     }
 
     private var selectedTagBinding: Binding<Int64> {
@@ -287,6 +431,16 @@ private struct AppMappingRowView: View {
                 let tagId = newValue == unassignedTagId ? nil : newValue
                 mapping.tagId = tagId
                 onUpdateTag(mapping, tagId)
+            }
+        )
+    }
+
+    private var selectedModeBinding: Binding<AppTaggingMode> {
+        Binding<AppTaggingMode>(
+            get: { mapping.taggingMode },
+            set: { newValue in
+                mapping.taggingMode = newValue
+                onUpdateMode(mapping, newValue)
             }
         )
     }
@@ -306,4 +460,22 @@ private struct AppMappingRowView: View {
     AppMappingsView()
         .environmentObject(AppState.shared)
         .padding()
+}
+
+private struct StatusMessage {
+    let text: String
+    let isError: Bool
+}
+
+@ViewBuilder
+private func statusView(_ status: StatusMessage?) -> some View {
+    if let status {
+        if status.isError {
+            ErrorStateView(title: L("status.action_failed"), message: status.text)
+        } else {
+            Text(status.text)
+                .font(DesignSystem.Typography.caption)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+        }
+    }
 }

@@ -100,9 +100,14 @@ final class AppState: ObservableObject {
     @Published var includeIdleInCharts: Bool {
         didSet { defaults.set(includeIdleInCharts, forKey: Keys.includeIdleInCharts) }
     }
+    @Published var countOverlaysInTotals: Bool {
+        didSet { defaults.set(countOverlaysInTotals, forKey: Keys.countOverlaysInTotals) }
+    }
     @Published var selectedTagFilterId: Int64 = -1
     @Published var selectedAppFilterName = "All Apps"
     @Published var rapidSwitchOverlays: [RapidSwitchOverlay] = []
+    @Published var exportNowMessage: String?
+    @Published var exportNowMessageIsError: Bool = false
     let launchDate = Date()
 
     private let defaults = UserDefaults.standard
@@ -135,6 +140,7 @@ final class AppState: ObservableObject {
         idleSuppressedBundleIDs = defaults.stringArray(forKey: Keys.idleSuppressedBundleIDs) ?? Self.defaultIdleSuppressedBundleIDs
         includeIdleInTimeline = defaults.object(forKey: Keys.includeIdleInTimeline) as? Bool ?? true
         includeIdleInCharts = defaults.object(forKey: Keys.includeIdleInCharts) as? Bool ?? false
+        countOverlaysInTotals = defaults.object(forKey: Keys.countOverlaysInTotals) as? Bool ?? false
         if let raw = defaults.string(forKey: Keys.dateRangeMode),
            let mode = DateRangeMode(rawValue: raw) {
             dateRangeMode = mode
@@ -172,6 +178,7 @@ final class AppState: ObservableObject {
         static let idleSuppressedBundleIDs = "settings.idleSuppressedBundleIDs"
         static let includeIdleInTimeline = "settings.includeIdleInTimeline"
         static let includeIdleInCharts = "settings.includeIdleInCharts"
+        static let countOverlaysInTotals = "settings.countOverlaysInTotals"
         static let dateRangeMode = "settings.dateRangeMode"
         static let debugLoggingEnabled = "settings.debugLoggingEnabled"
     }

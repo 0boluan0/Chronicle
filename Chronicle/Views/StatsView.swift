@@ -21,7 +21,7 @@ struct StatsView: View {
     @State private var lastRefresh: Date?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
             headerView
 
             Divider()
@@ -32,14 +32,20 @@ struct StatsView: View {
                 }
             }
             .pickerStyle(.segmented)
+            .tint(DesignSystem.Colors.accentSkyBlue)
             .frame(width: 220)
 
             Toggle("Include idle in charts", isOn: $appState.includeIdleInCharts)
                 .toggleStyle(.switch)
                 .font(.caption)
+            if appState.countOverlaysInTotals {
+                Text("Totals include overlays")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
                     summarySection
 
                     topAppsSection
@@ -53,35 +59,35 @@ struct StatsView: View {
                     markersSection
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.bottom, 12)
+                .padding(.bottom, DesignSystem.Spacing.md)
             }
 
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .padding(16)
+        .padding(DesignSystem.Spacing.lg)
         .onAppear {
             refreshStats(reason: "popover opened")
         }
         .onReceive(NotificationCenter.default.publisher(for: ActivityTracker.didRecordSessionNotification)) { _ in
             refreshStats(reason: "activity tracker")
         }
-        .onChange(of: appState.selectedDate) { _, _ in
+        .onChange(of: appState.selectedDate) { _ in
             refreshStats(reason: "date changed")
         }
-        .onChange(of: appState.dateRangeMode) { _, _ in
+        .onChange(of: appState.dateRangeMode) { _ in
             refreshStats(reason: "range changed")
         }
     }
 
     private var headerView: some View {
-        HStack(alignment: .center, spacing: 10) {
-            VStack(alignment: .leading, spacing: 4) {
+        HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
                 Text("Stats")
-                    .font(.title2.weight(.semibold))
+                    .font(DesignSystem.Typography.title)
                 Text(dateTitle)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
             }
 
             if isLoading {
@@ -114,111 +120,79 @@ struct StatsView: View {
                 appState.selectedDate = Date()
             }
             .buttonStyle(.bordered)
+            .tint(DesignSystem.Colors.accentSkyBlue)
         }
     }
 
     private var summarySection: some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Summary")
-                    .font(.headline)
-
-                HStack(spacing: 12) {
-                    SummaryCard(title: "Total", value: formatDuration(summary.totalSeconds))
-                    SummaryCard(title: "Active", value: formatDuration(summary.activeSeconds))
-                    SummaryCard(title: "Idle", value: formatDuration(summary.idleSeconds))
-                    SummaryCard(title: "Sessions", value: "\(summary.sessions)")
-                    SummaryCard(title: "Markers", value: "\(markerCount)")
-                }
+        SectionCard(title: "Summary") {
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                SummaryCard(title: "Total", value: formatDuration(summary.totalSeconds))
+                SummaryCard(title: "Active", value: formatDuration(summary.activeSeconds))
+                SummaryCard(title: "Idle", value: formatDuration(summary.idleSeconds))
+                SummaryCard(title: "Sessions", value: "\(summary.sessions)")
+                SummaryCard(title: "Markers", value: "\(markerCount)")
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
     private var topAppsSection: some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Top Apps")
-                    .font(.headline)
-
-                if topApps.isEmpty {
-                    Text("No tracked activity yet.")
-                        .foregroundColor(.secondary)
-                } else {
-                    VStack(alignment: .leading, spacing: 10) {
-                        ForEach(topApps) { app in
-                            TopAppRow(app: app, chartTotal: chartTotal)
-                        }
+        SectionCard(title: "Top Apps") {
+            if topApps.isEmpty {
+                EmptyStateView(title: "No tracked activity yet.")
+            } else {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    ForEach(topApps) { app in
+                        TopAppRow(app: app, chartTotal: chartTotal)
                     }
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
     private var topTagsSection: some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Top Tags")
-                    .font(.headline)
-
-                if topTags.isEmpty {
-                    Text("No tags yet.")
-                        .foregroundColor(.secondary)
-                } else {
-                    VStack(alignment: .leading, spacing: 10) {
-                        ForEach(topTags) { tag in
-                            TopTagRow(tag: tag, chartTotal: chartTotal)
-                        }
+        SectionCard(title: "Top Tags") {
+            if topTags.isEmpty {
+                EmptyStateView(title: "No tags yet.")
+            } else {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    ForEach(topTags) { tag in
+                        TopTagRow(tag: tag, chartTotal: chartTotal)
                     }
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
     private var mostSwitchesSection: some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Most Switches")
-                    .font(.headline)
-
-                ForEach(topSwitches) { app in
-                    HStack {
-                        Text(app.appName)
-                            .font(.subheadline.weight(.medium))
-                        Spacer()
-                        Text("\(app.count)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
+        SectionCard(title: "Most Switches") {
+            ForEach(topSwitches) { app in
+                HStack {
+                    Text(app.appName)
+                        .font(.subheadline.weight(.medium))
+                    Spacer()
+                    Text("\(app.count)")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
     private var markersSection: some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Markers")
-                    .font(.headline)
+        SectionCard(title: "Markers") {
+            Text("Markers in range: \(markerCount)")
+                .foregroundColor(DesignSystem.Colors.secondaryText)
 
-                Text("Markers in range: \(markerCount)")
-                    .foregroundColor(.secondary)
-
-                if recentMarkers.isEmpty {
-                    Text("No markers yet.")
-                        .foregroundColor(.secondary)
-                } else {
-                    ForEach(recentMarkers.prefix(3)) { marker in
-                        Text("• \(marker.text)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
+            if recentMarkers.isEmpty {
+                EmptyStateView(title: "No markers yet.")
+            } else {
+                ForEach(recentMarkers.prefix(3)) { marker in
+                    Text("• \(marker.text)")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -240,7 +214,14 @@ struct StatsView: View {
         isLoading = true
         let bounds = appState.dateRangeMode.bounds(for: appState.selectedDate)
         let group = DispatchGroup()
-        let filters = AggregationFilters(includeIdle: true, tagId: nil, appName: nil, bundleId: nil, searchQuery: nil)
+        let filters = AggregationFilters(
+            includeIdle: true,
+            countOverlaysInTotals: appState.countOverlaysInTotals,
+            tagId: nil,
+            appName: nil,
+            bundleId: nil,
+            searchQuery: nil
+        )
         var summaryResult: AggregationSummary?
         var topAppsResult: [TopItem] = []
         var topTagsResult: [TopItem] = []
@@ -411,18 +392,19 @@ private struct SummaryCard: View {
     let value: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
             Text(title)
-                .font(.caption)
-                .foregroundColor(.secondary)
+                .font(DesignSystem.Typography.caption)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
             Text(value)
                 .font(.title3.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.primaryText)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(10)
+        .padding(DesignSystem.Spacing.sm)
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color(nsColor: .controlBackgroundColor))
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(DesignSystem.Colors.cardBackground)
         )
     }
 }

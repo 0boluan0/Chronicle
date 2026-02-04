@@ -59,7 +59,7 @@ struct WeeklyOverviewView: View {
         }
     }
 
-    private let labelWidth: CGFloat = 120
+    private let labelWidth: CGFloat = 150
 }
 
 private struct WeeklyRowView: View {
@@ -84,9 +84,13 @@ private struct WeeklyRowView: View {
                     .foregroundColor(.secondary)
 
                 GeometryReader { geo in
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(Color.primary.opacity(0.12))
-                        .frame(width: barWidth(in: geo.size.width), height: 4)
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(DesignSystem.Colors.separator.opacity(0.35))
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(row.color.opacity(0.55))
+                            .frame(width: barWidth(in: geo.size.width))
+                    }
                 }
                 .frame(height: 4)
             }
@@ -119,7 +123,7 @@ private struct WeeklyRowView: View {
         .padding(.vertical, 2)
         .background(
             RoundedRectangle(cornerRadius: 6)
-                .fill(Color.primary.opacity(isRowHovering ? 0.04 : 0.0))
+                .fill(DesignSystem.Colors.separator.opacity(isRowHovering ? 0.18 : 0.0))
         )
         .onHover { hovering in
             isRowHovering = hovering
@@ -162,10 +166,10 @@ private struct WeeklyCellView: View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
                 Rectangle()
-                    .fill(Color.gray.opacity(0.08))
+                    .fill(DesignSystem.Colors.separator.opacity(0.2))
 
                 Rectangle()
-                    .fill(color.opacity(isHovering ? 0.85 : 0.65))
+                    .fill(color.opacity(isHovering ? 0.75 : 0.55))
                     .frame(width: barWidth(in: geo.size.width))
             }
             .cornerRadius(3)

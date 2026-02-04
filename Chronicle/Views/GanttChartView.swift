@@ -70,7 +70,7 @@ struct GanttChartView: View {
         }
     }
 
-    private let labelWidth: CGFloat = 120
+    private let labelWidth: CGFloat = 150
     private let rowSpacing: CGFloat = 10
 }
 
@@ -97,9 +97,13 @@ struct GanttRowView: View {
                     .foregroundColor(.secondary)
 
                 GeometryReader { geo in
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(Color.primary.opacity(0.12))
-                        .frame(width: barWidth(in: geo.size.width), height: 4)
+                    ZStack(alignment: .leading) {
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(DesignSystem.Colors.separator.opacity(0.35))
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(row.color.opacity(0.55))
+                            .frame(width: barWidth(in: geo.size.width))
+                    }
                 }
                 .frame(height: 4)
             }
@@ -109,7 +113,7 @@ struct GanttRowView: View {
                 ZStack(alignment: .topLeading) {
                     if isRowHovering {
                         RoundedRectangle(cornerRadius: 6)
-                            .fill(Color.primary.opacity(0.04))
+                            .fill(DesignSystem.Colors.separator.opacity(0.18))
                             .frame(width: geo.size.width, height: rowHeight)
                     }
 
@@ -139,7 +143,7 @@ struct GanttRowView: View {
         let isHovered = hoveredId == segment.id
         let fillColor = segmentFillColor(segment: segment)
         return RoundedRectangle(cornerRadius: 3)
-            .fill(fillColor.opacity(segment.isIdle ? 0.5 : 0.85))
+            .fill(fillColor.opacity(segment.isIdle ? 0.45 : 0.7))
             .frame(width: frame.width, height: rowHeight)
             .position(x: frame.minX + frame.width / 2, y: rowHeight / 2)
             .overlay(
@@ -164,12 +168,12 @@ struct GanttRowView: View {
         let strokeColor = segmentFillColor(segment: segment)
         return RoundedRectangle(cornerRadius: 3)
             .stroke(style: StrokeStyle(lineWidth: 1, dash: [4, 2]))
-            .foregroundColor(strokeColor.opacity(0.6))
+            .foregroundColor(strokeColor.opacity(0.55))
             .frame(width: frame.width, height: rowHeight)
             .position(x: frame.minX + frame.width / 2, y: rowHeight / 2)
             .background(
                 RoundedRectangle(cornerRadius: 3)
-                    .fill(strokeColor.opacity(0.15))
+                    .fill(strokeColor.opacity(0.12))
                     .frame(width: frame.width, height: rowHeight)
                     .position(x: frame.minX + frame.width / 2, y: rowHeight / 2)
             )
@@ -195,7 +199,7 @@ struct GanttRowView: View {
         let startRatio = CGFloat(clampedStart - rangeStart) / CGFloat(duration)
         let endRatio = CGFloat(clampedEnd - rangeStart) / CGFloat(duration)
         let minX = max(0, startRatio * size.width)
-        let maxX = max(minX + minBlockWidth, endRatio * size.width)
+        let maxX = min(size.width, max(minX + minBlockWidth, endRatio * size.width))
         return CGRect(x: minX, y: 0, width: maxX - minX, height: rowHeight)
     }
 
@@ -219,7 +223,7 @@ struct GanttRowView: View {
 
     private func segmentFillColor(segment: GanttSegmentData) -> Color {
         if segment.isIdle {
-            return Color.gray.opacity(0.6)
+            return Color(nsColor: .systemGray)
         }
         if let hex = segment.tagColorHex, let color = Color(hex: hex) {
             return color
@@ -255,7 +259,7 @@ struct GanttRowView: View {
     }
 
     private let rowHeight: CGFloat = 20
-    private let minBlockWidth: CGFloat = 2
+    private let minBlockWidth: CGFloat = 3
 }
 
 private struct IdleHatchView: View {

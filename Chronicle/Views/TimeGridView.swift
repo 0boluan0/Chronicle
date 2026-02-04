@@ -32,14 +32,14 @@ struct TimeGridView: View {
                     path.addLine(to: CGPoint(x: x, y: size.height))
                     context.stroke(
                         path,
-                        with: .color(Color.gray.opacity(isMajor ? 0.35 : 0.15)),
+                        with: .color(DesignSystem.Colors.separator.opacity(isMajor ? 0.5 : 0.2)),
                         lineWidth: isMajor ? 1 : 0.5
                     )
 
                     if let label = labelText {
                         let text = Text(label)
                             .font(.caption2)
-                            .foregroundColor(.secondary)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                         context.draw(text, at: CGPoint(x: x + 4, y: size.height - 8), anchor: .leading)
                     }
                 }
@@ -51,13 +51,14 @@ struct TimeGridView: View {
         let calendar = Calendar.current
         let date = Date(timeIntervalSince1970: TimeInterval(epochSeconds))
         let hour = calendar.component(.hour, from: date)
+        let minute = calendar.component(.minute, from: date)
 
         if intervalMinutes >= 60 {
             let labelHours: Set<Int> = [0, 4, 8, 12, 16, 20, 24]
             if index == totalCount {
                 return "24:00"
             }
-            if labelHours.contains(hour) {
+            if labelHours.contains(hour) && minute == 0 {
                 return String(format: "%02d:00", hour)
             }
         } else {
@@ -65,7 +66,7 @@ struct TimeGridView: View {
             if index == totalCount {
                 return "24:00"
             }
-            if labelHours.contains(hour), calendar.component(.minute, from: date) == 0 {
+            if labelHours.contains(hour), minute == 0 {
                 return String(format: "%02d:00", hour)
             }
         }

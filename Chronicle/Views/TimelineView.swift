@@ -5,6 +5,7 @@
 //  Created by Chronicle on 2026/1/13.
 //
 
+import AppKit
 import SwiftUI
 
 struct TimelineView: View {
@@ -26,13 +27,15 @@ struct TimelineView: View {
     private let untaggedFilterValue: Int64 = -2
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
             headerView
 
-            Divider()
-
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
+                    if let lastDbError = appState.lastDbErrorMessage, !lastDbError.isEmpty {
+                        ErrorBanner(message: String(format: L("Last DB Error: %@"), lastDbError))
+                    }
+
                     markerEntryView
 
                     timelineListView
@@ -40,13 +43,13 @@ struct TimelineView: View {
                     debugSection
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.bottom, 12)
+                .padding(.bottom, DesignSystem.Spacing.md)
             }
 
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .padding(16)
+        .padding(DesignSystem.Spacing.lg)
         .onAppear {
             if !hasFetchedOnAppear {
                 hasFetchedOnAppear = true
@@ -61,22 +64,22 @@ struct TimelineView: View {
         .onReceive(NotificationCenter.default.publisher(for: ActivityTracker.didRecordSessionNotification)) { _ in
             refreshTimeline(reason: "activity tracker")
         }
-        .onChange(of: appState.selectedDate) { _, _ in
+        .onChange(of: appState.selectedDate) { _ in
             refreshTimeline(reason: "date changed")
         }
-        .onChange(of: appState.dateRangeMode) { _, _ in
+        .onChange(of: appState.dateRangeMode) { _ in
             refreshTimeline(reason: "range changed")
         }
     }
 
     private var headerView: some View {
-        HStack(alignment: .center, spacing: 10) {
-            VStack(alignment: .leading, spacing: 4) {
+        HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
                 Text("Timeline")
-                    .font(.title2.weight(.semibold))
+                    .font(DesignSystem.Typography.title)
                 Text(formattedDateTitle)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
             }
 
             if isLoading {
@@ -92,6 +95,7 @@ struct TimelineView: View {
                 Image(systemName: "chevron.left")
             }
             .buttonStyle(.borderless)
+            .accessibilityLabel("Previous day")
 
             DatePicker("", selection: $appState.selectedDate, displayedComponents: .date)
                 .labelsHidden()
@@ -103,109 +107,118 @@ struct TimelineView: View {
                 Image(systemName: "chevron.right")
             }
             .buttonStyle(.borderless)
+            .accessibilityLabel("Next day")
             .disabled(isTodaySelected)
 
             Button("Today") {
                 appState.selectedDate = Date()
             }
             .buttonStyle(.bordered)
+            .tint(DesignSystem.Colors.accentSkyBlue)
         }
     }
 
     private var markerEntryView: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "pin")
-                .foregroundColor(.secondary)
+        SectionCard {
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                Image(systemName: "pin")
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
 
-            TextField("Add marker", text: $markerText)
-                .textFieldStyle(.roundedBorder)
-                .focused($isMarkerFocused)
-                .onSubmit {
+                TextField("Add marker", text: $markerText)
+                    .textFieldStyle(.roundedBorder)
+                    .focused($isMarkerFocused)
+                    .onSubmit {
+                        addMarker()
+                    }
+
+                Button("Add") {
                     addMarker()
                 }
-
-            Button("Add") {
-                addMarker()
+                .buttonStyle(.borderedProminent)
+                .tint(DesignSystem.Colors.accentSkyBlue)
+                .disabled(markerText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
-            .buttonStyle(.borderedProminent)
-            .disabled(markerText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         }
     }
 
     private var timelineListView: some View {
-        GroupBox {
+        SectionCard(title: "Daily Activity") {
             if filteredTimelineItems.isEmpty {
-                Text("No activity recorded for this range yet.")
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 8)
+                EmptyStateView(title: "No activity recorded for this range yet.")
             } else {
-                LazyVStack(alignment: .leading, spacing: 12) {
+                LazyVStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                     ForEach(groupedTimelineItems, id: \.label) { group in
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
                             Text(group.label)
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                                .font(DesignSystem.Typography.caption)
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
 
                             ForEach(group.items) { item in
                                 switch item {
                                 case .activity(let activity):
-                                    TimelineRowView(activity: activity, tag: tagForActivity(activity))
+                                    ActivityRowView(
+                                        activity: activity,
+                                        tag: tagForActivity(activity),
+                                        showsManualIndicator: activity.userTagOverrideId != nil
+                                    )
+                                    .contextMenu {
+                                        tagContextMenu(for: activity)
+                                    }
                                 case .marker(let marker):
                                     MarkerRowView(marker: marker)
+                                        .contextMenu {
+                                            markerContextMenu(for: marker)
+                                        }
                                 }
                             }
                         }
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.vertical, 4)
             }
-        } label: {
-            Text("Daily Activity")
         }
     }
 
     private var debugSection: some View {
         DisclosureGroup(isExpanded: $showDebugDetails) {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
                 if let lastDbError = appState.lastDbErrorMessage, !lastDbError.isEmpty {
                     Text("Last DB Error: \(lastDbError)")
-                        .font(.caption)
+                        .font(DesignSystem.Typography.caption)
                         .foregroundColor(.red)
                 }
 
                 Text("Auto-merged short segments today: \(appState.autoMergedSegmentsToday)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
 
                 Text("Idle: \(appState.isIdle ? "ON" : "OFF"), idleSeconds=\(appState.idleSeconds)s, threshold=\(appState.idleThresholdSeconds)s")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
 
                 Text("Idle suppression: mediaPlaying=\(appState.idleSuppressionMediaPlaying ? "true" : "false"), frontmostAllowed=\(appState.idleSuppressionFrontmostAllowed ? "true" : "false")")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
 
                 Text("DB Path: \(DatabaseService.shared.databasePath)")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
 
                 if let lastRefresh {
                     Text("Last refresh: \(Self.debugTimeFormatter.string(from: lastRefresh))")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
 
                 if debugEvents.isEmpty {
                     Text("No debug events yet.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
                 } else {
                     ForEach(debugEvents, id: \.self) { event in
                         Text(event)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                     }
                 }
 
@@ -374,6 +387,7 @@ struct TimelineView: View {
         let bounds = appState.dateRangeMode.bounds(for: appState.selectedDate)
         let filters = AggregationFilters(
             includeIdle: appState.includeIdleInTimeline,
+            countOverlaysInTotals: false,
             tagId: nil,
             appName: nil,
             bundleId: nil,
@@ -424,6 +438,43 @@ struct TimelineView: View {
         }
     }
 
+    private func setUserOverride(activity: ActivityRow, tagId: Int64?) {
+        DatabaseService.shared.setUserTagOverride(activityId: activity.id, tagId: tagId) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    self.refreshTimeline(reason: "tag override")
+                    NotificationCenter.default.post(name: ActivityTracker.didRecordSessionNotification, object: nil)
+                case .failure(let error):
+                    self.appState.lastDbErrorMessage = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    private func copyActivityDetails(_ activity: ActivityRow) {
+        let tagName = tagForActivity(activity)?.name ?? L("Untagged")
+        var lines: [String] = []
+        lines.append(activity.appName)
+        if let title = activity.windowTitle?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty {
+            lines.append(title)
+        }
+        lines.append("Time: \(TimeFormatters.timeRange(start: activity.startTime, end: activity.endTime))")
+        lines.append("Duration: \(TimeFormatters.durationText(start: activity.startTime, end: activity.endTime))")
+        lines.append("Tag: \(tagName)")
+        if activity.isIdle {
+            lines.append("Idle")
+        }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(lines.joined(separator: "\n"), forType: .string)
+    }
+
+    private func copyMarkerDetails(_ marker: MarkerRow) {
+        let text = "\(TimeFormatters.timeText(for: marker.timestamp, includeSeconds: true))\n\(marker.text)"
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+    }
+
 
     private var tagLookup: [Int64: TagRow] {
         Dictionary(uniqueKeysWithValues: tags.map { ($0.id, $0) })
@@ -432,6 +483,30 @@ struct TimelineView: View {
     private func tagForActivity(_ activity: ActivityRow) -> TagRow? {
         guard let tagId = activity.tagId else { return nil }
         return tagLookup[tagId]
+    }
+
+    @ViewBuilder
+    private func tagContextMenu(for activity: ActivityRow) -> some View {
+        Button(L("status.copy_details")) {
+            copyActivityDetails(activity)
+        }
+        Divider()
+        Button(L("tag.picker.use_auto")) {
+            setUserOverride(activity: activity, tagId: nil)
+        }
+        Divider()
+        ForEach(tags) { tag in
+            Button(tag.name) {
+                setUserOverride(activity: activity, tagId: tag.id)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func markerContextMenu(for marker: MarkerRow) -> some View {
+        Button(L("status.copy_details")) {
+            copyMarkerDetails(marker)
+        }
     }
 
     private func insertSelfCheck() {

@@ -20,41 +20,37 @@ struct DashboardMarkersView: View {
     private let pageSize = 200
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
             headerView
 
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(.secondary)
-                TextField("Search markers", text: $searchText)
-                    .textFieldStyle(.roundedBorder)
+            if let lastDbError = appState.lastDbErrorMessage, !lastDbError.isEmpty {
+                ErrorStateView(title: "Unable to load markers", message: lastDbError)
+            }
+
+            SectionCard {
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                    TextField("Search markers", text: $searchText)
+                        .textFieldStyle(.roundedBorder)
+                }
             }
 
             Divider()
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 8) {
-                    if filteredMarkers.isEmpty {
-                        Text("No markers for this range.")
-                            .foregroundColor(.secondary)
-                    } else {
-                        ForEach(filteredMarkers) { marker in
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(TimeFormatters.timeText(for: marker.timestamp, includeSeconds: true))
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                Text(marker.text)
-                                    .font(.system(size: 13, weight: .medium))
+                SectionCard {
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                        if filteredMarkers.isEmpty {
+                            EmptyStateView(title: "No markers for this range.")
+                        } else {
+                            ForEach(filteredMarkers) { marker in
+                                MarkerRowView(marker: marker)
                             }
-                            .padding(8)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(Color(nsColor: .controlBackgroundColor))
-                            )
                         }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             if hasMore {
@@ -67,18 +63,18 @@ struct DashboardMarkersView: View {
 
             if let lastRefresh {
                 Text("Last refreshed: \(Self.timeFormatter.string(from: lastRefresh))")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
             }
         }
-        .padding(20)
+        .padding(DesignSystem.Spacing.xl)
         .onAppear {
             refreshMarkers(reason: "dashboard opened")
         }
-        .onChange(of: appState.selectedDate) { _, _ in
+        .onChange(of: appState.selectedDate) { _ in
             refreshMarkers(reason: "date changed")
         }
-        .onChange(of: appState.dateRangeMode) { _, _ in
+        .onChange(of: appState.dateRangeMode) { _ in
             refreshMarkers(reason: "range changed")
         }
     }
@@ -87,10 +83,10 @@ struct DashboardMarkersView: View {
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Markers")
-                    .font(.title2.weight(.semibold))
+                    .font(DesignSystem.Typography.title)
                 Text(Self.dateFormatter.string(from: appState.selectedDate))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
             }
 
             if isLoading {
@@ -106,6 +102,7 @@ struct DashboardMarkersView: View {
                 Image(systemName: "chevron.left")
             }
             .buttonStyle(.borderless)
+            .accessibilityLabel("Previous day")
 
             DatePicker("", selection: $appState.selectedDate, displayedComponents: .date)
                 .labelsHidden()
@@ -117,12 +114,14 @@ struct DashboardMarkersView: View {
                 Image(systemName: "chevron.right")
             }
             .buttonStyle(.borderless)
+            .accessibilityLabel("Next day")
             .disabled(isTodaySelected)
 
             Button("Today") {
                 appState.selectedDate = Date()
             }
             .buttonStyle(.bordered)
+            .tint(DesignSystem.Colors.accentSkyBlue)
         }
     }
 

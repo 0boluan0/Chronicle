@@ -5,6 +5,7 @@
 //  Created by Chronicle on 2026/1/13.
 //
 
+import AppKit
 import SwiftUI
 
 struct DashboardTimelineView: View {
@@ -22,41 +23,47 @@ struct DashboardTimelineView: View {
     private let untaggedFilterValue: Int64 = -2
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
             headerView
 
-            filterBar
+            if let lastDbError = appState.lastDbErrorMessage, !lastDbError.isEmpty {
+                ErrorBanner(message: String(format: L("Last DB Error: %@"), lastDbError))
+            }
 
-            Divider()
+            filterCard
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    if filteredItems.isEmpty {
-                        Text("No activity matches the current filters.")
-                            .foregroundColor(.secondary)
-                    } else {
-                        ForEach(groupedItems) { group in
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text(group.label)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                    SectionCard {
+                        if filteredItems.isEmpty {
+                            EmptyStateView(title: "No activity matches the current filters.")
+                        } else {
+                            ForEach(groupedItems) { group in
+                                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                                    Text(group.label)
+                                        .font(DesignSystem.Typography.caption)
+                                        .foregroundColor(DesignSystem.Colors.secondaryText)
 
-                                ForEach(group.items) { item in
-                                    switch item {
-                                    case .activity(let activity):
-                                        TimelineRowView(
-                                            activity: activity,
-                                            tag: tagForActivity(activity),
-                                            maxTitleLines: 2,
-                                            tagPopoverPresented: tagPopoverBinding(for: activity),
-                                            tagPopoverContent: tagPopoverContent(for: activity),
-                                            showsManualIndicator: activity.userTagOverrideId != nil
-                                        )
-                                        .contextMenu {
-                                            tagContextMenu(for: activity)
+                                    ForEach(group.items) { item in
+                                        switch item {
+                                        case .activity(let activity):
+                                            ActivityRowView(
+                                                activity: activity,
+                                                tag: tagForActivity(activity),
+                                                maxTitleLines: 2,
+                                                tagPopoverPresented: tagPopoverBinding(for: activity),
+                                                tagPopoverContent: tagPopoverContent(for: activity),
+                                                showsManualIndicator: activity.userTagOverrideId != nil
+                                            )
+                                            .contextMenu {
+                                                tagContextMenu(for: activity)
+                                            }
+                                        case .marker(let marker):
+                                            MarkerRowView(marker: marker)
+                                                .contextMenu {
+                                                    markerContextMenu(for: marker)
+                                                }
                                         }
-                                    case .marker(let marker):
-                                        MarkerRowView(marker: marker)
                                     }
                                 }
                             }
@@ -77,33 +84,33 @@ struct DashboardTimelineView: View {
 
             if let lastRefresh {
                 Text("Last refreshed: \(Self.timeFormatter.string(from: lastRefresh))")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
             }
         }
-        .padding(20)
+        .padding(DesignSystem.Spacing.xl)
         .onAppear {
             refreshData(reason: "dashboard opened")
         }
         .onReceive(NotificationCenter.default.publisher(for: ActivityTracker.didRecordSessionNotification)) { _ in
             refreshData(reason: "activity tracker")
         }
-        .onChange(of: appState.selectedDate) { _, _ in
+        .onChange(of: appState.selectedDate) { _ in
             refreshData(reason: "date changed")
         }
-        .onChange(of: appState.dateRangeMode) { _, _ in
+        .onChange(of: appState.dateRangeMode) { _ in
             refreshData(reason: "range changed")
         }
     }
 
     private var headerView: some View {
-        HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
+        HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
                 Text("Timeline")
-                    .font(.title2.weight(.semibold))
+                    .font(DesignSystem.Typography.title)
                 Text(Self.dateFormatter.string(from: appState.selectedDate))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
             }
 
             if isLoading {
@@ -119,6 +126,7 @@ struct DashboardTimelineView: View {
                 Image(systemName: "chevron.left")
             }
             .buttonStyle(.borderless)
+            .accessibilityLabel("Previous day")
 
             DatePicker("", selection: $appState.selectedDate, displayedComponents: .date)
                 .labelsHidden()
@@ -130,53 +138,58 @@ struct DashboardTimelineView: View {
                 Image(systemName: "chevron.right")
             }
             .buttonStyle(.borderless)
+            .accessibilityLabel("Next day")
             .disabled(isTodaySelected)
 
             Button("Today") {
                 appState.selectedDate = Date()
             }
             .buttonStyle(.bordered)
+            .tint(DesignSystem.Colors.accentSkyBlue)
         }
     }
 
-    private var filterBar: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(.secondary)
-                TextField("Search apps, window titles, or markers", text: $appState.searchQuery)
-                    .textFieldStyle(.roundedBorder)
-            }
-
-            HStack(spacing: 12) {
-                Picker("Tag", selection: $appState.selectedTagFilterId) {
-                    Text("All Tags").tag(Int64(-1))
-                    Text("Untagged").tag(untaggedFilterValue)
-                    ForEach(tags) { tag in
-                        Text(tag.name).tag(tag.id)
-                    }
+    private var filterCard: some View {
+        SectionCard {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                    TextField("Search apps, window titles, or markers", text: $appState.searchQuery)
+                        .textFieldStyle(.roundedBorder)
                 }
-                .frame(width: 200)
 
-                Picker("App", selection: $appState.selectedAppFilterName) {
-                    ForEach(appFilterOptions, id: \.self) { name in
-                        Text(name).tag(name)
+                HStack(spacing: DesignSystem.Spacing.md) {
+                    Picker("Tag", selection: $appState.selectedTagFilterId) {
+                        Text("All Tags").tag(Int64(-1))
+                        Text("Untagged").tag(untaggedFilterValue)
+                        ForEach(tags) { tag in
+                            Text(tag.name).tag(tag.id)
+                        }
                     }
-                }
-                .frame(width: 220)
+                    .frame(width: 200)
 
-                Toggle("Include Idle", isOn: $appState.includeIdleInTimeline)
-                    .toggleStyle(.switch)
+                    Picker("App", selection: $appState.selectedAppFilterName) {
+                        ForEach(appFilterOptions, id: \.self) { name in
+                            Text(name).tag(name)
+                        }
+                    }
+                    .frame(width: 220)
+
+                    Toggle("Include Idle", isOn: $appState.includeIdleInTimeline)
+                        .toggleStyle(.switch)
 
                     Picker("Range", selection: $appState.dateRangeMode) {
                         ForEach(DateRangeMode.allCases) { range in
                             Text(range.titleKey).tag(range)
                         }
                     }
-                .pickerStyle(.segmented)
-                .frame(width: 200)
+                    .pickerStyle(.segmented)
+                    .tint(DesignSystem.Colors.accentSkyBlue)
+                    .frame(width: 200)
 
-                Spacer()
+                    Spacer()
+                }
             }
         }
     }
@@ -333,6 +346,10 @@ struct DashboardTimelineView: View {
 
     @ViewBuilder
     private func tagContextMenu(for activity: ActivityRow) -> some View {
+        Button(L("status.copy_details")) {
+            copyActivityDetails(activity)
+        }
+        Divider()
         Button(L("tag.picker.use_auto")) {
             setUserOverride(activity: activity, tagId: nil)
         }
@@ -342,6 +359,36 @@ struct DashboardTimelineView: View {
                 setUserOverride(activity: activity, tagId: tag.id)
             }
         }
+    }
+
+    @ViewBuilder
+    private func markerContextMenu(for marker: MarkerRow) -> some View {
+        Button(L("status.copy_details")) {
+            copyMarkerDetails(marker)
+        }
+    }
+
+    private func copyActivityDetails(_ activity: ActivityRow) {
+        let tagName = tagForActivity(activity)?.name ?? L("Untagged")
+        var lines: [String] = []
+        lines.append(activity.appName)
+        if let title = activity.windowTitle?.trimmingCharacters(in: .whitespacesAndNewlines), !title.isEmpty {
+            lines.append(title)
+        }
+        lines.append("Time: \(TimeFormatters.timeRange(start: activity.startTime, end: activity.endTime))")
+        lines.append("Duration: \(TimeFormatters.durationText(start: activity.startTime, end: activity.endTime))")
+        lines.append("Tag: \(tagName)")
+        if activity.isIdle {
+            lines.append("Idle")
+        }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(lines.joined(separator: "\n"), forType: .string)
+    }
+
+    private func copyMarkerDetails(_ marker: MarkerRow) {
+        let text = "\(TimeFormatters.timeText(for: marker.timestamp, includeSeconds: true))\n\(marker.text)"
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
     }
 
     private func autoSourceLabel(for activity: ActivityRow) -> String {
@@ -423,6 +470,7 @@ struct DashboardTimelineView: View {
         let bounds = rangeBounds
         let filters = AggregationFilters(
             includeIdle: appState.includeIdleInTimeline,
+            countOverlaysInTotals: false,
             tagId: nil,
             appName: nil,
             bundleId: nil,

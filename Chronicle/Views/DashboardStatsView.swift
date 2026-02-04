@@ -16,8 +16,12 @@ struct DashboardStatsView: View {
     @State private var lastRefresh: Date?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
             headerView
+
+            if let lastDbError = appState.lastDbErrorMessage, !lastDbError.isEmpty {
+                ErrorStateView(title: "Unable to load stats", message: lastDbError)
+            }
 
             Divider()
 
@@ -27,14 +31,20 @@ struct DashboardStatsView: View {
                 }
             }
             .pickerStyle(.segmented)
+            .tint(DesignSystem.Colors.accentSkyBlue)
             .frame(width: 240)
 
             Toggle("Include idle in charts", isOn: $appState.includeIdleInCharts)
                 .toggleStyle(.switch)
-                .font(.caption)
+                .font(DesignSystem.Typography.caption)
+            if appState.countOverlaysInTotals {
+                Text("Totals include overlays")
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+            }
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
                     rangeSection(title: rangeTitle, stats: rangeStats)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -42,21 +52,21 @@ struct DashboardStatsView: View {
 
             if let lastRefresh {
                 Text("Last refreshed: \(Self.timeFormatter.string(from: lastRefresh))")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
             }
         }
-        .padding(20)
+        .padding(DesignSystem.Spacing.xl)
         .onAppear {
             refreshStats(reason: "dashboard opened")
         }
         .onReceive(NotificationCenter.default.publisher(for: ActivityTracker.didRecordSessionNotification)) { _ in
             refreshStats(reason: "activity tracker")
         }
-        .onChange(of: appState.selectedDate) { _, _ in
+        .onChange(of: appState.selectedDate) { _ in
             refreshStats(reason: "date changed")
         }
-        .onChange(of: appState.dateRangeMode) { _, _ in
+        .onChange(of: appState.dateRangeMode) { _ in
             refreshStats(reason: "range changed")
         }
     }
@@ -65,10 +75,10 @@ struct DashboardStatsView: View {
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Stats")
-                    .font(.title2.weight(.semibold))
+                    .font(DesignSystem.Typography.title)
                 Text(Self.dateFormatter.string(from: appState.selectedDate))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
             }
 
             if isLoading {
@@ -84,6 +94,7 @@ struct DashboardStatsView: View {
                 Image(systemName: "chevron.left")
             }
             .buttonStyle(.borderless)
+            .accessibilityLabel("Previous day")
 
             DatePicker("", selection: $appState.selectedDate, displayedComponents: .date)
                 .labelsHidden()
@@ -95,22 +106,24 @@ struct DashboardStatsView: View {
                 Image(systemName: "chevron.right")
             }
             .buttonStyle(.borderless)
+            .accessibilityLabel("Next day")
             .disabled(isTodaySelected)
 
             Button("Today") {
                 appState.selectedDate = Date()
             }
             .buttonStyle(.bordered)
+            .tint(DesignSystem.Colors.accentSkyBlue)
         }
     }
 
     private func rangeSection(title: String, stats: RangeStats) -> some View {
-        GroupBox {
-            VStack(alignment: .leading, spacing: 12) {
+        SectionCard {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                 Text(title)
-                    .font(.headline)
+                    .font(DesignSystem.Typography.sectionHeader)
 
-                HStack(spacing: 12) {
+                HStack(spacing: DesignSystem.Spacing.sm) {
                     SummaryCard(title: "Total", value: formatDuration(stats.summary.totalSeconds))
                     SummaryCard(title: "Active", value: formatDuration(stats.summary.activeSeconds))
                     SummaryCard(title: "Idle", value: formatDuration(stats.summary.idleSeconds))
@@ -118,12 +131,11 @@ struct DashboardStatsView: View {
                     SummaryCard(title: "Markers", value: "\(stats.markersCount)")
                 }
 
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
                     Text("Top Apps")
                         .font(.subheadline.weight(.medium))
                     if stats.topApps.isEmpty {
-                        Text("No tracked activity yet.")
-                            .foregroundColor(.secondary)
+                        EmptyStateView(title: "No tracked activity yet.")
                     } else {
                         ForEach(stats.topApps) { app in
                             TopAppRow(app: app, chartTotal: chartTotal)
@@ -131,12 +143,11 @@ struct DashboardStatsView: View {
                     }
                 }
 
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
                     Text("Top Tags")
                         .font(.subheadline.weight(.medium))
                     if stats.topTags.isEmpty {
-                        Text("No tags yet.")
-                            .foregroundColor(.secondary)
+                        EmptyStateView(title: "No tags yet.")
                     } else {
                         ForEach(stats.topTags) { tag in
                             TopTagRow(tag: tag, chartTotal: chartTotal)
@@ -168,7 +179,14 @@ struct DashboardStatsView: View {
         let bounds = rangeBounds
 
         let group = DispatchGroup()
-        let filters = AggregationFilters(includeIdle: true, tagId: nil, appName: nil, bundleId: nil, searchQuery: nil)
+        let filters = AggregationFilters(
+            includeIdle: true,
+            countOverlaysInTotals: appState.countOverlaysInTotals,
+            tagId: nil,
+            appName: nil,
+            bundleId: nil,
+            searchQuery: nil
+        )
         var summary: AggregationSummary?
         var topApps: [TopItem] = []
         var topTags: [TopItem] = []
@@ -347,27 +365,40 @@ private struct TagDuration: Identifiable {
 private struct SummaryCard: View {
     let title: String
     let value: String
+    @State private var isHovering = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
-                .font(.caption)
-                .foregroundColor(.secondary)
+                .font(DesignSystem.Typography.caption)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
             Text(value)
                 .font(.title3.weight(.semibold))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(10)
+        .padding(DesignSystem.Spacing.sm)
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(Color(nsColor: .controlBackgroundColor))
+                .fill(DesignSystem.Colors.cardBackground)
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(DesignSystem.Colors.separator.opacity(isHovering ? 0.6 : 0.25), lineWidth: 1)
+        )
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(DesignSystem.Colors.separator.opacity(isHovering ? 0.06 : 0.0))
+        )
+        .onHover { hovering in
+            isHovering = hovering
+        }
     }
 }
 
 private struct TopAppRow: View {
     let app: AppDuration
     let chartTotal: Int64
+    @State private var isHovering = false
 
     var body: some View {
         HStack(alignment: .center, spacing: 10) {
@@ -392,6 +423,14 @@ private struct TopAppRow: View {
                 ProgressView(value: percent)
                     .progressViewStyle(.linear)
             }
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .fill(DesignSystem.Colors.separator.opacity(isHovering ? 0.12 : 0.0))
+        )
+        .onHover { hovering in
+            isHovering = hovering
         }
     }
 
@@ -431,6 +470,7 @@ private struct TopAppRow: View {
 private struct TopTagRow: View {
     let tag: TagDuration
     let chartTotal: Int64
+    @State private var isHovering = false
 
     var body: some View {
         HStack(alignment: .center, spacing: 10) {
@@ -455,6 +495,14 @@ private struct TopTagRow: View {
                     .progressViewStyle(.linear)
                     .accentColor(chipColor)
             }
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .fill(DesignSystem.Colors.separator.opacity(isHovering ? 0.12 : 0.0))
+        )
+        .onHover { hovering in
+            isHovering = hovering
         }
     }
 

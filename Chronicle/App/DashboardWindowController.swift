@@ -34,6 +34,9 @@ final class DashboardWindowController {
         }
 
         NSApp.activate(ignoringOtherApps: true)
+        if window?.isMiniaturized == true {
+            window?.deminiaturize(nil)
+        }
         window?.makeKeyAndOrderFront(nil)
         AppLogger.log("Dashboard opened", category: "ui")
     }

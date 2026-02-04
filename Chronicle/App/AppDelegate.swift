@@ -18,16 +18,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private let statusMenu = NSMenu()
     private var dayChangeObserver: NSObjectProtocol?
     private var languageCancellable: AnyCancellable?
-    private var openItem: NSMenuItem?
     private var dashboardItem: NSMenuItem?
     private var preferencesItem: NSMenuItem?
+    private var exportItem: NSMenuItem?
     private var quitItem: NSMenuItem?
+    private var exportFeedbackToken: UUID?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        #if DEBUG
+        NSApp.setActivationPolicy(.regular)
+        #else
         NSApp.setActivationPolicy(.accessory)
+        #endif
         configurePopover()
         configureStatusItem()
         configureLanguageUpdates()
+        LaunchAtLoginManager.shared.syncAppState(appState)
         DatabaseService.shared.initializeIfNeeded()
         activityTracker.start()
         ReportService.shared.autoExportIfNeeded(currentDate: Date())
@@ -67,30 +73,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private func configureStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         guard let button = statusItem?.button else { return }
-        button.image = NSImage(systemSymbolName: "clock", accessibilityDescription: L("app.name"))
-        button.image?.isTemplate = true
+        if let image = NSImage(named: "StatusBarIcon") {
+            image.isTemplate = true
+            button.image = image
+        } else {
+            button.image = NSImage(systemSymbolName: "clock", accessibilityDescription: L("app.name"))
+            button.image?.isTemplate = true
+        }
         button.action = #selector(statusItemClicked)
         button.target = self
         button.sendAction(on: [.leftMouseUp, .rightMouseUp])
 
-        let openItem = NSMenuItem(title: L("menu.open"), action: #selector(togglePopover), keyEquivalent: "")
-        openItem.target = self
         let dashboardItem = NSMenuItem(title: L("menu.open_dashboard"), action: #selector(openDashboard), keyEquivalent: "d")
         dashboardItem.target = self
         let preferencesItem = NSMenuItem(title: L("menu.preferences"), action: #selector(openPreferences), keyEquivalent: ",")
         preferencesItem.target = self
+        let exportItem = NSMenuItem(title: L("menu.export_now"), action: #selector(exportNow), keyEquivalent: "e")
+        exportItem.target = self
         let quitItem = NSMenuItem(title: L("menu.quit"), action: #selector(quitApp), keyEquivalent: "q")
         quitItem.target = self
 
-        self.openItem = openItem
         self.dashboardItem = dashboardItem
         self.preferencesItem = preferencesItem
+        self.exportItem = exportItem
         self.quitItem = quitItem
 
-        statusMenu.addItem(openItem)
         statusMenu.addItem(dashboardItem)
-        statusMenu.addItem(.separator())
         statusMenu.addItem(preferencesItem)
+        statusMenu.addItem(exportItem)
         statusMenu.addItem(.separator())
         statusMenu.addItem(quitItem)
     }
@@ -105,9 +115,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     private func updateLocalizedStrings() {
-        openItem?.title = L("menu.open")
         dashboardItem?.title = L("menu.open_dashboard")
         preferencesItem?.title = L("menu.preferences")
+        exportItem?.title = L("menu.export_now")
         quitItem?.title = L("menu.quit")
         statusItem?.button?.image?.accessibilityDescription = L("app.name")
         DashboardWindowController.shared.updateTitle()
@@ -120,7 +130,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             return
         }
 
-        if event.type == .rightMouseUp {
+        if event.type == .rightMouseUp || event.type == .rightMouseDown || event.modifierFlags.contains(.control) {
             statusItem?.popUpMenu(statusMenu)
         } else {
             togglePopover()
@@ -149,6 +159,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         DashboardWindowController.shared.show()
     }
 
+    @objc private func exportNow() {
+        setExportFeedback(message: L("menu.exporting"), isError: false)
+        ReportService.shared.generateDailyReport(date: Date()) { [weak self] result in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                switch result {
+                case .success(let info):
+                    let message = String(format: L("export.now.success"), info.fileName)
+                    ReportSettings.shared.recordExportResult(kind: .daily, message: message, isError: false)
+                    self.setExportFeedback(message: message, isError: false)
+                case .failure(let error):
+                    let message = String(format: L("export.now.failed"), error.localizedDescription)
+                    ReportSettings.shared.recordExportResult(kind: .daily, message: message, isError: true)
+                    self.setExportFeedback(message: message, isError: true)
+                    AppLogger.log("Export now failed: \(error.localizedDescription)", category: "report")
+                }
+            }
+        }
+    }
+
     @objc private func quitApp() {
         AppLogger.log("Quit requested", category: "app")
         NSApp.terminate(nil)
@@ -158,5 +188,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         appState.isPopoverShown = false
         appState.lastPopoverToggle = Date()
         AppLogger.log("Popover closed", category: "ui")
+    }
+
+    private func setExportFeedback(message: String, isError: Bool) {
+        let token = UUID()
+        exportFeedbackToken = token
+        appState.exportNowMessage = message
+        appState.exportNowMessageIsError = isError
+
+        if let exportItem, exportItem.action == #selector(exportNow) {
+            exportItem.title = message
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in
+            guard let self, self.exportFeedbackToken == token else { return }
+            self.appState.exportNowMessage = nil
+            self.appState.exportNowMessageIsError = false
+            self.exportItem?.title = L("menu.export_now")
+        }
     }
 }

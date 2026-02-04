@@ -2,9 +2,14 @@
 "dashboard.title" = "Dashboard";
 "preferences.title" = "Preferences";
 "menu.open" = "Open";
-"menu.open_dashboard" = "Open Dashboard";
+"menu.open_dashboard" = "Open Statistics";
 "menu.preferences" = "Preferences…";
+"menu.export_now" = "Export Now";
+"menu.exporting" = "Exporting…";
 "menu.quit" = "Quit";
+
+"export.now.success" = "Exported: %@";
+"export.now.failed" = "Export failed: %@";
 
 "dashboard.timeline" = "Timeline";
 "dashboard.overview" = "Overview";
@@ -16,9 +21,12 @@
 "dashboard.debug" = "Debug";
 
 "preferences.general" = "General";
+"preferences.tags" = "Tags";
+"preferences.export" = "Export";
 "preferences.apps" = "Apps";
 "preferences.tags_rules" = "Tags & Rules";
 "preferences.privacy" = "Privacy";
+"preferences.debug" = "Debug";
 
 "preferences.language.title" = "Language";
 "preferences.language.label" = "App Language";
@@ -148,13 +156,25 @@
 "reports.csv.folder_updated" = "CSV folder updated.";
 "reports.daily.folder_updated" = "Daily folder updated.";
 "reports.weekly.folder_updated" = "Weekly folder updated.";
+"reports.folder.not_set" = "Folder not set.";
+"reports.folder.selected" = "Folder selected.";
+"reports.folder.issue" = "Folder access issue: %@. Re-select folder.";
+"reports.folder.issue_title" = "Folder access issue";
 "reports.status.generating" = "Generating...";
+"reports.status.last_run" = "Last run: %@ • %@";
+"reports.status.not_run" = "Last run: —";
+"reports.status.success" = "Success";
+"reports.status.failed" = "Failed";
 "reports.daily.saved" = "Daily report saved: %@";
 "reports.weekly.saved" = "Weekly report saved: %@";
 "reports.status.exporting" = "Exporting...";
 "reports.csv.saved" = "CSV exported: %@";
 "reports.choose_folder" = "Choose Folder";
 "reports.opened_folder" = "Opened folder.";
+"status.action_failed" = "Action failed";
+"status.copy_details" = "Copy Details";
+"login_items.needs_approval" = "macOS needs approval in System Settings > Login Items.";
+"login_items.update_failed" = "Unable to update Login Items: %@";
 
 "Apps" = "Apps";
 "Assign a tag to each application. New sessions will inherit the tag automatically." = "Assign a tag to each application. New sessions will inherit the tag automatically.";

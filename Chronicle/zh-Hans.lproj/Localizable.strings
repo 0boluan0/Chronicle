@@ -2,9 +2,14 @@
 "dashboard.title" = "仪表盘";
 "preferences.title" = "偏好设置";
 "menu.open" = "打开";
-"menu.open_dashboard" = "打开仪表盘";
+"menu.open_dashboard" = "打开统计";
 "menu.preferences" = "偏好设置…";
+"menu.export_now" = "立即导出";
+"menu.exporting" = "导出中…";
 "menu.quit" = "退出";
+
+"export.now.success" = "已导出：%@";
+"export.now.failed" = "导出失败：%@";
 
 "dashboard.timeline" = "时间线";
 "dashboard.overview" = "纵览";
@@ -16,9 +21,12 @@
 "dashboard.debug" = "调试";
 
 "preferences.general" = "通用";
+"preferences.tags" = "标签";
+"preferences.export" = "导出";
 "preferences.apps" = "应用";
 "preferences.tags_rules" = "标签与规则";
 "preferences.privacy" = "隐私";
+"preferences.debug" = "调试";
 
 "preferences.language.title" = "语言";
 "preferences.language.label" = "应用语言";
@@ -148,13 +156,25 @@
 "reports.csv.folder_updated" = "CSV 文件夹已更新。";
 "reports.daily.folder_updated" = "日报文件夹已更新。";
 "reports.weekly.folder_updated" = "周报文件夹已更新。";
+"reports.folder.not_set" = "尚未选择文件夹。";
+"reports.folder.selected" = "文件夹已选择。";
+"reports.folder.issue" = "文件夹访问异常：%@。请重新选择文件夹。";
+"reports.folder.issue_title" = "文件夹访问异常";
 "reports.status.generating" = "生成中…";
+"reports.status.last_run" = "上次运行：%@ • %@";
+"reports.status.not_run" = "上次运行：—";
+"reports.status.success" = "成功";
+"reports.status.failed" = "失败";
 "reports.daily.saved" = "日报已保存：%@";
 "reports.weekly.saved" = "周报已保存：%@";
 "reports.status.exporting" = "导出中…";
 "reports.csv.saved" = "CSV 已导出：%@";
 "reports.choose_folder" = "选择文件夹";
 "reports.opened_folder" = "已打开文件夹。";
+"status.action_failed" = "操作失败";
+"status.copy_details" = "复制详情";
+"login_items.needs_approval" = "需要在系统设置 > 登录项中批准。";
+"login_items.update_failed" = "无法更新登录项：%@";
 
 "Apps" = "应用";
 "Assign a tag to each application. New sessions will inherit the tag automatically." = "为每个应用分配标签，新会话会自动继承。";
