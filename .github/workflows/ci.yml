@@ -15,7 +15,7 @@ jobs:
       - name: Build and Test
         run: |
           xcodebuild \
-            -project Chronicle/Chronicle.xcodeproj \
+            -project Chronicle.xcodeproj \
             -scheme Chronicle \
             -configuration Debug \
             -destination 'platform=macOS' \
