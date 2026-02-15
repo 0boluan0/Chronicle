@@ -19,6 +19,7 @@ struct QuickMarkerPanelView: View {
             QuickMarkerEntryView(
                 timestampProvider: { Date() },
                 autoFocus: true,
+                triggerSource: .hotkey,
                 onSubmit: onClose,
                 onCancel: onClose
             )

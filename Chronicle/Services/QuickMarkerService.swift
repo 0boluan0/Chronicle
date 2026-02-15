@@ -1,0 +1,136 @@
+//
+//  QuickMarkerService.swift
+//  Chronicle
+//
+//  Created by Chronicle on 2026/2/15.
+//
+
+import Foundation
+
+enum QuickMarkerTriggerSource: String {
+    case menu
+    case hotkey
+}
+
+enum QuickMarkerServiceError: LocalizedError {
+    case emptyText
+
+    var errorDescription: String? {
+        switch self {
+        case .emptyText:
+            return "Marker text must not be empty."
+        }
+    }
+}
+
+final class QuickMarkerService {
+    static let shared = QuickMarkerService(database: .shared, markerSpanService: .shared)
+
+    private let db: DatabaseService
+    private let markerSpanService: MarkerSpanService
+
+    private init(database: DatabaseService, markerSpanService: MarkerSpanService) {
+        self.db = database
+        self.markerSpanService = markerSpanService
+    }
+
+    nonisolated deinit {}
+
+    #if DEBUG
+    static func makeTestInstance(database: DatabaseService) -> QuickMarkerService {
+        QuickMarkerService(
+            database: database,
+            markerSpanService: MarkerSpanService.makeTestInstance(database: database)
+        )
+    }
+    #endif
+
+    func createPointFromMenu(
+        text: String,
+        at date: Date,
+        completion: @escaping (Result<Int64, Error>) -> Void
+    ) {
+        createPointMarker(text: text, at: date, source: .menu, completion: completion)
+    }
+
+    func createPointFromHotkey(
+        text: String,
+        at date: Date,
+        completion: @escaping (Result<Int64, Error>) -> Void
+    ) {
+        createPointMarker(text: text, at: date, source: .hotkey, completion: completion)
+    }
+
+    func submit(
+        text: String,
+        mode: QuickMarkerMode,
+        intervalAction: QuickMarkerAction,
+        at date: Date,
+        source: QuickMarkerTriggerSource,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        switch mode {
+        case .point:
+            createPointMarker(text: text, at: date, source: source) { result in
+                completion(result.map { _ in () })
+            }
+        case .interval:
+            submitInterval(text: text, at: date, action: intervalAction, completion: completion)
+        }
+    }
+
+    func submitInterval(
+        text: String,
+        at date: Date,
+        action: QuickMarkerAction,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            completion(.failure(QuickMarkerServiceError.emptyText))
+            return
+        }
+
+        switch action {
+        case .toggle:
+            markerSpanService.toggle(text: trimmed, at: date) { result in
+                completion(result.map { _ in () })
+            }
+        case .start:
+            markerSpanService.start(text: trimmed, at: date) { result in
+                completion(result.map { _ in () })
+            }
+        case .stop:
+            markerSpanService.stop(text: trimmed, at: date) { result in
+                completion(result.map { _ in () })
+            }
+        }
+    }
+
+    private func createPointMarker(
+        text: String,
+        at date: Date,
+        source: QuickMarkerTriggerSource,
+        completion: @escaping (Result<Int64, Error>) -> Void
+    ) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            completion(.failure(QuickMarkerServiceError.emptyText))
+            return
+        }
+
+        let timestamp = Int64(date.timeIntervalSince1970)
+        db.insertMarker(timestamp: timestamp, text: trimmed) { result in
+            switch result {
+            case .success:
+                AppLogger.log(
+                    "Quick marker point created source=\(source.rawValue) timestamp=\(timestamp)",
+                    category: "marker"
+                )
+                completion(.success(timestamp))
+            case .failure(let error):
+                completion(.failure(error))
+            }
+        }
+    }
+}

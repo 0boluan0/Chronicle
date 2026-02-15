@@ -2,6 +2,21 @@ import XCTest
 @testable import Chronicle
 
 final class ChronicleTests: XCTestCase {
+    private var previousDebugLoggingEnabled: Bool?
+
+    override func setUp() {
+        super.setUp()
+        previousDebugLoggingEnabled = AppState.shared.debugLoggingEnabled
+        AppState.shared.debugLoggingEnabled = false
+    }
+
+    override func tearDown() {
+        if let previousDebugLoggingEnabled {
+            AppState.shared.debugLoggingEnabled = previousDebugLoggingEnabled
+        }
+        super.tearDown()
+    }
+
     private struct RawEventFixture: Decodable {
         let ts: Int64
         let type: String
@@ -166,6 +181,59 @@ final class ChronicleTests: XCTestCase {
         return rows
     }
 
+    private func fetchMarkers(
+        db: DatabaseService,
+        rangeStart: Int64,
+        rangeEnd: Int64
+    ) -> [MarkerRow] {
+        let expectation = XCTestExpectation(description: "fetch markers")
+        var rows: [MarkerRow] = []
+        var error: Error?
+        db.fetchMarkersOverlappingRange(start: rangeStart, end: rangeEnd) { result in
+            switch result {
+            case .success(let value):
+                rows = value
+            case .failure(let err):
+                error = err
+            }
+            expectation.fulfill()
+        }
+        wait(for: [expectation], timeout: 5)
+        if let error {
+            XCTFail("Fetch markers failed: \(error)")
+        }
+        return rows
+    }
+
+    private func fetchTimelineItems(
+        db: DatabaseService,
+        rangeStart: Int64,
+        rangeEnd: Int64
+    ) -> [TimelineItem] {
+        let expectation = XCTestExpectation(description: "fetch timeline items")
+        var items: [TimelineItem] = []
+        var error: Error?
+        let service = AggregationService.makeTestInstance(database: db)
+        service.fetchTimelineItems(
+            rangeStart: rangeStart,
+            rangeEnd: rangeEnd,
+            filters: .default
+        ) { result in
+            switch result {
+            case .success(let value):
+                items = value
+            case .failure(let err):
+                error = err
+            }
+            expectation.fulfill()
+        }
+        wait(for: [expectation], timeout: 5)
+        if let error {
+            XCTFail("Fetch timeline items failed: \(error)")
+        }
+        return items
+    }
+
     func testReplayBasicSwitching() throws {
         let db = makeTestDatabase("basic")
         let events = try loadFixture("basic_switching")
@@ -278,6 +346,179 @@ final class ChronicleTests: XCTestCase {
 
         open = fetchOpenMarkerSpans(db: db)
         XCTAssertTrue(open.isEmpty)
+    }
+
+    func testQuickMarkerMenuCreatesPointMarkerWithExactTimestamp() {
+        let db = makeTestDatabase("quick-marker-menu-point")
+        let service = QuickMarkerService.makeTestInstance(database: db)
+        let expectedTimestamp: Int64 = 10_000
+
+        let expectation = XCTestExpectation(description: "create menu point marker")
+        service.createPointFromMenu(text: "Menu Marker", at: Date(timeIntervalSince1970: TimeInterval(expectedTimestamp))) { result in
+            switch result {
+            case .success(let actualTimestamp):
+                XCTAssertEqual(actualTimestamp, expectedTimestamp)
+            case .failure(let error):
+                XCTFail("Menu point marker failed: \(error)")
+            }
+            expectation.fulfill()
+        }
+        wait(for: [expectation], timeout: 5)
+
+        let markers = fetchMarkers(db: db, rangeStart: expectedTimestamp, rangeEnd: expectedTimestamp + 1)
+        XCTAssertEqual(markers.count, 1)
+        XCTAssertEqual(markers.first?.timestamp, expectedTimestamp)
+        XCTAssertEqual(markers.first?.text, "Menu Marker")
+    }
+
+    func testQuickMarkerHotkeyCreatesPointMarkerWithExactTimestamp() {
+        let db = makeTestDatabase("quick-marker-hotkey-point")
+        let service = QuickMarkerService.makeTestInstance(database: db)
+        let expectedTimestamp: Int64 = 11_000
+
+        let expectation = XCTestExpectation(description: "create hotkey point marker")
+        service.createPointFromHotkey(text: "Hotkey Marker", at: Date(timeIntervalSince1970: TimeInterval(expectedTimestamp))) { result in
+            switch result {
+            case .success(let actualTimestamp):
+                XCTAssertEqual(actualTimestamp, expectedTimestamp)
+            case .failure(let error):
+                XCTFail("Hotkey point marker failed: \(error)")
+            }
+            expectation.fulfill()
+        }
+        wait(for: [expectation], timeout: 5)
+
+        let markers = fetchMarkers(db: db, rangeStart: expectedTimestamp, rangeEnd: expectedTimestamp + 1)
+        XCTAssertEqual(markers.count, 1)
+        XCTAssertEqual(markers.first?.timestamp, expectedTimestamp)
+        XCTAssertEqual(markers.first?.text, "Hotkey Marker")
+    }
+
+    func testQuickMarkerIntervalStartStopCreatesBoundedInterval() {
+        let db = makeTestDatabase("quick-marker-interval")
+        let service = QuickMarkerService.makeTestInstance(database: db)
+        let startTime: Int64 = 20_000
+        let endTime: Int64 = 20_900
+
+        let startExpectation = XCTestExpectation(description: "start interval marker")
+        service.submitInterval(
+            text: "Deep Focus",
+            at: Date(timeIntervalSince1970: TimeInterval(startTime)),
+            action: .start
+        ) { result in
+            if case .failure(let error) = result {
+                XCTFail("Start interval marker failed: \(error)")
+            }
+            startExpectation.fulfill()
+        }
+        wait(for: [startExpectation], timeout: 5)
+
+        let stopExpectation = XCTestExpectation(description: "stop interval marker")
+        service.submitInterval(
+            text: "Deep Focus",
+            at: Date(timeIntervalSince1970: TimeInterval(endTime)),
+            action: .stop
+        ) { result in
+            if case .failure(let error) = result {
+                XCTFail("Stop interval marker failed: \(error)")
+            }
+            stopExpectation.fulfill()
+        }
+        wait(for: [stopExpectation], timeout: 5)
+
+        let openSpans = fetchOpenMarkerSpans(db: db)
+        XCTAssertTrue(openSpans.isEmpty)
+
+        let spans = fetchMarkerSpans(db: db, rangeStart: startTime - 1, rangeEnd: endTime + 1)
+        XCTAssertEqual(spans.count, 1)
+        XCTAssertEqual(spans.first?.text, "Deep Focus")
+        XCTAssertEqual(spans.first?.startTime, startTime)
+        XCTAssertEqual(spans.first?.endTime, endTime)
+    }
+
+    func testQuickMarkerPersistsAndReloadsFromRepository() {
+        let url = makeTempDatabaseURL("quick-marker-reload")
+        let writer = DatabaseService.makeTestInstance(databaseURL: url)
+        let writerService = QuickMarkerService.makeTestInstance(database: writer)
+        let expectedTimestamp: Int64 = 30_000
+
+        let writeExpectation = XCTestExpectation(description: "persist marker")
+        writerService.createPointFromMenu(
+            text: "Persisted Marker",
+            at: Date(timeIntervalSince1970: TimeInterval(expectedTimestamp))
+        ) { result in
+            if case .failure(let error) = result {
+                XCTFail("Persist marker failed: \(error)")
+            }
+            writeExpectation.fulfill()
+        }
+        wait(for: [writeExpectation], timeout: 5)
+
+        let reader = DatabaseService.makeTestInstance(databaseURL: url)
+        let markers = fetchMarkers(db: reader, rangeStart: expectedTimestamp, rangeEnd: expectedTimestamp + 1)
+        XCTAssertEqual(markers.count, 1)
+        XCTAssertEqual(markers.first?.text, "Persisted Marker")
+        XCTAssertEqual(markers.first?.timestamp, expectedTimestamp)
+    }
+
+    func testTimelineProjectionIncludesNewQuickMarker() {
+        let db = makeTestDatabase("quick-marker-timeline")
+        let service = QuickMarkerService.makeTestInstance(database: db)
+        let markerTimestamp: Int64 = 40_000
+        let spanStart: Int64 = 40_100
+        let spanEnd: Int64 = 40_160
+
+        let pointExpectation = XCTestExpectation(description: "create point marker")
+        service.createPointFromHotkey(
+            text: "Projection Point",
+            at: Date(timeIntervalSince1970: TimeInterval(markerTimestamp))
+        ) { result in
+            if case .failure(let error) = result {
+                XCTFail("Point marker failed: \(error)")
+            }
+            pointExpectation.fulfill()
+        }
+        wait(for: [pointExpectation], timeout: 5)
+
+        let startExpectation = XCTestExpectation(description: "start projection span")
+        service.submitInterval(
+            text: "Projection Span",
+            at: Date(timeIntervalSince1970: TimeInterval(spanStart)),
+            action: .start
+        ) { result in
+            if case .failure(let error) = result {
+                XCTFail("Span start failed: \(error)")
+            }
+            startExpectation.fulfill()
+        }
+        wait(for: [startExpectation], timeout: 5)
+
+        let stopExpectation = XCTestExpectation(description: "stop projection span")
+        service.submitInterval(
+            text: "Projection Span",
+            at: Date(timeIntervalSince1970: TimeInterval(spanEnd)),
+            action: .stop
+        ) { result in
+            if case .failure(let error) = result {
+                XCTFail("Span stop failed: \(error)")
+            }
+            stopExpectation.fulfill()
+        }
+        wait(for: [stopExpectation], timeout: 5)
+
+        let items = fetchTimelineItems(db: db, rangeStart: markerTimestamp - 1, rangeEnd: spanEnd + 1)
+
+        let markerFound = items.contains { item in
+            guard case .marker(let marker) = item else { return false }
+            return marker.text == "Projection Point" && marker.timestamp == markerTimestamp
+        }
+        XCTAssertTrue(markerFound)
+
+        let spanFound = items.contains { item in
+            guard case .markerSpan(let span) = item else { return false }
+            return span.text == "Projection Span" && span.startTime == spanStart && span.endTime == spanEnd
+        }
+        XCTAssertTrue(spanFound)
     }
 
     func testTaggingEnginePriority() {

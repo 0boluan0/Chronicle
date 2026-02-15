@@ -18,6 +18,7 @@ struct QuickMarkerEntryView: View {
 
     let timestampProvider: () -> Date
     let autoFocus: Bool
+    let triggerSource: QuickMarkerTriggerSource
     let onSubmit: (() -> Void)?
     let onCancel: (() -> Void)?
 
@@ -85,7 +86,14 @@ struct QuickMarkerEntryView: View {
         case .point:
             return L("quick_marker.action.add")
         case .interval:
-            return L("quick_marker.action.toggle")
+            switch appState.quickMarkerAction {
+            case .toggle:
+                return L("quick_marker.action.toggle")
+            case .start:
+                return L("quick_marker.action.start")
+            case .stop:
+                return L("quick_marker.action.stop")
+            }
         }
     }
 
@@ -106,16 +114,14 @@ struct QuickMarkerEntryView: View {
             appState.quickMarkerLastText = trimmed
         }
 
-        switch appState.quickMarkerMode {
-        case .point:
-            let timestamp = Int64(now.timeIntervalSince1970)
-            DatabaseService.shared.insertMarker(timestamp: timestamp, text: trimmed) { result in
-                handleResult(result.map { _ in () })
-            }
-        case .interval:
-            MarkerSpanService.shared.toggle(text: trimmed, at: now) { result in
-                handleResult(result.map { _ in () })
-            }
+        QuickMarkerService.shared.submit(
+            text: trimmed,
+            mode: appState.quickMarkerMode,
+            intervalAction: appState.quickMarkerAction,
+            at: now,
+            source: triggerSource
+        ) { result in
+            handleResult(result)
         }
     }
 
@@ -187,6 +193,12 @@ struct QuickMarkerEntryView: View {
 }
 
 #Preview {
-    QuickMarkerEntryView(timestampProvider: { Date() }, autoFocus: false, onSubmit: nil, onCancel: nil)
+    QuickMarkerEntryView(
+        timestampProvider: { Date() },
+        autoFocus: false,
+        triggerSource: .menu,
+        onSubmit: nil,
+        onCancel: nil
+    )
         .environmentObject(AppState.shared)
 }

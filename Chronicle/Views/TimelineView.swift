@@ -121,6 +121,7 @@ struct TimelineView: View {
             QuickMarkerEntryView(
                 timestampProvider: { markerTimestampDate() },
                 autoFocus: false,
+                triggerSource: .menu,
                 onSubmit: { refreshTimeline(reason: "marker entry") },
                 onCancel: nil
             )
