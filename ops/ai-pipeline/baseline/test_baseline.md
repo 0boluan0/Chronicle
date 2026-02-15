@@ -1,9 +1,9 @@
 # Test Baseline
 
-- Generated (UTC): `2026-02-14T14:16:15Z`
+- Generated (UTC): `2026-02-15T09:14:36Z`
 - Exit Code: `0`
 - Result Bundle: `/Users/fengyihang/Chronicle/Chronicle/build/TestResults/latest.xcresult`
-- Raw Log: `/Users/fengyihang/Chronicle/Chronicle/ops/ai-pipeline/baseline/runs/xcodebuild-20260214-221615.log`
+- Raw Log: `/Users/fengyihang/Chronicle/Chronicle/ops/ai-pipeline/baseline/runs/xcodebuild-20260215-171436.log`
 
 ## Command
 
