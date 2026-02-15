@@ -55,11 +55,18 @@ generate_next_command_with_codex() {
   local task_id="$2"
   local mode="$3"
   local context_note="$4"
+  local requirements_snapshot=""
 
   local prompt_file
-  prompt_file="$(mktemp "${LOGS_DIR}/ai2-next-prompt-${cycle}-XXXXXX.md")"
+  prompt_file="$(mktemp "${LOGS_DIR}/ai2-next-prompt-${cycle}-XXXXXX")"
   local output_file="${LOGS_DIR}/ai2-next-message-cycle-$(printf '%03d' "${cycle}").md"
   local run_log="${LOGS_DIR}/ai2-next-codex-cycle-$(printf '%03d' "${cycle}").log"
+
+  if [[ -f "${MASTER_REQUIREMENTS_FILE}" ]]; then
+    requirements_snapshot="$(sed -n '1,320p' "${MASTER_REQUIREMENTS_FILE}")"
+  else
+    requirements_snapshot="(missing) ${MASTER_REQUIREMENTS_FILE}"
+  fi
 
   cat > "${prompt_file}" <<PROMPT_EOF
 $(cat "${SCRIPT_DIR}/prompts/ai2_system_prompt.md")
@@ -67,6 +74,10 @@ $(cat "${SCRIPT_DIR}/prompts/ai2_system_prompt.md")
 Cycle: ${cycle}
 Mode: ${mode}
 Target Task ID: ${task_id}
+Master Requirements File: ${MASTER_REQUIREMENTS_FILE}
+
+Master Requirements Snapshot:
+${requirements_snapshot}
 
 Current Baseline Snapshot:
 $(sed -n '1,200p' "${PIPELINE_DIR}/baseline/test_baseline.md")

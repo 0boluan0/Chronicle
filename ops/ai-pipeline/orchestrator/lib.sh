@@ -363,7 +363,7 @@ Updated: $(now_local)
 - $( (( blocking_open > 0 )) && echo "Blocking failures open (${blocking_open})" || echo "None" )
 
 ## Done (Recent 10)
-- Managed by orchestrator runtime reports (`cycle-<N>.md`)
+- Managed by orchestrator runtime reports (cycle-<N>.md)
 
 ## Metrics
 | Metric | Value | Notes |

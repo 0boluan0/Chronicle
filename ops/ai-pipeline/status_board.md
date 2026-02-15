@@ -1,6 +1,6 @@
 # Chronicle AI Pipeline Status Board
 
-Updated: 2026-02-15 11:30 +0800
+Updated: 2026-02-15 13:47 +0800
 
 ## Now
 - Stage: `Feature Development`
@@ -12,12 +12,12 @@ Updated: 2026-02-15 11:30 +0800
 - None
 
 ## Done (Recent 10)
-- Managed by orchestrator runtime reports ()
+- Managed by orchestrator runtime reports (cycle-<N>.md)
 
 ## Metrics
 | Metric | Value | Notes |
 |---|---:|---|
-| cycle_count | 6 | Current orchestrator cycle |
+| cycle_count | 8 | Current orchestrator cycle |
 | open_blocking_failures | 0 | From open_failures.yaml |
 | latest_local_test_exit_code | 0 | Baseline command exit code |
 | stuck_count | 0 | Consecutive no-progress cycles |

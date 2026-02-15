@@ -110,7 +110,7 @@ process_dispatch() {
   local cycle_log="${LOGS_DIR}/ai1-cycle-$(printf '%03d' "${cycle}").log"
   local last_message_file="${LOGS_DIR}/ai1-cycle-$(printf '%03d' "${cycle}")-message.md"
   local prompt_file
-  prompt_file="$(mktemp "${LOGS_DIR}/ai1-prompt-${cycle}-XXXXXX.md")"
+  prompt_file="$(mktemp "${LOGS_DIR}/ai1-prompt-${cycle}-XXXXXX")"
 
   if [[ "${task_id}" == "DONE" || "${task_id}" == "NONE" ]]; then
     jq -n \
@@ -175,9 +175,14 @@ process_dispatch() {
   fi
 
   local commit_status commit_sha commit_info
-  commit_info="$(commit_changes_if_needed "${cycle}" "${task_id}")"
-  commit_status="${commit_info%%|*}"
-  commit_sha="${commit_info#*|}"
+  if [[ ${DRY_RUN} -eq 1 ]]; then
+    commit_status="no_diff"
+    commit_sha=""
+  else
+    commit_info="$(commit_changes_if_needed "${cycle}" "${task_id}")"
+    commit_status="${commit_info%%|*}"
+    commit_sha="${commit_info#*|}"
+  fi
 
   if [[ "${commit_status}" == "commit_failed" || "${commit_status}" == "push_failed" ]]; then
     result="commit_error"
