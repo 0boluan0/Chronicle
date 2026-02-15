@@ -12,7 +12,7 @@ SUP_PID_FILE="${PIDS_DIR}/supervisor.pid"
 
 usage() {
   cat <<USAGE
-Usage: $(basename "$0") <start|resume|status|stop|supervise> [--dry-run]
+Usage: $(basename "$0") <start|resume|status|stop|supervise|monitor> [--dry-run] [--attach]
 
 Commands:
   start       Start a fresh orchestrator run
@@ -20,6 +20,11 @@ Commands:
   status      Show orchestrator status
   stop        Request graceful stop
   supervise   Internal supervisor loop
+  monitor     Open real-time monitor dashboard
+
+Options:
+  --dry-run   Run workers in dry-run mode (start/resume only)
+  --attach    Open monitor after start/resume
 USAGE
 }
 
@@ -288,17 +293,46 @@ cmd_supervise() {
   remove_pid_files
 }
 
+cmd_monitor() {
+  ensure_runtime_layout
+  bash "${SCRIPT_DIR}/monitor.sh"
+}
+
 main() {
   local cmd="${1:-}"
+  shift || true
+
   local dry_run=0
-  [[ "${2:-}" == "--dry-run" ]] && dry_run=1
+  local attach=0
+  while [[ $# -gt 0 ]]; do
+    case "${1}" in
+      --dry-run)
+        dry_run=1
+        ;;
+      --attach)
+        attach=1
+        ;;
+      *)
+        echo "Unknown option: ${1}"
+        usage
+        exit 2
+        ;;
+    esac
+    shift
+  done
 
   case "${cmd}" in
     start)
       cmd_start "${dry_run}"
+      if (( attach == 1 )); then
+        cmd_monitor
+      fi
       ;;
     resume)
       cmd_resume "${dry_run}"
+      if (( attach == 1 )); then
+        cmd_monitor
+      fi
       ;;
     status)
       cmd_status
@@ -308,6 +342,9 @@ main() {
       ;;
     supervise)
       cmd_supervise
+      ;;
+    monitor)
+      cmd_monitor
       ;;
     *)
       usage
