@@ -1,7 +1,7 @@
 run_id: run-20260215-113044
-status: AI2_DISPATCH
+status: AI1_EXECUTE
 started_at_utc: 2026-02-15T03:30:44Z
-updated_at_utc: 2026-02-15T03:30:45Z
+updated_at_utc: 2026-02-15T03:30:46Z
 cycle: 6
 stuck_count: 0
 stop_requested: false
@@ -9,9 +9,9 @@ stop_reason: NONE
 current_task_id: FEAT-001
 goal_task_ids: FEAT-001
 completed_goal_ids: 
-last_ai1_exit: -1
+last_ai1_exit: 0
 last_ai2_exit: 0
-last_commit: NONE
+last_commit: a3ba98e
 target_branch: codex/orchestrated
 dry_run: true
 run_cycle_start: 5
