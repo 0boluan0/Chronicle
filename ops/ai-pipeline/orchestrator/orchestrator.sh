@@ -100,19 +100,20 @@ bootstrap_commit_if_dirty() {
 start_workers() {
   local dry_run="$1"
 
-  local ai1_args=()
-  local ai2_args=()
   if [[ "${dry_run}" == "1" ]]; then
-    ai1_args+=(--dry-run)
-    ai2_args+=(--dry-run)
+    bash "${SCRIPT_DIR}/ai1_worker.sh" --dry-run >> "${LOGS_DIR}/ai1-worker.log" 2>&1 &
+  else
+    bash "${SCRIPT_DIR}/ai1_worker.sh" >> "${LOGS_DIR}/ai1-worker.log" 2>&1 &
   fi
-
-  bash "${SCRIPT_DIR}/ai1_worker.sh" "${ai1_args[@]}" >> "${LOGS_DIR}/ai1-worker.log" 2>&1 &
   local ai1_pid=$!
   write_pid "${AI1_PID_FILE}" "${ai1_pid}"
   state_set ai1_pid "${ai1_pid}"
 
-  bash "${SCRIPT_DIR}/ai2_worker.sh" "${ai2_args[@]}" >> "${LOGS_DIR}/ai2-worker.log" 2>&1 &
+  if [[ "${dry_run}" == "1" ]]; then
+    bash "${SCRIPT_DIR}/ai2_worker.sh" --dry-run >> "${LOGS_DIR}/ai2-worker.log" 2>&1 &
+  else
+    bash "${SCRIPT_DIR}/ai2_worker.sh" >> "${LOGS_DIR}/ai2-worker.log" 2>&1 &
+  fi
   local ai2_pid=$!
   write_pid "${AI2_PID_FILE}" "${ai2_pid}"
   state_set ai2_pid "${ai2_pid}"
