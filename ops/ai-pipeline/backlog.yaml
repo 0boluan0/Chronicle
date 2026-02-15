@@ -105,7 +105,7 @@ tasks:
     priority: P2
     track: feature
     blocking: false
-    status: ready
+    status: in_progress
     depends_on:
       - FEAT-UNLOCK
     failure_refs: []

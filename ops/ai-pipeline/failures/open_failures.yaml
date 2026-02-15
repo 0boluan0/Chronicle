@@ -1,8 +1,8 @@
-generated_at: "2026-02-15T09:46:44Z"
+generated_at: "2026-02-15T12:46:55Z"
 source:
   command: "xcodebuild -project Chronicle.xcodeproj -scheme Chronicle -destination 'platform=macOS' test -resultBundlePath build/TestResults/latest.xcresult"
   exit_code: 0
-  log_file: "/Users/fengyihang/Chronicle/Chronicle/ops/ai-pipeline/baseline/runs/xcodebuild-20260215-174644.log"
+  log_file: "/Users/fengyihang/Chronicle/Chronicle/ops/ai-pipeline/baseline/runs/xcodebuild-20260215-204655.log"
   result_bundle: "/Users/fengyihang/Chronicle/Chronicle/build/TestResults/latest.xcresult"
 
 failures:

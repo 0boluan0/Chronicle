@@ -146,6 +146,8 @@
 "markers.expand_lanes" = "Show %d more";
 "markers.collapse_lanes" = "Collapse";
 "marker.span.ongoing" = "Ongoing";
+"marker.action.delete" = "Delete Marker";
+"marker_span.action.delete" = "Delete Session";
 "quick_marker.title" = "Quick Marker";
 "quick_marker.placeholder" = "What are you doing?";
 "quick_marker.mode.point" = "Point";

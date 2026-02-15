@@ -488,12 +488,50 @@ struct TimelineView: View {
         Button(L("status.copy_details")) {
             copyMarkerDetails(marker)
         }
+        Divider()
+        Button(role: .destructive) {
+            deleteMarker(marker)
+        } label: {
+            Text(L("marker.action.delete"))
+        }
     }
 
     @ViewBuilder
     private func markerSpanContextMenu(for span: MarkerSpanRow) -> some View {
         Button(L("status.copy_details")) {
             copyMarkerSpanDetails(span)
+        }
+        Divider()
+        Button(role: .destructive) {
+            deleteMarkerSpan(span)
+        } label: {
+            Text(L("marker_span.action.delete"))
+        }
+    }
+
+    private func deleteMarker(_ marker: MarkerRow) {
+        DatabaseService.shared.deleteMarker(id: marker.id) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    self.refreshTimeline(reason: "marker deleted")
+                case .failure(let error):
+                    self.appState.lastDbErrorMessage = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    private func deleteMarkerSpan(_ span: MarkerSpanRow) {
+        DatabaseService.shared.deleteMarkerSpan(id: span.id) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    self.refreshTimeline(reason: "marker span deleted")
+                case .failure(let error):
+                    self.appState.lastDbErrorMessage = error.localizedDescription
+                }
+            }
         }
     }
 

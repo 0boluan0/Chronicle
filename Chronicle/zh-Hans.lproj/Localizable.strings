@@ -146,6 +146,8 @@
 "markers.expand_lanes" = "展开 %d 行";
 "markers.collapse_lanes" = "收起";
 "marker.span.ongoing" = "进行中";
+"marker.action.delete" = "删除标记";
+"marker_span.action.delete" = "删除区间";
 "quick_marker.title" = "快速标记";
 "quick_marker.placeholder" = "你正在做什么？";
 "quick_marker.mode.point" = "点";

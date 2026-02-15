@@ -424,6 +424,73 @@ final class DatabaseService {
         }
     }
 
+    func deleteMarker(
+        id: Int64,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        if Thread.isMainThread {
+            AppLogger.log("Warning: deleteMarker called on main thread", category: "db")
+        }
+
+        queue.async { [self] in
+            do {
+                try self.openDatabaseIfNeeded()
+                let timestamp = try self.fetchMarkerTimestampInternal(id: id)
+                try self.deleteMarkerInternal(id: id)
+                let changes = self.sqliteChanges()
+                AppLogger.log("Delete marker success op=delete_marker id=\(id) changes=\(changes)", category: "db")
+                if changes > 0 {
+                    if let timestamp {
+                        AggregationService.shared.recordDatabaseChange(rangeStart: timestamp, rangeEnd: timestamp + 1)
+                    } else {
+                        AggregationService.shared.recordDatabaseChange(rangeStart: 0, rangeEnd: Int64.max)
+                    }
+                }
+                completion(.success(()))
+            } catch let error as DatabaseError {
+                AppLogger.log("Delete marker failed: \(error.logDescription)", category: "db")
+                completion(.failure(error))
+            } catch {
+                AppLogger.log("Delete marker failed: \(error.localizedDescription)", category: "db")
+                completion(.failure(error))
+            }
+        }
+    }
+
+    func deleteMarkerSpan(
+        id: Int64,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        if Thread.isMainThread {
+            AppLogger.log("Warning: deleteMarkerSpan called on main thread", category: "db")
+        }
+
+        queue.async { [self] in
+            do {
+                try self.openDatabaseIfNeeded()
+                let bounds = try self.fetchMarkerSpanBoundsInternal(id: id)
+                try self.deleteMarkerSpanInternal(id: id)
+                let changes = self.sqliteChanges()
+                AppLogger.log("Delete marker span success op=delete_marker_span id=\(id) changes=\(changes)", category: "db")
+                if changes > 0 {
+                    if let bounds {
+                        let end = max(bounds.start + 1, bounds.end ?? (bounds.start + 1))
+                        AggregationService.shared.recordDatabaseChange(rangeStart: bounds.start, rangeEnd: end)
+                    } else {
+                        AggregationService.shared.recordDatabaseChange(rangeStart: 0, rangeEnd: Int64.max)
+                    }
+                }
+                completion(.success(()))
+            } catch let error as DatabaseError {
+                AppLogger.log("Delete marker span failed: \(error.logDescription)", category: "db")
+                completion(.failure(error))
+            } catch {
+                AppLogger.log("Delete marker span failed: \(error.localizedDescription)", category: "db")
+                completion(.failure(error))
+            }
+        }
+    }
+
     func insertMarkerSpan(
         startTime: Int64,
         text: String,
@@ -2604,6 +2671,26 @@ final class DatabaseService {
         return sqlite3_last_insert_rowid(db)
     }
 
+    private func deleteMarkerInternal(id: Int64) throws {
+        let sql = "DELETE FROM Markers WHERE id = ?;"
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "prepare", sql: sql, message: message)
+            throw DatabaseError.prepareFailed(message, sql: sql)
+        }
+        defer { sqlite3_finalize(statement) }
+
+        try bind(sql: sql, result: sqlite3_bind_int64(statement, 1, id), detail: "id")
+
+        let stepResult = sqlite3_step(statement)
+        guard stepResult == SQLITE_DONE else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "step", sql: sql, message: message)
+            throw DatabaseError.stepFailed(message, sql: sql)
+        }
+    }
+
     private func insertMarkerSpanInternal(startTime: Int64, text: String) throws -> Int64 {
         let sql = """
         INSERT INTO MarkerSpans (start_time, end_time, text)
@@ -2629,6 +2716,26 @@ final class DatabaseService {
         }
 
         return sqlite3_last_insert_rowid(db)
+    }
+
+    private func deleteMarkerSpanInternal(id: Int64) throws {
+        let sql = "DELETE FROM MarkerSpans WHERE id = ?;"
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "prepare", sql: sql, message: message)
+            throw DatabaseError.prepareFailed(message, sql: sql)
+        }
+        defer { sqlite3_finalize(statement) }
+
+        try bind(sql: sql, result: sqlite3_bind_int64(statement, 1, id), detail: "id")
+
+        let stepResult = sqlite3_step(statement)
+        guard stepResult == SQLITE_DONE else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "step", sql: sql, message: message)
+            throw DatabaseError.stepFailed(message, sql: sql)
+        }
     }
 
     private func endMarkerSpanInternal(id: Int64, endTime: Int64) throws -> Int {
@@ -4040,6 +4147,61 @@ final class DatabaseService {
         if stepResult == SQLITE_ROW {
             let start = sqlite3_column_int64(statement, 0)
             let end = sqlite3_column_int64(statement, 1)
+            return (start: start, end: end)
+        }
+        if stepResult == SQLITE_DONE {
+            return nil
+        }
+
+        let message = sqliteErrorMessage(db)
+        logSQLiteError(operation: "step", sql: sql, message: message)
+        throw DatabaseError.stepFailed(message, sql: sql)
+    }
+
+    private func fetchMarkerTimestampInternal(id: Int64) throws -> Int64? {
+        let sql = "SELECT timestamp FROM Markers WHERE id = ? LIMIT 1;"
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "prepare", sql: sql, message: message)
+            throw DatabaseError.prepareFailed(message, sql: sql)
+        }
+        defer { sqlite3_finalize(statement) }
+
+        try bind(sql: sql, result: sqlite3_bind_int64(statement, 1, id), detail: "id")
+        let stepResult = sqlite3_step(statement)
+        if stepResult == SQLITE_ROW {
+            return sqlite3_column_int64(statement, 0)
+        }
+        if stepResult == SQLITE_DONE {
+            return nil
+        }
+
+        let message = sqliteErrorMessage(db)
+        logSQLiteError(operation: "step", sql: sql, message: message)
+        throw DatabaseError.stepFailed(message, sql: sql)
+    }
+
+    private func fetchMarkerSpanBoundsInternal(id: Int64) throws -> (start: Int64, end: Int64?)? {
+        let sql = "SELECT start_time, end_time FROM MarkerSpans WHERE id = ? LIMIT 1;"
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "prepare", sql: sql, message: message)
+            throw DatabaseError.prepareFailed(message, sql: sql)
+        }
+        defer { sqlite3_finalize(statement) }
+
+        try bind(sql: sql, result: sqlite3_bind_int64(statement, 1, id), detail: "id")
+        let stepResult = sqlite3_step(statement)
+        if stepResult == SQLITE_ROW {
+            let start = sqlite3_column_int64(statement, 0)
+            let end: Int64?
+            if sqlite3_column_type(statement, 1) == SQLITE_NULL {
+                end = nil
+            } else {
+                end = sqlite3_column_int64(statement, 1)
+            }
             return (start: start, end: end)
         }
         if stepResult == SQLITE_DONE {

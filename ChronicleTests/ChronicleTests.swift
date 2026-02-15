@@ -205,6 +205,24 @@ final class ChronicleTests: XCTestCase {
         return rows
     }
 
+    private func deleteMarker(
+        db: DatabaseService,
+        id: Int64
+    ) {
+        let expectation = XCTestExpectation(description: "delete marker")
+        var error: Error?
+        db.deleteMarker(id: id) { result in
+            if case .failure(let err) = result {
+                error = err
+            }
+            expectation.fulfill()
+        }
+        wait(for: [expectation], timeout: 5)
+        if let error {
+            XCTFail("Delete marker failed: \(error)")
+        }
+    }
+
     private func fetchTimelineItems(
         db: DatabaseService,
         rangeStart: Int64,
@@ -519,6 +537,53 @@ final class ChronicleTests: XCTestCase {
             return span.text == "Projection Span" && span.startTime == spanStart && span.endTime == spanEnd
         }
         XCTAssertTrue(spanFound)
+    }
+
+    func testDeletingQuickMarkerRemovesItFromPersistenceAndTimelineMapping() {
+        let db = makeTestDatabase("quick-marker-delete")
+        let service = QuickMarkerService.makeTestInstance(database: db)
+        let markerTimestamp: Int64 = 50_000
+
+        let createExpectation = XCTestExpectation(description: "create marker before delete")
+        service.submit(
+            text: "Delete Me",
+            mode: .point,
+            intervalAction: .toggle,
+            at: Date(timeIntervalSince1970: TimeInterval(markerTimestamp)),
+            source: .menu
+        ) { result in
+            if case .failure(let error) = result {
+                XCTFail("Create marker before delete failed: \(error)")
+            }
+            createExpectation.fulfill()
+        }
+        wait(for: [createExpectation], timeout: 5)
+
+        let markersBefore = fetchMarkers(db: db, rangeStart: markerTimestamp, rangeEnd: markerTimestamp + 1)
+        XCTAssertEqual(markersBefore.count, 1)
+        guard let markerId = markersBefore.first?.id else {
+            XCTFail("Expected marker id before delete")
+            return
+        }
+
+        let timelineBefore = fetchTimelineItems(db: db, rangeStart: markerTimestamp - 1, rangeEnd: markerTimestamp + 1)
+        let markerFoundBeforeDelete = timelineBefore.contains { item in
+            guard case .marker(let marker) = item else { return false }
+            return marker.id == markerId
+        }
+        XCTAssertTrue(markerFoundBeforeDelete)
+
+        deleteMarker(db: db, id: markerId)
+
+        let markersAfter = fetchMarkers(db: db, rangeStart: markerTimestamp, rangeEnd: markerTimestamp + 1)
+        XCTAssertTrue(markersAfter.isEmpty)
+
+        let timelineAfter = fetchTimelineItems(db: db, rangeStart: markerTimestamp - 1, rangeEnd: markerTimestamp + 1)
+        let markerFoundAfterDelete = timelineAfter.contains { item in
+            guard case .marker(let marker) = item else { return false }
+            return marker.id == markerId
+        }
+        XCTAssertFalse(markerFoundAfterDelete)
     }
 
     func testTaggingEnginePriority() {
