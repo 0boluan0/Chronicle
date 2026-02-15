@@ -59,6 +59,101 @@ SNAPSHOT_LATEST_EVENT_COMPACT="N/A"
 SNAPSHOT_DRY_RUN="false"
 SNAPSHOT_EFFECTIVE_STATUS="UNKNOWN"
 
+safe_value() {
+  local raw="${1:-}"
+  if [[ -z "${raw}" ]]; then
+    echo "N/A"
+  else
+    echo "${raw}"
+  fi
+}
+
+count_csv_items() {
+  local csv="${1:-}"
+  local count=0
+  local item
+  IFS=',' read -r -a arr <<< "${csv}"
+  for item in "${arr[@]}"; do
+    [[ -n "${item}" ]] && count=$((count + 1))
+  done
+  echo "${count}"
+}
+
+term_cols() {
+  local cols
+  cols="$(tput cols 2>/dev/null || echo 100)"
+  if [[ -z "${cols}" || ! "${cols}" =~ ^[0-9]+$ ]]; then
+    cols=100
+  fi
+  (( cols < 80 )) && cols=80
+  echo "${cols}"
+}
+
+term_rows() {
+  local rows
+  rows="$(tput lines 2>/dev/null || echo 24)"
+  if [[ -z "${rows}" || ! "${rows}" =~ ^[0-9]+$ ]]; then
+    rows=24
+  fi
+  (( rows < 18 )) && rows=18
+  echo "${rows}"
+}
+
+print_hr() {
+  local cols="$1"
+  printf '%*s\n' "${cols}" '' | tr ' ' '-'
+}
+
+truncate_text() {
+  local text="$1"
+  local max_len="$2"
+  if (( max_len <= 3 )); then
+    echo "${text}"
+    return 0
+  fi
+  if (( ${#text} <= max_len )); then
+    echo "${text}"
+  else
+    echo "${text:0:$((max_len - 3))}..."
+  fi
+}
+
+colorize_status() {
+  local st="$1"
+  case "${st}" in
+    SUCCESS_STOP)
+      printf "%s%s%s" "${GREEN_BOLD}" "${st}" "${RESET}"
+      ;;
+    FUSE_STOP|BUDGET_STOP|WORKER_EXIT)
+      printf "%s%s%s" "${RED_BG_BOLD}" "${st}" "${RESET}"
+      ;;
+    STOP_REQUESTED|USER_STOP)
+      printf "%s%s%s" "${YELLOW_BOLD}" "${st}" "${RESET}"
+      ;;
+    AI1_EXECUTE|AI2_BASELINE|AI2_DISPATCH|AI2_VERIFY|RUNNING|BOOTSTRAP)
+      printf "%s%s%s" "${BLUE_BOLD}" "${st}" "${RESET}"
+      ;;
+    *)
+      printf "%s" "${st}"
+      ;;
+  esac
+}
+
+colorize_worker_state() {
+  local st="$1"
+  case "${st}" in
+    alive)
+      printf "%s%s%s" "${GREEN_BOLD}" "${st}" "${RESET}"
+      ;;
+    dead)
+      printf "%s%s%s" "${RED_BG_BOLD}" "${st}" "${RESET}"
+      ;;
+    *)
+      printf "%s%s%s" "${DIM}" "${st}" "${RESET}"
+      ;;
+  esac
+}
+
 set_status_line() {
   local level="$1"
   shift
@@ -225,81 +320,104 @@ print_status_line() {
 }
 
 render_help() {
-  printf "%s[Help]%s\n" "${BLUE_BOLD}" "${RESET}"
-  printf "  s: stop orchestrator\n"
-  printf "  u: resume orchestrator\n"
-  printf "  r: restart (stop -> start)\n"
-  printf "  q: quit monitor (orchestrator keeps running)\n"
-  printf "  1: toggle events panel\n"
-  printf "  2: toggle logs panel\n"
-  printf "  a: toggle AI1 log (inside logs panel)\n"
-  printf "  b: toggle AI2 log (inside logs panel)\n"
-  printf "  n: events lines 10/30/100\n"
-  printf "  h: toggle help\n"
+  printf "%sKeys:%s s=stop u=resume r=restart q=quit 1=events 2=logs a=ai1-log b=ai2-log n=event-lines h=help\n" "${BLUE_BOLD}" "${RESET}"
 }
 
 render_screen() {
-  printf '\033[2J\033[H'
+  local cols
+  cols="$(term_cols)"
+  local rows
+  rows="$(term_rows)"
+  local goals completed goals_count completed_count completion_ratio
+  goals="$(safe_value "${SNAPSHOT_GOALS}")"
+  completed="$(safe_value "${SNAPSHOT_COMPLETED}")"
+  goals_count="$(count_csv_items "${SNAPSHOT_GOALS}")"
+  completed_count="$(count_csv_items "${SNAPSHOT_COMPLETED}")"
+  if (( goals_count > 0 )); then
+    completion_ratio="${completed_count}/${goals_count}"
+  else
+    completion_ratio="N/A"
+  fi
 
+  printf '\033[2J\033[H'
   printf "%sChronicle Orchestrator Monitor%s  %s\n" "${BLUE_BOLD}" "${RESET}" "$(date '+%Y-%m-%d %H:%M:%S')"
-  printf "Run: %s | Status: %s | Cycle: %s | Task: %s | Stop: %s\n" \
-    "${SNAPSHOT_RUN_ID}" "${SNAPSHOT_EFFECTIVE_STATUS}" "${SNAPSHOT_CYCLE}" "${SNAPSHOT_TASK_ID}" "${SNAPSHOT_STOP_REASON}"
-  printf "AI1: pid=%s (%s) | AI2: pid=%s (%s) | SUP: pid=%s (%s)\n" \
-    "${SNAPSHOT_AI1_PID:-N/A}" "${SNAPSHOT_AI1_STATE}" \
-    "${SNAPSHOT_AI2_PID:-N/A}" "${SNAPSHOT_AI2_STATE}" \
-    "${SNAPSHOT_SUP_PID:-N/A}" "${SNAPSHOT_SUP_STATE}"
-  printf "Goals: %s | Completed: %s\n" "${SNAPSHOT_GOALS:-N/A}" "${SNAPSHOT_COMPLETED:-N/A}"
-  printf "Stuck: %s/%s | Runtime: %s | DryRun: %s\n" \
-    "${SNAPSHOT_STUCK_COUNT}" "${STUCK_THRESHOLD}" "${SNAPSHOT_RUNTIME}" "${SNAPSHOT_DRY_RUN}"
-  printf "Latest Event: %s\n" "${SNAPSHOT_LATEST_EVENT_COMPACT}"
+  print_hr "${cols}"
+  printf "Run: %s\n" "$(truncate_text "$(safe_value "${SNAPSHOT_RUN_ID}")" $((cols - 6)))"
+  printf "Status: %b | Cycle: %s | Task: %s | Stop: %s\n" \
+    "$(colorize_status "${SNAPSHOT_EFFECTIVE_STATUS}")" \
+    "$(safe_value "${SNAPSHOT_CYCLE}")" \
+    "$(safe_value "${SNAPSHOT_TASK_ID}")" \
+    "$(safe_value "${SNAPSHOT_STOP_REASON}")"
+  printf "Workers: AI1 %s(%b) | AI2 %s(%b) | SUP %s(%b)\n" \
+    "$(safe_value "${SNAPSHOT_AI1_PID}")" "$(colorize_worker_state "${SNAPSHOT_AI1_STATE}")" \
+    "$(safe_value "${SNAPSHOT_AI2_PID}")" "$(colorize_worker_state "${SNAPSHOT_AI2_STATE}")" \
+    "$(safe_value "${SNAPSHOT_SUP_PID}")" "$(colorize_worker_state "${SNAPSHOT_SUP_STATE}")"
+  printf "Progress: goals %s | completed %s | ratio %s | stuck %s/%s | runtime %s | dry-run %s\n" \
+    "${goals}" "${completed}" "${completion_ratio}" "${SNAPSHOT_STUCK_COUNT}" "${STUCK_THRESHOLD}" "${SNAPSHOT_RUNTIME}" "${SNAPSHOT_DRY_RUN}"
+  printf "Latest: %s\n" "$(truncate_text "${SNAPSHOT_LATEST_EVENT_COMPACT}" $((cols - 8)))"
 
   if [[ -n "${ALERT_BANNER}" ]]; then
     printf "%sALERT: %s%s\n" "${RED_BG_BOLD}" "${ALERT_BANNER}" "${RESET}"
   fi
 
-  printf "\n"
+  print_hr "${cols}"
+  printf "Panels: Events[%s] Logs[%s] AI1-log[%s] AI2-log[%s]\n" \
+    "$( (( SHOW_EVENTS == 1 )) && echo open || echo folded )" \
+    "$( (( SHOW_LOGS == 1 )) && echo open || echo folded )" \
+    "$( (( SHOW_AI1_LOG == 1 )) && echo open || echo folded )" \
+    "$( (( SHOW_AI2_LOG == 1 )) && echo open || echo folded )"
+
+  local max_events=3
+  local max_log_lines=2
+  if (( rows >= 34 )); then
+    max_events=8
+    max_log_lines=6
+  elif (( rows >= 28 )); then
+    max_events=5
+    max_log_lines=3
+  fi
 
   if (( SHOW_EVENTS == 1 )); then
     local events_n
     events_n="${EVENT_LINES[EVENT_LINES_INDEX]}"
+    if (( events_n > max_events )); then
+      events_n="${max_events}"
+    fi
     printf "%s[Events last %s]%s\n" "${BLUE_BOLD}" "${events_n}" "${RESET}"
     render_events_tail "${SNAPSHOT_LATEST_EVENT_FILE}" "${events_n}"
-    printf "\n"
   else
-    printf "%s[Events]%s folded (press 1 to expand)\n\n" "${DIM}" "${RESET}"
+    printf "%s[Events]%s folded (press 1)\n" "${DIM}" "${RESET}"
   fi
 
   if (( SHOW_LOGS == 1 )); then
-    printf "%s[Logs last %s lines]%s\n" "${BLUE_BOLD}" "${LOG_LINES}" "${RESET}"
+    printf "%s[Logs]%s\n" "${BLUE_BOLD}" "${RESET}"
 
     if (( SHOW_AI1_LOG == 1 )); then
       local ai1_log
       ai1_log="$(find_ai1_log)"
-      printf "%sAI1 Log: %s%s\n" "${YELLOW_BOLD}" "${ai1_log}" "${RESET}"
-      render_log_tail "${ai1_log}" "${LOG_LINES}"
-      printf "\n"
+      printf "%sAI1:%s %s\n" "${YELLOW_BOLD}" "${RESET}" "$(truncate_text "${ai1_log}" $((cols - 6)))"
+      render_log_tail "${ai1_log}" "${max_log_lines}"
     else
-      printf "%sAI1 Log folded (press a to expand)%s\n\n" "${DIM}" "${RESET}"
+      printf "%sAI1 log folded (press a)%s\n" "${DIM}" "${RESET}"
     fi
 
     if (( SHOW_AI2_LOG == 1 )); then
       local ai2_log
       ai2_log="$(find_ai2_log)"
-      printf "%sAI2 Log: %s%s\n" "${YELLOW_BOLD}" "${ai2_log}" "${RESET}"
-      render_log_tail "${ai2_log}" "${LOG_LINES}"
-      printf "\n"
+      printf "%sAI2:%s %s\n" "${YELLOW_BOLD}" "${RESET}" "$(truncate_text "${ai2_log}" $((cols - 6)))"
+      render_log_tail "${ai2_log}" "${max_log_lines}"
     else
-      printf "%sAI2 Log folded (press b to expand)%s\n\n" "${DIM}" "${RESET}"
+      printf "%sAI2 log folded (press b)%s\n" "${DIM}" "${RESET}"
     fi
   else
-    printf "%s[Logs]%s folded (press 2 to expand)\n\n" "${DIM}" "${RESET}"
+    printf "%s[Logs]%s folded (press 2)\n" "${DIM}" "${RESET}"
   fi
 
   if (( SHOW_HELP == 1 )); then
     render_help
-    printf "\n"
   fi
 
+  print_hr "${cols}"
   print_status_line
 }
 

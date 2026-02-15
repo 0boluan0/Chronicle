@@ -12,10 +12,10 @@ xcodebuild -project Chronicle.xcodeproj -scheme Chronicle -destination 'platform
 - Refer baseline: `/Users/fengyihang/Chronicle/Chronicle/ops/ai-pipeline/baseline/test_baseline.md`
 
 ## Decision
-- `DISPATCHED`
+- `PASS`
 
 ## Next Command ID
 - `FEAT-001`
 
 ## Notes
-- No blocking failures. Next ready feature task=FEAT-001
+- ai1_exit=0, commit=committed, pre=0, verify=0, blocking_before=0, blocking_after=0

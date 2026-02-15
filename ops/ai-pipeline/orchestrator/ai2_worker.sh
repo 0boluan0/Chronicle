@@ -218,26 +218,40 @@ main() {
 
     local mode="feature"
     local target_task_id=""
+    local target_task_status=""
     local context_note=""
+    local backlog_done_before="false"
+    backlog_done_before="$(all_backlog_tasks_completed "${BACKLOG_FILE}")"
 
     if (( blocking_before > 0 )); then
       mode="stabilization"
       target_task_id="STAB-AUTO-${failure_id}"
       context_note="Blocking failures detected: ${blocking_before}; highest=${failure_id} (${failure_priority})"
     else
-      target_task_id="$(next_ready_feature_task "${BACKLOG_FILE}" || true)"
-      if [[ -z "${target_task_id}" ]]; then
-        mode="terminal"
-        target_task_id="NONE"
-        context_note="No open failures and no ready feature tasks found"
-      else
+      local task_meta
+      task_meta="$(next_runnable_feature_task "${BACKLOG_FILE}" || true)"
+      if [[ -n "${task_meta}" ]]; then
+        target_task_id="${task_meta%%|*}"
+        local task_rest
+        task_rest="${task_meta#*|}"
+        target_task_status="${task_rest#*|}"
         mode="feature"
-        context_note="No blocking failures. Next ready feature task=${target_task_id}"
+        context_note="No blocking failures. Next runnable feature task=${target_task_id} (status=${target_task_status})"
+      else
+        if [[ "${backlog_done_before}" == "true" ]]; then
+          mode="terminal_done"
+          target_task_id="NONE"
+          context_note="No blocking failures and backlog is fully done"
+        else
+          mode="deadlock"
+          target_task_id="BACKLOG-DEADLOCK"
+          context_note="No blocking failures, but no runnable feature task while backlog still has unfinished tasks"
+        fi
       fi
     fi
 
-    if goals_completed && (( blocking_before == 0 )); then
-      write_done_command "All goal tasks completed and no blocking failures are open."
+    if (( blocking_before == 0 )) && [[ "${backlog_done_before}" == "true" ]]; then
+      write_done_command "All backlog tasks are completed and no blocking failures are open."
       write_cycle_report "${cycle}" "${failure_id}" "PASS" "DONE" "Completion criteria reached before dispatch."
       update_status_board "Feature Development" "DONE" "${blocking_before}" "$(latest_baseline_log)"
       state_set status SUCCESS_STOP
@@ -246,8 +260,16 @@ main() {
       break
     fi
 
-    if [[ "${mode}" == "terminal" ]]; then
-      write_done_command "No ready task found and no blocking failure remains."
+    if [[ "${mode}" == "terminal_done" ]]; then
+      write_done_command "No blocking failure remains and backlog is fully done."
+    elif [[ "${mode}" == "deadlock" ]]; then
+      write_fallback_next_command "${target_task_id}" "deadlock" "${context_note}"
+      write_cycle_report "${cycle}" "${failure_id}" "FUSE_STOP" "${target_task_id}" "${context_note}"
+      update_status_board "Feature Development" "${target_task_id}" "${blocking_before}" "$(latest_baseline_log)"
+      set_stop FUSE_STOP
+      state_set status FUSE_STOP
+      log_event error ai2_deadlock "No runnable backlog task but unfinished items remain" "${cycle}" "${target_task_id}"
+      break
     else
       if [[ ${DRY_RUN} -eq 1 ]]; then
         write_fallback_next_command "${target_task_id}" "${mode}" "Dry-run generated dispatch"
@@ -263,10 +285,22 @@ main() {
     write_cycle_report "${cycle}" "${failure_id}" "DISPATCHED" "${next_id}" "${context_note}"
     update_status_board "$( [[ "${mode}" == "stabilization" ]] && echo "Stabilization" || echo "Feature Development" )" "${next_id}" "${blocking_before}" "$(latest_baseline_log)"
 
+    if [[ ${DRY_RUN} -eq 0 && "${mode}" == "feature" && "${next_id}" != "UNKNOWN" && "${next_id}" != "NONE" && "${next_id}" != "DONE" ]]; then
+      backlog_set_task_status "${BACKLOG_FILE}" "${next_id}" "in_progress"
+    fi
+
     if is_terminal_task "${NEXT_COMMAND_FILE}"; then
-      state_set status SUCCESS_STOP
-      set_stop SUCCESS_STOP
-      log_event info ai2_terminal_command "AI2 generated terminal command" "${cycle}" "${next_id}"
+      local backlog_done_terminal="false"
+      backlog_done_terminal="$(all_backlog_tasks_completed "${BACKLOG_FILE}")"
+      if (( blocking_before == 0 )) && [[ "${backlog_done_terminal}" == "true" ]]; then
+        state_set status SUCCESS_STOP
+        set_stop SUCCESS_STOP
+        log_event info ai2_terminal_command "AI2 generated terminal command" "${cycle}" "${next_id}"
+      else
+        state_set status FUSE_STOP
+        set_stop FUSE_STOP
+        log_event error ai2_terminal_invalid "Terminal command generated before backlog completion" "${cycle}" "${next_id}"
+      fi
       break
     fi
 
@@ -303,12 +337,21 @@ main() {
     verify_exit="$(run_baseline_locked "${cycle}" post)"
     local blocking_after
     blocking_after="$(blocking_open_count "${FAILURES_FILE}")"
+    local task_completed=0
+
+    if [[ ${DRY_RUN} -eq 0 && "${mode}" == "feature" && "${ai1_exit}" == "0" && "${verify_exit}" == "0" && ${blocking_after} -eq 0 ]]; then
+      backlog_set_task_status "${BACKLOG_FILE}" "${next_id}" "done"
+      task_completed=1
+    fi
 
     local progress=0
     if (( blocking_after < blocking_before )); then
       progress=1
     fi
     if [[ "${result_kind}" == "success" || "${result_kind}" == "no_diff" ]]; then
+      progress=1
+    fi
+    if (( task_completed == 1 )); then
       progress=1
     fi
 
@@ -334,11 +377,14 @@ main() {
       decision="BLOCKED"
     fi
 
-    write_cycle_report "${cycle}" "${failure_id}" "${decision}" "${next_id}" "ai1_exit=${ai1_exit}, commit=${commit_status}, pre=${pre_exit}, verify=${verify_exit}, blocking_before=${blocking_before}, blocking_after=${blocking_after}"
+    local backlog_done_after
+    backlog_done_after="$(all_backlog_tasks_completed "${BACKLOG_FILE}")"
+
+    write_cycle_report "${cycle}" "${failure_id}" "${decision}" "${next_id}" "ai1_exit=${ai1_exit}, commit=${commit_status}, pre=${pre_exit}, verify=${verify_exit}, blocking_before=${blocking_before}, blocking_after=${blocking_after}, task_completed=${task_completed}, backlog_done=${backlog_done_after}"
     update_status_board "$( [[ ${blocking_after} -gt 0 ]] && echo "Stabilization" || echo "Feature Development" )" "${next_id}" "${blocking_after}" "$(latest_baseline_log)"
 
-    if goals_completed && (( blocking_after == 0 )); then
-      write_done_command "Goal task IDs completed and no blocking failures remain."
+    if (( blocking_after == 0 )) && [[ "${backlog_done_after}" == "true" ]]; then
+      write_done_command "All backlog tasks completed and no blocking failures remain."
       set_stop SUCCESS_STOP
       state_set status SUCCESS_STOP
       log_event info ai2_success_stop "Success stop after verify" "${cycle}" "${next_id}"

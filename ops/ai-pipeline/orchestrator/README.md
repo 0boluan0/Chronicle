@@ -67,6 +67,12 @@ Troubleshooting:
 - No color: check terminal ANSI support
 - Missing command tools: ensure `jq`, `awk`, `sed`, `tail`, `tput` are installed
 
+## Stop Condition
+
+- The orchestrator now stops with `SUCCESS_STOP` only when:
+  - no blocking open failures remain, and
+  - all tasks in `ops/ai-pipeline/backlog.yaml` are in terminal status (`done` / `cancelled` / `skipped`).
+
 ## Runtime Files
 
 - State: `ops/ai-pipeline/runtime/state.yaml`

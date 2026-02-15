@@ -296,6 +296,149 @@ next_ready_feature_task() {
   ' | sort -t'|' -k1,1n | head -n1 | cut -d'|' -f2
 }
 
+next_runnable_feature_task() {
+  local file="$1"
+  awk '
+    function emit() {
+      if (in_item) {
+        ids[++n] = id
+        track[id] = item_track
+        status[id] = item_status
+        priority[id] = item_priority
+        depends[id] = item_depends
+      }
+    }
+    function pr_rank(p) {
+      if (p == "P0") return 0
+      if (p == "P1") return 1
+      if (p == "P2") return 2
+      return 9
+    }
+    function st_rank(s) {
+      if (s == "in_progress") return 0
+      if (s == "ready") return 1
+      if (s == "todo") return 2
+      if (s == "blocked") return 3
+      return 9
+    }
+    function is_done(s) {
+      return (s == "done" || s == "cancelled" || s == "skipped")
+    }
+    function deps_satisfied(dep_csv,    m, parts, i, dep) {
+      if (dep_csv == "") return 1
+      m = split(dep_csv, parts, ",")
+      for (i = 1; i <= m; i++) {
+        dep = parts[i]
+        if (dep == "") continue
+        if (!is_done(status[dep])) return 0
+      }
+      return 1
+    }
+    /^[[:space:]]*-[[:space:]]id:/ {
+      emit()
+      in_item = 1
+      in_dep = 0
+      id = $3
+      item_track = ""
+      item_status = ""
+      item_priority = "P9"
+      item_depends = ""
+      next
+    }
+    in_item && /^[[:space:]]+track:/ { item_track = $2; in_dep = 0; next }
+    in_item && /^[[:space:]]+status:/ { item_status = $2; in_dep = 0; next }
+    in_item && /^[[:space:]]+priority:/ { item_priority = $2; in_dep = 0; next }
+    in_item && /^[[:space:]]+depends_on:/ { in_dep = 1; next }
+    in_item && in_dep && /^[[:space:]]+-[[:space:]]+/ {
+      dep = $2
+      if (item_depends == "") item_depends = dep
+      else item_depends = item_depends "," dep
+      next
+    }
+    in_item && in_dep && !/^[[:space:]]+-[[:space:]]+/ { in_dep = 0 }
+    END {
+      emit()
+      best = ""
+      best_pr = 99
+      best_st = 99
+      for (i = 1; i <= n; i++) {
+        cid = ids[i]
+        if (track[cid] != "feature") continue
+        if (is_done(status[cid])) continue
+        if (!deps_satisfied(depends[cid])) continue
+        pr = pr_rank(priority[cid])
+        st = st_rank(status[cid])
+        if (best == "" || pr < best_pr || (pr == best_pr && st < best_st) || (pr == best_pr && st == best_st && cid < best)) {
+          best = cid
+          best_pr = pr
+          best_st = st
+        }
+      }
+      if (best != "") {
+        print best "|" priority[best] "|" status[best]
+      }
+    }
+  ' "${file}"
+}
+
+all_backlog_tasks_completed() {
+  local file="$1"
+  awk '
+    function emit() {
+      if (in_item) {
+        if (!(status == "done" || status == "cancelled" || status == "skipped")) {
+          remaining++
+        }
+      }
+    }
+    /^[[:space:]]*-[[:space:]]id:/ {
+      emit()
+      in_item = 1
+      status = ""
+      next
+    }
+    in_item && /^[[:space:]]+status:/ {
+      status = $2
+      next
+    }
+    END {
+      emit()
+      if (remaining == 0) print "true"
+      else print "false"
+    }
+  ' "${file}"
+}
+
+backlog_set_task_status() {
+  local file="$1"
+  local task_id="$2"
+  local new_status="$3"
+  local tmp
+  tmp="$(mktemp)"
+  awk -v target="${task_id}" -v new_status="${new_status}" '
+    /^[[:space:]]*-[[:space:]]id:/ {
+      in_item = 1
+      is_target = ($3 == target)
+      print
+      next
+    }
+    in_item && is_target && /^[[:space:]]+status:/ {
+      sub(/status:[[:space:]]+.*/, "status: " new_status)
+      print
+      status_updated = 1
+      is_target = 0
+      next
+    }
+    { print }
+    END {
+      if (!status_updated) {
+        # no-op when task id is missing
+      }
+    }
+  ' "${file}" > "${tmp}"
+  mv "${tmp}" "${file}"
+}
+
 csv_contains() {
   local csv="$1"
   local needle="$2"
@@ -356,7 +499,7 @@ Updated: $(now_local)
 ## Now
 - Stage: \`${stage}\`
 - Active Task: \`${active_task}\`
-- Dispatch Rule: Highest-priority open failure first; if none, dispatch next ready feature task
+- Dispatch Rule: Highest-priority open failure first; if none, dispatch next runnable feature task
 - Latest Baseline: \`${latest_log}\`
 
 ## Blocked

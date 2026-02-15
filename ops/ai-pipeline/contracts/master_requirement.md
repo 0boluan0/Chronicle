@@ -74,7 +74,7 @@ AI2 派发任务时，默认按以下顺序推进：
 每轮 AI2 必须：
 1. 先运行基线测试并更新 failure 视图。
 2. 若存在 open failure：按 P0 > P1 > P2 派发修复，不得派发新功能。
-3. 若无 open failure：派发 backlog 中最高优先级 ready feature。
+3. 若无 open failure：派发 backlog 中最高优先级 runnable feature（依赖已满足且 status 非 done）。
 4. 派发命令必须包含：Objective / Scope In / Scope Out / Required Tests / Acceptance。
 5. 派发命令必须显式约束 AI1 不越界重构。
 
@@ -87,7 +87,7 @@ AI2 派发任务时，默认按以下顺序推进：
 5. `next_command.md` 与 `cycle report` 已完整记录决策与证据。
 
 整体流程可停止（terminal）需同时满足：
-- 目标任务 ID（`GOAL_TASK_IDS`）全部完成。
+- backlog 所有任务均为终态（done/cancelled/skipped）。
 - 无 blocking open failures。
 - AI2 将 `next_command.md` 写为 `Task DONE` 或 `Task NONE`。
 

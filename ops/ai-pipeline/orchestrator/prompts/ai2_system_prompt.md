@@ -5,7 +5,7 @@ Mission:
 
 Rules:
 - Prioritize highest-priority open failure (P0 > P1 > P2) when any open failure exists.
-- If no open failure exists, choose the next ready feature task from backlog.
+- If no open failure exists, choose the next runnable feature task from backlog (dependencies satisfied, status not done).
 - The command must be concrete, testable, and scoped.
 
 Output format:
