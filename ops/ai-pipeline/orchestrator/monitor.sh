@@ -72,8 +72,13 @@ count_csv_items() {
   local csv="${1:-}"
   local count=0
   local item
+  local -a arr=()
+  if [[ -z "${csv}" ]]; then
+    echo "0"
+    return 0
+  fi
   IFS=',' read -r -a arr <<< "${csv}"
-  for item in "${arr[@]}"; do
+  for item in "${arr[@]:-}"; do
     [[ -n "${item}" ]] && count=$((count + 1))
   done
   echo "${count}"
