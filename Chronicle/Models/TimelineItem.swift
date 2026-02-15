@@ -10,6 +10,7 @@ import Foundation
 enum TimelineItem: Identifiable {
     case activity(ActivityRow)
     case marker(MarkerRow)
+    case markerSpan(MarkerSpanRow)
 
     var id: String {
         switch self {
@@ -17,6 +18,8 @@ enum TimelineItem: Identifiable {
             return "activity-\(activity.id)"
         case .marker(let marker):
             return "marker-\(marker.id)"
+        case .markerSpan(let span):
+            return "marker-span-\(span.id)"
         }
     }
 
@@ -26,6 +29,8 @@ enum TimelineItem: Identifiable {
             return activity.startTime
         case .marker(let marker):
             return marker.timestamp
+        case .markerSpan(let span):
+            return span.startTime
         }
     }
 }

@@ -15,8 +15,10 @@ struct StatsView: View {
     @State private var topApps: [AppDuration] = []
     @State private var topTags: [TagDuration] = []
     @State private var topSwitches: [AppSwitches] = []
-    @State private var markerCount = 0
+    @State private var markerNotesCount = 0
+    @State private var markerSessionsCount = 0
     @State private var recentMarkers: [MarkerRow] = []
+    @State private var recentMarkerSpans: [MarkerSpanRow] = []
     @State private var isLoading = false
     @State private var lastRefresh: Date?
 
@@ -39,7 +41,7 @@ struct StatsView: View {
                 .toggleStyle(.switch)
                 .font(.caption)
             if appState.countOverlaysInTotals {
-                Text("Totals include overlays")
+                Text(L("dashboard.stats.overlays_notice"))
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -126,12 +128,13 @@ struct StatsView: View {
 
     private var summarySection: some View {
         SectionCard(title: "Summary") {
-            HStack(spacing: DesignSystem.Spacing.sm) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: DesignSystem.Spacing.sm), count: 3), spacing: DesignSystem.Spacing.sm) {
                 SummaryCard(title: "Total", value: formatDuration(summary.totalSeconds))
                 SummaryCard(title: "Active", value: formatDuration(summary.activeSeconds))
                 SummaryCard(title: "Idle", value: formatDuration(summary.idleSeconds))
                 SummaryCard(title: "Sessions", value: "\(summary.sessions)")
-                SummaryCard(title: "Markers", value: "\(markerCount)")
+                SummaryCard(title: "Notes", value: "\(markerNotesCount)")
+                SummaryCard(title: "Marker Sessions", value: "\(markerSessionsCount)")
             }
         }
     }
@@ -181,14 +184,33 @@ struct StatsView: View {
 
     private var markersSection: some View {
         SectionCard(title: "Markers") {
-            Text("Markers in range: \(markerCount)")
+            Text(String(format: L("markers.notes_count"), markerNotesCount))
                 .foregroundColor(DesignSystem.Colors.secondaryText)
 
             if recentMarkers.isEmpty {
-                EmptyStateView(title: "No markers yet.")
+                EmptyStateView(title: L("markers.notes.empty"))
             } else {
                 ForEach(recentMarkers.prefix(3)) { marker in
                     Text("• \(marker.text)")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                }
+            }
+
+            Divider()
+
+            Text(String(format: L("markers.sessions_count"), markerSessionsCount))
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+
+            if recentMarkerSpans.isEmpty {
+                EmptyStateView(title: L("markers.sessions.empty"))
+            } else {
+                ForEach(recentMarkerSpans.prefix(3)) { span in
+                    let end = span.endTime ?? Int64(Date().timeIntervalSince1970)
+                    let range = span.endTime == nil
+                        ? "\(TimeFormatters.timeText(for: span.startTime, includeSeconds: false))–…"
+                        : TimeFormatters.timeRange(start: span.startTime, end: end)
+                    Text("• \(range) \(span.text)")
                         .font(DesignSystem.Typography.caption)
                         .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
@@ -296,6 +318,10 @@ struct StatsView: View {
                 if case .marker(let marker) = item { return marker }
                 return nil
             }
+            let markerSpans = timelineItems.compactMap { item -> MarkerSpanRow? in
+                if case .markerSpan(let span) = item { return span }
+                return nil
+            }
             let activities = timelineItems.compactMap { item -> ActivityRow? in
                 if case .activity(let activity) = item { return activity }
                 return nil
@@ -321,8 +347,10 @@ struct StatsView: View {
                 return TagDuration(tagId: item.tagId, name: item.name, color: color, seconds: item.durationSeconds)
             }
             self.topSwitches = Array(switchItems)
-            self.markerCount = summaryResult?.markersCount ?? markers.count
+            self.markerNotesCount = summaryResult?.markerNotesCount ?? markers.count
+            self.markerSessionsCount = summaryResult?.markerSessionsCount ?? markerSpans.count
             self.recentMarkers = markers
+            self.recentMarkerSpans = markerSpans
             self.isLoading = false
             self.lastRefresh = Date()
 
@@ -388,7 +416,7 @@ private struct TagDuration: Identifiable {
 }
 
 private struct SummaryCard: View {
-    let title: String
+    let title: LocalizedStringKey
     let value: String
 
     var body: some View {

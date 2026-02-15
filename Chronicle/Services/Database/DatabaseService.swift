@@ -89,6 +89,8 @@ final class DatabaseService {
         }
     }
 
+    nonisolated deinit {}
+
     #if DEBUG
     static func makeTestInstance(databaseURL: URL) -> DatabaseService {
         DatabaseService(databaseURL: databaseURL)
@@ -417,6 +419,219 @@ final class DatabaseService {
                 completion(.failure(error))
             } catch {
                 AppLogger.log("Insert marker failed: \(error.localizedDescription)", category: "db")
+                completion(.failure(error))
+            }
+        }
+    }
+
+    func insertMarkerSpan(
+        startTime: Int64,
+        text: String,
+        completion: @escaping (Result<Int64, Error>) -> Void
+    ) {
+        if Thread.isMainThread {
+            AppLogger.log("Warning: insertMarkerSpan called on main thread", category: "db")
+        }
+
+        queue.async { [self] in
+            do {
+                try self.openDatabaseIfNeeded()
+                self.validateEpochSeconds(startTime, label: "start_time")
+                let rowId = try self.insertMarkerSpanInternal(startTime: startTime, text: text)
+                let changes = self.sqliteChanges()
+                AppLogger.log("Insert marker span success op=insert_marker_span id=\(rowId) changes=\(changes) start_time=\(startTime)", category: "db")
+                AggregationService.shared.recordDatabaseChange(rangeStart: startTime, rangeEnd: startTime + 1)
+                completion(.success(rowId))
+            } catch let error as DatabaseError {
+                AppLogger.log("Insert marker span failed: \(error.logDescription)", category: "db")
+                completion(.failure(error))
+            } catch {
+                AppLogger.log("Insert marker span failed: \(error.localizedDescription)", category: "db")
+                completion(.failure(error))
+            }
+        }
+    }
+
+    func endMarkerSpan(
+        id: Int64,
+        endTime: Int64,
+        completion: @escaping (Result<Int, Error>) -> Void
+    ) {
+        if Thread.isMainThread {
+            AppLogger.log("Warning: endMarkerSpan called on main thread", category: "db")
+        }
+
+        queue.async { [self] in
+            do {
+                try self.openDatabaseIfNeeded()
+                self.validateEpochSeconds(endTime, label: "end_time")
+                let updated = try self.endMarkerSpanInternal(id: id, endTime: endTime)
+                let changes = self.sqliteChanges()
+                AppLogger.log("End marker span success op=end_marker_span id=\(id) updated=\(updated) changes=\(changes)", category: "db")
+                AggregationService.shared.recordDatabaseChange(rangeStart: 0, rangeEnd: Int64.max)
+                completion(.success(updated))
+            } catch let error as DatabaseError {
+                AppLogger.log("End marker span failed: \(error.logDescription)", category: "db")
+                completion(.failure(error))
+            } catch {
+                AppLogger.log("End marker span failed: \(error.localizedDescription)", category: "db")
+                completion(.failure(error))
+            }
+        }
+    }
+
+    func endMarkerSpanByText(
+        text: String,
+        endTime: Int64,
+        completion: @escaping (Result<Int, Error>) -> Void
+    ) {
+        if Thread.isMainThread {
+            AppLogger.log("Warning: endMarkerSpanByText called on main thread", category: "db")
+        }
+
+        queue.async { [self] in
+            do {
+                try self.openDatabaseIfNeeded()
+                self.validateEpochSeconds(endTime, label: "end_time")
+                let updated = try self.endMarkerSpanByTextInternal(text: text, endTime: endTime)
+                let changes = self.sqliteChanges()
+                AppLogger.log("End marker span by text success op=end_marker_span_by_text updated=\(updated) changes=\(changes) text=\(text)", category: "db")
+                if updated > 0 {
+                    AggregationService.shared.recordDatabaseChange(rangeStart: 0, rangeEnd: Int64.max)
+                }
+                completion(.success(updated))
+            } catch let error as DatabaseError {
+                AppLogger.log("End marker span by text failed: \(error.logDescription)", category: "db")
+                completion(.failure(error))
+            } catch {
+                AppLogger.log("End marker span by text failed: \(error.localizedDescription)", category: "db")
+                completion(.failure(error))
+            }
+        }
+    }
+
+    func endAllOpenMarkerSpans(
+        endTime: Int64,
+        completion: @escaping (Result<Int, Error>) -> Void
+    ) {
+        if Thread.isMainThread {
+            AppLogger.log("Warning: endAllOpenMarkerSpans called on main thread", category: "db")
+        }
+
+        queue.async { [self] in
+            do {
+                try self.openDatabaseIfNeeded()
+                self.validateEpochSeconds(endTime, label: "end_time")
+                let updated = try self.endAllOpenMarkerSpansInternal(endTime: endTime)
+                let changes = self.sqliteChanges()
+                AppLogger.log("End all marker spans success op=end_all_marker_spans updated=\(updated) changes=\(changes)", category: "db")
+                if updated > 0 {
+                    AggregationService.shared.recordDatabaseChange(rangeStart: 0, rangeEnd: Int64.max)
+                }
+                completion(.success(updated))
+            } catch let error as DatabaseError {
+                AppLogger.log("End all marker spans failed: \(error.logDescription)", category: "db")
+                completion(.failure(error))
+            } catch {
+                AppLogger.log("End all marker spans failed: \(error.localizedDescription)", category: "db")
+                completion(.failure(error))
+            }
+        }
+    }
+
+    func fetchOpenMarkerSpans(
+        completion: @escaping (Result<[MarkerSpanRow], Error>) -> Void
+    ) {
+        if Thread.isMainThread {
+            AppLogger.log("Warning: fetchOpenMarkerSpans called on main thread", category: "db")
+        }
+
+        queue.async { [self] in
+            do {
+                try self.openDatabaseIfNeeded()
+                let rows = try self.fetchOpenMarkerSpansInternal()
+                AppLogger.log("Fetch open marker spans success rows=\(rows.count)", category: "db")
+                completion(.success(rows))
+            } catch let error as DatabaseError {
+                AppLogger.log("Fetch open marker spans failed: \(error.logDescription)", category: "db")
+                completion(.failure(error))
+            } catch {
+                AppLogger.log("Fetch open marker spans failed: \(error.localizedDescription)", category: "db")
+                completion(.failure(error))
+            }
+        }
+    }
+
+    func fetchMarkerSpansOverlappingRange(
+        start: Int64,
+        end: Int64,
+        limit: Int? = nil,
+        offset: Int? = nil,
+        completion: @escaping (Result<[MarkerSpanRow], Error>) -> Void
+    ) {
+        if Thread.isMainThread {
+            AppLogger.log("Warning: fetchMarkerSpansOverlappingRange called on main thread", category: "db")
+        }
+
+        queue.async { [self] in
+            do {
+                try self.openDatabaseIfNeeded()
+                let rows = try self.fetchMarkerSpansOverlappingRangeInternal(start: start, end: end, limit: limit, offset: offset)
+                AppLogger.log("Fetch marker spans range success rows=\(rows.count)", category: "db")
+                completion(.success(rows))
+            } catch let error as DatabaseError {
+                AppLogger.log("Fetch marker spans range failed: \(error.logDescription)", category: "db")
+                completion(.failure(error))
+            } catch {
+                AppLogger.log("Fetch marker spans range failed: \(error.localizedDescription)", category: "db")
+                completion(.failure(error))
+            }
+        }
+    }
+
+    func fetchRecentMarkerSpanTexts(
+        limit: Int,
+        completion: @escaping (Result<[String], Error>) -> Void
+    ) {
+        if Thread.isMainThread {
+            AppLogger.log("Warning: fetchRecentMarkerSpanTexts called on main thread", category: "db")
+        }
+
+        queue.async { [self] in
+            do {
+                try self.openDatabaseIfNeeded()
+                let rows = try self.fetchRecentMarkerSpanTextsInternal(limit: limit)
+                AppLogger.log("Fetch marker span texts success rows=\(rows.count)", category: "db")
+                completion(.success(rows))
+            } catch let error as DatabaseError {
+                AppLogger.log("Fetch marker span texts failed: \(error.logDescription)", category: "db")
+                completion(.failure(error))
+            } catch {
+                AppLogger.log("Fetch marker span texts failed: \(error.localizedDescription)", category: "db")
+                completion(.failure(error))
+            }
+        }
+    }
+
+    func fetchRecentMarkers(
+        limit: Int,
+        completion: @escaping (Result<[MarkerRow], Error>) -> Void
+    ) {
+        if Thread.isMainThread {
+            AppLogger.log("Warning: fetchRecentMarkers called on main thread", category: "db")
+        }
+
+        queue.async { [self] in
+            do {
+                try self.openDatabaseIfNeeded()
+                let rows = try self.fetchRecentMarkersInternal(limit: limit)
+                AppLogger.log("Fetch recent markers success rows=\(rows.count)", category: "db")
+                completion(.success(rows))
+            } catch let error as DatabaseError {
+                AppLogger.log("Fetch recent markers failed: \(error.logDescription)", category: "db")
+                completion(.failure(error))
+            } catch {
+                AppLogger.log("Fetch recent markers failed: \(error.localizedDescription)", category: "db")
                 completion(.failure(error))
             }
         }
@@ -1276,6 +1491,11 @@ final class DatabaseService {
         } catch {
             AppLogger.log("Create marker indexes failed: \(error.localizedDescription)", category: "db")
         }
+        do {
+            try createMarkerSpanIndexes()
+        } catch {
+            AppLogger.log("Create marker span indexes failed: \(error.localizedDescription)", category: "db")
+        }
         if (try? tableExists("RawEvents")) ?? false {
             do {
                 try createRawEventIndexes()
@@ -1321,6 +1541,15 @@ final class DatabaseService {
         );
         """
 
+        let createMarkerSpans = """
+        CREATE TABLE IF NOT EXISTS MarkerSpans (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            start_time INTEGER NOT NULL,
+            end_time INTEGER,
+            text TEXT NOT NULL
+        );
+        """
+
         let createTags = """
         CREATE TABLE IF NOT EXISTS Tags (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1356,6 +1585,7 @@ final class DatabaseService {
 
         try execute(sql: createActivities)
         try execute(sql: createMarkers)
+        try execute(sql: createMarkerSpans)
         try execute(sql: createTags)
         try execute(sql: createRules)
         try execute(sql: createAppMappings)
@@ -1441,6 +1671,15 @@ final class DatabaseService {
     private func createMarkerIndexes() throws {
         let idxTimestamp = "CREATE INDEX IF NOT EXISTS idx_markers_timestamp ON Markers(timestamp);"
         try execute(sql: idxTimestamp)
+    }
+
+    private func createMarkerSpanIndexes() throws {
+        let idxStart = "CREATE INDEX IF NOT EXISTS idx_marker_spans_start_time ON MarkerSpans(start_time);"
+        let idxEnd = "CREATE INDEX IF NOT EXISTS idx_marker_spans_end_time ON MarkerSpans(end_time);"
+        let idxText = "CREATE INDEX IF NOT EXISTS idx_marker_spans_text ON MarkerSpans(text);"
+        try execute(sql: idxStart)
+        try execute(sql: idxEnd)
+        try execute(sql: idxText)
     }
 
     private struct SchemaMigration {
@@ -2363,6 +2602,122 @@ final class DatabaseService {
         }
 
         return sqlite3_last_insert_rowid(db)
+    }
+
+    private func insertMarkerSpanInternal(startTime: Int64, text: String) throws -> Int64 {
+        let sql = """
+        INSERT INTO MarkerSpans (start_time, end_time, text)
+        VALUES (?, NULL, ?);
+        """
+
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "prepare", sql: sql, message: message)
+            throw DatabaseError.prepareFailed(message, sql: sql)
+        }
+        defer { sqlite3_finalize(statement) }
+
+        try bind(sql: sql, result: sqlite3_bind_int64(statement, 1, startTime), detail: "start_time")
+        try bind(sql: sql, result: sqlite3_bind_text(statement, 2, text, -1, sqliteTransientDestructor), detail: "text")
+
+        let stepResult = sqlite3_step(statement)
+        guard stepResult == SQLITE_DONE else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "step", sql: sql, message: message)
+            throw DatabaseError.stepFailed(message, sql: sql)
+        }
+
+        return sqlite3_last_insert_rowid(db)
+    }
+
+    private func endMarkerSpanInternal(id: Int64, endTime: Int64) throws -> Int {
+        let sql = """
+        UPDATE MarkerSpans
+        SET end_time = ?
+        WHERE id = ? AND end_time IS NULL;
+        """
+
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "prepare", sql: sql, message: message)
+            throw DatabaseError.prepareFailed(message, sql: sql)
+        }
+        defer { sqlite3_finalize(statement) }
+
+        try bind(sql: sql, result: sqlite3_bind_int64(statement, 1, endTime), detail: "end_time")
+        try bind(sql: sql, result: sqlite3_bind_int64(statement, 2, id), detail: "id")
+
+        let stepResult = sqlite3_step(statement)
+        guard stepResult == SQLITE_DONE else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "step", sql: sql, message: message)
+            throw DatabaseError.stepFailed(message, sql: sql)
+        }
+
+        return Int(sqliteChanges())
+    }
+
+    private func endMarkerSpanByTextInternal(text: String, endTime: Int64) throws -> Int {
+        let sql = """
+        UPDATE MarkerSpans
+        SET end_time = ?
+        WHERE id = (
+            SELECT id
+            FROM MarkerSpans
+            WHERE end_time IS NULL AND text = ? COLLATE NOCASE
+            ORDER BY start_time DESC
+            LIMIT 1
+        );
+        """
+
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "prepare", sql: sql, message: message)
+            throw DatabaseError.prepareFailed(message, sql: sql)
+        }
+        defer { sqlite3_finalize(statement) }
+
+        try bind(sql: sql, result: sqlite3_bind_int64(statement, 1, endTime), detail: "end_time")
+        try bind(sql: sql, result: sqlite3_bind_text(statement, 2, text, -1, sqliteTransientDestructor), detail: "text")
+
+        let stepResult = sqlite3_step(statement)
+        guard stepResult == SQLITE_DONE else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "step", sql: sql, message: message)
+            throw DatabaseError.stepFailed(message, sql: sql)
+        }
+
+        return Int(sqliteChanges())
+    }
+
+    private func endAllOpenMarkerSpansInternal(endTime: Int64) throws -> Int {
+        let sql = """
+        UPDATE MarkerSpans
+        SET end_time = ?
+        WHERE end_time IS NULL;
+        """
+
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "prepare", sql: sql, message: message)
+            throw DatabaseError.prepareFailed(message, sql: sql)
+        }
+        defer { sqlite3_finalize(statement) }
+
+        try bind(sql: sql, result: sqlite3_bind_int64(statement, 1, endTime), detail: "end_time")
+
+        let stepResult = sqlite3_step(statement)
+        guard stepResult == SQLITE_DONE else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "step", sql: sql, message: message)
+            throw DatabaseError.stepFailed(message, sql: sql)
+        }
+
+        return Int(sqliteChanges())
     }
 
     private func fetchTagsInternal() throws -> [TagRow] {
@@ -3758,6 +4113,131 @@ final class DatabaseService {
         return try readMarkerRows(statement: statement, sql: sql)
     }
 
+    private func fetchRecentMarkersInternal(limit: Int) throws -> [MarkerRow] {
+        let sql = """
+        SELECT id, timestamp, text
+        FROM Markers
+        ORDER BY timestamp DESC
+        LIMIT ?;
+        """
+
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "prepare", sql: sql, message: message)
+            throw DatabaseError.prepareFailed(message, sql: sql)
+        }
+        defer { sqlite3_finalize(statement) }
+
+        let limitValue = min(limit, Int(Int32.max))
+        try bind(sql: sql, result: sqlite3_bind_int(statement, 1, Int32(limitValue)), detail: "limit")
+
+        return try readMarkerRows(statement: statement, sql: sql)
+    }
+
+    private func fetchMarkerSpansOverlappingRangeInternal(
+        start: Int64,
+        end: Int64,
+        limit: Int?,
+        offset: Int?
+    ) throws -> [MarkerSpanRow] {
+        var sql = """
+        SELECT id, start_time, end_time, text
+        FROM MarkerSpans
+        WHERE start_time < ? AND (end_time IS NULL OR end_time > ?)
+        ORDER BY start_time DESC
+        """
+        let applyLimit = limit != nil || (offset ?? 0) > 0
+        if applyLimit {
+            sql += " LIMIT ?"
+            if let offset, offset > 0 {
+                sql += " OFFSET ?"
+            }
+        }
+        sql += ";"
+
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "prepare", sql: sql, message: message)
+            throw DatabaseError.prepareFailed(message, sql: sql)
+        }
+        defer { sqlite3_finalize(statement) }
+
+        var bindIndex: Int32 = 1
+        try bind(sql: sql, result: sqlite3_bind_int64(statement, bindIndex, end), detail: "end")
+        bindIndex += 1
+        try bind(sql: sql, result: sqlite3_bind_int64(statement, bindIndex, start), detail: "start")
+        bindIndex += 1
+        if applyLimit {
+            let limitValue = min(limit ?? Int(Int32.max), Int(Int32.max))
+            try bind(sql: sql, result: sqlite3_bind_int(statement, bindIndex, Int32(limitValue)), detail: "limit")
+            bindIndex += 1
+            if let offset, offset > 0 {
+                try bind(sql: sql, result: sqlite3_bind_int(statement, bindIndex, Int32(offset)), detail: "offset")
+            }
+        }
+
+        return try readMarkerSpanRows(statement: statement, sql: sql)
+    }
+
+    private func fetchOpenMarkerSpansInternal() throws -> [MarkerSpanRow] {
+        let sql = """
+        SELECT id, start_time, end_time, text
+        FROM MarkerSpans
+        WHERE end_time IS NULL
+        ORDER BY start_time DESC;
+        """
+
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "prepare", sql: sql, message: message)
+            throw DatabaseError.prepareFailed(message, sql: sql)
+        }
+        defer { sqlite3_finalize(statement) }
+
+        return try readMarkerSpanRows(statement: statement, sql: sql)
+    }
+
+    private func fetchRecentMarkerSpanTextsInternal(limit: Int) throws -> [String] {
+        let sql = """
+        SELECT text
+        FROM MarkerSpans
+        ORDER BY start_time DESC
+        LIMIT ?;
+        """
+
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "prepare", sql: sql, message: message)
+            throw DatabaseError.prepareFailed(message, sql: sql)
+        }
+        defer { sqlite3_finalize(statement) }
+
+        let limitValue = min(limit, Int(Int32.max))
+        try bind(sql: sql, result: sqlite3_bind_int(statement, 1, Int32(limitValue)), detail: "limit")
+
+        var rows: [String] = []
+        while true {
+            let stepResult = sqlite3_step(statement)
+            if stepResult == SQLITE_ROW {
+                if let textPtr = sqlite3_column_text(statement, 0) {
+                    rows.append(String(cString: textPtr))
+                }
+            } else if stepResult == SQLITE_DONE {
+                break
+            } else {
+                let message = sqliteErrorMessage(db)
+                logSQLiteError(operation: "step", sql: sql, message: message)
+                throw DatabaseError.stepFailed(message, sql: sql)
+            }
+        }
+
+        return rows
+    }
+
     private func fetchAdjacentActivitiesInternal(
         aroundTimestamp: Int64,
         withinSeconds: Int64
@@ -4149,6 +4629,33 @@ final class DatabaseService {
         return rows
     }
 
+    private func readMarkerSpanRows(statement: OpaquePointer?, sql: String) throws -> [MarkerSpanRow] {
+        var rows: [MarkerSpanRow] = []
+        while true {
+            let stepResult = sqlite3_step(statement)
+            if stepResult == SQLITE_ROW {
+                let id = sqlite3_column_int64(statement, 0)
+                let startTime = sqlite3_column_int64(statement, 1)
+                let endTime: Int64?
+                if sqlite3_column_type(statement, 2) == SQLITE_NULL {
+                    endTime = nil
+                } else {
+                    endTime = sqlite3_column_int64(statement, 2)
+                }
+                let text = String(cString: sqlite3_column_text(statement, 3))
+                rows.append(MarkerSpanRow(id: id, startTime: startTime, endTime: endTime, text: text))
+            } else if stepResult == SQLITE_DONE {
+                break
+            } else {
+                let message = sqliteErrorMessage(db)
+                logSQLiteError(operation: "step", sql: sql, message: message)
+                throw DatabaseError.stepFailed(message, sql: sql)
+            }
+        }
+
+        return rows
+    }
+
     private func execute(sql: String) throws {
         guard sqlite3_exec(db, sql, nil, nil, nil) == SQLITE_OK else {
             let message = sqliteErrorMessage(db)
@@ -4247,6 +4754,11 @@ final class DatabaseService {
         let requiredMarkerIndexes: Set<String> = [
             "idx_markers_timestamp"
         ]
+        let requiredMarkerSpanIndexes: Set<String> = [
+            "idx_marker_spans_start_time",
+            "idx_marker_spans_end_time",
+            "idx_marker_spans_text"
+        ]
 
         if !(try tableExists("Activities")) {
             issues.append(HealthCheckIssue(severity: .error, message: "Missing table: Activities", details: nil))
@@ -4282,6 +4794,15 @@ final class DatabaseService {
             let indexes = try fetchIndexNames(table: "Markers")
             for idx in requiredMarkerIndexes where !indexes.contains(idx) {
                 issues.append(HealthCheckIssue(severity: .warning, message: "Markers missing index: \(idx)", details: nil))
+            }
+        }
+
+        if !(try tableExists("MarkerSpans")) {
+            issues.append(HealthCheckIssue(severity: .warning, message: "Missing table: MarkerSpans", details: nil))
+        } else {
+            let indexes = try fetchIndexNames(table: "MarkerSpans")
+            for idx in requiredMarkerSpanIndexes where !indexes.contains(idx) {
+                issues.append(HealthCheckIssue(severity: .warning, message: "MarkerSpans missing index: \(idx)", details: nil))
             }
         }
 

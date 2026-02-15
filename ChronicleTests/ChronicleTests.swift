@@ -122,6 +122,50 @@ final class ChronicleTests: XCTestCase {
         return rows
     }
 
+    private func fetchOpenMarkerSpans(db: DatabaseService) -> [MarkerSpanRow] {
+        let expectation = XCTestExpectation(description: "fetch open marker spans")
+        var rows: [MarkerSpanRow] = []
+        var error: Error?
+        db.fetchOpenMarkerSpans { result in
+            switch result {
+            case .success(let value):
+                rows = value
+            case .failure(let err):
+                error = err
+            }
+            expectation.fulfill()
+        }
+        wait(for: [expectation], timeout: 5)
+        if let error {
+            XCTFail("Fetch open marker spans failed: \(error)")
+        }
+        return rows
+    }
+
+    private func fetchMarkerSpans(
+        db: DatabaseService,
+        rangeStart: Int64,
+        rangeEnd: Int64
+    ) -> [MarkerSpanRow] {
+        let expectation = XCTestExpectation(description: "fetch marker spans")
+        var rows: [MarkerSpanRow] = []
+        var error: Error?
+        db.fetchMarkerSpansOverlappingRange(start: rangeStart, end: rangeEnd) { result in
+            switch result {
+            case .success(let value):
+                rows = value
+            case .failure(let err):
+                error = err
+            }
+            expectation.fulfill()
+        }
+        wait(for: [expectation], timeout: 5)
+        if let error {
+            XCTFail("Fetch marker spans failed: \(error)")
+        }
+        return rows
+    }
+
     func testReplayBasicSwitching() throws {
         let db = makeTestDatabase("basic")
         let events = try loadFixture("basic_switching")
@@ -163,6 +207,79 @@ final class ChronicleTests: XCTestCase {
         XCTAssertEqual(safari?.endTime, 86500)
     }
 
+    func testMarkerSpanToggle() {
+        let db = makeTestDatabase("marker-span-toggle")
+        let service = MarkerSpanService.makeTestInstance(database: db)
+
+        let startExpectation = XCTestExpectation(description: "toggle start")
+        service.toggle(text: "Focus", at: Date(timeIntervalSince1970: 1000)) { result in
+            if case .failure(let error) = result {
+                XCTFail("Toggle start failed: \(error)")
+            }
+            startExpectation.fulfill()
+        }
+        wait(for: [startExpectation], timeout: 5)
+
+        var open = fetchOpenMarkerSpans(db: db)
+        XCTAssertEqual(open.count, 1)
+        XCTAssertEqual(open.first?.text, "Focus")
+
+        let endExpectation = XCTestExpectation(description: "toggle end")
+        service.toggle(text: "Focus", at: Date(timeIntervalSince1970: 1060)) { result in
+            if case .failure(let error) = result {
+                XCTFail("Toggle end failed: \(error)")
+            }
+            endExpectation.fulfill()
+        }
+        wait(for: [endExpectation], timeout: 5)
+
+        open = fetchOpenMarkerSpans(db: db)
+        XCTAssertTrue(open.isEmpty)
+
+        let spans = fetchMarkerSpans(db: db, rangeStart: 900, rangeEnd: 1100)
+        XCTAssertEqual(spans.count, 1)
+        XCTAssertEqual(spans.first?.startTime, 1000)
+        XCTAssertEqual(spans.first?.endTime, 1060)
+    }
+
+    func testMarkerSpanStartStop() {
+        let db = makeTestDatabase("marker-span-start-stop")
+        let service = MarkerSpanService.makeTestInstance(database: db)
+
+        let startExpectation = XCTestExpectation(description: "start span")
+        service.start(text: "Study", at: Date(timeIntervalSince1970: 2000)) { result in
+            if case .failure(let error) = result {
+                XCTFail("Start span failed: \(error)")
+            }
+            startExpectation.fulfill()
+        }
+        wait(for: [startExpectation], timeout: 5)
+
+        let startAgainExpectation = XCTestExpectation(description: "start span again")
+        service.start(text: "Study", at: Date(timeIntervalSince1970: 2010)) { result in
+            if case .failure(let error) = result {
+                XCTFail("Start span again failed: \(error)")
+            }
+            startAgainExpectation.fulfill()
+        }
+        wait(for: [startAgainExpectation], timeout: 5)
+
+        var open = fetchOpenMarkerSpans(db: db)
+        XCTAssertEqual(open.count, 1)
+
+        let stopExpectation = XCTestExpectation(description: "stop span")
+        service.stop(text: "Study", at: Date(timeIntervalSince1970: 2100)) { result in
+            if case .failure(let error) = result {
+                XCTFail("Stop span failed: \(error)")
+            }
+            stopExpectation.fulfill()
+        }
+        wait(for: [stopExpectation], timeout: 5)
+
+        open = fetchOpenMarkerSpans(db: db)
+        XCTAssertTrue(open.isEmpty)
+    }
+
     func testTaggingEnginePriority() {
         let rules = [
             RuleRow(
@@ -191,6 +308,10 @@ final class ChronicleTests: XCTestCase {
         let activity = TaggingEngine.ActivityDescriptor(bundleId: "com.apple.dt.Xcode", appName: "Xcode", windowTitle: nil)
         let result = TaggingEngine.evaluate(activity: activity, rules: rules)
         XCTAssertEqual(result.ruleTagId, 200)
+        XCTAssertTrue(result.ruleMatched)
+
+        let reversedResult = TaggingEngine.evaluate(activity: activity, rules: Array(rules.reversed()))
+        XCTAssertEqual(reversedResult.ruleTagId, 200)
     }
 
     func testRecomputeTagsPreservesOverride() {
@@ -313,5 +434,33 @@ final class ChronicleTests: XCTestCase {
         wait(for: [expectation], timeout: 5)
         XCTAssertNotNil(report)
         XCTAssertEqual(report?.issues.filter { $0.severity == .error }.count, 0)
+    }
+
+    func testWindowTitleCaptureDefaults() {
+        let suiteName = "chronicle-tests-window-title-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let state = AppState.makeTestInstance(defaults: defaults)
+        XCTAssertFalse(state.windowTitleCaptureEnabled)
+    }
+
+    func testWindowTitleCaptureAuthorizationLogic() {
+        XCTAssertFalse(ActivityTracker.shouldCaptureWindowTitle(enabled: false, authorized: false))
+        XCTAssertFalse(ActivityTracker.shouldCaptureWindowTitle(enabled: true, authorized: false))
+        XCTAssertFalse(ActivityTracker.shouldCaptureWindowTitle(enabled: false, authorized: true))
+        XCTAssertTrue(ActivityTracker.shouldCaptureWindowTitle(enabled: true, authorized: true))
+    }
+
+    func testAutoExportAttemptDecision() {
+        let date = Date(timeIntervalSince1970: 0)
+        let dayKey = ReportService.dayKey(for: date)
+        XCTAssertTrue(ReportService.shouldAttemptAutoExport(currentKey: dayKey, lastAttemptKey: nil, lastExportedKey: nil))
+        XCTAssertFalse(ReportService.shouldAttemptAutoExport(currentKey: dayKey, lastAttemptKey: dayKey, lastExportedKey: nil))
+        XCTAssertFalse(ReportService.shouldAttemptAutoExport(currentKey: dayKey, lastAttemptKey: nil, lastExportedKey: dayKey))
+
+        let calendar = Calendar(identifier: .gregorian)
+        let nextDay = calendar.date(byAdding: .day, value: 1, to: date)!
+        let nextKey = ReportService.dayKey(for: nextDay)
+        XCTAssertTrue(ReportService.shouldAttemptAutoExport(currentKey: nextKey, lastAttemptKey: dayKey, lastExportedKey: dayKey))
     }
 }

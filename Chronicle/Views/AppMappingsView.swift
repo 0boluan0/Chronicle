@@ -85,7 +85,7 @@ struct AppMappingsView: View {
             }
 
             if hasMoreMappings {
-                Button("Load more") {
+                Button(L("common.load_more")) {
                     loadMappings(reset: false)
                 }
                 .buttonStyle(.bordered)

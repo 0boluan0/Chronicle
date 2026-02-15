@@ -60,8 +60,8 @@ final class SessionNormalizer {
         rangeEnd: Int64,
         sink: ReplaySink
     ) throws -> ReplaySummary {
-        let minDuration = minSessionDurationSeconds
-        let mergeGap = mergeGapSeconds
+        let minDuration = max(1, min(minSessionDurationSeconds, 60))
+        let mergeGap = max(0, min(mergeGapSeconds, 10))
         var state = ReplayState()
         var insertedCount = 0
         var mergedCount = 0
@@ -144,7 +144,11 @@ final class SessionNormalizer {
                 if state.isIdle { continue }
                 let payload = RawEventPayload.fromJSON(event.payload)
                 let idleSeconds = payload?.idleSeconds ?? 0
-                let idleStartEpoch = clampIdleStart(nowEpoch: event.timestamp, idleSeconds: idleSeconds)
+                let idleStartEpoch = clampIdleStart(
+                    nowEpoch: event.timestamp,
+                    idleSeconds: idleSeconds,
+                    minStartEpoch: state.current?.start
+                )
                 if idleStartEpoch > event.timestamp { continue }
                 state.isIdle = true
                 try closeCurrentSession(at: idleStartEpoch)
@@ -186,9 +190,9 @@ final class SessionNormalizer {
     }
 
     func updateAggregationConfig(minDuration: Int, mergeGap: Int, debounce: Int) {
-        let clampedMin = max(1, minDuration)
-        let clampedGap = max(0, mergeGap)
-        let clampedDebounce = max(0, debounce)
+        let clampedMin = max(1, min(minDuration, 60))
+        let clampedGap = max(0, min(mergeGap, 10))
+        let clampedDebounce = max(0, min(debounce, 5))
         queue.async {
             self.minSessionDurationSeconds = Int64(clampedMin)
             self.mergeGapSeconds = Int64(clampedGap)
@@ -220,7 +224,7 @@ final class SessionNormalizer {
 
     func updateIdleThreshold(seconds: Int) {
         queue.async {
-            self.idleThresholdSeconds = Int64(max(1, seconds))
+            self.idleThresholdSeconds = Int64(max(30, min(seconds, 3600)))
         }
     }
 
@@ -648,8 +652,13 @@ final class SessionNormalizer {
         }
     }
 
-    private func clampIdleStart(nowEpoch: Int64, idleSeconds: TimeInterval) -> Int64 {
-        let idleStartEpoch = nowEpoch - Int64(idleSeconds) + idleThresholdSeconds
+    private func clampIdleStart(nowEpoch: Int64, idleSeconds: TimeInterval, minStartEpoch: Int64? = nil) -> Int64 {
+        let clampedThreshold = max(Int64(30), min(idleThresholdSeconds, Int64(3600)))
+        // Idle-enter event itself is authoritative; never compute a start beyond the event timestamp.
+        let idleStartEpoch = min(nowEpoch, nowEpoch - Int64(idleSeconds) + clampedThreshold)
+        if let minStartEpoch {
+            return max(minStartEpoch, idleStartEpoch)
+        }
         if let currentSession {
             return max(currentSession.startTime, idleStartEpoch)
         }

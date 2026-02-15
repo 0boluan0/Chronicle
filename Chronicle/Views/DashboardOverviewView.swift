@@ -40,12 +40,34 @@ struct DashboardOverviewView: View {
 #endif
 
     var body: some View {
+        VSplitView {
+            overviewContent
+                .frame(minHeight: 320, idealHeight: 520, maxHeight: .infinity)
+            markerTimelineSection
+                .frame(minHeight: 220, idealHeight: 360, maxHeight: .infinity)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear {
+            refreshData(reason: "overview opened")
+        }
+        .onReceive(NotificationCenter.default.publisher(for: ActivityTracker.didRecordSessionNotification)) { _ in
+            refreshData(reason: "activity tracker")
+        }
+        .onChange(of: appState.selectedDate) { _ in
+            refreshData(reason: "date changed")
+        }
+        .onChange(of: appState.dateRangeMode) { _ in
+            refreshData(reason: "range changed")
+        }
+    }
+
+    private var overviewContent: some View {
         VStack(alignment: .leading, spacing: 16) {
             headerView
 
             controlsView
             if appState.countOverlaysInTotals {
-                Text("Totals include overlays")
+                Text(L("dashboard.stats.overlays_notice"))
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -83,24 +105,24 @@ struct DashboardOverviewView: View {
             detailView
 
             if let lastRefresh {
-                Text("Last refreshed: \(Self.timeFormatter.string(from: lastRefresh))")
+                Text(String(format: L("dashboard.stats.last_refreshed"), Self.timeFormatter.string(from: lastRefresh)))
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
         }
         .padding(20)
-        .onAppear {
-            refreshData(reason: "overview opened")
+    }
+
+    private var markerTimelineSection: some View {
+        SectionCard(title: "dashboard.markers") {
+            MarkerTimelineView(
+                rangeStart: rangeBounds.start,
+                rangeEnd: rangeBounds.end,
+                gridIntervalMinutes: $gridIntervalMinutes,
+                dateRangeMode: appState.dateRangeMode
+            )
         }
-        .onReceive(NotificationCenter.default.publisher(for: ActivityTracker.didRecordSessionNotification)) { _ in
-            refreshData(reason: "activity tracker")
-        }
-        .onChange(of: appState.selectedDate) { _ in
-            refreshData(reason: "date changed")
-        }
-        .onChange(of: appState.dateRangeMode) { _ in
-            refreshData(reason: "range changed")
-        }
+        .padding(20)
     }
 
     private var headerView: some View {

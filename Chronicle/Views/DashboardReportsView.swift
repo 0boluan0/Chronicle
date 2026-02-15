@@ -21,6 +21,8 @@ struct DashboardReportsView: View {
     @State private var csvRangeMode: CSVRangeMode = .day
     @State private var customStartDate = Date()
     @State private var customEndDate = Date()
+    @State private var dailyNotes = ""
+    @State private var weeklyNotes = ""
 
     var body: some View {
         Group {
@@ -61,18 +63,18 @@ struct DashboardReportsView: View {
         GroupBox {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
-                    Text("CSV Export")
+                    Text(L("reports.csv.title"))
                         .font(.headline)
                     Spacer()
                 }
 
-                Text("Folder: \(settings.csvFolderDisplayPath)")
+                Text(String(format: L("reports.folder.label"), settings.csvFolderDisplayPath))
                     .font(.caption)
                     .foregroundColor(.secondary)
                 statusLine(folderStatusLine(for: .csv))
 
                 HStack(spacing: 8) {
-                    Button("Choose Folder") {
+                    Button(L("reports.choose_folder")) {
                         chooseFolder { url in
                             do {
                                 try settings.updateCsvFolderBookmark(url: url)
@@ -85,23 +87,23 @@ struct DashboardReportsView: View {
                     }
                     .buttonStyle(.bordered)
 
-                    Button("Open Folder") {
+                    Button(L("reports.open_folder")) {
                         csvStatus = handleOpenFolder(result: ReportService.shared.openCsvFolder())
                     }
                     .buttonStyle(.bordered)
 
                     Spacer()
 
-                    Toggle("Overwrite existing", isOn: $settings.overwriteCsvExports)
+                    Toggle(L("reports.overwrite_existing"), isOn: $settings.overwriteCsvExports)
                         .toggleStyle(.switch)
                 }
 
                 HStack(spacing: 12) {
-                    Text("Export Range")
+                    Text(L("reports.csv.range"))
                         .font(.caption)
                         .foregroundColor(.secondary)
 
-                    Picker("Range", selection: $csvRangeMode) {
+                    Picker(L("reports.csv.range_picker"), selection: $csvRangeMode) {
                         ForEach(CSVRangeMode.allCases) { mode in
                             Text(mode.titleKey).tag(mode)
                         }
@@ -110,15 +112,15 @@ struct DashboardReportsView: View {
                     .frame(width: 260)
 
                     if csvRangeMode == .custom {
-                        DatePicker("Start", selection: $customStartDate, displayedComponents: .date)
+                        DatePicker(L("reports.csv.start_date"), selection: $customStartDate, displayedComponents: .date)
                             .labelsHidden()
-                        DatePicker("End", selection: $customEndDate, displayedComponents: .date)
+                        DatePicker(L("reports.csv.end_date"), selection: $customEndDate, displayedComponents: .date)
                             .labelsHidden()
                     }
 
                     Spacer()
 
-                    Button("Export Now") {
+                    Button(L("reports.export_now")) {
                         exportCsv()
                     }
                     .buttonStyle(.borderedProminent)
@@ -152,18 +154,18 @@ struct DashboardReportsView: View {
         GroupBox {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
-                    Text("Daily Markdown")
+                    Text(L("reports.daily.title"))
                         .font(.headline)
                     Spacer()
                 }
 
-                Text("Folder: \(settings.dailyFolderDisplayPath)")
+                Text(String(format: L("reports.folder.label"), settings.dailyFolderDisplayPath))
                     .font(.caption)
                     .foregroundColor(.secondary)
                 statusLine(folderStatusLine(for: .daily))
 
                 HStack(spacing: 8) {
-                    Button("Choose Folder") {
+                    Button(L("reports.choose_folder")) {
                         chooseFolder { url in
                             do {
                                 try settings.updateDailyFolderBookmark(url: url)
@@ -176,17 +178,17 @@ struct DashboardReportsView: View {
                     }
                     .buttonStyle(.bordered)
 
-                    Button("Open Folder") {
+                    Button(L("reports.open_folder")) {
                         dailyStatus = handleOpenFolder(result: ReportService.shared.openDailyFolder())
                     }
                     .buttonStyle(.bordered)
 
                     Spacer()
 
-                    Toggle("Overwrite existing", isOn: $settings.overwriteDailyExports)
+                    Toggle(L("reports.overwrite_existing"), isOn: $settings.overwriteDailyExports)
                         .toggleStyle(.switch)
 
-                    Toggle("Auto-generate daily report once per day", isOn: $settings.enableAutoDailyExport)
+                    Toggle(L("reports.daily.auto"), isOn: $settings.enableAutoDailyExport)
                         .toggleStyle(.switch)
                 }
 
@@ -198,20 +200,32 @@ struct DashboardReportsView: View {
                             .stroke(Color.gray.opacity(0.2), lineWidth: 1)
                     )
 
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(L("reports.notes.label"))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    TextEditor(text: $dailyNotes)
+                        .frame(minHeight: 80, maxHeight: 120)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                        )
+                }
+
                 HStack(spacing: 8) {
-                    Button("Reset to Default") {
+                    Button(L("reports.reset_default")) {
                         settings.resetDailyTemplate()
                     }
                     .buttonStyle(.bordered)
 
                     Spacer()
 
-                    Button("Generate Selected Day") {
+                    Button(L("reports.daily.generate_selected")) {
                         generateDaily(date: appState.selectedDate)
                     }
                     .buttonStyle(.borderedProminent)
 
-                    Button("Generate Today") {
+                    Button(L("reports.daily.generate_today")) {
                         generateDaily(date: Date())
                     }
                     .buttonStyle(.borderedProminent)
@@ -245,18 +259,18 @@ struct DashboardReportsView: View {
         GroupBox {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
-                    Text("Weekly Markdown")
+                    Text(L("reports.weekly.title"))
                         .font(.headline)
                     Spacer()
                 }
 
-                Text("Folder: \(settings.weeklyFolderDisplayPath)")
+                Text(String(format: L("reports.folder.label"), settings.weeklyFolderDisplayPath))
                     .font(.caption)
                     .foregroundColor(.secondary)
                 statusLine(folderStatusLine(for: .weekly))
 
                 HStack(spacing: 8) {
-                    Button("Choose Folder") {
+                    Button(L("reports.choose_folder")) {
                         chooseFolder { url in
                             do {
                                 try settings.updateWeeklyFolderBookmark(url: url)
@@ -269,17 +283,17 @@ struct DashboardReportsView: View {
                     }
                     .buttonStyle(.bordered)
 
-                    Button("Open Folder") {
+                    Button(L("reports.open_folder")) {
                         weeklyStatus = handleOpenFolder(result: ReportService.shared.openWeeklyFolder())
                     }
                     .buttonStyle(.bordered)
 
                     Spacer()
 
-                    Toggle("Overwrite existing", isOn: $settings.overwriteWeeklyExports)
+                    Toggle(L("reports.overwrite_existing"), isOn: $settings.overwriteWeeklyExports)
                         .toggleStyle(.switch)
 
-                    Toggle("Auto-generate weekly report", isOn: $settings.enableAutoWeeklyExport)
+                    Toggle(L("reports.weekly.auto"), isOn: $settings.enableAutoWeeklyExport)
                         .toggleStyle(.switch)
                 }
 
@@ -291,20 +305,32 @@ struct DashboardReportsView: View {
                             .stroke(Color.gray.opacity(0.2), lineWidth: 1)
                     )
 
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(L("reports.notes.label"))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    TextEditor(text: $weeklyNotes)
+                        .frame(minHeight: 80, maxHeight: 120)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                        )
+                }
+
                 HStack(spacing: 8) {
-                    Button("Reset to Default") {
+                    Button(L("reports.reset_default")) {
                         settings.resetWeeklyTemplate()
                     }
                     .buttonStyle(.bordered)
 
                     Spacer()
 
-                    Button("Generate Selected Week") {
+                    Button(L("reports.weekly.generate_selected")) {
                         generateWeekly(date: appState.selectedDate)
                     }
                     .buttonStyle(.borderedProminent)
 
-                    Button("Generate This Week") {
+                    Button(L("reports.weekly.generate_this")) {
                         generateWeekly(date: Date())
                     }
                     .buttonStyle(.borderedProminent)
@@ -336,7 +362,7 @@ struct DashboardReportsView: View {
 
     private func generateDaily(date: Date) {
         dailyStatus = StatusMessage(text: L("reports.status.generating"), isError: false)
-        ReportService.shared.generateDailyReport(date: date) { result in
+        ReportService.shared.generateDailyReport(date: date, notes: dailyNotes) { result in
             DispatchQueue.main.async {
                 switch result {
                 case .success(let info):
@@ -344,7 +370,7 @@ struct DashboardReportsView: View {
                     dailyStatus = StatusMessage(text: message, isError: false)
                     settings.recordExportResult(kind: .daily, message: message, isError: false)
                 case .failure(let error):
-                    let message = error.localizedDescription + " (re-select folder if needed)"
+                    let message = errorMessageWithReselectHint(error)
                     dailyStatus = StatusMessage(text: message, isError: true)
                     settings.recordExportResult(kind: .daily, message: message, isError: true)
                 }
@@ -354,7 +380,7 @@ struct DashboardReportsView: View {
 
     private func generateWeekly(date: Date) {
         weeklyStatus = StatusMessage(text: L("reports.status.generating"), isError: false)
-        ReportService.shared.generateWeeklyReport(for: date) { result in
+        ReportService.shared.generateWeeklyReport(for: date, notes: weeklyNotes) { result in
             DispatchQueue.main.async {
                 switch result {
                 case .success(let info):
@@ -362,7 +388,7 @@ struct DashboardReportsView: View {
                     weeklyStatus = StatusMessage(text: message, isError: false)
                     settings.recordExportResult(kind: .weekly, message: message, isError: false)
                 case .failure(let error):
-                    let message = error.localizedDescription + " (re-select folder if needed)"
+                    let message = errorMessageWithReselectHint(error)
                     weeklyStatus = StatusMessage(text: message, isError: true)
                     settings.recordExportResult(kind: .weekly, message: message, isError: true)
                 }
@@ -381,7 +407,7 @@ struct DashboardReportsView: View {
                     csvStatus = StatusMessage(text: message, isError: false)
                     settings.recordExportResult(kind: .csv, message: message, isError: false)
                 case .failure(let error):
-                    let message = error.localizedDescription + " (re-select folder if needed)"
+                    let message = errorMessageWithReselectHint(error)
                     csvStatus = StatusMessage(text: message, isError: true)
                     settings.recordExportResult(kind: .csv, message: message, isError: true)
                 }
@@ -434,7 +460,7 @@ struct DashboardReportsView: View {
         case .success:
             return StatusMessage(text: L("reports.opened_folder"), isError: false)
         case .failure(let error):
-            return StatusMessage(text: error.localizedDescription + " (re-select folder if needed)", isError: true)
+            return StatusMessage(text: errorMessageWithReselectHint(error), isError: true)
         }
     }
 
@@ -457,7 +483,7 @@ struct DashboardReportsView: View {
                     .foregroundColor(.secondary)
             }
 
-            Button("Re-select Folder") {
+            Button(L("reports.reselect_folder")) {
                 reselectAction()
             }
             .buttonStyle(.bordered)
@@ -513,6 +539,10 @@ struct DashboardReportsView: View {
         case .csv:
             return settings.csvDiagnostics
         }
+    }
+
+    private func errorMessageWithReselectHint(_ error: Error) -> String {
+        String(format: L("reports.reselect_hint"), error.localizedDescription)
     }
 
     @ViewBuilder

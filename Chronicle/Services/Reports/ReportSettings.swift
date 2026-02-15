@@ -51,6 +51,12 @@ final class ReportSettings: ObservableObject {
     @Published var lastExportedWeek: String? {
         didSet { saveString(lastExportedWeek, key: Keys.lastExportedWeek) }
     }
+    @Published var lastAutoDailyAttemptDay: String? {
+        didSet { saveString(lastAutoDailyAttemptDay, key: Keys.lastAutoDailyAttemptDay) }
+    }
+    @Published var lastAutoWeeklyAttemptWeek: String? {
+        didSet { saveString(lastAutoWeeklyAttemptWeek, key: Keys.lastAutoWeeklyAttemptWeek) }
+    }
     @Published var lastDailyExportAt: Double {
         didSet { UserDefaults.standard.set(lastDailyExportAt, forKey: Keys.lastDailyExportAt) }
     }
@@ -97,11 +103,14 @@ final class ReportSettings: ObservableObject {
     ## Markers
     {{markers_list}}
 
+    ## Marker Sessions
+    {{marker_spans}}
+
     ## Timeline
     {{timeline_bullets}}
 
     ## Notes
-    {{notes_placeholder}}
+    {{notes}}
     """
 
     static let defaultWeeklyTemplate = """
@@ -121,8 +130,11 @@ final class ReportSettings: ObservableObject {
     ## Marker Highlights
     {{markers_list}}
 
+    ## Marker Sessions
+    {{marker_spans}}
+
     ## Notes
-    {{notes_placeholder}}
+    {{notes}}
     """
 
     private enum Keys {
@@ -138,6 +150,8 @@ final class ReportSettings: ObservableObject {
         static let overwriteCsvExports = "reports.overwriteCsvExports"
         static let lastExportedDay = "reports.lastExportedDay"
         static let lastExportedWeek = "reports.lastExportedWeek"
+        static let lastAutoDailyAttemptDay = "reports.lastAutoDailyAttemptDay"
+        static let lastAutoWeeklyAttemptWeek = "reports.lastAutoWeeklyAttemptWeek"
         static let lastDailyExportAt = "reports.lastDailyExportAt"
         static let lastWeeklyExportAt = "reports.lastWeeklyExportAt"
         static let lastCsvExportAt = "reports.lastCsvExportAt"
@@ -173,6 +187,8 @@ final class ReportSettings: ObservableObject {
         overwriteCsvExports = defaults.bool(forKey: Keys.overwriteCsvExports)
         lastExportedDay = defaults.string(forKey: Keys.lastExportedDay)
         lastExportedWeek = defaults.string(forKey: Keys.lastExportedWeek)
+        lastAutoDailyAttemptDay = defaults.string(forKey: Keys.lastAutoDailyAttemptDay)
+        lastAutoWeeklyAttemptWeek = defaults.string(forKey: Keys.lastAutoWeeklyAttemptWeek)
         lastDailyExportAt = defaults.double(forKey: Keys.lastDailyExportAt)
         lastWeeklyExportAt = defaults.double(forKey: Keys.lastWeeklyExportAt)
         lastCsvExportAt = defaults.double(forKey: Keys.lastCsvExportAt)
@@ -319,20 +335,62 @@ final class ReportSettings: ObservableObject {
     }
 
     func recordExportResult(kind: ReportFolderKind, message: String, isError: Bool, date: Date = Date()) {
-        let timestamp = date.timeIntervalSince1970
+        let update = {
+            let timestamp = date.timeIntervalSince1970
+            switch kind {
+            case .daily:
+                self.lastDailyExportAt = timestamp
+                self.lastDailyExportMessage = message
+                self.lastDailyExportIsError = isError
+            case .weekly:
+                self.lastWeeklyExportAt = timestamp
+                self.lastWeeklyExportMessage = message
+                self.lastWeeklyExportIsError = isError
+            case .csv:
+                self.lastCsvExportAt = timestamp
+                self.lastCsvExportMessage = message
+                self.lastCsvExportIsError = isError
+            }
+        }
+
+        if Thread.isMainThread {
+            update()
+        } else {
+            DispatchQueue.main.async {
+                update()
+            }
+        }
+    }
+
+    func recordAutoAttempt(kind: ReportFolderKind, key: String) {
+        let update = {
+            switch kind {
+            case .daily:
+                self.lastAutoDailyAttemptDay = key
+            case .weekly:
+                self.lastAutoWeeklyAttemptWeek = key
+            case .csv:
+                break
+            }
+        }
+
+        if Thread.isMainThread {
+            update()
+        } else {
+            DispatchQueue.main.async {
+                update()
+            }
+        }
+    }
+
+    func lastAutoAttemptKey(for kind: ReportFolderKind) -> String? {
         switch kind {
         case .daily:
-            lastDailyExportAt = timestamp
-            lastDailyExportMessage = message
-            lastDailyExportIsError = isError
+            return lastAutoDailyAttemptDay
         case .weekly:
-            lastWeeklyExportAt = timestamp
-            lastWeeklyExportMessage = message
-            lastWeeklyExportIsError = isError
+            return lastAutoWeeklyAttemptWeek
         case .csv:
-            lastCsvExportAt = timestamp
-            lastCsvExportMessage = message
-            lastCsvExportIsError = isError
+            return nil
         }
     }
 }

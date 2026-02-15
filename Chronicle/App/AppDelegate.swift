@@ -17,12 +17,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var statusItem: NSStatusItem?
     private let statusMenu = NSMenu()
     private var dayChangeObserver: NSObjectProtocol?
+    private var appActiveObserver: NSObjectProtocol?
     private var languageCancellable: AnyCancellable?
     private var dashboardItem: NSMenuItem?
     private var preferencesItem: NSMenuItem?
     private var exportItem: NSMenuItem?
     private var quitItem: NSMenuItem?
     private var exportFeedbackToken: UUID?
+    private var isRunningUnitTests: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         #if DEBUG
@@ -34,27 +38,51 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         configureStatusItem()
         configureLanguageUpdates()
         LaunchAtLoginManager.shared.syncAppState(appState)
+        AccessibilityPermissionManager.shared.syncAppState(appState)
         DatabaseService.shared.initializeIfNeeded()
-        activityTracker.start()
-        ReportService.shared.autoExportIfNeeded(currentDate: Date())
+        if isRunningUnitTests {
+            AppLogger.log("Test mode launch: runtime services disabled", category: "app")
+        } else {
+            activityTracker.start()
+            ReportService.shared.autoExportIfNeeded(currentDate: Date())
+            HotKeyManager.shared.onHotKeyPressed = { [weak self] in
+                self?.showQuickMarkerPanel()
+            }
+            HotKeyManager.shared.register()
+            dayChangeObserver = NotificationCenter.default.addObserver(
+                forName: NSNotification.Name.NSCalendarDayChanged,
+                object: nil,
+                queue: .main
+            ) { _ in
+                MarkerSpanService.shared.endAllOpenSpans(at: Date())
+                ReportService.shared.autoExportIfNeeded(currentDate: Date())
+            }
+            appActiveObserver = NotificationCenter.default.addObserver(
+                forName: NSApplication.didBecomeActiveNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                guard let self else { return }
+                AccessibilityPermissionManager.shared.syncAppState(self.appState)
+            }
+        }
 #if DEBUG
         HealthCheckService.shared.runStartupChecks()
 #endif
-        dayChangeObserver = NotificationCenter.default.addObserver(
-            forName: NSNotification.Name.NSCalendarDayChanged,
-            object: nil,
-            queue: .main
-        ) { _ in
-            ReportService.shared.autoExportIfNeeded(currentDate: Date())
-        }
         AppLogger.log("App launched")
     }
 
     func applicationWillTerminate(_ notification: Notification) {
         activityTracker.stop()
+        MarkerSpanService.shared.endAllOpenSpans(at: Date())
+        HotKeyManager.shared.unregister()
         if let dayChangeObserver {
             NotificationCenter.default.removeObserver(dayChangeObserver)
             self.dayChangeObserver = nil
+        }
+        if let appActiveObserver {
+            NotificationCenter.default.removeObserver(appActiveObserver)
+            self.appActiveObserver = nil
         }
     }
 
@@ -103,6 +131,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         statusMenu.addItem(exportItem)
         statusMenu.addItem(.separator())
         statusMenu.addItem(quitItem)
+    }
+
+    private func showQuickMarkerPanel() {
+        QuickMarkerPanelController.shared.toggle()
     }
 
     private func configureLanguageUpdates() {

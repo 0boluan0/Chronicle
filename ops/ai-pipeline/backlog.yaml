@@ -1,0 +1,123 @@
+version: 2
+stage: feature
+policy:
+  feature_unlock_requires:
+    - STAB-001
+    - STAB-002
+    - STAB-003
+  dispatch_rule: "AI2 must dispatch highest-priority open failure only"
+
+tasks:
+  - id: STAB-001
+    title: Eliminate test-process crash (malloc invalid free)
+    module: infra
+    priority: P0
+    track: stabilization
+    blocking: true
+    status: done
+    depends_on: []
+    failure_refs:
+      - FAIL-P0-001
+    scope_in:
+      - "Test host stability under xcodebuild"
+      - "Crash signature: pointer being freed was not allocated"
+      - "Unexpected restart prevention"
+    scope_out:
+      - "Feature development"
+      - "UI redesign"
+    acceptance:
+      - "3 consecutive full test runs contain no 'Restarting after unexpected exit'"
+      - "3 consecutive full test runs contain no 'pointer being freed was not allocated'"
+      - "Test process reaches final summary without host crash"
+    risk: high
+
+  - id: STAB-002
+    title: Fix deterministic failing assertions
+    module: tracking
+    priority: P1
+    track: stabilization
+    blocking: true
+    status: done
+    depends_on:
+      - STAB-001
+    failure_refs:
+      - FAIL-P1-001
+      - FAIL-P1-002
+    scope_in:
+      - "Fix testReplayIdleEnterExit"
+      - "Fix testTaggingEnginePriority"
+    scope_out:
+      - "New features"
+      - "Refactors unrelated to failing tests"
+    acceptance:
+      - "testReplayIdleEnterExit passes"
+      - "testTaggingEnginePriority passes"
+      - "Code change contains test or assertion-update rationale"
+    risk: medium
+
+  - id: STAB-003
+    title: Isolate tests from real runtime side-effects
+    module: infra
+    priority: P1
+    track: stabilization
+    blocking: true
+    status: done
+    depends_on:
+      - STAB-001
+      - STAB-002
+    failure_refs:
+      - FAIL-P1-003
+    scope_in:
+      - "Avoid test dependence on real activity tracking side effects"
+      - "Make full-suite result repeatable"
+    scope_out:
+      - "Product feature scope"
+    acceptance:
+      - "Full test run passes once locally"
+      - "Full test run passes twice on CI"
+      - "No environment-specific flakiness noted in cycle report"
+    risk: high
+
+  - id: FEAT-UNLOCK
+    title: Resume feature-track iterations
+    module: infra
+    priority: P2
+    track: feature
+    blocking: false
+    status: done
+    depends_on:
+      - STAB-001
+      - STAB-002
+      - STAB-003
+    failure_refs: []
+    scope_in:
+      - "Re-enable feature queue after stabilization gate"
+    scope_out:
+      - "Stabilization tasks"
+    acceptance:
+      - "All STAB-* tasks are done"
+      - "AI2 status board marks feature track as unlocked"
+    risk: low
+
+  - id: FEAT-001
+    title: Ship Quick Marker v1 end-to-end slice
+    module: markers
+    priority: P2
+    track: feature
+    blocking: false
+    status: ready
+    depends_on:
+      - FEAT-UNLOCK
+    failure_refs: []
+    scope_in:
+      - "Complete quick marker entry flow from hotkey/menu to marker write"
+      - "Ensure marker timeline reflects new marker spans correctly"
+      - "Add or update focused tests for quick marker behaviors"
+    scope_out:
+      - "Unrelated UI redesign"
+      - "Large refactors outside marker feature"
+    acceptance:
+      - "Feature can create point/interval markers from quick entry"
+      - "Regression tests for marker flows pass in ChronicleTests"
+      - "Full suite passes locally after change"
+    risk: medium

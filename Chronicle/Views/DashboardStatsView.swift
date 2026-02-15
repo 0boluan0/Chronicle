@@ -38,7 +38,7 @@ struct DashboardStatsView: View {
                 .toggleStyle(.switch)
                 .font(DesignSystem.Typography.caption)
             if appState.countOverlaysInTotals {
-                Text("Totals include overlays")
+                Text(L("dashboard.stats.overlays_notice"))
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
             }
@@ -51,7 +51,7 @@ struct DashboardStatsView: View {
             }
 
             if let lastRefresh {
-                Text("Last refreshed: \(Self.timeFormatter.string(from: lastRefresh))")
+                Text(String(format: L("dashboard.stats.last_refreshed"), Self.timeFormatter.string(from: lastRefresh)))
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
             }
@@ -74,7 +74,7 @@ struct DashboardStatsView: View {
     private var headerView: some View {
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Stats")
+                Text(LocalizedStringKey("dashboard.stats"))
                     .font(DesignSystem.Typography.title)
                 Text(Self.dateFormatter.string(from: appState.selectedDate))
                     .font(DesignSystem.Typography.caption)
@@ -94,7 +94,7 @@ struct DashboardStatsView: View {
                 Image(systemName: "chevron.left")
             }
             .buttonStyle(.borderless)
-            .accessibilityLabel("Previous day")
+            .accessibilityLabel(L("dashboard.stats.previous_day"))
 
             DatePicker("", selection: $appState.selectedDate, displayedComponents: .date)
                 .labelsHidden()
@@ -106,7 +106,7 @@ struct DashboardStatsView: View {
                 Image(systemName: "chevron.right")
             }
             .buttonStyle(.borderless)
-            .accessibilityLabel("Next day")
+            .accessibilityLabel(L("dashboard.stats.next_day"))
             .disabled(isTodaySelected)
 
             Button("Today") {
@@ -123,12 +123,13 @@ struct DashboardStatsView: View {
                 Text(title)
                     .font(DesignSystem.Typography.sectionHeader)
 
-                HStack(spacing: DesignSystem.Spacing.sm) {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: DesignSystem.Spacing.sm), count: 3), spacing: DesignSystem.Spacing.sm) {
                     SummaryCard(title: "Total", value: formatDuration(stats.summary.totalSeconds))
                     SummaryCard(title: "Active", value: formatDuration(stats.summary.activeSeconds))
                     SummaryCard(title: "Idle", value: formatDuration(stats.summary.idleSeconds))
                     SummaryCard(title: "Sessions", value: "\(stats.summary.sessions)")
-                    SummaryCard(title: "Markers", value: "\(stats.markersCount)")
+                    SummaryCard(title: "Notes", value: "\(stats.markerNotesCount)")
+                    SummaryCard(title: "Marker Sessions", value: "\(stats.markerSessionsCount)")
                 }
 
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
@@ -263,7 +264,8 @@ struct DashboardStatsView: View {
                     let color = item.tagId.flatMap { tagLookup[$0]?.color }
                     return TagDuration(tagId: item.tagId, name: item.name, color: color, seconds: item.durationSeconds)
                 },
-                markersCount: summary?.markersCount ?? 0
+                markerNotesCount: summary?.markerNotesCount ?? 0,
+                markerSessionsCount: summary?.markerSessionsCount ?? 0
             )
 
             self.rangeStats = rangeStats
@@ -331,13 +333,15 @@ private struct RangeStats {
     let summary: SummaryMetrics
     let topApps: [AppDuration]
     let topTags: [TagDuration]
-    let markersCount: Int
+    let markerNotesCount: Int
+    let markerSessionsCount: Int
 
     static let empty = RangeStats(
         summary: SummaryMetrics(totalSeconds: 0, activeSeconds: 0, idleSeconds: 0, sessions: 0),
         topApps: [],
         topTags: [],
-        markersCount: 0
+        markerNotesCount: 0,
+        markerSessionsCount: 0
     )
 }
 
@@ -363,7 +367,7 @@ private struct TagDuration: Identifiable {
 }
 
 private struct SummaryCard: View {
-    let title: String
+    let title: LocalizedStringKey
     let value: String
     @State private var isHovering = false
 

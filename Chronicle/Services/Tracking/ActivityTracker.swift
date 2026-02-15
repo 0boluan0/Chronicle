@@ -18,6 +18,7 @@ final class ActivityTracker {
     private let eventQueue = DispatchQueue(label: "com.chronicle.raw-events")
     private let appState = AppState.shared
     private let normalizer = SessionNormalizer.shared
+    private let windowTitleProvider: WindowTitleProviding = AXWindowTitleProvider()
 
     private var observer: NSObjectProtocol?
     private var idleDetector: IdleDetector?
@@ -75,6 +76,10 @@ final class ActivityTracker {
     private func handleActivation(_ app: NSRunningApplication, immediate: Bool) {
         let appName = app.localizedName ?? app.bundleIdentifier ?? "Unknown"
         let bundleId = app.bundleIdentifier
+        let windowTitle = Self.shouldCaptureWindowTitle(
+            enabled: appState.windowTitleCaptureEnabled,
+            authorized: appState.accessibilityAuthorized
+        ) ? windowTitleProvider.currentWindowTitle(bundleId: bundleId) : nil
         let now = Date()
         updateAppState(activeAppName: appName, bundleId: bundleId)
         let event = RawEvent(
@@ -83,7 +88,7 @@ final class ActivityTracker {
             type: .appActivated,
             bundleId: bundleId,
             appName: appName,
-            windowTitle: nil,
+            windowTitle: windowTitle,
             payload: nil
         )
         enqueueRawEvent(event) {
@@ -395,6 +400,10 @@ final class ActivityTracker {
             }
             semaphore.wait()
         }
+    }
+
+    static func shouldCaptureWindowTitle(enabled: Bool, authorized: Bool) -> Bool {
+        enabled && authorized
     }
 }
 

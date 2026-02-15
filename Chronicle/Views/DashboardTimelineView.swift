@@ -13,6 +13,7 @@ struct DashboardTimelineView: View {
 
     @State private var activities: [ActivityRow] = []
     @State private var markers: [MarkerRow] = []
+    @State private var markerSpans: [MarkerSpanRow] = []
     @State private var tags: [TagRow] = []
     @State private var rules: [RuleRow] = []
     @State private var isLoading = false
@@ -63,6 +64,11 @@ struct DashboardTimelineView: View {
                                                 .contextMenu {
                                                     markerContextMenu(for: marker)
                                                 }
+                                        case .markerSpan(let span):
+                                            MarkerSpanRowView(span: span)
+                                                .contextMenu {
+                                                    markerSpanContextMenu(for: span)
+                                                }
                                         }
                                     }
                                 }
@@ -73,7 +79,7 @@ struct DashboardTimelineView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
 
                 if hasMoreItems {
-                    Button("Load more") {
+                    Button(L("common.load_more")) {
                         displayLimit += 200
                         refreshData(reason: "load more", resetLimit: false)
                     }
@@ -83,7 +89,7 @@ struct DashboardTimelineView: View {
             }
 
             if let lastRefresh {
-                Text("Last refreshed: \(Self.timeFormatter.string(from: lastRefresh))")
+                Text(String(format: L("dashboard.stats.last_refreshed"), Self.timeFormatter.string(from: lastRefresh)))
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
             }
@@ -126,7 +132,7 @@ struct DashboardTimelineView: View {
                 Image(systemName: "chevron.left")
             }
             .buttonStyle(.borderless)
-            .accessibilityLabel("Previous day")
+            .accessibilityLabel(L("dashboard.stats.previous_day"))
 
             DatePicker("", selection: $appState.selectedDate, displayedComponents: .date)
                 .labelsHidden()
@@ -138,7 +144,7 @@ struct DashboardTimelineView: View {
                 Image(systemName: "chevron.right")
             }
             .buttonStyle(.borderless)
-            .accessibilityLabel("Next day")
+            .accessibilityLabel(L("dashboard.stats.next_day"))
             .disabled(isTodaySelected)
 
             Button("Today") {
@@ -262,9 +268,23 @@ struct DashboardTimelineView: View {
             return marker.text.lowercased().contains(search)
         }
 
+        let filteredMarkerSpans = markerSpans.filter { span in
+            if appState.selectedAppFilterName != "All Apps" {
+                return false
+            }
+            if appState.selectedTagFilterId == untaggedFilterValue || appState.selectedTagFilterId >= 0 {
+                return false
+            }
+            if search.isEmpty {
+                return true
+            }
+            return span.text.lowercased().contains(search)
+        }
+
         var items: [TimelineItem] = []
         items.append(contentsOf: filteredActivities.map { TimelineItem.activity($0) })
         items.append(contentsOf: filteredMarkers.map { TimelineItem.marker($0) })
+        items.append(contentsOf: filteredMarkerSpans.map { TimelineItem.markerSpan($0) })
         return items.sorted { $0.timestamp > $1.timestamp }
     }
 
@@ -368,6 +388,13 @@ struct DashboardTimelineView: View {
         }
     }
 
+    @ViewBuilder
+    private func markerSpanContextMenu(for span: MarkerSpanRow) -> some View {
+        Button(L("status.copy_details")) {
+            copyMarkerSpanDetails(span)
+        }
+    }
+
     private func copyActivityDetails(_ activity: ActivityRow) {
         let tagName = tagForActivity(activity)?.name ?? L("Untagged")
         var lines: [String] = []
@@ -387,6 +414,17 @@ struct DashboardTimelineView: View {
 
     private func copyMarkerDetails(_ marker: MarkerRow) {
         let text = "\(TimeFormatters.timeText(for: marker.timestamp, includeSeconds: true))\n\(marker.text)"
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+    }
+
+    private func copyMarkerSpanDetails(_ span: MarkerSpanRow) {
+        let end = span.endTime ?? Int64(Date().timeIntervalSince1970)
+        let range = TimeFormatters.timeRange(start: span.startTime, end: end)
+        let duration = TimeFormatters.durationText(start: span.startTime, end: end)
+        let ongoingLabel = L("marker.span.ongoing")
+        let status = span.endTime == nil ? " (\(ongoingLabel))" : ""
+        let text = "\(range) (\(duration))\(status)\n\(span.text)"
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
     }
@@ -519,6 +557,7 @@ struct DashboardTimelineView: View {
         group.notify(queue: .main) {
             self.activities = newItems.compactMap { if case .activity(let a) = $0 { return a }; return nil }
             self.markers = newItems.compactMap { if case .marker(let m) = $0 { return m }; return nil }
+            self.markerSpans = newItems.compactMap { if case .markerSpan(let s) = $0 { return s }; return nil }
             self.tags = newTags
             self.rules = newRules
             self.lastRefresh = Date()

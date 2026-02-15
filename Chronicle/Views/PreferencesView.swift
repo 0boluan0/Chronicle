@@ -152,6 +152,25 @@ private struct GeneralPreferencesView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
 
+            Toggle("preferences.window_titles.capture", isOn: windowTitleCaptureBinding)
+
+            Text("preferences.window_titles.note")
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            if appState.windowTitleCaptureEnabled && !appState.accessibilityAuthorized {
+                HStack(spacing: 8) {
+                    Text("preferences.window_titles.needs_access")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                    Button("preferences.window_titles.open_settings") {
+                        AccessibilityPermissionManager.shared.openSystemSettings()
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
+
             GroupBox {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("preferences.language.title")
@@ -175,6 +194,9 @@ private struct GeneralPreferencesView: View {
 
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .onAppear {
+            AccessibilityPermissionManager.shared.syncAppState(appState)
+        }
     }
 
     private var launchAtLoginBinding: Binding<Bool> {
@@ -196,6 +218,19 @@ private struct GeneralPreferencesView: View {
     }
 
     @State private var launchAtLoginMessage: String?
+
+    private var windowTitleCaptureBinding: Binding<Bool> {
+        Binding(
+            get: { appState.windowTitleCaptureEnabled },
+            set: { newValue in
+                appState.windowTitleCaptureEnabled = newValue
+                if newValue {
+                    _ = AccessibilityPermissionManager.shared.requestPermission(prompt: true)
+                }
+                AccessibilityPermissionManager.shared.syncAppState(appState)
+            }
+        )
+    }
 
     private var trackingQualitySection: some View {
         GroupBox {
@@ -236,9 +271,9 @@ private struct GeneralPreferencesView: View {
                     }
                 }
 
-                Toggle("Count rapid-switch overlays in totals (may exceed 24h/day)", isOn: $appState.countOverlaysInTotals)
+                Toggle("preferences.overlays.toggle", isOn: $appState.countOverlaysInTotals)
 
-                Text("Totals and top lists will include overlay durations when enabled.")
+                Text("preferences.overlays.note")
                     .font(.caption)
                     .foregroundColor(.secondary)
 
@@ -639,16 +674,16 @@ private struct PrivacyPreferencesView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Privacy")
+            Text("preferences.privacy")
                 .font(.title2.weight(.semibold))
 
-            Text("Chronicle is offline-first. Your data is stored locally under Application Support.")
+            Text("privacy.offline_note")
                 .foregroundColor(.secondary)
                 .textSelection(.enabled)
 
             GroupBox {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Database Path")
+                    Text("privacy.database_path")
                         .font(.headline)
                     Text(DatabaseService.shared.databasePath)
                         .font(.caption)
@@ -656,12 +691,12 @@ private struct PrivacyPreferencesView: View {
                         .textSelection(.enabled)
 
                     HStack(spacing: 8) {
-                        Button("Open Application Support Folder") {
+                        Button("privacy.open_app_support") {
                             openAppSupportFolder()
                         }
                         .buttonStyle(.bordered)
 
-                        Button("Wipe Data") {
+                        Button("privacy.wipe_data") {
                             showWipeConfirm = true
                         }
                         .buttonStyle(.bordered)
@@ -671,9 +706,9 @@ private struct PrivacyPreferencesView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            Text("Privacy reminders")
+            Text("privacy.reminders_title")
                 .font(.headline)
-            Text("• Chronicle does not sync or upload data.\n• Grant accessibility permissions only when needed for window titles (coming soon).")
+            Text("privacy.reminders_body")
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .textSelection(.enabled)
@@ -685,13 +720,13 @@ private struct PrivacyPreferencesView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .alert("Wipe all Chronicle data?", isPresented: $showWipeConfirm) {
-            Button("Cancel", role: .cancel) {}
-            Button("Wipe", role: .destructive) {
+        .alert("privacy.wipe_confirm.title", isPresented: $showWipeConfirm) {
+            Button("privacy.cancel", role: .cancel) {}
+            Button("privacy.wipe_confirm.action", role: .destructive) {
                 wipeDatabase()
             }
         } message: {
-            Text("This will delete the local activity database. This action cannot be undone.")
+            Text("privacy.wipe_confirm.message")
         }
     }
 
@@ -706,9 +741,9 @@ private struct PrivacyPreferencesView: View {
             DispatchQueue.main.async {
                 switch result {
                 case .success:
-                    wipeMessage = "Data wiped. Restart Chronicle to reinitialize the database."
+                    wipeMessage = L("privacy.wipe_done")
                 case .failure(let error):
-                    wipeMessage = "Wipe failed: \(error.localizedDescription)"
+                    wipeMessage = String(format: L("privacy.wipe_failed"), error.localizedDescription)
                 }
             }
         }

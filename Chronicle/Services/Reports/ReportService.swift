@@ -16,21 +16,31 @@ final class ReportService {
 
     private init() {}
 
-    func generateDailyReport(date: Date, completion: @escaping (Result<ReportExportResult, Error>) -> Void) {
+    func generateDailyReport(
+        date: Date,
+        notes: String? = nil,
+        completion: @escaping (Result<ReportExportResult, Error>) -> Void
+    ) {
         queue.async {
             self.generateReport(
                 kind: .daily,
                 date: date,
+                notes: notes,
                 completion: completion
             )
         }
     }
 
-    func generateWeeklyReport(for date: Date, completion: @escaping (Result<ReportExportResult, Error>) -> Void) {
+    func generateWeeklyReport(
+        for date: Date,
+        notes: String? = nil,
+        completion: @escaping (Result<ReportExportResult, Error>) -> Void
+    ) {
         queue.async {
             self.generateReport(
                 kind: .weekly,
                 date: date,
+                notes: notes,
                 completion: completion
             )
         }
@@ -39,10 +49,22 @@ final class ReportService {
     func autoExportIfNeeded(currentDate: Date) {
         if settings.enableAutoDailyExport {
             let dayKey = Self.dayKey(for: currentDate)
-            if settings.lastExportedDay != dayKey {
+            if Self.shouldAttemptAutoExport(
+                currentKey: dayKey,
+                lastAttemptKey: settings.lastAutoAttemptKey(for: .daily),
+                lastExportedKey: settings.lastExportedDay
+            ) {
+                settings.recordAutoAttempt(kind: .daily, key: dayKey)
                 generateDailyReport(date: currentDate) { result in
-                    if case .success(let info) = result {
+                    switch result {
+                    case .success(let info):
+                        let message = String(format: L("reports.auto_daily.saved"), info.fileName)
+                        self.settings.recordExportResult(kind: .daily, message: message, isError: false)
                         AppLogger.log("Auto daily export created: \(info.fileName)", category: "report")
+                    case .failure(let error):
+                        let message = String(format: L("reports.auto_daily.failed"), error.localizedDescription)
+                        self.settings.recordExportResult(kind: .daily, message: message, isError: true)
+                        AppLogger.log("Auto daily export failed: \(error.localizedDescription)", category: "report")
                     }
                 }
             }
@@ -50,10 +72,22 @@ final class ReportService {
 
         if settings.enableAutoWeeklyExport {
             let weekKey = Self.weekKey(for: currentDate)
-            if settings.lastExportedWeek != weekKey {
+            if Self.shouldAttemptAutoExport(
+                currentKey: weekKey,
+                lastAttemptKey: settings.lastAutoAttemptKey(for: .weekly),
+                lastExportedKey: settings.lastExportedWeek
+            ) {
+                settings.recordAutoAttempt(kind: .weekly, key: weekKey)
                 generateWeeklyReport(for: currentDate) { result in
-                    if case .success(let info) = result {
+                    switch result {
+                    case .success(let info):
+                        let message = String(format: L("reports.auto_weekly.saved"), info.fileName)
+                        self.settings.recordExportResult(kind: .weekly, message: message, isError: false)
                         AppLogger.log("Auto weekly export created: \(info.fileName)", category: "report")
+                    case .failure(let error):
+                        let message = String(format: L("reports.auto_weekly.failed"), error.localizedDescription)
+                        self.settings.recordExportResult(kind: .weekly, message: message, isError: true)
+                        AppLogger.log("Auto weekly export failed: \(error.localizedDescription)", category: "report")
                     }
                 }
             }
@@ -136,6 +170,7 @@ final class ReportService {
     private func generateReport(
         kind: ReportKind,
         date: Date,
+        notes: String?,
         completion: @escaping (Result<ReportExportResult, Error>) -> Void
     ) {
         do {
@@ -237,6 +272,10 @@ final class ReportService {
                     if case .marker(let marker) = item { return marker }
                     return nil
                 }
+                let markerSpans = timelineItems.compactMap { item -> MarkerSpanRow? in
+                    if case .markerSpan(let span) = item { return span }
+                    return nil
+                }
 
                 let stats = ReportStats(
                     totalSeconds: summary?.totalSeconds ?? 0,
@@ -250,9 +289,11 @@ final class ReportService {
                 let content = self.renderReport(
                     kind: kind,
                     date: date,
+                    notes: notes,
                     stats: stats,
                     activities: activities,
                     markers: markers,
+                    markerSpans: markerSpans,
                     tags: tags
                 )
 
@@ -320,9 +361,11 @@ final class ReportService {
     private func renderReport(
         kind: ReportKind,
         date: Date,
+        notes: String?,
         stats: ReportStats,
         activities: [ActivityRow],
         markers: [MarkerRow],
+        markerSpans: [MarkerSpanRow],
         tags: [TagRow]
     ) -> String {
         let template = templateText(for: kind)
@@ -347,6 +390,7 @@ final class ReportService {
             }
         )
         let markerList = markdownMarkerList(markers, kind: kind)
+        let markerSpanList = markdownMarkerSpanList(markerSpans, kind: kind)
         let bounds = rangeBounds(for: kind, date: date)
         let timelineBullets = markdownTimelineBullets(
             activities,
@@ -356,6 +400,7 @@ final class ReportService {
         )
         let weekId = Self.weekKey(for: date)
 
+        let trimmedNotes = notes?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let values: [String: String] = [
             "date": Self.dayKey(for: date),
             "week_id": weekId,
@@ -367,8 +412,10 @@ final class ReportService {
             "top_apps_table": topAppsTable,
             "top_tags_table": topTagsTable,
             "markers_list": markerList,
+            "marker_spans": markerSpanList,
             "timeline_bullets": timelineBullets,
-            "notes_placeholder": "Write notes here."
+            "notes": trimmedNotes,
+            "notes_placeholder": L("reports.notes_placeholder")
         ]
 
         return TemplateRenderer.render(template: template, values: values)
@@ -598,6 +645,33 @@ final class ReportService {
         }
     }
 
+    private func markdownMarkerSpanList(_ spans: [MarkerSpanRow], kind: ReportKind) -> String {
+        guard !spans.isEmpty else { return "- None" }
+        let sorted = spans.sorted { $0.startTime < $1.startTime }
+        let now = Int64(Date().timeIntervalSince1970)
+        switch kind {
+        case .daily:
+            return sorted.map { span in
+                let end = span.endTime ?? now
+                let range = span.endTime == nil
+                    ? "\(TimeFormatters.timeText(for: span.startTime, includeSeconds: false))–…"
+                    : TimeFormatters.timeRange(start: span.startTime, end: end)
+                let duration = TimeFormatters.durationText(start: span.startTime, end: end)
+                return "- \(range) (\(duration)) \(span.text)"
+            }.joined(separator: "\n")
+        case .weekly:
+            return sorted.map { span in
+                let end = span.endTime ?? now
+                let dateText = Self.dayKey(for: Date(timeIntervalSince1970: TimeInterval(span.startTime)))
+                let range = span.endTime == nil
+                    ? "\(TimeFormatters.timeText(for: span.startTime, includeSeconds: false))–…"
+                    : TimeFormatters.timeRange(start: span.startTime, end: end)
+                let duration = TimeFormatters.durationText(start: span.startTime, end: end)
+                return "- \(dateText) \(range) (\(duration)) \(span.text)"
+            }.joined(separator: "\n")
+        }
+    }
+
     private func markdownTimelineBullets(
         _ activities: [ActivityRow],
         tags: [TagRow],
@@ -663,6 +737,20 @@ final class ReportService {
         let start = interval?.start ?? date
         let end = (interval?.end ?? date).addingTimeInterval(-1)
         return "\(dayFormatter.string(from: start)) ~ \(dayFormatter.string(from: end))"
+    }
+
+    static func shouldAttemptAutoExport(
+        currentKey: String,
+        lastAttemptKey: String?,
+        lastExportedKey: String?
+    ) -> Bool {
+        if lastAttemptKey == currentKey {
+            return false
+        }
+        if lastExportedKey == currentKey {
+            return false
+        }
+        return true
     }
 
     private static let dayFormatter: DateFormatter = {

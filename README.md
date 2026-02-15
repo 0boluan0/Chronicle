@@ -11,15 +11,19 @@ Chronicle 是一个 macOS 菜单栏离线活动追踪应用。它将前台应用
 **EN**
 - Menu bar popover with Timeline/Stats and a separate Dashboard window (Timeline / Overview / Stats / Markers / Debug).
 - Foreground app tracking + idle detection; sessions, markers, tags, app mappings and raw events stored in SQLite.
+- Markers include point notes and interval sessions; hotkey ⌥⌘M opens quick marker entry.
 - Tagging supports rules, app mappings and manual overrides; stats and reports use effective tags.
 - Preferences: Apps mapping, Tags & Rules, and Export (CSV + Markdown daily/weekly reports with editable templates and security-scoped folder access).
+- Window title capture is optional and requires Accessibility permission (disabled by default).
 - Backend refactors (normalization, replay, maintenance, aggregation) are in progress; some areas may still be unstable or under active development.
 
 **中文**
 - 菜单栏弹窗包含 Timeline/Stats，另有独立 Dashboard 窗口（Timeline / Overview / Stats / Markers / Debug）。
 - 前台应用追踪 + Idle 检测；会话、标记、标签、App 映射与 Raw Events 存储在 SQLite 中。
+- 标记包含点标记与区间标记；快捷键 ⌥⌘M 可快速记录。
 - 标签系统支持规则、App 映射与手动覆盖；统计与导出使用“有效标签”。
 - 偏好设置包含 Apps 映射、Tags & Rules、Export（CSV 导出 + Markdown 日报/周报，模板可编辑，使用安全书签访问目录）。
+- 窗口标题采集为可选功能，需要辅助功能权限（默认关闭）。
 - 后端正在进行归一化/重放/维护/聚合等重构，部分功能仍在迭代中。
 
 ## Build & Run / 构建与运行
@@ -67,3 +71,19 @@ This project is under active development. Expect frequent changes and occasional
 
 **中文**
 本项目处于快速迭代阶段，后端重构期间可能出现不稳定或编译问题。
+
+## Release Checklist / 内测检查清单
+
+**EN**
+- Window titles are captured (when enabled) and written into Raw Events and Activities.
+- Auto-export does not retry within the same day/week after a failure; failures are visible in Export status.
+- Export UI has no obvious unlocalized strings in English/Chinese.
+- Menubar popover remembers the last selected tab.
+- No new database migrations are introduced.
+
+**中文**
+- 窗口标题采集开启后，已写入 Raw Events 与 Activities。
+- 自动导出失败后同一天/同一周不重复尝试，失败状态在导出页面可见。
+- 导出界面无明显未本地化字符串（中英文切换正常）。
+- 菜单栏弹窗会记住上次选中的标签页。
+- 未新增数据库迁移。

@@ -31,7 +31,8 @@ struct AggregationSummary: Equatable {
     let activeSeconds: Int64
     let idleSeconds: Int64
     let sessionsCount: Int
-    let markersCount: Int
+    let markerNotesCount: Int
+    let markerSessionsCount: Int
 }
 
 struct TopItem: Identifiable, Equatable {
@@ -72,6 +73,8 @@ final class AggregationService {
         self.db = database
     }
 
+    nonisolated deinit {}
+
     #if DEBUG
     static func makeTestInstance(database: DatabaseService) -> AggregationService {
         AggregationService(database: database)
@@ -109,6 +112,7 @@ final class AggregationService {
         let group = DispatchGroup()
         var activities: [ActivityRow] = []
         var markers: [MarkerRow] = []
+        var markerSpans: [MarkerSpanRow] = []
         var firstError: Error?
 
         group.enter()
@@ -133,6 +137,17 @@ final class AggregationService {
             group.leave()
         }
 
+        group.enter()
+        db.fetchMarkerSpansOverlappingRange(start: rangeStart, end: rangeEnd, limit: limit, offset: offset) { result in
+            switch result {
+            case .success(let rows):
+                markerSpans = rows
+            case .failure(let error):
+                firstError = error
+            }
+            group.leave()
+        }
+
         group.notify(queue: .global(qos: .userInitiated)) {
             if let firstError {
                 completion(.failure(firstError))
@@ -141,10 +156,12 @@ final class AggregationService {
 
             let filteredActivities = self.applyActivityFilters(activities, filters: filters)
             let filteredMarkers = self.applyMarkerFilters(markers, filters: filters)
+            let filteredMarkerSpans = self.applyMarkerSpanFilters(markerSpans, filters: filters)
 
             var items: [TimelineItem] = []
             items.append(contentsOf: filteredActivities.map { .activity($0) })
             items.append(contentsOf: filteredMarkers.map { .marker($0) })
+            items.append(contentsOf: filteredMarkerSpans.map { .markerSpan($0) })
             items.sort { $0.timestamp > $1.timestamp }
             completion(.success(items))
         }
@@ -166,6 +183,7 @@ final class AggregationService {
         let group = DispatchGroup()
         var activities: [ActivityRow] = []
         var markers: [MarkerRow] = []
+        var markerSpans: [MarkerSpanRow] = []
         var firstError: Error?
 
         group.enter()
@@ -184,6 +202,17 @@ final class AggregationService {
             switch result {
             case .success(let rows):
                 markers = rows
+            case .failure(let error):
+                firstError = error
+            }
+            group.leave()
+        }
+
+        group.enter()
+        db.fetchMarkerSpansOverlappingRange(start: rangeStart, end: rangeEnd) { result in
+            switch result {
+            case .success(let rows):
+                markerSpans = rows
             case .failure(let error):
                 firstError = error
             }
@@ -218,7 +247,8 @@ final class AggregationService {
                 activeSeconds: max(0, total - idle),
                 idleSeconds: idle,
                 sessionsCount: filteredActivities.count,
-                markersCount: self.applyMarkerFilters(markers, filters: filters).count
+                markerNotesCount: self.applyMarkerFilters(markers, filters: filters).count,
+                markerSessionsCount: self.applyMarkerSpanFilters(markerSpans, filters: filters).count
             )
             self.summaryCache[key] = self.cacheEntry(summary)
             completion(.success(summary))
@@ -852,6 +882,14 @@ final class AggregationService {
             return markers.filter { $0.text.lowercased().contains(query) }
         }
         return markers
+    }
+
+    private func applyMarkerSpanFilters(_ spans: [MarkerSpanRow], filters: AggregationFilters) -> [MarkerSpanRow] {
+        let query = filters.searchQuery?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if let query, !query.isEmpty {
+            return spans.filter { $0.text.lowercased().contains(query) }
+        }
+        return spans
     }
 
     private func splitDurationByDay(activity: ActivityRow, dayStarts: [Int64], daySeconds: Int64) -> [Int64] {

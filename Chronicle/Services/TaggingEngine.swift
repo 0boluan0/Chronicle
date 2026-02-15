@@ -27,6 +27,11 @@ struct TaggingEngine {
             if lhs.priority != rhs.priority {
                 return lhs.priority > rhs.priority
             }
+            let lhsSpecificity = specificityScore(for: lhs)
+            let rhsSpecificity = specificityScore(for: rhs)
+            if lhsSpecificity != rhsSpecificity {
+                return lhsSpecificity > rhsSpecificity
+            }
             return lhs.id < rhs.id
         }
 
@@ -70,5 +75,17 @@ struct TaggingEngine {
 
     private static func trimmed(_ value: String?) -> String? {
         value?.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func specificityScore(for rule: RuleRow) -> Int {
+        let hasBundleMatch = !(trimmed(rule.matchBundleId)?.isEmpty ?? true)
+        let hasAppMatch = !(trimmed(rule.matchAppName)?.isEmpty ?? true)
+        let hasTitleMatch = !(trimmed(rule.matchWindowTitle)?.isEmpty ?? true)
+
+        var score = hasBundleMatch ? 4 : (hasAppMatch ? 2 : 0)
+        if hasTitleMatch {
+            score += 1
+        }
+        return score
     }
 }

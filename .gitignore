@@ -2,3 +2,15 @@ build/
 dist/
 DerivedData/
 *.dmg
+ops/ai-pipeline/baseline/runs/*.log
+!ops/ai-pipeline/baseline/runs/.gitkeep
+ops/ai-pipeline/dispatch/runs/*.log
+ops/ai-pipeline/dispatch/runs/prompt-*.txt
+!ops/ai-pipeline/dispatch/runs/.gitkeep
+ops/ai-pipeline/runtime/events/*.jsonl
+ops/ai-pipeline/runtime/inbox/dispatch-*.json
+ops/ai-pipeline/runtime/outbox/ai1-result-*.json
+ops/ai-pipeline/runtime/pids/*.pid
+ops/ai-pipeline/runtime/logs/*.log
+ops/ai-pipeline/runtime/logs/*.md
+ops/ai-pipeline/runtime/heartbeat/*.json

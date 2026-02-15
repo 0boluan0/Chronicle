@@ -16,6 +16,16 @@
 		A051CF4E0893D9D5BA0EA350 /* basic_switching.json in Resources */ = {isa = PBXBuildFile; fileRef = 1E4F79882FAFED45F764308D /* basic_switching.json */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		4ACF265A02A243219AC8F2E2 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 2F8300312F1646840023E02F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2F8300382F1646840023E02F;
+			remoteInfo = Chronicle;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		0B8F4AEC54EDB2BCA1EB4DC5 /* cross_midnight.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = cross_midnight.json; sourceTree = "<group>"; };
 		1203C189604D52C40C167A2E /* ChronicleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChronicleTests.swift; sourceTree = "<group>"; };
@@ -130,6 +140,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				76A7C31A52A64DD08C63D29A /* PBXTargetDependency */,
 			);
 			name = ChronicleTests;
 			productName = ChronicleTests;
@@ -197,6 +208,14 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		76A7C31A52A64DD08C63D29A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 2F8300382F1646840023E02F /* Chronicle */;
+			targetProxy = 4ACF265A02A243219AC8F2E2 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXSourcesBuildPhase section */
 		2F8300352F1646840023E02F /* Sources */ = {

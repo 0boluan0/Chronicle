@@ -13,16 +13,14 @@ struct TimelineView: View {
 
     @State private var activities: [ActivityRow] = []
     @State private var markers: [MarkerRow] = []
+    @State private var markerSpans: [MarkerSpanRow] = []
     @State private var tags: [TagRow] = []
     @State private var timelineItems: [TimelineItem] = []
     @State private var isLoading = false
     @State private var showDebugDetails = false
-    @State private var markerText = ""
     @State private var hasFetchedOnAppear = false
     @State private var lastRefresh: Date?
     @State private var debugEvents: [String] = []
-    @State private var lastMarkerSubmitAt: Date?
-    @FocusState private var isMarkerFocused: Bool
 
     private let untaggedFilterValue: Int64 = -2
 
@@ -95,7 +93,7 @@ struct TimelineView: View {
                 Image(systemName: "chevron.left")
             }
             .buttonStyle(.borderless)
-            .accessibilityLabel("Previous day")
+            .accessibilityLabel(L("dashboard.stats.previous_day"))
 
             DatePicker("", selection: $appState.selectedDate, displayedComponents: .date)
                 .labelsHidden()
@@ -107,7 +105,7 @@ struct TimelineView: View {
                 Image(systemName: "chevron.right")
             }
             .buttonStyle(.borderless)
-            .accessibilityLabel("Next day")
+            .accessibilityLabel(L("dashboard.stats.next_day"))
             .disabled(isTodaySelected)
 
             Button("Today") {
@@ -120,24 +118,12 @@ struct TimelineView: View {
 
     private var markerEntryView: some View {
         SectionCard {
-            HStack(spacing: DesignSystem.Spacing.sm) {
-                Image(systemName: "pin")
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-
-                TextField("Add marker", text: $markerText)
-                    .textFieldStyle(.roundedBorder)
-                    .focused($isMarkerFocused)
-                    .onSubmit {
-                        addMarker()
-                    }
-
-                Button("Add") {
-                    addMarker()
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(DesignSystem.Colors.accentSkyBlue)
-                .disabled(markerText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            }
+            QuickMarkerEntryView(
+                timestampProvider: { markerTimestampDate() },
+                autoFocus: false,
+                onSubmit: { refreshTimeline(reason: "marker entry") },
+                onCancel: nil
+            )
         }
     }
 
@@ -168,6 +154,11 @@ struct TimelineView: View {
                                     MarkerRowView(marker: marker)
                                         .contextMenu {
                                             markerContextMenu(for: marker)
+                                        }
+                                case .markerSpan(let span):
+                                    MarkerSpanRowView(span: span)
+                                        .contextMenu {
+                                            markerSpanContextMenu(for: span)
                                         }
                                 }
                             }
@@ -311,6 +302,17 @@ struct TimelineView: View {
                     return true
                 }
                 return marker.text.lowercased().contains(search)
+            case .markerSpan(let span):
+                if appState.selectedAppFilterName != "All Apps" {
+                    return false
+                }
+                if appState.selectedTagFilterId == untaggedFilterValue || appState.selectedTagFilterId >= 0 {
+                    return false
+                }
+                if search.isEmpty {
+                    return true
+                }
+                return span.text.lowercased().contains(search)
             }
         }
     }
@@ -329,17 +331,7 @@ struct TimelineView: View {
         }
     }
 
-    private func addMarker() {
-        let trimmed = markerText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            return
-        }
-        if let lastSubmit = lastMarkerSubmitAt,
-           Date().timeIntervalSince(lastSubmit) < 0.6 {
-            return
-        }
-        lastMarkerSubmitAt = Date()
-
+    private func markerTimestampDate() -> Date {
         let now = Date()
         let calendar = Calendar.current
         let timeParts = calendar.dateComponents([.hour, .minute, .second], from: now)
@@ -351,31 +343,7 @@ struct TimelineView: View {
         combined.hour = timeParts.hour
         combined.minute = timeParts.minute
         combined.second = timeParts.second
-        let timestampDate = calendar.date(from: combined) ?? now
-        let timestamp = Int64(timestampDate.timeIntervalSince1970)
-        updateUI {
-            isLoading = true
-        }
-
-        DatabaseService.shared.insertMarker(timestamp: timestamp, text: trimmed) { result in
-            switch result {
-            case .success:
-                self.addDebugEvent("Marker inserted")
-                self.updateUI {
-                    self.markerText = ""
-                    self.isMarkerFocused = false
-                }
-                self.refreshTimeline(reason: "marker inserted")
-            case .failure(let error):
-                let message = "Marker insert failed: \(error.localizedDescription)"
-                self.addDebugEvent(message)
-                self.updateUI {
-                    self.isLoading = false
-                    self.appState.lastDbErrorMessage = message
-                    self.isMarkerFocused = false
-                }
-            }
-        }
+        return calendar.date(from: combined) ?? now
     }
 
     private func refreshTimeline(reason: String) {
@@ -426,6 +394,7 @@ struct TimelineView: View {
             self.timelineItems = newItems
             self.activities = newItems.compactMap { if case .activity(let a) = $0 { return a }; return nil }
             self.markers = newItems.compactMap { if case .marker(let m) = $0 { return m }; return nil }
+            self.markerSpans = newItems.compactMap { if case .markerSpan(let s) = $0 { return s }; return nil }
             self.tags = newTags
             self.isLoading = false
             self.lastRefresh = Date()
@@ -475,6 +444,17 @@ struct TimelineView: View {
         NSPasteboard.general.setString(text, forType: .string)
     }
 
+    private func copyMarkerSpanDetails(_ span: MarkerSpanRow) {
+        let end = span.endTime ?? Int64(Date().timeIntervalSince1970)
+        let range = TimeFormatters.timeRange(start: span.startTime, end: end)
+        let duration = TimeFormatters.durationText(start: span.startTime, end: end)
+        let ongoingLabel = L("marker.span.ongoing")
+        let status = span.endTime == nil ? " (\(ongoingLabel))" : ""
+        let text = "\(range) (\(duration))\(status)\n\(span.text)"
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+    }
+
 
     private var tagLookup: [Int64: TagRow] {
         Dictionary(uniqueKeysWithValues: tags.map { ($0.id, $0) })
@@ -506,6 +486,13 @@ struct TimelineView: View {
     private func markerContextMenu(for marker: MarkerRow) -> some View {
         Button(L("status.copy_details")) {
             copyMarkerDetails(marker)
+        }
+    }
+
+    @ViewBuilder
+    private func markerSpanContextMenu(for span: MarkerSpanRow) -> some View {
+        Button(L("status.copy_details")) {
+            copyMarkerSpanDetails(span)
         }
     }
 

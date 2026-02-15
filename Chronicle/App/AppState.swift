@@ -8,6 +8,21 @@
 import Combine
 import Foundation
 
+enum QuickMarkerMode: String, CaseIterable, Identifiable {
+    case point
+    case interval
+
+    var id: String { rawValue }
+}
+
+enum QuickMarkerAction: String, CaseIterable, Identifiable {
+    case toggle
+    case start
+    case stop
+
+    var id: String { rawValue }
+}
+
 final class AppState: ObservableObject {
     static let shared = AppState()
 
@@ -56,6 +71,21 @@ final class AppState: ObservableObject {
     }
     @Published var ignoreChronicleSelf: Bool {
         didSet { defaults.set(ignoreChronicleSelf, forKey: Keys.ignoreChronicleSelf) }
+    }
+    @Published var windowTitleCaptureEnabled: Bool {
+        didSet { defaults.set(windowTitleCaptureEnabled, forKey: Keys.windowTitleCaptureEnabled) }
+    }
+    @Published var accessibilityAuthorized: Bool {
+        didSet { defaults.set(accessibilityAuthorized, forKey: Keys.accessibilityAuthorized) }
+    }
+    @Published var quickMarkerMode: QuickMarkerMode {
+        didSet { defaults.set(quickMarkerMode.rawValue, forKey: Keys.quickMarkerMode) }
+    }
+    @Published var quickMarkerAction: QuickMarkerAction {
+        didSet { defaults.set(quickMarkerAction.rawValue, forKey: Keys.quickMarkerAction) }
+    }
+    @Published var quickMarkerLastText: String? {
+        didSet { defaults.set(quickMarkerLastText, forKey: Keys.quickMarkerLastText) }
     }
     @Published var launchAtLoginEnabled: Bool {
         didSet { defaults.set(launchAtLoginEnabled, forKey: Keys.launchAtLoginEnabled) }
@@ -110,10 +140,17 @@ final class AppState: ObservableObject {
     @Published var exportNowMessageIsError: Bool = false
     let launchDate = Date()
 
-    private let defaults = UserDefaults.standard
+    private let defaults: UserDefaults
 
-    private init() {
+    private convenience init() {
+        self.init(defaults: .standard)
+    }
+
+    private init(defaults: UserDefaults) {
+        self.defaults = defaults
         ignoreChronicleSelf = defaults.object(forKey: Keys.ignoreChronicleSelf) as? Bool ?? true
+        windowTitleCaptureEnabled = defaults.object(forKey: Keys.windowTitleCaptureEnabled) as? Bool ?? Self.defaultWindowTitleCaptureEnabled
+        accessibilityAuthorized = defaults.object(forKey: Keys.accessibilityAuthorized) as? Bool ?? false
         launchAtLoginEnabled = defaults.object(forKey: Keys.launchAtLoginEnabled) as? Bool ?? false
         trackingAggregationEnabled = defaults.object(forKey: Keys.trackingAggregationEnabled) as? Bool ?? true
         minSessionDurationSeconds = defaults.object(forKey: Keys.minSessionDurationSeconds) as? Int ?? 5
@@ -152,10 +189,30 @@ final class AppState: ObservableObject {
         } else {
             debugLoggingEnabled = Self.defaultDebugLoggingEnabled
         }
+        if let storedMode = defaults.string(forKey: Keys.quickMarkerMode),
+           let mode = QuickMarkerMode(rawValue: storedMode) {
+            quickMarkerMode = mode
+        } else {
+            quickMarkerMode = .point
+        }
+        if let storedAction = defaults.string(forKey: Keys.quickMarkerAction),
+           let action = QuickMarkerAction(rawValue: storedAction) {
+            quickMarkerAction = action
+        } else {
+            quickMarkerAction = .toggle
+        }
+        quickMarkerLastText = defaults.string(forKey: Keys.quickMarkerLastText)
     }
+
+    nonisolated deinit {}
 
     private enum Keys {
         static let ignoreChronicleSelf = "settings.ignoreChronicleSelf"
+        static let windowTitleCaptureEnabled = "settings.windowTitleCaptureEnabled"
+        static let accessibilityAuthorized = "settings.accessibilityAuthorized"
+        static let quickMarkerMode = "settings.quickMarkerMode"
+        static let quickMarkerAction = "settings.quickMarkerAction"
+        static let quickMarkerLastText = "settings.quickMarkerLastText"
         static let launchAtLoginEnabled = "settings.launchAtLoginEnabled"
         static let trackingAggregationEnabled = "settings.trackingAggregationEnabled"
         static let minSessionDurationSeconds = "settings.minSessionDurationSeconds"
@@ -183,6 +240,8 @@ final class AppState: ObservableObject {
         static let debugLoggingEnabled = "settings.debugLoggingEnabled"
     }
 
+    static let defaultWindowTitleCaptureEnabled = false
+
     private static var defaultDebugLoggingEnabled: Bool {
 #if DEBUG
         return true
@@ -207,5 +266,9 @@ final class AppState: ObservableObject {
             "com.microsoft.teams",
             "com.microsoft.teams2"
         ]
+    }
+
+    static func makeTestInstance(defaults: UserDefaults) -> AppState {
+        AppState(defaults: defaults)
     }
 }
