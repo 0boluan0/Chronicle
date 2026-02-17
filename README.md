@@ -26,8 +26,7 @@
   <a href="#download">Download</a> ·
   <a href="#features">Features</a> ·
   <a href="#privacy--data">Privacy &amp; Data</a> ·
-  <a href="#build--test">Build</a> ·
-  <a href="#release-dmg">Release</a>
+  <a href="#build--test">Build</a>
 </p>
 
 <details>
@@ -68,16 +67,6 @@
 - Select the `Chronicle` scheme and Run.
 - Run tests:
   - `xcodebuild -project Chronicle.xcodeproj -scheme Chronicle -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO test`
-
-## Release (DMG)
-
-- Build a DMG locally:
-  - `scripts/build_dmg.sh` (outputs to `dist/`)
-- Build + publish on GitHub:
-  - Push a tag like `v1.0.2` to trigger the `Release DMG` workflow.
-  - You can also run the workflow manually and upload to an existing tag via `workflow_dispatch`.
-- Optional local code signing (no notarization):
-  - `CODESIGN_IDENTITY='Developer ID Application: Your Name (TEAMID)' scripts/build_dmg.sh`
 
 ## Current Status
 
