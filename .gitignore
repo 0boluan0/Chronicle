@@ -13,7 +13,11 @@ ops/ai-pipeline/runtime/outbox/ai1-result-*.json
 ops/ai-pipeline/runtime/pids/*.pid
 ops/ai-pipeline/runtime/logs/*.log
 ops/ai-pipeline/runtime/logs/*.md
+ops/ai-pipeline/runtime/logs/*
+!ops/ai-pipeline/runtime/logs/.gitkeep
 ops/ai-pipeline/runtime/heartbeat/*.json
 ops/ai-pipeline/runtime/locks/*.lock
 ops/ai-pipeline/runtime/state.yaml
 ops/ai-pipeline/reports/orchestrator-final-summary.md
+
+build-dmg-*/
