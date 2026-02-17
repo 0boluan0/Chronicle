@@ -15,7 +15,7 @@ xcodebuild \
   -project "${PROJECT_PATH}" \
   -scheme "${SCHEME}" \
   -configuration "${CONFIGURATION}" \
-  -destination "platform=macOS" \
+  -destination "generic/platform=macOS" \
   -derivedDataPath "${DERIVED_DATA}" \
   CODE_SIGNING_ALLOWED=NO \
   build
