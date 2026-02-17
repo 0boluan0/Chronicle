@@ -11,6 +11,7 @@ struct DashboardView: View {
     enum Section: String, Identifiable {
         case timeline
         case overview
+        case markers
         case stats
 #if DEBUG
         case debug
@@ -24,6 +25,8 @@ struct DashboardView: View {
                 return "dashboard.timeline"
             case .overview:
                 return "dashboard.overview"
+            case .markers:
+                return "dashboard.markers"
             case .stats:
                 return "dashboard.stats"
 #if DEBUG
@@ -39,6 +42,8 @@ struct DashboardView: View {
                 return "clock"
             case .overview:
                 return "rectangle.3.group"
+            case .markers:
+                return "bookmark"
             case .stats:
                 return "chart.bar"
 #if DEBUG
@@ -49,7 +54,7 @@ struct DashboardView: View {
         }
 
         static var allCases: [Section] {
-            var sections: [Section] = [.timeline, .overview, .stats]
+            var sections: [Section] = [.timeline, .overview, .markers, .stats]
 #if DEBUG
             sections.append(.debug)
 #endif
@@ -61,9 +66,6 @@ struct DashboardView: View {
 
     private var selectedSection: Section {
         get {
-            if selectedSectionRaw == "markers" {
-                return .overview
-            }
             let candidate = Section(rawValue: selectedSectionRaw) ?? .timeline
             if Section.allCases.contains(candidate) {
                 return candidate
@@ -111,6 +113,8 @@ struct DashboardView: View {
             DashboardTimelineView()
         case .overview:
             DashboardOverviewView()
+        case .markers:
+            DashboardMarkersView()
         case .stats:
             DashboardStatsView()
 #if DEBUG

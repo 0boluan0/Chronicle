@@ -4,9 +4,38 @@
 "menu.open" = "Open";
 "menu.open_dashboard" = "Open Statistics";
 "menu.preferences" = "Preferences…";
+"menu.welcome" = "Welcome…";
 "menu.export_now" = "Export Now";
 "menu.exporting" = "Exporting…";
 "menu.quit" = "Quit";
+
+"popover.open_dashboard" = "Open Dashboard";
+"popover.open_preferences" = "Preferences";
+
+"actions.next" = "Next";
+"actions.back" = "Back";
+"actions.skip" = "Skip";
+"actions.open_preferences" = "Open Preferences";
+"actions.close" = "Close";
+
+"onboarding.title" = "Welcome";
+"onboarding.step" = "Step %d of %d";
+"onboarding.welcome.title" = "Welcome";
+"onboarding.welcome.body" = "Let’s set up permissions and a few convenience options. You can change everything later in Preferences.";
+"onboarding.welcome.item.timeline" = "View today’s Timeline and Stats";
+"onboarding.welcome.item.markers" = "Add quick markers (⌥⌘M)";
+"onboarding.welcome.item.reports" = "Export CSV and Markdown reports";
+"onboarding.permissions.title" = "Permissions";
+"onboarding.permissions.body" = "Window title capture is optional, but improves tagging and search. It requires Accessibility permission.";
+"onboarding.permissions.authorized" = "Accessibility permission granted";
+"onboarding.convenience.title" = "Convenience";
+"onboarding.convenience.body" = "Optional settings to make Chronicle run seamlessly in the background.";
+"onboarding.convenience.hotkey" = "Quick Marker hotkey: ⌥⌘M";
+"onboarding.convenience.try_quick_marker" = "Try Quick Marker";
+"onboarding.finish.title" = "Finish";
+"onboarding.finish.body" = "You’re all set.";
+"onboarding.finish.hint" = "Tip: Right-click the menu bar icon for Dashboard, Preferences, and Export.";
+"onboarding.finish.start" = "Start Using Chronicle";
 
 "export.now.success" = "Exported: %@";
 "export.now.failed" = "Export failed: %@";
@@ -25,6 +54,7 @@
 "preferences.export" = "Export";
 "preferences.apps" = "Apps";
 "preferences.tags_rules" = "Tags & Rules";
+"preferences.app_mappings" = "App Mappings";
 "preferences.privacy" = "Privacy";
 "preferences.debug" = "Debug";
 
@@ -168,6 +198,16 @@
 "reports.csv.title" = "CSV Export";
 "reports.daily.title" = "Daily Markdown";
 "reports.weekly.title" = "Weekly Markdown";
+"reports.preview" = "Preview";
+"reports.copy" = "Copy";
+"reports.preview.loading" = "Generating preview…";
+"reports.preview.empty" = "No preview content.";
+"reports.preview.failed" = "Preview failed";
+"reports.preview.title.daily" = "Daily Preview — %@";
+"reports.preview.title.weekly" = "Weekly Preview — %@";
+"reports.template_variables.title" = "Template variables";
+"reports.template_variables.daily" = "Use `{{variable}}` placeholders in the template:\\n\\n- {{date}}\\n- {{total_time}} / {{active_time}} / {{idle_time}}\\n- {{sessions_count}}\\n- {{top_apps_table}} / {{top_tags_table}}\\n- {{markers_list}} / {{marker_spans}}\\n- {{timeline_bullets}}\\n- {{notes}}";
+"reports.template_variables.weekly" = "Use `{{variable}}` placeholders in the template:\\n\\n- {{week_range}} / {{week_id}}\\n- {{total_time}} / {{active_time}} / {{idle_time}}\\n- {{top_apps_table}} / {{top_tags_table}}\\n- {{markers_list}} / {{marker_spans}}\\n- {{notes}}";
 "reports.folder.label" = "Folder: %@";
 "reports.open_folder" = "Open Folder";
 "reports.overwrite_existing" = "Overwrite existing";

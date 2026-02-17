@@ -19,9 +19,29 @@ struct ContentView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            Text(LocalizedStringKey("app.name"))
-                .font(DesignSystem.Typography.title)
-                .foregroundColor(DesignSystem.Colors.primaryText)
+            HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+                Text(LocalizedStringKey("app.name"))
+                    .font(DesignSystem.Typography.title)
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+
+                Spacer()
+
+                Button {
+                    DashboardWindowController.shared.show()
+                } label: {
+                    Label(LocalizedStringKey("popover.open_dashboard"), systemImage: "rectangle.3.group")
+                        .labelStyle(.titleAndIcon)
+                }
+                .buttonStyle(.bordered)
+
+                Button {
+                    PreferencesWindowController.shared.show()
+                } label: {
+                    Label(LocalizedStringKey("popover.open_preferences"), systemImage: "gearshape")
+                        .labelStyle(.titleAndIcon)
+                }
+                .buttonStyle(.bordered)
+            }
 
             exportStatusView
 
@@ -37,9 +57,9 @@ struct ContentView: View {
             Group {
                 switch selectedTab {
                 case .timeline:
-                    TimelineView()
+                    TimelineView(embedInPopover: true)
                 case .stats:
-                    StatsView()
+                    StatsView(embedInPopover: true)
                 }
             }
         }

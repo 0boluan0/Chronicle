@@ -18,6 +18,12 @@ struct DashboardReportsView: View {
     @State private var dailyStatus: StatusMessage?
     @State private var weeklyStatus: StatusMessage?
     @State private var csvStatus: StatusMessage?
+    @State private var previewKind: ReportKind?
+    @State private var previewTitle: String = ""
+    @State private var previewContent: String = ""
+    @State private var previewError: String?
+    @State private var isPreviewLoading: Bool = false
+    @State private var showPreviewSheet: Bool = false
     @State private var csvRangeMode: CSVRangeMode = .day
     @State private var customStartDate = Date()
     @State private var customEndDate = Date()
@@ -41,6 +47,9 @@ struct DashboardReportsView: View {
         .onChange(of: appState.dateRangeMode) { _, newValue in
             syncCsvRange(with: newValue)
         }
+        .sheet(isPresented: $showPreviewSheet) {
+            previewSheet
+        }
     }
 
     private var reportsContent: some View {
@@ -60,14 +69,8 @@ struct DashboardReportsView: View {
     }
 
     private var csvSection: some View {
-        GroupBox {
+        SectionCard(title: "reports.csv.title") {
             VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Text(L("reports.csv.title"))
-                        .font(.headline)
-                    Spacer()
-                }
-
                 Text(String(format: L("reports.folder.label"), settings.csvFolderDisplayPath))
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -151,14 +154,8 @@ struct DashboardReportsView: View {
     }
 
     private var dailySection: some View {
-        GroupBox {
+        SectionCard(title: "reports.daily.title") {
             VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Text(L("reports.daily.title"))
-                        .font(.headline)
-                    Spacer()
-                }
-
                 Text(String(format: L("reports.folder.label"), settings.dailyFolderDisplayPath))
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -200,6 +197,8 @@ struct DashboardReportsView: View {
                             .stroke(Color.gray.opacity(0.2), lineWidth: 1)
                     )
 
+                templateVariablesDisclosure(kind: .daily)
+
                 VStack(alignment: .leading, spacing: 6) {
                     Text(L("reports.notes.label"))
                         .font(.caption)
@@ -219,6 +218,11 @@ struct DashboardReportsView: View {
                     .buttonStyle(.bordered)
 
                     Spacer()
+
+                    Button(L("reports.preview")) {
+                        previewDaily(date: appState.selectedDate)
+                    }
+                    .buttonStyle(.bordered)
 
                     Button(L("reports.daily.generate_selected")) {
                         generateDaily(date: appState.selectedDate)
@@ -256,14 +260,8 @@ struct DashboardReportsView: View {
     }
 
     private var weeklySection: some View {
-        GroupBox {
+        SectionCard(title: "reports.weekly.title") {
             VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Text(L("reports.weekly.title"))
-                        .font(.headline)
-                    Spacer()
-                }
-
                 Text(String(format: L("reports.folder.label"), settings.weeklyFolderDisplayPath))
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -305,6 +303,8 @@ struct DashboardReportsView: View {
                             .stroke(Color.gray.opacity(0.2), lineWidth: 1)
                     )
 
+                templateVariablesDisclosure(kind: .weekly)
+
                 VStack(alignment: .leading, spacing: 6) {
                     Text(L("reports.notes.label"))
                         .font(.caption)
@@ -324,6 +324,11 @@ struct DashboardReportsView: View {
                     .buttonStyle(.bordered)
 
                     Spacer()
+
+                    Button(L("reports.preview")) {
+                        previewWeekly(date: appState.selectedDate)
+                    }
+                    .buttonStyle(.bordered)
 
                     Button(L("reports.weekly.generate_selected")) {
                         generateWeekly(date: appState.selectedDate)
@@ -360,6 +365,83 @@ struct DashboardReportsView: View {
         }
     }
 
+    private static let previewDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.calendar = .current
+        formatter.locale = .current
+        formatter.timeZone = .current
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }()
+
+    private func templateVariablesDisclosure(kind: ReportKind) -> some View {
+        DisclosureGroup(L("reports.template_variables.title")) {
+            Text(kind == .daily ? "reports.template_variables.daily" : "reports.template_variables.weekly")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 4)
+        }
+        .font(.caption)
+    }
+
+    private func previewDaily(date: Date) {
+        let day = Self.previewDateFormatter.string(from: date)
+        beginPreview(kind: .daily, title: String(format: L("reports.preview.title.daily"), day))
+        ReportService.shared.previewDailyReport(date: date, notes: dailyNotes) { result in
+            DispatchQueue.main.async {
+                finishPreview(result: result)
+            }
+        }
+    }
+
+    private func previewWeekly(date: Date) {
+        let day = Self.previewDateFormatter.string(from: date)
+        beginPreview(kind: .weekly, title: String(format: L("reports.preview.title.weekly"), day))
+        ReportService.shared.previewWeeklyReport(for: date, notes: weeklyNotes) { result in
+            DispatchQueue.main.async {
+                finishPreview(result: result)
+            }
+        }
+    }
+
+    private func beginPreview(kind: ReportKind, title: String) {
+        previewKind = kind
+        previewTitle = title
+        previewContent = ""
+        previewError = nil
+        isPreviewLoading = true
+        showPreviewSheet = true
+    }
+
+    private func finishPreview(result: Result<String, Error>) {
+        isPreviewLoading = false
+        switch result {
+        case .success(let content):
+            previewContent = content
+        case .failure(let error):
+            previewError = error.localizedDescription
+        }
+    }
+
+    private func copyPreviewToClipboard() {
+        let value = previewContent
+        guard !value.isEmpty else { return }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(value, forType: .string)
+    }
+
+    private var previewSheet: some View {
+        ReportPreviewSheet(
+            title: previewTitle,
+            isLoading: isPreviewLoading,
+            content: previewContent,
+            error: previewError,
+            onCopy: copyPreviewToClipboard
+        )
+    }
+
     private func generateDaily(date: Date) {
         dailyStatus = StatusMessage(text: L("reports.status.generating"), isError: false)
         ReportService.shared.generateDailyReport(date: date, notes: dailyNotes) { result in
@@ -393,6 +475,60 @@ struct DashboardReportsView: View {
                     settings.recordExportResult(kind: .weekly, message: message, isError: true)
                 }
             }
+        }
+    }
+
+    private struct ReportPreviewSheet: View {
+        let title: String
+        let isLoading: Bool
+        let content: String
+        let error: String?
+        let onCopy: () -> Void
+
+        @Environment(\.dismiss) private var dismiss
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 8) {
+                    Text(title)
+                        .font(.headline)
+                    if isLoading {
+                        ProgressView()
+                            .controlSize(.small)
+                    }
+                    Spacer()
+                    Button(L("reports.copy")) {
+                        onCopy()
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(content.isEmpty)
+
+                    Button(L("actions.close")) {
+                        dismiss()
+                    }
+                    .buttonStyle(.bordered)
+                }
+
+                Divider()
+
+                if let error {
+                    ErrorStateView(title: L("reports.preview.failed"), message: error)
+                } else if content.isEmpty && isLoading {
+                    EmptyStateView(title: L("reports.preview.loading"))
+                } else if content.isEmpty {
+                    EmptyStateView(title: L("reports.preview.empty"))
+                } else {
+                    ScrollView {
+                        Text(content)
+                            .font(.system(size: 12, design: .monospaced))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .textSelection(.enabled)
+                            .padding(.bottom, 8)
+                    }
+                }
+            }
+            .padding(20)
+            .frame(minWidth: 760, minHeight: 560)
         }
     }
 

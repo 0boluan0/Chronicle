@@ -126,46 +126,16 @@ struct DashboardOverviewView: View {
     }
 
     private var headerView: some View {
-        HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Overview")
-                    .font(.title2.weight(.semibold))
-                Text(Self.dateFormatter.string(from: appState.selectedDate))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-
-            if isLoading {
-                ProgressView()
-                    .controlSize(.small)
-            }
-
-            Spacer()
-
-            Button {
-                shiftDate(by: -1)
-            } label: {
-                Image(systemName: "chevron.left")
-            }
-            .buttonStyle(.borderless)
-
-            DatePicker("", selection: $appState.selectedDate, displayedComponents: .date)
-                .labelsHidden()
-                .datePickerStyle(.compact)
-
-            Button {
-                shiftDate(by: 1)
-            } label: {
-                Image(systemName: "chevron.right")
-            }
-            .buttonStyle(.borderless)
-            .disabled(isTodaySelected)
-
-            Button("Today") {
-                appState.selectedDate = Date()
-            }
-            .buttonStyle(.bordered)
-        }
+        DateNavigationHeader(
+            title: "dashboard.overview",
+            subtitle: Self.dateFormatter.string(from: appState.selectedDate),
+            selectedDate: $appState.selectedDate,
+            isLoading: isLoading,
+            isTodaySelected: isTodaySelected,
+            onPreviousDay: { shiftDate(by: -1) },
+            onNextDay: { shiftDate(by: 1) },
+            onToday: { appState.selectedDate = Date() }
+        )
     }
 
     private var controlsView: some View {

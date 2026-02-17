@@ -11,6 +11,8 @@ import SwiftUI
 struct StatsView: View {
     @EnvironmentObject private var appState: AppState
 
+    let embedInPopover: Bool
+
     @State private var summary = SummaryMetrics.zero
     @State private var topApps: [AppDuration] = []
     @State private var topTags: [TagDuration] = []
@@ -21,6 +23,10 @@ struct StatsView: View {
     @State private var recentMarkerSpans: [MarkerSpanRow] = []
     @State private var isLoading = false
     @State private var lastRefresh: Date?
+
+    init(embedInPopover: Bool = false) {
+        self.embedInPopover = embedInPopover
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
@@ -67,7 +73,7 @@ struct StatsView: View {
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .padding(DesignSystem.Spacing.lg)
+        .padding(embedInPopover ? 0 : DesignSystem.Spacing.lg)
         .onAppear {
             refreshStats(reason: "popover opened")
         }

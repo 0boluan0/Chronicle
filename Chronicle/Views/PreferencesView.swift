@@ -659,10 +659,48 @@ private struct AllowlistItem: Identifiable {
 }
 
 private struct TagsPreferencesView: View {
+    private enum Subsection: String, CaseIterable, Identifiable {
+        case tagsRules
+        case appMappings
+
+        var id: String { rawValue }
+
+        var titleKey: LocalizedStringKey {
+            switch self {
+            case .tagsRules:
+                return "preferences.tags_rules"
+            case .appMappings:
+                return "preferences.app_mappings"
+            }
+        }
+    }
+
+    @State private var selection: Subsection = .tagsRules
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            TagsRulesView()
-            AppMappingsView()
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
+            Text("preferences.tags")
+                .font(.title2.weight(.semibold))
+
+            Picker("Section", selection: $selection) {
+                ForEach(Subsection.allCases) { subsection in
+                    Text(subsection.titleKey).tag(subsection)
+                }
+            }
+            .pickerStyle(.segmented)
+            .tint(DesignSystem.Colors.accentSkyBlue)
+            .frame(width: 360)
+
+            Divider()
+
+            Group {
+                switch selection {
+                case .tagsRules:
+                    TagsRulesView(showHeader: false)
+                case .appMappings:
+                    AppMappingsView(showHeader: false)
+                }
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

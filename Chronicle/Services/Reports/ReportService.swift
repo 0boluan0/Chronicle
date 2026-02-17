@@ -46,6 +46,26 @@ final class ReportService {
         }
     }
 
+    func previewDailyReport(
+        date: Date,
+        notes: String? = nil,
+        completion: @escaping (Result<String, Error>) -> Void
+    ) {
+        queue.async {
+            self.buildReportContent(kind: .daily, date: date, notes: notes, completion: completion)
+        }
+    }
+
+    func previewWeeklyReport(
+        for date: Date,
+        notes: String? = nil,
+        completion: @escaping (Result<String, Error>) -> Void
+    ) {
+        queue.async {
+            self.buildReportContent(kind: .weekly, date: date, notes: notes, completion: completion)
+        }
+    }
+
     func autoExportIfNeeded(currentDate: Date) {
         if settings.enableAutoDailyExport {
             let dayKey = Self.dayKey(for: currentDate)
@@ -96,61 +116,57 @@ final class ReportService {
 
     func exportCSV(range: CSVExportRange, completion: @escaping (Result<ReportExportResult, Error>) -> Void) {
         queue.async {
-            do {
-                let bounds = range.bounds
-                let group = DispatchGroup()
-                var activities: [ActivityRow] = []
-                var tags: [TagRow] = []
-                var fetchError: Error?
+            let bounds = range.bounds
+            let group = DispatchGroup()
+            var activities: [ActivityRow] = []
+            var tags: [TagRow] = []
+            var fetchError: Error?
 
-                group.enter()
-                DatabaseService.shared.fetchActivitiesOverlappingRange(start: bounds.start, end: bounds.end) { result in
-                    switch result {
-                    case .success(let rows):
-                        activities = rows
-                    case .failure(let error):
-                        fetchError = error
-                    }
-                    group.leave()
+            group.enter()
+            DatabaseService.shared.fetchActivitiesOverlappingRange(start: bounds.start, end: bounds.end) { result in
+                switch result {
+                case .success(let rows):
+                    activities = rows
+                case .failure(let error):
+                    fetchError = error
                 }
+                group.leave()
+            }
 
-                group.enter()
-                DatabaseService.shared.fetchTags { result in
-                    switch result {
-                    case .success(let rows):
-                        tags = rows
-                    case .failure(let error):
-                        fetchError = error
-                    }
-                    group.leave()
+            group.enter()
+            DatabaseService.shared.fetchTags { result in
+                switch result {
+                case .success(let rows):
+                    tags = rows
+                case .failure(let error):
+                    fetchError = error
                 }
+                group.leave()
+            }
 
-                group.notify(queue: self.queue) {
-                    if let fetchError {
-                        completion(.failure(fetchError))
-                        return
-                    }
-                    let content = self.buildCSV(
-                        activities: activities,
-                        tags: tags,
-                        rangeStart: bounds.start,
-                        rangeEnd: bounds.end
+            group.notify(queue: self.queue) {
+                if let fetchError {
+                    completion(.failure(fetchError))
+                    return
+                }
+                let content = self.buildCSV(
+                    activities: activities,
+                    tags: tags,
+                    rangeStart: bounds.start,
+                    rangeEnd: bounds.end
+                )
+                do {
+                    let fileName = range.fileName
+                    let finalURL = try self.writeCSV(
+                        content: content,
+                        folderKind: .csv,
+                        fileName: fileName,
+                        overwrite: self.settings.overwriteCsvExports
                     )
-                    do {
-                        let fileName = range.fileName
-                        let finalURL = try self.writeCSV(
-                            content: content,
-                            folderKind: .csv,
-                            fileName: fileName,
-                            overwrite: self.settings.overwriteCsvExports
-                        )
-                        completion(.success(ReportExportResult(fileURL: finalURL, fileName: finalURL.lastPathComponent)))
-                    } catch {
-                        completion(.failure(error))
-                    }
+                    completion(.success(ReportExportResult(fileURL: finalURL, fileName: finalURL.lastPathComponent)))
+                } catch {
+                    completion(.failure(error))
                 }
-            } catch {
-                completion(.failure(error))
             }
         }
     }
@@ -173,130 +189,9 @@ final class ReportService {
         notes: String?,
         completion: @escaping (Result<ReportExportResult, Error>) -> Void
     ) {
-        do {
-            let bounds = rangeBounds(for: kind, date: date)
-            let filters = AggregationFilters(
-                includeIdle: true,
-                countOverlaysInTotals: AppState.shared.countOverlaysInTotals,
-                tagId: nil,
-                appName: nil,
-                bundleId: nil,
-                searchQuery: nil
-            )
-            let group = DispatchGroup()
-            var summary: AggregationSummary?
-            var topApps: [TopItem] = []
-            var topTags: [TopItem] = []
-            var timelineItems: [TimelineItem] = []
-            var tags: [TagRow] = []
-            var fetchError: Error?
-
-            group.enter()
-            AggregationService.shared.computeSummary(rangeStart: bounds.start, rangeEnd: bounds.end, filters: filters) { result in
-                switch result {
-                case .success(let value):
-                    summary = value
-                case .failure(let error):
-                    fetchError = error
-                }
-                group.leave()
-            }
-
-            group.enter()
-            AggregationService.shared.computeTopApps(
-                rangeStart: bounds.start,
-                rangeEnd: bounds.end,
-                filters: filters,
-                limit: 10,
-                includeIdle: false
-            ) { result in
-                switch result {
-                case .success(let items):
-                    topApps = items
-                case .failure(let error):
-                    fetchError = error
-                }
-                group.leave()
-            }
-
-            group.enter()
-            AggregationService.shared.computeTopTags(
-                rangeStart: bounds.start,
-                rangeEnd: bounds.end,
-                filters: filters,
-                limit: 10,
-                includeIdle: false
-            ) { result in
-                switch result {
-                case .success(let items):
-                    topTags = items
-                case .failure(let error):
-                    fetchError = error
-                }
-                group.leave()
-            }
-
-            group.enter()
-            AggregationService.shared.fetchTimelineItems(rangeStart: bounds.start, rangeEnd: bounds.end, filters: filters) { result in
-                switch result {
-                case .success(let items):
-                    timelineItems = items
-                case .failure(let error):
-                    fetchError = error
-                }
-                group.leave()
-            }
-
-            group.enter()
-            AggregationService.shared.fetchTags { result in
-                switch result {
-                case .success(let rows):
-                    tags = rows
-                case .failure(let error):
-                    fetchError = error
-                }
-                group.leave()
-            }
-
-            group.notify(queue: queue) {
-                if let fetchError {
-                    completion(.failure(fetchError))
-                    return
-                }
-
-                let activities = timelineItems.compactMap { item -> ActivityRow? in
-                    if case .activity(let activity) = item { return activity }
-                    return nil
-                }
-                let markers = timelineItems.compactMap { item -> MarkerRow? in
-                    if case .marker(let marker) = item { return marker }
-                    return nil
-                }
-                let markerSpans = timelineItems.compactMap { item -> MarkerSpanRow? in
-                    if case .markerSpan(let span) = item { return span }
-                    return nil
-                }
-
-                let stats = ReportStats(
-                    totalSeconds: summary?.totalSeconds ?? 0,
-                    activeSeconds: summary?.activeSeconds ?? 0,
-                    idleSeconds: summary?.idleSeconds ?? 0,
-                    sessionsCount: summary?.sessionsCount ?? 0,
-                    topApps: topApps.map { ReportBucket(name: $0.name, seconds: $0.durationSeconds) },
-                    topTags: topTags.map { ReportBucket(name: $0.name, seconds: $0.durationSeconds) }
-                )
-
-                let content = self.renderReport(
-                    kind: kind,
-                    date: date,
-                    notes: notes,
-                    stats: stats,
-                    activities: activities,
-                    markers: markers,
-                    markerSpans: markerSpans,
-                    tags: tags
-                )
-
+        buildReportContent(kind: kind, date: date, notes: notes) { result in
+            switch result {
+            case .success(let content):
                 do {
                     let fileName = self.fileName(for: kind, date: date)
                     let finalURL = try self.writeMarkdown(
@@ -310,9 +205,142 @@ final class ReportService {
                 } catch {
                     completion(.failure(error))
                 }
+            case .failure(let error):
+                completion(.failure(error))
             }
-        } catch {
-            completion(.failure(error))
+        }
+    }
+
+    private func buildReportContent(
+        kind: ReportKind,
+        date: Date,
+        notes: String?,
+        completion: @escaping (Result<String, Error>) -> Void
+    ) {
+        let bounds = rangeBounds(for: kind, date: date)
+        let filters = AggregationFilters(
+            includeIdle: true,
+            countOverlaysInTotals: AppState.shared.countOverlaysInTotals,
+            tagId: nil,
+            appName: nil,
+            bundleId: nil,
+            searchQuery: nil
+        )
+        let group = DispatchGroup()
+        var summary: AggregationSummary?
+        var topApps: [TopItem] = []
+        var topTags: [TopItem] = []
+        var timelineItems: [TimelineItem] = []
+        var tags: [TagRow] = []
+        var fetchError: Error?
+
+        group.enter()
+        AggregationService.shared.computeSummary(rangeStart: bounds.start, rangeEnd: bounds.end, filters: filters) { result in
+            switch result {
+            case .success(let value):
+                summary = value
+            case .failure(let error):
+                fetchError = error
+            }
+            group.leave()
+        }
+
+        group.enter()
+        AggregationService.shared.computeTopApps(
+            rangeStart: bounds.start,
+            rangeEnd: bounds.end,
+            filters: filters,
+            limit: 10,
+            includeIdle: false
+        ) { result in
+            switch result {
+            case .success(let items):
+                topApps = items
+            case .failure(let error):
+                fetchError = error
+            }
+            group.leave()
+        }
+
+        group.enter()
+        AggregationService.shared.computeTopTags(
+            rangeStart: bounds.start,
+            rangeEnd: bounds.end,
+            filters: filters,
+            limit: 10,
+            includeIdle: false
+        ) { result in
+            switch result {
+            case .success(let items):
+                topTags = items
+            case .failure(let error):
+                fetchError = error
+            }
+            group.leave()
+        }
+
+        group.enter()
+        AggregationService.shared.fetchTimelineItems(rangeStart: bounds.start, rangeEnd: bounds.end, filters: filters) { result in
+            switch result {
+            case .success(let items):
+                timelineItems = items
+            case .failure(let error):
+                fetchError = error
+            }
+            group.leave()
+        }
+
+        group.enter()
+        AggregationService.shared.fetchTags { result in
+            switch result {
+            case .success(let rows):
+                tags = rows
+            case .failure(let error):
+                fetchError = error
+            }
+            group.leave()
+        }
+
+        group.notify(queue: queue) {
+            if let fetchError {
+                completion(.failure(fetchError))
+                return
+            }
+
+            let activities = timelineItems.compactMap { item -> ActivityRow? in
+                if case .activity(let activity) = item { return activity }
+                return nil
+            }
+            let markers = timelineItems.compactMap { item -> MarkerRow? in
+                if case .marker(let marker) = item { return marker }
+                return nil
+            }
+            let markerSpans = timelineItems.compactMap { item -> MarkerSpanRow? in
+                if case .markerSpan(let span) = item { return span }
+                return nil
+            }
+
+            let stats = ReportStats(
+                totalSeconds: summary?.totalSeconds ?? 0,
+                activeSeconds: summary?.activeSeconds ?? 0,
+                idleSeconds: summary?.idleSeconds ?? 0,
+                sessionsCount: summary?.sessionsCount ?? 0,
+                topApps: topApps.map { ReportBucket(name: $0.name, seconds: $0.durationSeconds) },
+                topTags: topTags.map { ReportBucket(name: $0.name, seconds: $0.durationSeconds) }
+            )
+
+            let content = self.renderReport(
+                kind: kind,
+                date: date,
+                notes: notes,
+                stats: stats,
+                activities: activities,
+                markers: markers,
+                markerSpans: markerSpans,
+                tags: tags
+            )
+
+            completion(.success(content))
         }
     }
 

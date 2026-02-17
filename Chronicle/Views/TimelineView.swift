@@ -11,6 +11,8 @@ import SwiftUI
 struct TimelineView: View {
     @EnvironmentObject private var appState: AppState
 
+    let embedInPopover: Bool
+
     @State private var activities: [ActivityRow] = []
     @State private var markers: [MarkerRow] = []
     @State private var markerSpans: [MarkerSpanRow] = []
@@ -23,6 +25,10 @@ struct TimelineView: View {
     @State private var debugEvents: [String] = []
 
     private let untaggedFilterValue: Int64 = -2
+
+    init(embedInPopover: Bool = false) {
+        self.embedInPopover = embedInPopover
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
@@ -47,7 +53,7 @@ struct TimelineView: View {
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .padding(DesignSystem.Spacing.lg)
+        .padding(embedInPopover ? 0 : DesignSystem.Spacing.lg)
         .onAppear {
             if !hasFetchedOnAppear {
                 hasFetchedOnAppear = true
@@ -171,6 +177,7 @@ struct TimelineView: View {
         }
     }
 
+#if DEBUG
     private var debugSection: some View {
         DisclosureGroup(isExpanded: $showDebugDetails) {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
@@ -232,6 +239,11 @@ struct TimelineView: View {
             Text("Show Debug Details")
         }
     }
+#else
+    private var debugSection: some View {
+        EmptyView()
+    }
+#endif
 
     private var groupedTimelineItems: [(label: String, items: [TimelineItem])] {
         let calendar = Calendar.current

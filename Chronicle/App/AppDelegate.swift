@@ -18,9 +18,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private let statusMenu = NSMenu()
     private var dayChangeObserver: NSObjectProtocol?
     private var appActiveObserver: NSObjectProtocol?
+    private var openPopoverObserver: NSObjectProtocol?
     private var languageCancellable: AnyCancellable?
     private var dashboardItem: NSMenuItem?
     private var preferencesItem: NSMenuItem?
+    private var welcomeItem: NSMenuItem?
     private var exportItem: NSMenuItem?
     private var quitItem: NSMenuItem?
     private var exportFeedbackToken: UUID?
@@ -37,12 +39,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         configurePopover()
         configureStatusItem()
         configureLanguageUpdates()
+        configureAppNotifications()
         LaunchAtLoginManager.shared.syncAppState(appState)
         AccessibilityPermissionManager.shared.syncAppState(appState)
         DatabaseService.shared.initializeIfNeeded()
         if isRunningUnitTests {
             AppLogger.log("Test mode launch: runtime services disabled", category: "app")
         } else {
+            if !appState.onboardingCompleted {
+                OnboardingWindowController.shared.show()
+            }
             activityTracker.start()
             ReportService.shared.autoExportIfNeeded(currentDate: Date())
             HotKeyManager.shared.onHotKeyPressed = { [weak self] in
@@ -76,6 +82,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         activityTracker.stop()
         MarkerSpanService.shared.endAllOpenSpans(at: Date())
         HotKeyManager.shared.unregister()
+        if let openPopoverObserver {
+            NotificationCenter.default.removeObserver(openPopoverObserver)
+            self.openPopoverObserver = nil
+        }
         if let dayChangeObserver {
             NotificationCenter.default.removeObserver(dayChangeObserver)
             self.dayChangeObserver = nil
@@ -116,6 +126,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         dashboardItem.target = self
         let preferencesItem = NSMenuItem(title: L("menu.preferences"), action: #selector(openPreferences), keyEquivalent: ",")
         preferencesItem.target = self
+        let welcomeItem = NSMenuItem(title: L("menu.welcome"), action: #selector(openWelcome), keyEquivalent: "w")
+        welcomeItem.target = self
         let exportItem = NSMenuItem(title: L("menu.export_now"), action: #selector(exportNow), keyEquivalent: "e")
         exportItem.target = self
         let quitItem = NSMenuItem(title: L("menu.quit"), action: #selector(quitApp), keyEquivalent: "q")
@@ -123,11 +135,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
         self.dashboardItem = dashboardItem
         self.preferencesItem = preferencesItem
+        self.welcomeItem = welcomeItem
         self.exportItem = exportItem
         self.quitItem = quitItem
 
         statusMenu.addItem(dashboardItem)
         statusMenu.addItem(preferencesItem)
+        statusMenu.addItem(welcomeItem)
         statusMenu.addItem(exportItem)
         statusMenu.addItem(.separator())
         statusMenu.addItem(quitItem)
@@ -149,11 +163,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private func updateLocalizedStrings() {
         dashboardItem?.title = L("menu.open_dashboard")
         preferencesItem?.title = L("menu.preferences")
+        welcomeItem?.title = L("menu.welcome")
         exportItem?.title = L("menu.export_now")
         quitItem?.title = L("menu.quit")
         statusItem?.button?.image?.accessibilityDescription = L("app.name")
         DashboardWindowController.shared.updateTitle()
         PreferencesWindowController.shared.updateTitle()
+        OnboardingWindowController.shared.updateTitle()
     }
 
     @objc private func statusItemClicked(_ sender: Any?) {
@@ -175,12 +191,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             popover.performClose(nil)
             appState.isPopoverShown = false
         } else {
-            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
-            NSApp.activate(ignoringOtherApps: true)
-            appState.isPopoverShown = true
+            showPopover(from: button)
         }
         appState.lastPopoverToggle = Date()
         AppLogger.log("Popover toggled: \(appState.isPopoverShown)", category: "ui")
+    }
+
+    private func showPopover(from button: NSStatusBarButton) {
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        NSApp.activate(ignoringOtherApps: true)
+        appState.isPopoverShown = true
+    }
+
+    private func configureAppNotifications() {
+        openPopoverObserver = NotificationCenter.default.addObserver(
+            forName: .chronicleRequestOpenPopover,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.openPopoverIfNeeded()
+        }
+    }
+
+    private func openPopoverIfNeeded() {
+        guard let button = statusItem?.button else { return }
+        if popover.isShown {
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+        showPopover(from: button)
+        appState.lastPopoverToggle = Date()
+        AppLogger.log("Popover opened by request", category: "ui")
     }
 
     @objc private func openPreferences() {
@@ -189,6 +230,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     @objc private func openDashboard() {
         DashboardWindowController.shared.show()
+    }
+
+    @objc private func openWelcome() {
+        OnboardingWindowController.shared.show()
     }
 
     @objc private func exportNow() {

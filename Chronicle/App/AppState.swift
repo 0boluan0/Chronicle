@@ -28,6 +28,9 @@ final class AppState: ObservableObject {
 
     @Published var isPopoverShown = false
     @Published var lastPopoverToggle: Date?
+    @Published var onboardingCompleted: Bool {
+        didSet { defaults.set(onboardingCompleted, forKey: Keys.onboardingCompleted) }
+    }
     @Published var currentActiveAppName = "Unknown"
     @Published var currentActiveAppBundleId: String?
     @Published var lastRecordedAppChange: Date?
@@ -148,6 +151,7 @@ final class AppState: ObservableObject {
 
     private init(defaults: UserDefaults) {
         self.defaults = defaults
+        onboardingCompleted = defaults.object(forKey: Keys.onboardingCompleted) as? Bool ?? false
         ignoreChronicleSelf = defaults.object(forKey: Keys.ignoreChronicleSelf) as? Bool ?? true
         windowTitleCaptureEnabled = defaults.object(forKey: Keys.windowTitleCaptureEnabled) as? Bool ?? Self.defaultWindowTitleCaptureEnabled
         accessibilityAuthorized = defaults.object(forKey: Keys.accessibilityAuthorized) as? Bool ?? false
@@ -207,6 +211,7 @@ final class AppState: ObservableObject {
     nonisolated deinit {}
 
     private enum Keys {
+        static let onboardingCompleted = "onboarding.completed"
         static let ignoreChronicleSelf = "settings.ignoreChronicleSelf"
         static let windowTitleCaptureEnabled = "settings.windowTitleCaptureEnabled"
         static let accessibilityAuthorized = "settings.accessibilityAuthorized"

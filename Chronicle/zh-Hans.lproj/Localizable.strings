@@ -4,9 +4,38 @@
 "menu.open" = "打开";
 "menu.open_dashboard" = "打开统计";
 "menu.preferences" = "偏好设置…";
+"menu.welcome" = "欢迎…";
 "menu.export_now" = "立即导出";
 "menu.exporting" = "导出中…";
 "menu.quit" = "退出";
+
+"popover.open_dashboard" = "打开仪表盘";
+"popover.open_preferences" = "偏好设置";
+
+"actions.next" = "下一步";
+"actions.back" = "上一步";
+"actions.skip" = "跳过";
+"actions.open_preferences" = "打开偏好设置";
+"actions.close" = "关闭";
+
+"onboarding.title" = "欢迎使用 Chronicle";
+"onboarding.step" = "第 %d/%d 步";
+"onboarding.welcome.title" = "欢迎";
+"onboarding.welcome.body" = "让我们完成权限与便捷设置。之后也可以随时在偏好设置中修改。";
+"onboarding.welcome.item.timeline" = "查看今日时间线与统计";
+"onboarding.welcome.item.markers" = "快速标记（⌥⌘M）";
+"onboarding.welcome.item.reports" = "导出 CSV 与 Markdown 报表";
+"onboarding.permissions.title" = "权限";
+"onboarding.permissions.body" = "窗口标题采集为可选功能，但能提升打标与搜索准确性。需要辅助功能权限。";
+"onboarding.permissions.authorized" = "已获得辅助功能权限";
+"onboarding.convenience.title" = "便捷设置";
+"onboarding.convenience.body" = "可选项，让 Chronicle 更自然地在后台运行。";
+"onboarding.convenience.hotkey" = "快速标记快捷键：⌥⌘M";
+"onboarding.convenience.try_quick_marker" = "试用快速标记";
+"onboarding.finish.title" = "完成";
+"onboarding.finish.body" = "设置完成，可以开始使用了。";
+"onboarding.finish.hint" = "提示：右键菜单栏图标可打开仪表盘、偏好设置与导出。";
+"onboarding.finish.start" = "开始使用";
 
 "export.now.success" = "已导出：%@";
 "export.now.failed" = "导出失败：%@";
@@ -25,6 +54,7 @@
 "preferences.export" = "导出";
 "preferences.apps" = "应用";
 "preferences.tags_rules" = "标签与规则";
+"preferences.app_mappings" = "应用映射";
 "preferences.privacy" = "隐私";
 "preferences.debug" = "调试";
 
@@ -167,6 +197,16 @@
 "reports.csv.title" = "CSV 导出";
 "reports.daily.title" = "Markdown 日报";
 "reports.weekly.title" = "Markdown 周报";
+"reports.preview" = "预览";
+"reports.copy" = "复制";
+"reports.preview.loading" = "正在生成预览…";
+"reports.preview.empty" = "暂无预览内容。";
+"reports.preview.failed" = "预览失败";
+"reports.preview.title.daily" = "日报预览 — %@";
+"reports.preview.title.weekly" = "周报预览 — %@";
+"reports.template_variables.title" = "模板变量";
+"reports.template_variables.daily" = "在模板中使用 `{{变量}}` 占位符：\\n\\n- {{date}}\\n- {{total_time}} / {{active_time}} / {{idle_time}}\\n- {{sessions_count}}\\n- {{top_apps_table}} / {{top_tags_table}}\\n- {{markers_list}} / {{marker_spans}}\\n- {{timeline_bullets}}\\n- {{notes}}";
+"reports.template_variables.weekly" = "在模板中使用 `{{变量}}` 占位符：\\n\\n- {{week_range}} / {{week_id}}\\n- {{total_time}} / {{active_time}} / {{idle_time}}\\n- {{top_apps_table}} / {{top_tags_table}}\\n- {{markers_list}} / {{marker_spans}}\\n- {{notes}}";
 "reports.folder.label" = "文件夹：%@";
 "reports.open_folder" = "打开文件夹";
 "reports.overwrite_existing" = "覆盖已有文件";

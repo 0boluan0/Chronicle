@@ -87,3 +87,21 @@ This project is under active development. Expect frequent changes and occasional
 - 导出界面无明显未本地化字符串（中英文切换正常）。
 - 菜单栏弹窗会记住上次选中的标签页。
 - 未新增数据库迁移。
+
+## Internal Beta Checklist / 内测补充清单
+
+**EN**
+- First launch onboarding appears once; can be reopened from the menubar menu (“Welcome…”).
+- Popover can open Dashboard and Preferences from the top header buttons.
+- Hotkey `⌥⌘M` creates both a point marker and an interval marker (start + stop).
+- Auto daily/weekly export does not retry within the same day/week after a failure (status visible in Export UI).
+- English/Chinese switch: Popover / Preferences / Export has no obvious unlocalized strings.
+- Wipe data in Preferences > Privacy, then restart: database reinitializes and app functions normally.
+
+**中文**
+- 首次启动会出现上手引导；完成后不再出现，并可从菜单栏菜单“欢迎…”重新打开。
+- Popover 顶部可直接打开仪表盘与偏好设置。
+- 快捷键 `⌥⌘M` 可分别创建一次点标记与一次区间标记（开始 + 结束）。
+- 自动日报/周报失败后同一天/同一周不重复尝试（导出页面可见状态）。
+- 中英文切换：Popover / 偏好设置 / 导出页面无明显未本地化字符串。
+- 在 偏好设置 > 隐私 清除数据并重启后：数据库可重新初始化，功能正常可用。
