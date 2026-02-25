@@ -31,6 +31,11 @@
 "popover.action.open_daily_folder" = "Open Daily Folder";
 "popover.export_status.title" = "Export Status";
 "popover.export_status.not_run" = "Daily export has not run yet.";
+"popover.daily_review.title" = "Daily Review Reminder";
+"popover.daily_review.body" = "It is after 18:00 and today's daily report is not exported yet.";
+"popover.daily_review.export_now" = "Export Now";
+"popover.daily_review.open_dashboard" = "Open Dashboard";
+"popover.daily_review.dismiss_today" = "Dismiss Today";
 
 "actions.next" = "Next";
 "actions.back" = "Back";

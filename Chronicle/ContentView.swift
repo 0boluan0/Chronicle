@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Combine
 
 struct ContentView: View {
     @EnvironmentObject private var appState: AppState
@@ -18,8 +19,11 @@ struct ContentView: View {
     }
 
     @AppStorage("popover.selectedTab") private var selectionRaw = Tab.timeline.rawValue
+    @AppStorage("popover.dailyReviewReminderDismissedDay") private var dismissedDailyReviewDay = ""
     @State private var dailySnapshot = DailySnapshot.empty
     @State private var isSnapshotLoading = false
+    @State private var now = Date()
+    private let reminderRefreshTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
 
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
@@ -50,6 +54,9 @@ struct ContentView: View {
             healthStatusView
             dailySnapshotView
             exportStatusView
+            if shouldShowDailyReviewReminder {
+                dailyReviewReminderView
+            }
 
             Picker("", selection: selectionBinding) {
                 Text(LocalizedStringKey("dashboard.timeline")).tag(Tab.timeline)
@@ -83,6 +90,9 @@ struct ContentView: View {
         }
         .onChange(of: appState.countOverlaysInTotals) { _ in
             refreshDailySnapshot(reason: "overlay counting changed")
+        }
+        .onReceive(reminderRefreshTimer) { value in
+            now = value
         }
     }
 
@@ -201,6 +211,36 @@ struct ContentView: View {
         }
     }
 
+    private var dailyReviewReminderView: some View {
+        SectionCard(title: "popover.daily_review.title") {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                Text(L("popover.daily_review.body"))
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    Button(L("popover.daily_review.export_now")) {
+                        exportDailyNow()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(DesignSystem.Colors.accentSkyBlue)
+
+                    Button(L("popover.daily_review.open_dashboard")) {
+                        DashboardWindowController.shared.show()
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button(L("popover.daily_review.dismiss_today")) {
+                        dismissedDailyReviewDay = ReportService.dayKey(for: now)
+                    }
+                    .buttonStyle(.bordered)
+
+                    Spacer()
+                }
+            }
+        }
+    }
+
     private var selectedTab: Tab {
         Tab(rawValue: selectionRaw) ?? .timeline
     }
@@ -236,6 +276,22 @@ struct ContentView: View {
         let date = Date(timeIntervalSince1970: reportSettings.lastDailyExportAt)
         let status = reportSettings.lastDailyExportIsError ? L("reports.status.failed") : L("reports.status.success")
         return String(format: L("reports.status.last_run"), Self.timeFormatter.string(from: date), status)
+    }
+
+    private var shouldShowDailyReviewReminder: Bool {
+        let todayKey = ReportService.dayKey(for: now)
+        if dismissedDailyReviewDay == todayKey {
+            return false
+        }
+        let hour = Calendar.current.component(.hour, from: now)
+        guard hour >= 18 else {
+            return false
+        }
+        guard reportSettings.lastDailyExportAt > 0 else {
+            return true
+        }
+        let lastExportDate = Date(timeIntervalSince1970: reportSettings.lastDailyExportAt)
+        return !Calendar.current.isDate(lastExportDate, inSameDayAs: now)
     }
 
     private var healthStatusText: String {

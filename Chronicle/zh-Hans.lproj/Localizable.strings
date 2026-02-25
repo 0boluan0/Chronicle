@@ -31,6 +31,11 @@
 "popover.action.open_daily_folder" = "打开日报目录";
 "popover.export_status.title" = "导出状态";
 "popover.export_status.not_run" = "日报尚未运行导出。";
+"popover.daily_review.title" = "每日回顾提醒";
+"popover.daily_review.body" = "当前已过 18:00，今日日报还未导出。";
+"popover.daily_review.export_now" = "立即导出";
+"popover.daily_review.open_dashboard" = "打开仪表盘";
+"popover.daily_review.dismiss_today" = "今天不再提醒";
 
 "actions.next" = "下一步";
 "actions.back" = "上一步";
