@@ -39,3 +39,14 @@ struct RuleRow: Identifiable {
     var tagId: Int64?
     var priority: Int
 }
+
+struct RuleSuggestionRow: Identifiable {
+    let id = UUID()
+    let bundleId: String?
+    let appName: String
+    let tagId: Int64
+    let overrideCount: Int
+    let totalOverrides: Int
+    let confidence: Double
+    let lastSeen: Int64
+}

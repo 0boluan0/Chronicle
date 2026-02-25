@@ -892,9 +892,40 @@ final class DatabaseService {
         }
     }
 
+    func fetchRuleSuggestions(
+        minSamples: Int = 3,
+        minConfidence: Double = 0.6,
+        limit: Int = 12,
+        completion: @escaping (Result<[RuleSuggestionRow], Error>) -> Void
+    ) {
+        if Thread.isMainThread {
+            AppLogger.log("Warning: fetchRuleSuggestions called on main thread", category: "db")
+        }
+
+        queue.async { [self] in
+            do {
+                try self.openDatabaseIfNeeded()
+                let rows = try self.fetchRuleSuggestionsInternal(
+                    minSamples: minSamples,
+                    minConfidence: minConfidence,
+                    limit: limit
+                )
+                AppLogger.log("Fetch rule suggestions success rows=\(rows.count)", category: "db")
+                completion(.success(rows))
+            } catch let error as DatabaseError {
+                AppLogger.log("Fetch rule suggestions failed: \(error.logDescription)", category: "db")
+                completion(.failure(error))
+            } catch {
+                AppLogger.log("Fetch rule suggestions failed: \(error.localizedDescription)", category: "db")
+                completion(.failure(error))
+            }
+        }
+    }
+
     func insertRule(
         name: String,
         enabled: Bool,
+        matchBundleId: String? = nil,
         matchAppName: String?,
         matchWindowTitle: String?,
         matchMode: RuleMatchMode,
@@ -912,7 +943,7 @@ final class DatabaseService {
                 let rowId = try self.insertRuleInternal(
                     name: name,
                     enabled: enabled,
-                    matchBundleId: nil,
+                    matchBundleId: matchBundleId,
                     matchAppName: matchAppName,
                     matchWindowTitle: matchWindowTitle,
                     matchMode: matchMode,
@@ -1247,6 +1278,38 @@ final class DatabaseService {
         completion: @escaping (Result<Void, Error>) -> Void
     ) {
         updateActivityTag(activityId: activityId, tagId: tagId, completion: completion)
+    }
+
+    func setUserTagOverride(
+        activityIds: [Int64],
+        tagId: Int64?,
+        completion: @escaping (Result<Int, Error>) -> Void
+    ) {
+        if Thread.isMainThread {
+            AppLogger.log("Warning: setUserTagOverride(activityIds:) called on main thread", category: "db")
+        }
+
+        queue.async { [self] in
+            do {
+                let uniqueIds = Array(Set(activityIds)).sorted()
+                guard !uniqueIds.isEmpty else {
+                    completion(.success(0))
+                    return
+                }
+
+                try self.openDatabaseIfNeeded()
+                let updated = try self.updateActivityUserOverridesInternal(ids: uniqueIds, userTagOverrideId: tagId)
+                AppLogger.log("Batch override update success count=\(updated)", category: "db")
+                AggregationService.shared.recordDatabaseChange(rangeStart: 0, rangeEnd: Int64.max)
+                completion(.success(updated))
+            } catch let error as DatabaseError {
+                AppLogger.log("Batch override update failed: \(error.logDescription)", category: "db")
+                completion(.failure(error))
+            } catch {
+                AppLogger.log("Batch override update failed: \(error.localizedDescription)", category: "db")
+                completion(.failure(error))
+            }
+        }
     }
 
     func applyRuleToActivity(
@@ -3689,6 +3752,149 @@ final class DatabaseService {
         return rows
     }
 
+    private func fetchRuleSuggestionsInternal(
+        minSamples: Int,
+        minConfidence: Double,
+        limit: Int
+    ) throws -> [RuleSuggestionRow] {
+        guard hasUserTagOverrideColumn else { return [] }
+
+        let sql = """
+        SELECT
+            COALESCE(bundle_id, '') AS bundle_id,
+            app_name,
+            user_tag_override_id,
+            COUNT(*) AS override_count,
+            MAX(end_time) AS last_seen
+        FROM Activities
+        WHERE user_tag_override_id IS NOT NULL
+          AND is_idle = 0
+        GROUP BY COALESCE(bundle_id, ''), app_name, user_tag_override_id
+        ORDER BY override_count DESC, last_seen DESC;
+        """
+
+        struct Candidate {
+            let bundleId: String?
+            let appName: String
+            let tagId: Int64
+            let count: Int
+            let lastSeen: Int64
+        }
+
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "prepare", sql: sql, message: message)
+            throw DatabaseError.prepareFailed(message, sql: sql)
+        }
+        defer { sqlite3_finalize(statement) }
+
+        var grouped: [String: [Candidate]] = [:]
+
+        while true {
+            let stepResult = sqlite3_step(statement)
+            if stepResult == SQLITE_ROW {
+                let bundleRaw = sqlite3_column_text(statement, 0).flatMap { String(cString: $0) } ?? ""
+                let appName = sqlite3_column_text(statement, 1).flatMap { String(cString: $0) } ?? "Unknown"
+                let tagId = sqlite3_column_int64(statement, 2)
+                let overrideCount = Int(sqlite3_column_int(statement, 3))
+                let lastSeen = sqlite3_column_int64(statement, 4)
+                let normalizedBundle = bundleRaw.trimmingCharacters(in: .whitespacesAndNewlines)
+                let bundleId = normalizedBundle.isEmpty ? nil : normalizedBundle
+                let key = "\(bundleId ?? "")|\(appName.lowercased())"
+                let candidate = Candidate(
+                    bundleId: bundleId,
+                    appName: appName,
+                    tagId: tagId,
+                    count: overrideCount,
+                    lastSeen: lastSeen
+                )
+                grouped[key, default: []].append(candidate)
+            } else if stepResult == SQLITE_DONE {
+                break
+            } else {
+                let message = sqliteErrorMessage(db)
+                logSQLiteError(operation: "step", sql: sql, message: message)
+                throw DatabaseError.stepFailed(message, sql: sql)
+            }
+        }
+
+        let rules = try fetchRulesInternal(enabledOnly: false)
+        var suggestions: [RuleSuggestionRow] = []
+
+        for candidates in grouped.values {
+            guard !candidates.isEmpty else { continue }
+            let totalOverrides = candidates.reduce(0) { $0 + $1.count }
+            guard let top = candidates.max(by: {
+                if $0.count == $1.count {
+                    return $0.lastSeen < $1.lastSeen
+                }
+                return $0.count < $1.count
+            }) else {
+                continue
+            }
+
+            guard top.count >= minSamples else { continue }
+            let confidence = totalOverrides > 0 ? Double(top.count) / Double(totalOverrides) : 0
+            guard confidence >= minConfidence else { continue }
+            guard !hasEquivalentRule(
+                bundleId: top.bundleId,
+                appName: top.appName,
+                tagId: top.tagId,
+                rules: rules
+            ) else {
+                continue
+            }
+
+            suggestions.append(
+                RuleSuggestionRow(
+                    bundleId: top.bundleId,
+                    appName: top.appName,
+                    tagId: top.tagId,
+                    overrideCount: top.count,
+                    totalOverrides: totalOverrides,
+                    confidence: confidence,
+                    lastSeen: top.lastSeen
+                )
+            )
+        }
+
+        let sorted = suggestions.sorted {
+            if $0.overrideCount == $1.overrideCount {
+                if $0.confidence == $1.confidence {
+                    return $0.lastSeen > $1.lastSeen
+                }
+                return $0.confidence > $1.confidence
+            }
+            return $0.overrideCount > $1.overrideCount
+        }
+
+        guard limit > 0 else { return sorted }
+        return Array(sorted.prefix(limit))
+    }
+
+    private func hasEquivalentRule(
+        bundleId: String?,
+        appName: String,
+        tagId: Int64,
+        rules: [RuleRow]
+    ) -> Bool {
+        for rule in rules where rule.tagId == tagId {
+            if let bundleId, !bundleId.isEmpty {
+                if let ruleBundle = rule.matchBundleId?.trimmingCharacters(in: .whitespacesAndNewlines),
+                   ruleBundle == bundleId {
+                    return true
+                }
+            } else {
+                if let ruleAppName = rule.matchAppName?.trimmingCharacters(in: .whitespacesAndNewlines),
+                   ruleAppName.caseInsensitiveCompare(appName) == .orderedSame {
+                    return true
+                }
+            }
+        }
+        return false
+    }
+
     private func insertRuleInternal(
         name: String,
         enabled: Bool,
@@ -3947,6 +4153,72 @@ final class DatabaseService {
             let message = sqliteErrorMessage(db)
             logSQLiteError(operation: "step", sql: sql, message: message)
             throw DatabaseError.stepFailed(message, sql: sql)
+        }
+    }
+
+    private func updateActivityUserOverridesInternal(ids: [Int64], userTagOverrideId: Int64?) throws -> Int {
+        guard !ids.isEmpty else { return 0 }
+        guard hasRuleTagColumn || hasEffectiveTagColumn || hasUserTagOverrideColumn else {
+            var updated = 0
+            for id in ids {
+                try updateActivityTagInternal(id: id, tagId: userTagOverrideId)
+                if sqliteChanges() > 0 {
+                    updated += 1
+                }
+            }
+            return updated
+        }
+
+        let sql = """
+        UPDATE Activities
+        SET user_tag_override_id = ?,
+            effective_tag_id = COALESCE(?, rule_tag_id),
+            tag_id = COALESCE(?, rule_tag_id)
+        WHERE id = ?;
+        """
+
+        try execute(sql: "BEGIN IMMEDIATE;")
+        var statement: OpaquePointer?
+        do {
+            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+                let message = sqliteErrorMessage(db)
+                logSQLiteError(operation: "prepare", sql: sql, message: message)
+                throw DatabaseError.prepareFailed(message, sql: sql)
+            }
+            defer { sqlite3_finalize(statement) }
+
+            var updated = 0
+            for id in ids {
+                sqlite3_reset(statement)
+                sqlite3_clear_bindings(statement)
+
+                if let userTagOverrideId {
+                    try bind(sql: sql, result: sqlite3_bind_int64(statement, 1, userTagOverrideId), detail: "user_tag_override_id")
+                    try bind(sql: sql, result: sqlite3_bind_int64(statement, 2, userTagOverrideId), detail: "effective_tag_id")
+                    try bind(sql: sql, result: sqlite3_bind_int64(statement, 3, userTagOverrideId), detail: "tag_id")
+                } else {
+                    try bind(sql: sql, result: sqlite3_bind_null(statement, 1), detail: "user_tag_override_id")
+                    try bind(sql: sql, result: sqlite3_bind_null(statement, 2), detail: "effective_tag_id")
+                    try bind(sql: sql, result: sqlite3_bind_null(statement, 3), detail: "tag_id")
+                }
+                try bind(sql: sql, result: sqlite3_bind_int64(statement, 4, id), detail: "id")
+
+                let stepResult = sqlite3_step(statement)
+                guard stepResult == SQLITE_DONE else {
+                    let message = sqliteErrorMessage(db)
+                    logSQLiteError(operation: "step", sql: sql, message: message)
+                    throw DatabaseError.stepFailed(message, sql: sql)
+                }
+                if sqliteChanges() > 0 {
+                    updated += 1
+                }
+            }
+
+            try execute(sql: "COMMIT;")
+            return updated
+        } catch {
+            try? execute(sql: "ROLLBACK;")
+            throw error
         }
     }
 

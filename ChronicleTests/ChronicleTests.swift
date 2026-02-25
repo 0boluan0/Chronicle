@@ -223,6 +223,30 @@ final class ChronicleTests: XCTestCase {
         }
     }
 
+    private func setUserTagOverrideBatch(
+        db: DatabaseService,
+        activityIds: [Int64],
+        tagId: Int64?
+    ) -> Int {
+        let expectation = XCTestExpectation(description: "batch set user tag override")
+        var updated = 0
+        var error: Error?
+        db.setUserTagOverride(activityIds: activityIds, tagId: tagId) { result in
+            switch result {
+            case .success(let count):
+                updated = count
+            case .failure(let err):
+                error = err
+            }
+            expectation.fulfill()
+        }
+        wait(for: [expectation], timeout: 5)
+        if let error {
+            XCTFail("Batch set user tag override failed: \(error)")
+        }
+        return updated
+    }
+
     private func fetchTimelineItems(
         db: DatabaseService,
         rangeStart: Int64,
@@ -785,5 +809,138 @@ final class ChronicleTests: XCTestCase {
     func testDefaultTemplatesMatchRetrospectivePreset() {
         XCTAssertEqual(ReportSettings.defaultDailyTemplate, ReportTemplatePreset.retrospective.dailyTemplate)
         XCTAssertEqual(ReportSettings.defaultWeeklyTemplate, ReportTemplatePreset.retrospective.weeklyTemplate)
+    }
+
+    func testBatchUserTagOverrideUpdatesAndClears() {
+        let db = makeTestDatabase("batch-override")
+
+        let tagsExpectation = XCTestExpectation(description: "insert tags")
+        var codingId: Int64 = 0
+        db.insertTag(name: "Batch Coding", color: "#4A90E2") { result in
+            if case .success(let id) = result {
+                codingId = id
+            }
+            tagsExpectation.fulfill()
+        }
+        wait(for: [tagsExpectation], timeout: 5)
+        XCTAssertGreaterThan(codingId, 0)
+
+        let insertExpectation = XCTestExpectation(description: "insert activities")
+        let insertGroup = DispatchGroup()
+        var activityIds: [Int64] = []
+        for index in 0..<3 {
+            insertGroup.enter()
+            db.insertActivity(
+                start: Int64(12_000 + index * 100),
+                end: Int64(12_050 + index * 100),
+                appName: "Xcode",
+                windowTitle: "Batch \(index)",
+                isIdle: false,
+                tagId: nil,
+                bundleId: "com.apple.dt.Xcode"
+            ) { result in
+                if case .success(let id) = result {
+                    activityIds.append(id)
+                }
+                insertGroup.leave()
+            }
+        }
+        insertGroup.notify(queue: .main) {
+            insertExpectation.fulfill()
+        }
+        wait(for: [insertExpectation], timeout: 5)
+        XCTAssertEqual(activityIds.count, 3)
+
+        let updatedToCoding = setUserTagOverrideBatch(db: db, activityIds: activityIds, tagId: codingId)
+        XCTAssertEqual(updatedToCoding, 3)
+
+        var rows = fetchActivities(db: db, rangeStart: 11_900, rangeEnd: 12_500)
+        XCTAssertEqual(rows.count, 3)
+        XCTAssertTrue(rows.allSatisfy { $0.userTagOverrideId == codingId })
+        XCTAssertTrue(rows.allSatisfy { $0.effectiveTagId == codingId })
+
+        let idsToClear = Array(activityIds.prefix(2))
+        let cleared = setUserTagOverrideBatch(db: db, activityIds: idsToClear, tagId: nil)
+        XCTAssertEqual(cleared, 2)
+
+        rows = fetchActivities(db: db, rangeStart: 11_900, rangeEnd: 12_500)
+        let clearedRows = rows.filter { idsToClear.contains($0.id) }
+        XCTAssertEqual(clearedRows.count, 2)
+        XCTAssertTrue(clearedRows.allSatisfy { $0.userTagOverrideId == nil })
+        XCTAssertTrue(clearedRows.allSatisfy { $0.effectiveTagId == nil })
+
+        let remainingRows = rows.filter { !idsToClear.contains($0.id) }
+        XCTAssertEqual(remainingRows.count, 1)
+        XCTAssertEqual(remainingRows.first?.userTagOverrideId, codingId)
+        XCTAssertEqual(remainingRows.first?.effectiveTagId, codingId)
+    }
+
+    func testRuleSuggestionsFromManualOverrides() {
+        let db = makeTestDatabase("rule-suggestions")
+
+        let tagsExpectation = XCTestExpectation(description: "insert tags")
+        var codingId: Int64 = 0
+        var writingId: Int64 = 0
+        db.insertTag(name: "Coding Test", color: "#4A90E2") { result in
+            if case .success(let id) = result { codingId = id }
+            db.insertTag(name: "Writing Test", color: "#D0021B") { result in
+                if case .success(let id) = result { writingId = id }
+                tagsExpectation.fulfill()
+            }
+        }
+        wait(for: [tagsExpectation], timeout: 5)
+
+        let insertExpectation = XCTestExpectation(description: "insert activities")
+        let insertGroup = DispatchGroup()
+        var activityIds: [Int64] = []
+        for index in 0..<5 {
+            insertGroup.enter()
+            db.insertActivity(
+                start: Int64(10_000 + index * 100),
+                end: Int64(10_050 + index * 100),
+                appName: "Xcode",
+                windowTitle: "File \(index)",
+                isIdle: false,
+                tagId: nil,
+                bundleId: "com.apple.dt.Xcode"
+            ) { result in
+                if case .success(let id) = result {
+                    activityIds.append(id)
+                }
+                insertGroup.leave()
+            }
+        }
+        insertGroup.notify(queue: .main) { insertExpectation.fulfill() }
+        wait(for: [insertExpectation], timeout: 5)
+        XCTAssertEqual(activityIds.count, 5)
+
+        let overrideExpectation = XCTestExpectation(description: "set overrides")
+        let overrideGroup = DispatchGroup()
+        for (index, id) in activityIds.enumerated() {
+            overrideGroup.enter()
+            let tagId = index == 0 ? writingId : codingId
+            db.setUserTagOverride(activityId: id, tagId: tagId) { _ in
+                overrideGroup.leave()
+            }
+        }
+        overrideGroup.notify(queue: .main) { overrideExpectation.fulfill() }
+        wait(for: [overrideExpectation], timeout: 5)
+
+        let suggestionExpectation = XCTestExpectation(description: "fetch suggestions")
+        var suggestions: [RuleSuggestionRow] = []
+        db.fetchRuleSuggestions(minSamples: 3, minConfidence: 0.6, limit: 10) { result in
+            if case .success(let rows) = result {
+                suggestions = rows
+            }
+            suggestionExpectation.fulfill()
+        }
+        wait(for: [suggestionExpectation], timeout: 5)
+
+        let xcodeSuggestion = suggestions.first(where: { $0.bundleId == "com.apple.dt.Xcode" })
+        XCTAssertNotNil(xcodeSuggestion)
+        XCTAssertEqual(xcodeSuggestion?.tagId, codingId)
+        XCTAssertEqual(xcodeSuggestion?.overrideCount, 4)
+        XCTAssertEqual(xcodeSuggestion?.totalOverrides, 5)
+        XCTAssertGreaterThanOrEqual(xcodeSuggestion?.confidence ?? 0, 0.8)
     }
 }

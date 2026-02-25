@@ -211,6 +211,8 @@ struct RulesManagementView: View {
     @State private var rules: [RuleRow] = []
     @State private var tags: [TagRow] = []
     @State private var appMappings: [AppMappingRow] = []
+    @State private var ruleSuggestions: [RuleSuggestionRow] = []
+    @State private var isLoadingSuggestions = false
     @State private var lastActionMessage: StatusMessage?
     @State private var newRuleName = ""
 
@@ -247,6 +249,8 @@ struct RulesManagementView: View {
                         .disabled(newRuleName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
 
+                    suggestedRulesSection
+
                     if rules.isEmpty {
                         EmptyStateView(title: "No rules yet.")
                     } else {
@@ -282,6 +286,8 @@ struct RulesManagementView: View {
         var fetchedRules: [RuleRow] = []
         var fetchedTags: [TagRow] = []
         var fetchedMappings: [AppMappingRow] = []
+        var fetchedSuggestions: [RuleSuggestionRow] = []
+        isLoadingSuggestions = true
 
         group.enter()
         DatabaseService.shared.fetchRules { result in
@@ -307,10 +313,20 @@ struct RulesManagementView: View {
             group.leave()
         }
 
+        group.enter()
+        DatabaseService.shared.fetchRuleSuggestions { result in
+            if case .success(let rows) = result {
+                fetchedSuggestions = rows
+            }
+            group.leave()
+        }
+
         group.notify(queue: .main) {
             self.rules = fetchedRules
             self.tags = fetchedTags
             self.appMappings = fetchedMappings
+            self.ruleSuggestions = fetchedSuggestions
+            self.isLoadingSuggestions = false
         }
     }
 
@@ -389,6 +405,111 @@ struct RulesManagementView: View {
                 case .failure(let error):
                     self.lastActionMessage = StatusMessage(
                         text: String(format: L("rules.status.recompute_failed"), error.localizedDescription),
+                        isError: true
+                    )
+                }
+            }
+        }
+    }
+
+    private var suggestedRulesSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                Text(L("rules.suggestions.title"))
+                    .font(.subheadline.weight(.semibold))
+                if isLoadingSuggestions {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+                Spacer()
+                Button(L("wizard.refresh")) {
+                    reloadData()
+                }
+                .buttonStyle(.bordered)
+            }
+
+            if ruleSuggestions.isEmpty {
+                Text(L("rules.suggestions.empty"))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            } else {
+                ForEach(ruleSuggestions) { suggestion in
+                    HStack(alignment: .center, spacing: 10) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(
+                                String(
+                                    format: L("rules.suggestions.summary"),
+                                    suggestion.appName,
+                                    tagName(for: suggestion.tagId)
+                                )
+                            )
+                            .font(.subheadline.weight(.medium))
+                            Text(suggestionDetail(suggestion))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        Button(L("rules.suggestions.create")) {
+                            createRuleFromSuggestion(suggestion)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(DesignSystem.Colors.accentSkyBlue)
+                    }
+                    .padding(8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(DesignSystem.Colors.cardBackground)
+                    )
+                }
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private func tagName(for tagId: Int64) -> String {
+        tags.first(where: { $0.id == tagId })?.name ?? L("Untagged")
+    }
+
+    private func suggestionDetail(_ suggestion: RuleSuggestionRow) -> String {
+        let confidenceText = String(format: "%.0f%%", suggestion.confidence * 100)
+        let bundleText = suggestion.bundleId ?? L("rules.any_app")
+        return String(
+            format: L("rules.suggestions.detail"),
+            suggestion.overrideCount,
+            suggestion.totalOverrides,
+            confidenceText,
+            bundleText
+        )
+    }
+
+    private func createRuleFromSuggestion(_ suggestion: RuleSuggestionRow) {
+        let tagNameText = tagName(for: suggestion.tagId)
+        let ruleName = String(format: L("rules.suggestions.rule_name"), suggestion.appName, tagNameText)
+        let suggestedBundleId = suggestion.bundleId?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let bundleId = (suggestedBundleId?.isEmpty == false) ? suggestedBundleId : nil
+        let appName = bundleId == nil ? suggestion.appName : nil
+
+        DatabaseService.shared.insertRule(
+            name: ruleName,
+            enabled: true,
+            matchBundleId: bundleId,
+            matchAppName: appName,
+            matchWindowTitle: nil,
+            matchMode: .equals,
+            tagId: suggestion.tagId,
+            priority: 5
+        ) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    self.lastActionMessage = StatusMessage(
+                        text: String(format: L("rules.suggestions.created"), suggestion.appName, tagNameText),
+                        isError: false
+                    )
+                    self.reloadData()
+                case .failure(let error):
+                    self.lastActionMessage = StatusMessage(
+                        text: String(format: L("rules.suggestions.create_failed"), error.localizedDescription),
                         isError: true
                     )
                 }

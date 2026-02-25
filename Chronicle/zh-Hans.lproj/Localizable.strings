@@ -377,6 +377,14 @@
 "rules.status.recompute_failed" = "重新计算失败：%@";
 "rules.target_app" = "目标应用";
 "rules.any_app" = "任意应用";
+"rules.suggestions.title" = "规则建议";
+"rules.suggestions.empty" = "暂时没有高置信建议。继续手动纠偏后会自动出现建议。";
+"rules.suggestions.summary" = "%@ → %@";
+"rules.suggestions.detail" = "手动覆盖：%d/%d（%@）· 作用域：%@";
+"rules.suggestions.create" = "创建规则";
+"rules.suggestions.created" = "已创建建议规则：%@ → %@。";
+"rules.suggestions.create_failed" = "创建建议规则失败：%@";
+"rules.suggestions.rule_name" = "自动 %@ → %@";
 
 "tag.picker.title" = "标签选择";
 "tag.picker.use_auto" = "使用自动标签";
@@ -413,3 +421,17 @@
 "All Apps" = "全部应用";
 "All Tags" = "全部标签";
 "Uncategorized" = "未分类";
+"timeline.batch.edit" = "批量编辑";
+"timeline.batch.done" = "完成";
+"timeline.batch.title" = "批量标签纠偏";
+"timeline.batch.selected_count" = "已选 %d 条";
+"timeline.batch.select_visible" = "选择可见项";
+"timeline.batch.clear_selection" = "清空选择";
+"timeline.batch.target" = "目标标签";
+"timeline.batch.use_auto" = "使用自动标签";
+"timeline.batch.apply" = "应用到所选";
+"timeline.batch.applying" = "应用中…";
+"timeline.batch.applied" = "已将 %d 条活动更新为 %@。";
+"timeline.batch.failed" = "批量更新失败：%@";
+"timeline.batch.selected" = "已选择";
+"timeline.batch.not_selected" = "未选择";

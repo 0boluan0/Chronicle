@@ -20,8 +20,15 @@ struct DashboardTimelineView: View {
     @State private var displayLimit = 200
     @State private var lastRefresh: Date?
     @State private var activeTagPickerActivityId: Int64?
+    @State private var isBatchMode = false
+    @State private var selectedActivityIds: Set<Int64> = []
+    @State private var selectedBatchTagId: Int64 = -1
+    @State private var isApplyingBatchOverride = false
+    @State private var batchStatusMessage: String?
+    @State private var batchStatusIsError = false
 
     private let untaggedFilterValue: Int64 = -2
+    private let batchUseAutoValue: Int64 = -1
 
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
@@ -32,6 +39,10 @@ struct DashboardTimelineView: View {
             }
 
             filterCard
+
+            if isBatchMode {
+                batchControlCard
+            }
 
             ScrollView {
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
@@ -48,17 +59,7 @@ struct DashboardTimelineView: View {
                                     ForEach(group.items) { item in
                                         switch item {
                                         case .activity(let activity):
-                                            ActivityRowView(
-                                                activity: activity,
-                                                tag: tagForActivity(activity),
-                                                maxTitleLines: 2,
-                                                tagPopoverPresented: tagPopoverBinding(for: activity),
-                                                tagPopoverContent: tagPopoverContent(for: activity),
-                                                showsManualIndicator: activity.userTagOverrideId != nil
-                                            )
-                                            .contextMenu {
-                                                tagContextMenu(for: activity)
-                                            }
+                                            activityRow(activity)
                                         case .marker(let marker):
                                             MarkerRowView(marker: marker)
                                                 .contextMenu {
@@ -162,7 +163,98 @@ struct DashboardTimelineView: View {
                     .frame(width: 200)
 
                     Spacer()
+
+                    Button(isBatchMode ? L("timeline.batch.done") : L("timeline.batch.edit")) {
+                        toggleBatchMode()
+                    }
+                    .buttonStyle(.bordered)
                 }
+            }
+        }
+    }
+
+    private var batchControlCard: some View {
+        SectionCard(title: "timeline.batch.title") {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                HStack {
+                    Text(String(format: L("timeline.batch.selected_count"), selectedActivityIds.count))
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                    Spacer()
+                    Button(L("timeline.batch.select_visible")) {
+                        selectVisibleActivities()
+                    }
+                    .buttonStyle(.bordered)
+                    Button(L("timeline.batch.clear_selection")) {
+                        clearBatchSelection()
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(selectedActivityIds.isEmpty)
+                }
+
+                HStack(spacing: DesignSystem.Spacing.md) {
+                    Picker(L("timeline.batch.target"), selection: $selectedBatchTagId) {
+                        Text(L("timeline.batch.use_auto")).tag(batchUseAutoValue)
+                        ForEach(tags) { tag in
+                            Text(tag.name).tag(tag.id)
+                        }
+                    }
+                    .frame(width: 260)
+
+                    Button(isApplyingBatchOverride ? L("timeline.batch.applying") : L("timeline.batch.apply")) {
+                        applyBatchOverride()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(selectedActivityIds.isEmpty || isApplyingBatchOverride)
+
+                    Spacer()
+                }
+
+                if let batchStatusMessage, !batchStatusMessage.isEmpty {
+                    Text(batchStatusMessage)
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(batchStatusIsError ? .red : DesignSystem.Colors.secondaryText)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func activityRow(_ activity: ActivityRow) -> some View {
+        if isBatchMode {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                Button {
+                    toggleActivitySelection(activity.id)
+                } label: {
+                    Image(systemName: selectedActivityIds.contains(activity.id) ? "checkmark.circle.fill" : "circle")
+                        .foregroundColor(selectedActivityIds.contains(activity.id) ? DesignSystem.Colors.accentSkyBlue : DesignSystem.Colors.secondaryText)
+                }
+                .buttonStyle(.plain)
+                .help(selectedActivityIds.contains(activity.id) ? L("timeline.batch.selected") : L("timeline.batch.not_selected"))
+
+                ActivityRowView(
+                    activity: activity,
+                    tag: tagForActivity(activity),
+                    maxTitleLines: 2,
+                    tagPopoverPresented: tagPopoverBinding(for: activity),
+                    tagPopoverContent: tagPopoverContent(for: activity),
+                    showsManualIndicator: activity.userTagOverrideId != nil
+                )
+                .contextMenu {
+                    tagContextMenu(for: activity)
+                }
+            }
+        } else {
+            ActivityRowView(
+                activity: activity,
+                tag: tagForActivity(activity),
+                maxTitleLines: 2,
+                tagPopoverPresented: tagPopoverBinding(for: activity),
+                tagPopoverContent: tagPopoverContent(for: activity),
+                showsManualIndicator: activity.userTagOverrideId != nil
+            )
+            .contextMenu {
+                tagContextMenu(for: activity)
             }
         }
     }
@@ -449,6 +541,76 @@ struct DashboardTimelineView: View {
         }
     }
 
+    private func toggleBatchMode() {
+        isBatchMode.toggle()
+        if isBatchMode {
+            selectedBatchTagId = batchUseAutoValue
+            clearBatchSelection()
+        } else {
+            clearBatchSelection()
+        }
+    }
+
+    private func selectVisibleActivities() {
+        let ids = visibleItems.compactMap { item -> Int64? in
+            if case .activity(let activity) = item {
+                return activity.id
+            }
+            return nil
+        }
+        selectedActivityIds.formUnion(ids)
+    }
+
+    private func clearBatchSelection() {
+        selectedActivityIds.removeAll()
+        batchStatusMessage = nil
+        batchStatusIsError = false
+    }
+
+    private func toggleActivitySelection(_ activityId: Int64) {
+        if selectedActivityIds.contains(activityId) {
+            selectedActivityIds.remove(activityId)
+        } else {
+            selectedActivityIds.insert(activityId)
+        }
+    }
+
+    private func applyBatchOverride() {
+        let ids = Array(selectedActivityIds).sorted()
+        guard !ids.isEmpty else { return }
+
+        isApplyingBatchOverride = true
+        batchStatusMessage = nil
+        batchStatusIsError = false
+
+        let targetTagId = selectedBatchTagId == batchUseAutoValue ? nil : selectedBatchTagId
+        for activityId in ids {
+            applyOverrideLocally(activityId: activityId, tagId: targetTagId)
+        }
+
+        DatabaseService.shared.setUserTagOverride(activityIds: ids, tagId: targetTagId) { result in
+            DispatchQueue.main.async {
+                self.isApplyingBatchOverride = false
+                switch result {
+                case .success(let updated):
+                    let tagName = targetTagId
+                        .flatMap { id in self.tags.first(where: { $0.id == id })?.name }
+                        ?? L("timeline.batch.use_auto")
+                    self.batchStatusMessage = String(format: L("timeline.batch.applied"), updated, tagName)
+                    self.batchStatusIsError = false
+                    self.selectedActivityIds.removeAll()
+                    self.refreshData(reason: "batch tag override", resetLimit: false)
+                    NotificationCenter.default.post(name: ActivityTracker.didRecordSessionNotification, object: nil)
+                case .failure(let error):
+                    self.batchStatusMessage = String(format: L("timeline.batch.failed"), error.localizedDescription)
+                    self.batchStatusIsError = true
+                    self.appState.lastDbErrorMessage = error.localizedDescription
+                    self.refreshData(reason: "batch tag override failed", resetLimit: false)
+                }
+            }
+        }
+    }
+
     private func deleteMarker(_ marker: MarkerRow) {
         DatabaseService.shared.deleteMarker(id: marker.id) { result in
             DispatchQueue.main.async {
@@ -565,6 +727,8 @@ struct DashboardTimelineView: View {
             self.markerSpans = newItems.compactMap { if case .markerSpan(let s) = $0 { return s }; return nil }
             self.tags = newTags
             self.rules = newRules
+            let validActivityIds = Set(self.activities.map(\.id))
+            self.selectedActivityIds = self.selectedActivityIds.intersection(validActivityIds)
             self.lastRefresh = Date()
             self.isLoading = false
             if !self.appFilterOptions.contains(self.appState.selectedAppFilterName) {

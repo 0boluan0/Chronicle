@@ -386,6 +386,14 @@
 "rules.status.recompute_failed" = "Recompute failed: %@";
 "rules.target_app" = "Target App";
 "rules.any_app" = "Any App";
+"rules.suggestions.title" = "Suggested Rules";
+"rules.suggestions.empty" = "No strong suggestions yet. Keep tagging manually and suggestions will appear.";
+"rules.suggestions.summary" = "%@ → %@";
+"rules.suggestions.detail" = "Manual overrides: %d/%d (%@) · scope: %@";
+"rules.suggestions.create" = "Create Rule";
+"rules.suggestions.created" = "Created suggested rule: %@ → %@.";
+"rules.suggestions.create_failed" = "Create suggested rule failed: %@";
+"rules.suggestions.rule_name" = "Auto %@ → %@";
 
 "Markers" = "Markers";
 "Search markers" = "Search markers";
@@ -420,3 +428,17 @@
 "All Apps" = "All Apps";
 "All Tags" = "All Tags";
 "Uncategorized" = "Uncategorized";
+"timeline.batch.edit" = "Bulk Edit";
+"timeline.batch.done" = "Done";
+"timeline.batch.title" = "Batch Tag Override";
+"timeline.batch.selected_count" = "%d selected";
+"timeline.batch.select_visible" = "Select Visible";
+"timeline.batch.clear_selection" = "Clear Selection";
+"timeline.batch.target" = "Target";
+"timeline.batch.use_auto" = "Use Auto Tag";
+"timeline.batch.apply" = "Apply to Selected";
+"timeline.batch.applying" = "Applying…";
+"timeline.batch.applied" = "Updated %d activities to %@.";
+"timeline.batch.failed" = "Batch update failed: %@";
+"timeline.batch.selected" = "Selected";
+"timeline.batch.not_selected" = "Not selected";
