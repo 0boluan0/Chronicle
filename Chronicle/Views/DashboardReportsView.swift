@@ -14,6 +14,7 @@ struct DashboardReportsView: View {
 
     @EnvironmentObject private var appState: AppState
     @ObservedObject private var settings = ReportSettings.shared
+    @AppStorage("reports.csv.selectedColumns") private var csvSelectedColumnsRaw = CSVExportColumn.defaultStorageValue
 
     @State private var dailyStatus: StatusMessage?
     @State private var weeklyStatus: StatusMessage?
@@ -129,6 +130,28 @@ struct DashboardReportsView: View {
                         exportCsv()
                     }
                     .buttonStyle(.borderedProminent)
+                }
+
+                DisclosureGroup(L("reports.csv.fields")) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        LazyVGrid(
+                            columns: [
+                                GridItem(.flexible(minimum: 180), spacing: 8, alignment: .leading),
+                                GridItem(.flexible(minimum: 180), spacing: 8, alignment: .leading)
+                            ],
+                            alignment: .leading,
+                            spacing: 8
+                        ) {
+                            ForEach(CSVExportColumn.allCases) { column in
+                                Toggle(L(column.titleKey), isOn: csvColumnBinding(for: column))
+                                    .toggleStyle(.checkbox)
+                            }
+                        }
+                        Text(String(format: L("reports.csv.fields.selected"), selectedCSVColumns.count))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.top, 6)
                 }
 
                 statusLine(csvStatus)
@@ -629,7 +652,8 @@ struct DashboardReportsView: View {
     private func exportCsv() {
         csvStatus = StatusMessage(text: L("reports.status.exporting"), isError: false)
         let range = csvExportRange()
-        ReportService.shared.exportCSV(range: range) { result in
+        let columns = selectedCSVColumns
+        ReportService.shared.exportCSV(range: range, columns: columns) { result in
             DispatchQueue.main.async {
                 switch result {
                 case .success(let info):
@@ -643,6 +667,33 @@ struct DashboardReportsView: View {
                 }
             }
         }
+    }
+
+    private var selectedCSVColumns: [CSVExportColumn] {
+        CSVExportColumn.decodeStorageValue(csvSelectedColumnsRaw)
+    }
+
+    private func csvColumnBinding(for column: CSVExportColumn) -> Binding<Bool> {
+        Binding(
+            get: { selectedCSVColumns.contains(column) },
+            set: { isEnabled in
+                var selected = Set(selectedCSVColumns)
+                if isEnabled {
+                    selected.insert(column)
+                } else if selected.count > 1 {
+                    selected.remove(column)
+                } else {
+                    csvStatus = StatusMessage(text: L("reports.csv.fields.minimum_one"), isError: true)
+                    return
+                }
+
+                let ordered = CSVExportColumn.allCases.filter { selected.contains($0) }
+                csvSelectedColumnsRaw = CSVExportColumn.encodeStorageValue(ordered)
+                if let status = csvStatus, status.isError {
+                    csvStatus = nil
+                }
+            }
+        )
     }
 
     private func csvExportRange() -> CSVExportRange {

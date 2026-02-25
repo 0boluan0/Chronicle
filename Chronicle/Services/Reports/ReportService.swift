@@ -114,7 +114,11 @@ final class ReportService {
         }
     }
 
-    func exportCSV(range: CSVExportRange, completion: @escaping (Result<ReportExportResult, Error>) -> Void) {
+    func exportCSV(
+        range: CSVExportRange,
+        columns: [CSVExportColumn] = CSVExportColumn.defaultColumns,
+        completion: @escaping (Result<ReportExportResult, Error>) -> Void
+    ) {
         queue.async {
             let bounds = range.bounds
             let group = DispatchGroup()
@@ -153,7 +157,8 @@ final class ReportService {
                     activities: activities,
                     tags: tags,
                     rangeStart: bounds.start,
-                    rangeEnd: bounds.end
+                    rangeEnd: bounds.end,
+                    columns: columns
                 )
                 do {
                     let fileName = range.fileName
@@ -1091,25 +1096,12 @@ final class ReportService {
         activities: [ActivityRow],
         tags: [TagRow],
         rangeStart: Int64,
-        rangeEnd: Int64
+        rangeEnd: Int64,
+        columns: [CSVExportColumn]
     ) -> String {
+        let selectedColumns = columns.isEmpty ? CSVExportColumn.defaultColumns : columns
         let tagLookup = Dictionary(uniqueKeysWithValues: tags.map { ($0.id, $0.name) })
-        let header = [
-            "start_time",
-            "end_time",
-            "duration",
-            "app_name",
-            "bundle_id",
-            "window_title",
-            "tag_id",
-            "rule_tag_id",
-            "user_tag_override_id",
-            "effective_tag_id",
-            "tag_name",
-            "rule_tag_name",
-            "effective_tag_name",
-            "is_idle"
-        ]
+        let header = selectedColumns.map(\.rawValue)
         var lines = [header.joined(separator: ",")]
 
         let sorted = activities.sorted { $0.startTime < $1.startTime }
@@ -1127,22 +1119,38 @@ final class ReportService {
             let userTagOverrideValue = activity.userTagOverrideId.map { String($0) } ?? ""
             let effectiveTagIdValue = activity.effectiveTagId.map { String($0) } ?? ""
 
-            let fields: [String] = [
-                String(start),
-                String(end),
-                String(duration),
-                csvEscape(activity.appName),
-                csvEscape(activity.bundleId ?? ""),
-                csvEscape(activity.windowTitle ?? ""),
-                tagIdValue,
-                ruleTagIdValue,
-                userTagOverrideValue,
-                effectiveTagIdValue,
-                csvEscape(tagName),
-                csvEscape(ruleTagName),
-                csvEscape(effectiveTagName),
-                activity.isIdle ? "1" : "0"
-            ]
+            let fields: [String] = selectedColumns.map { column in
+                switch column {
+                case .startTime:
+                    return String(start)
+                case .endTime:
+                    return String(end)
+                case .duration:
+                    return String(duration)
+                case .appName:
+                    return csvEscape(activity.appName)
+                case .bundleId:
+                    return csvEscape(activity.bundleId ?? "")
+                case .windowTitle:
+                    return csvEscape(activity.windowTitle ?? "")
+                case .tagId:
+                    return tagIdValue
+                case .ruleTagId:
+                    return ruleTagIdValue
+                case .userTagOverrideId:
+                    return userTagOverrideValue
+                case .effectiveTagId:
+                    return effectiveTagIdValue
+                case .tagName:
+                    return csvEscape(tagName)
+                case .ruleTagName:
+                    return csvEscape(ruleTagName)
+                case .effectiveTagName:
+                    return csvEscape(effectiveTagName)
+                case .isIdle:
+                    return activity.isIdle ? "1" : "0"
+                }
+            }
             lines.append(fields.joined(separator: ","))
         }
         return lines.joined(separator: "\n")
@@ -1160,6 +1168,51 @@ final class ReportService {
 enum ReportKind {
     case daily
     case weekly
+}
+
+enum CSVExportColumn: String, CaseIterable, Identifiable {
+    case startTime = "start_time"
+    case endTime = "end_time"
+    case duration = "duration"
+    case appName = "app_name"
+    case bundleId = "bundle_id"
+    case windowTitle = "window_title"
+    case tagId = "tag_id"
+    case ruleTagId = "rule_tag_id"
+    case userTagOverrideId = "user_tag_override_id"
+    case effectiveTagId = "effective_tag_id"
+    case tagName = "tag_name"
+    case ruleTagName = "rule_tag_name"
+    case effectiveTagName = "effective_tag_name"
+    case isIdle = "is_idle"
+
+    var id: String { rawValue }
+
+    var titleKey: String {
+        "reports.csv.field.\(rawValue)"
+    }
+
+    static var defaultColumns: [CSVExportColumn] {
+        Self.allCases
+    }
+
+    static var defaultStorageValue: String {
+        defaultColumns.map(\.rawValue).joined(separator: ",")
+    }
+
+    static func decodeStorageValue(_ raw: String) -> [CSVExportColumn] {
+        let tokens = raw
+            .split(separator: ",")
+            .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+        let selected = Set(tokens)
+        let columns = Self.allCases.filter { selected.contains($0.rawValue) }
+        return columns.isEmpty ? defaultColumns : columns
+    }
+
+    static func encodeStorageValue(_ columns: [CSVExportColumn]) -> String {
+        let normalized = columns.isEmpty ? defaultColumns : columns
+        return normalized.map(\.rawValue).joined(separator: ",")
+    }
 }
 
 private extension ReportKind {

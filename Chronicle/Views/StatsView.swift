@@ -25,6 +25,7 @@ struct StatsView: View {
     @State private var recentMarkerSpans: [MarkerSpanRow] = []
     @State private var isLoading = false
     @State private var lastRefresh: Date?
+    @State private var showIdleSuppressionExplanation = false
 
     init(embedInPopover: Bool = false) {
         self.embedInPopover = embedInPopover
@@ -54,9 +55,16 @@ struct StatsView: View {
                     .foregroundColor(.secondary)
             }
             if appState.idleSuppressionMediaPlaying || appState.idleSuppressionFrontmostAllowed || appState.idleSuppressionResumeGrace {
-                Text(idleSuppressionStatusText)
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    Text(idleSuppressionStatusText)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Button(L("stats.idle_suppression.explain")) {
+                        showIdleSuppressionExplanation = true
+                    }
+                    .buttonStyle(.borderless)
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                }
             }
 
             ScrollView {
@@ -95,6 +103,9 @@ struct StatsView: View {
         }
         .onChange(of: appState.dateRangeMode) { _ in
             refreshStats(reason: "range changed")
+        }
+        .sheet(isPresented: $showIdleSuppressionExplanation) {
+            idleSuppressionExplanationSheet
         }
     }
 
@@ -598,6 +609,69 @@ struct StatsView: View {
             return ""
         }
         return String(format: L("stats.idle_suppression.active"), reasons.joined(separator: ", "))
+    }
+
+    private var idleSuppressionExplanationSheet: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            Text(L("stats.idle_suppression.sheet_title"))
+                .font(.headline)
+
+            Text(L("stats.idle_suppression.sheet_subtitle"))
+                .font(.caption)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+
+            suppressionReasonRow(
+                title: L("stats.idle_suppression.media"),
+                active: appState.idleSuppressionMediaPlaying,
+                detail: L("stats.idle_suppression.media_detail")
+            )
+            suppressionReasonRow(
+                title: L("stats.idle_suppression.allowlist"),
+                active: appState.idleSuppressionFrontmostAllowed,
+                detail: L("stats.idle_suppression.allowlist_detail")
+            )
+            suppressionReasonRow(
+                title: L("stats.idle_suppression.grace"),
+                active: appState.idleSuppressionResumeGrace,
+                detail: L("stats.idle_suppression.grace_detail")
+            )
+
+            HStack {
+                Spacer()
+                Button(L("stats.idle_suppression.open_preferences")) {
+                    PreferencesWindowController.shared.show()
+                }
+                .buttonStyle(.bordered)
+
+                Button(L("actions.close")) {
+                    showIdleSuppressionExplanation = false
+                }
+                .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding(20)
+        .frame(minWidth: 420, minHeight: 260)
+    }
+
+    @ViewBuilder
+    private func suppressionReasonRow(title: String, active: Bool, detail: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(active ? Color(nsColor: .systemGreen) : DesignSystem.Colors.secondaryText.opacity(0.5))
+                    .frame(width: 8, height: 8)
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+                Text(active ? L("stats.idle_suppression.state_active") : L("stats.idle_suppression.state_inactive"))
+                    .font(.caption)
+                    .foregroundColor(active ? Color(nsColor: .systemGreen) : DesignSystem.Colors.secondaryText)
+            }
+            Text(detail)
+                .font(.caption)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+        }
+        .padding(.vertical, 2)
     }
 
     private let dateFormatter: DateFormatter = {
