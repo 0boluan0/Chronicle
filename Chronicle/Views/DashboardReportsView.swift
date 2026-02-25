@@ -29,6 +29,8 @@ struct DashboardReportsView: View {
     @State private var customEndDate = Date()
     @State private var dailyNotes = ""
     @State private var weeklyNotes = ""
+    @State private var selectedDailyPreset: ReportTemplatePreset = .retrospective
+    @State private var selectedWeeklyPreset: ReportTemplatePreset = .retrospective
 
     var body: some View {
         Group {
@@ -189,6 +191,8 @@ struct DashboardReportsView: View {
                         .toggleStyle(.switch)
                 }
 
+                dailyTemplatePresetSection
+
                 TextEditor(text: $settings.dailyTemplateText)
                     .font(.system(size: 12, design: .monospaced))
                     .frame(minHeight: 180, maxHeight: 240)
@@ -295,6 +299,8 @@ struct DashboardReportsView: View {
                         .toggleStyle(.switch)
                 }
 
+                weeklyTemplatePresetSection
+
                 TextEditor(text: $settings.weeklyTemplateText)
                     .font(.system(size: 12, design: .monospaced))
                     .frame(minHeight: 180, maxHeight: 240)
@@ -384,6 +390,94 @@ struct DashboardReportsView: View {
                 .padding(.top, 4)
         }
         .font(.caption)
+    }
+
+    private var dailyTemplatePresetSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                Text(L("reports.template_presets.title"))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                Picker(L("reports.template_presets.picker"), selection: $selectedDailyPreset) {
+                    ForEach(ReportTemplatePreset.allCases) { preset in
+                        Text(L(preset.titleKey))
+                            .tag(preset)
+                    }
+                }
+                .pickerStyle(.menu)
+
+                Button(L("reports.template_presets.apply")) {
+                    settings.dailyTemplateText = selectedDailyPreset.dailyTemplate
+                    dailyStatus = StatusMessage(
+                        text: String(format: L("reports.template_presets.applied"), L(selectedDailyPreset.titleKey)),
+                        isError: false
+                    )
+                }
+                .buttonStyle(.bordered)
+            }
+
+            Text(L("reports.template_presets.preview"))
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            ScrollView {
+                Text(selectedDailyPreset.dailyTemplate)
+                    .font(.system(size: 11, design: .monospaced))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .textSelection(.enabled)
+                    .padding(.vertical, 4)
+            }
+            .frame(minHeight: 90, maxHeight: 120)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+            )
+        }
+    }
+
+    private var weeklyTemplatePresetSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 10) {
+                Text(L("reports.template_presets.title"))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+
+                Picker(L("reports.template_presets.picker"), selection: $selectedWeeklyPreset) {
+                    ForEach(ReportTemplatePreset.allCases) { preset in
+                        Text(L(preset.titleKey))
+                            .tag(preset)
+                    }
+                }
+                .pickerStyle(.menu)
+
+                Button(L("reports.template_presets.apply")) {
+                    settings.weeklyTemplateText = selectedWeeklyPreset.weeklyTemplate
+                    weeklyStatus = StatusMessage(
+                        text: String(format: L("reports.template_presets.applied"), L(selectedWeeklyPreset.titleKey)),
+                        isError: false
+                    )
+                }
+                .buttonStyle(.bordered)
+            }
+
+            Text(L("reports.template_presets.preview"))
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            ScrollView {
+                Text(selectedWeeklyPreset.weeklyTemplate)
+                    .font(.system(size: 11, design: .monospaced))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .textSelection(.enabled)
+                    .padding(.vertical, 4)
+            }
+            .frame(minHeight: 90, maxHeight: 120)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+            )
+        }
     }
 
     private func previewDaily(date: Date) {

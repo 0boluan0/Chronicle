@@ -195,6 +195,26 @@ final class DatabaseService {
         }
     }
 
+    func fetchRawEventCount(start: Int64, end: Int64, completion: @escaping (Result<Int, Error>) -> Void) {
+        if Thread.isMainThread {
+            AppLogger.log("Warning: fetchRawEventCount called on main thread", category: "db")
+        }
+
+        queue.async { [self] in
+            do {
+                try self.openDatabaseIfNeeded()
+                let count = try self.fetchRawEventCountInternal(start: start, end: end)
+                completion(.success(count))
+            } catch let error as DatabaseError {
+                AppLogger.log("Fetch raw event count failed: \(error.logDescription)", category: "db")
+                completion(.failure(error))
+            } catch {
+                AppLogger.log("Fetch raw event count failed: \(error.localizedDescription)", category: "db")
+                completion(.failure(error))
+            }
+        }
+    }
+
     func deleteActivitiesInRange(start: Int64, end: Int64, completion: @escaping (Result<Int, Error>) -> Void) {
         if Thread.isMainThread {
             AppLogger.log("Warning: deleteActivitiesInRange called on main thread", category: "db")
@@ -2413,6 +2433,33 @@ final class DatabaseService {
             }
         }
         return events
+    }
+
+    private func fetchRawEventCountInternal(start: Int64, end: Int64) throws -> Int {
+        let sql = """
+        SELECT COUNT(*)
+        FROM RawEvents
+        WHERE ts >= ? AND ts < ?;
+        """
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "prepare", sql: sql, message: message)
+            throw DatabaseError.prepareFailed(message, sql: sql)
+        }
+        defer { sqlite3_finalize(statement) }
+
+        try bind(sql: sql, result: sqlite3_bind_int64(statement, 1, start), detail: "start")
+        try bind(sql: sql, result: sqlite3_bind_int64(statement, 2, end), detail: "end")
+
+        let stepResult = sqlite3_step(statement)
+        if stepResult == SQLITE_ROW {
+            return Int(sqlite3_column_int64(statement, 0))
+        }
+
+        let message = sqliteErrorMessage(db)
+        logSQLiteError(operation: "step", sql: sql, message: message)
+        throw DatabaseError.stepFailed(message, sql: sql)
     }
 
     private func deleteActivitiesInRangeInternal(start: Int64, end: Int64) throws -> Int {

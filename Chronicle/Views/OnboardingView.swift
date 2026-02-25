@@ -160,22 +160,35 @@ struct OnboardingView: View {
                         .font(DesignSystem.Typography.caption)
                         .foregroundColor(DesignSystem.Colors.secondaryText)
 
-                    if appState.windowTitleCaptureEnabled && !appState.accessibilityAuthorized {
-                        HStack(spacing: DesignSystem.Spacing.sm) {
-                            Text("preferences.window_titles.needs_access")
+                    if appState.windowTitleCaptureEnabled {
+                        if appState.accessibilityAuthorized {
+                            Label(LocalizedStringKey("onboarding.permissions.authorized"), systemImage: "checkmark.seal.fill")
+                                .font(DesignSystem.Typography.caption)
+                                .foregroundColor(Color(nsColor: .systemGreen))
+                        } else {
+                            Text("onboarding.permissions.choice_hint")
                                 .font(DesignSystem.Typography.caption)
                                 .foregroundColor(DesignSystem.Colors.secondaryText)
-                            Spacer()
-                            Button("preferences.window_titles.open_settings") {
-                                AccessibilityPermissionManager.shared.openSystemSettings()
+                            HStack(spacing: DesignSystem.Spacing.sm) {
+                                Button("onboarding.permissions.grant") {
+                                    _ = AccessibilityPermissionManager.shared.requestPermission(prompt: true)
+                                    AccessibilityPermissionManager.shared.syncAppState(appState)
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .tint(DesignSystem.Colors.accentSkyBlue)
+
+                                Button("preferences.window_titles.open_settings") {
+                                    AccessibilityPermissionManager.shared.openSystemSettings()
+                                }
+                                .buttonStyle(.bordered)
                             }
-                            .buttonStyle(.bordered)
                         }
-                    } else if appState.accessibilityAuthorized {
-                        Label(LocalizedStringKey("onboarding.permissions.authorized"), systemImage: "checkmark.seal.fill")
+                    } else {
+                        Text("onboarding.permissions.degraded_mode")
                             .font(DesignSystem.Typography.caption)
-                            .foregroundColor(Color(nsColor: .systemGreen))
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                     }
+
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -251,9 +264,6 @@ struct OnboardingView: View {
             get: { appState.windowTitleCaptureEnabled },
             set: { newValue in
                 appState.windowTitleCaptureEnabled = newValue
-                if newValue {
-                    _ = AccessibilityPermissionManager.shared.requestPermission(prompt: true)
-                }
                 AccessibilityPermissionManager.shared.syncAppState(appState)
             }
         )
@@ -297,4 +307,3 @@ struct OnboardingView: View {
         .environmentObject(AppState.shared)
         .environmentObject(AppLanguageManager.shared)
 }
-

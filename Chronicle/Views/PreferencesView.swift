@@ -698,7 +698,10 @@ private struct TagsPreferencesView: View {
                 case .tagsRules:
                     TagsRulesView(showHeader: false)
                 case .appMappings:
-                    AppMappingsView(showHeader: false)
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                        TaggingSetupWizardView()
+                        AppMappingsView(showHeader: false)
+                    }
                 }
             }
         }
@@ -709,6 +712,8 @@ private struct TagsPreferencesView: View {
 private struct PrivacyPreferencesView: View {
     @State private var showWipeConfirm = false
     @State private var wipeMessage: String?
+    @State private var diagnosticsMessage: String?
+    @State private var isExportingDiagnostics = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -739,6 +744,14 @@ private struct PrivacyPreferencesView: View {
                         }
                         .buttonStyle(.bordered)
                         .tint(.red)
+
+                        Spacer()
+
+                        Button("privacy.export_diagnostics") {
+                            exportDiagnostics()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(isExportingDiagnostics)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -755,6 +768,13 @@ private struct PrivacyPreferencesView: View {
                 Text(wipeMessage)
                     .font(.caption)
                     .foregroundColor(.secondary)
+            }
+
+            if let diagnosticsMessage {
+                Text(diagnosticsMessage)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .textSelection(.enabled)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -782,6 +802,42 @@ private struct PrivacyPreferencesView: View {
                     wipeMessage = L("privacy.wipe_done")
                 case .failure(let error):
                     wipeMessage = String(format: L("privacy.wipe_failed"), error.localizedDescription)
+                }
+            }
+        }
+    }
+
+    private func exportDiagnostics() {
+        guard !isExportingDiagnostics else { return }
+        diagnosticsMessage = L("privacy.diagnostics_generating")
+        isExportingDiagnostics = true
+
+        DiagnosticsPackageService.shared.buildDiagnosticsJSON { result in
+            switch result {
+            case .success(let data):
+                let panel = NSSavePanel()
+                panel.allowedContentTypes = [.json]
+                panel.canCreateDirectories = true
+                panel.nameFieldStringValue = DiagnosticsPackageService.defaultFileName()
+                panel.begin { response in
+                    DispatchQueue.main.async {
+                        self.isExportingDiagnostics = false
+                        guard response == .OK, let url = panel.url else {
+                            self.diagnosticsMessage = L("privacy.diagnostics_cancelled")
+                            return
+                        }
+                        do {
+                            try data.write(to: url, options: .atomic)
+                            self.diagnosticsMessage = String(format: L("privacy.diagnostics_saved"), url.path)
+                        } catch {
+                            self.diagnosticsMessage = String(format: L("privacy.diagnostics_failed"), error.localizedDescription)
+                        }
+                    }
+                }
+            case .failure(let error):
+                DispatchQueue.main.async {
+                    self.isExportingDiagnostics = false
+                    self.diagnosticsMessage = String(format: L("privacy.diagnostics_failed"), error.localizedDescription)
                 }
             }
         }

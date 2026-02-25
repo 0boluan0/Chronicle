@@ -422,6 +422,23 @@ final class ReportService {
         let bounds = rangeBounds(for: kind, date: date)
         let timelineBullets = markdownTimelineBullets(
             activities,
+            rangeStart: bounds.start,
+            rangeEnd: bounds.end
+        )
+        let deepWorkBlocks = markdownDeepWorkBlocks(
+            activities,
+            tags: tags,
+            rangeStart: bounds.start,
+            rangeEnd: bounds.end
+        )
+        let peakSwitchSlots = markdownPeakSwitchSlots(
+            activities,
+            kind: kind,
+            rangeStart: bounds.start,
+            rangeEnd: bounds.end
+        )
+        let topTagsSessionTable = markdownTopTagSessionTable(
+            activities,
             tags: tags,
             rangeStart: bounds.start,
             rangeEnd: bounds.end
@@ -442,6 +459,9 @@ final class ReportService {
             "markers_list": markerList,
             "marker_spans": markerSpanList,
             "timeline_bullets": timelineBullets,
+            "deep_work_blocks": deepWorkBlocks,
+            "peak_switch_slots": peakSwitchSlots,
+            "top_tags_session_table": topTagsSessionTable,
             "notes": trimmedNotes,
             "notes_placeholder": L("reports.notes_placeholder")
         ]
@@ -557,7 +577,7 @@ final class ReportService {
 
     private func openFolder(kind: ReportFolderKind) -> Result<Void, Error> {
         do {
-            try withSecurityScopedFolder(kind: kind) { url in
+            _ = try withSecurityScopedFolder(kind: kind) { url in
                 NSWorkspace.shared.open(url)
             }
             return .success(())
@@ -643,7 +663,7 @@ final class ReportService {
         }
     }
 
-        private func markdownTable(headers: [String], rows: [[String]]) -> String {
+    private func markdownTable(headers: [String], rows: [[String]]) -> String {
         guard !rows.isEmpty else {
             return "_No data_"
         }
@@ -702,7 +722,6 @@ final class ReportService {
 
     private func markdownTimelineBullets(
         _ activities: [ActivityRow],
-        tags: [TagRow],
         rangeStart: Int64,
         rangeEnd: Int64
     ) -> String {
@@ -719,6 +738,277 @@ final class ReportService {
             let idleLabel = activity.isIdle ? " (Idle)" : ""
             return "- \(range) \(activity.appName)\(idleLabel) (\(duration))\(suffix)"
         }.joined(separator: "\n")
+    }
+
+    private func markdownDeepWorkBlocks(
+        _ activities: [ActivityRow],
+        tags: [TagRow],
+        rangeStart: Int64,
+        rangeEnd: Int64
+    ) -> String {
+        let blocks = buildDeepWorkBlocks(
+            activities: activities,
+            tags: tags,
+            rangeStart: rangeStart,
+            rangeEnd: rangeEnd
+        )
+        guard !blocks.isEmpty else { return "- None" }
+        return blocks.map { block in
+            let range = TimeFormatters.timeRange(start: block.start, end: block.end)
+            let duration = TimeFormatters.durationText(start: block.start, end: block.end)
+            return "- \(range) (\(duration)) \(block.tagName) · switches: \(block.switchCount)"
+        }.joined(separator: "\n")
+    }
+
+    private func markdownPeakSwitchSlots(
+        _ activities: [ActivityRow],
+        kind: ReportKind,
+        rangeStart: Int64,
+        rangeEnd: Int64
+    ) -> String {
+        let slots = computeSwitchHotSlots(
+            activities: activities,
+            rangeStart: rangeStart,
+            rangeEnd: rangeEnd
+        )
+        guard !slots.isEmpty else { return "- None" }
+        return slots.map { slot in
+            let start = Date(timeIntervalSince1970: TimeInterval(slot.start))
+            let end = Date(timeIntervalSince1970: TimeInterval(slot.end))
+            let rangeText: String
+            if kind == .daily {
+                rangeText = "\(Self.hourMinuteFormatter.string(from: start))-\(Self.hourMinuteFormatter.string(from: end))"
+            } else {
+                rangeText = "\(Self.dayFormatter.string(from: start)) \(Self.hourMinuteFormatter.string(from: start))-\(Self.hourMinuteFormatter.string(from: end))"
+            }
+            return "- \(rangeText): \(slot.count) switches"
+        }.joined(separator: "\n")
+    }
+
+    private func markdownTopTagSessionTable(
+        _ activities: [ActivityRow],
+        tags: [TagRow],
+        rangeStart: Int64,
+        rangeEnd: Int64
+    ) -> String {
+        let rows = computeTagSessionRows(
+            activities: activities,
+            tags: tags,
+            rangeStart: rangeStart,
+            rangeEnd: rangeEnd
+        )
+        return markdownTable(
+            headers: ["Tag", "Sessions", "Duration"],
+            rows: rows.map { row in
+                [row.tagName, "\(row.sessionCount)", formatDuration(row.durationSeconds)]
+            }
+        )
+    }
+
+    private func buildDeepWorkBlocks(
+        activities: [ActivityRow],
+        tags: [TagRow],
+        rangeStart: Int64,
+        rangeEnd: Int64
+    ) -> [ReportDeepWorkBlock] {
+        let minBlockSeconds: Int64 = 25 * 60
+        let maxSwitchCount = 6
+        let allowedGap = Int64(max(0, AppState.shared.mergeGapSeconds))
+        let tagLookup = Dictionary(uniqueKeysWithValues: tags.map { ($0.id, $0.name) })
+
+        struct Builder {
+            var tagId: Int64?
+            var tagName: String
+            var start: Int64
+            var end: Int64
+            var durationSeconds: Int64
+            var switchCount: Int
+            var lastAppName: String
+        }
+
+        let normalized = activities
+            .filter { !$0.isIdle && $0.endTime > $0.startTime }
+            .compactMap { activity -> ActivityRow? in
+                let start = max(activity.startTime, rangeStart)
+                let end = min(activity.endTime, rangeEnd)
+                guard end > start else { return nil }
+                return ActivityRow(
+                    id: activity.id,
+                    startTime: start,
+                    endTime: end,
+                    appName: activity.appName,
+                    bundleId: activity.bundleId,
+                    windowTitle: activity.windowTitle,
+                    isIdle: activity.isIdle,
+                    tagId: activity.tagId,
+                    ruleTagId: activity.ruleTagId,
+                    userTagOverrideId: activity.userTagOverrideId,
+                    effectiveTagId: activity.effectiveTagId
+                )
+            }
+            .sorted { $0.startTime < $1.startTime }
+
+        var results: [ReportDeepWorkBlock] = []
+        var current: Builder?
+
+        func resolveTag(for activity: ActivityRow) -> (Int64?, String) {
+            let resolvedId = activity.effectiveTagId ?? activity.tagId
+            if let resolvedId, let name = tagLookup[resolvedId] {
+                return (resolvedId, name)
+            }
+            return (nil, "Untagged")
+        }
+
+        func commit(_ builder: Builder?) {
+            guard let builder else { return }
+            guard builder.durationSeconds >= minBlockSeconds else { return }
+            guard builder.switchCount <= maxSwitchCount else { return }
+            results.append(
+                ReportDeepWorkBlock(
+                    tagName: builder.tagName,
+                    start: builder.start,
+                    end: builder.end,
+                    durationSeconds: builder.durationSeconds,
+                    switchCount: builder.switchCount
+                )
+            )
+        }
+
+        for activity in normalized {
+            let resolved = resolveTag(for: activity)
+            let duration = activity.endTime - activity.startTime
+            if var builder = current {
+                let sameTag = builder.tagId == resolved.0
+                let gap = activity.startTime - builder.end
+                if sameTag && gap <= allowedGap {
+                    builder.end = max(builder.end, activity.endTime)
+                    builder.durationSeconds += duration
+                    if activity.appName != builder.lastAppName {
+                        builder.switchCount += 1
+                        builder.lastAppName = activity.appName
+                    }
+                    current = builder
+                } else {
+                    commit(builder)
+                    current = Builder(
+                        tagId: resolved.0,
+                        tagName: resolved.1,
+                        start: activity.startTime,
+                        end: activity.endTime,
+                        durationSeconds: duration,
+                        switchCount: 0,
+                        lastAppName: activity.appName
+                    )
+                }
+            } else {
+                current = Builder(
+                    tagId: resolved.0,
+                    tagName: resolved.1,
+                    start: activity.startTime,
+                    end: activity.endTime,
+                    durationSeconds: duration,
+                    switchCount: 0,
+                    lastAppName: activity.appName
+                )
+            }
+        }
+
+        commit(current)
+        return results.sorted {
+            if $0.durationSeconds == $1.durationSeconds {
+                return $0.start > $1.start
+            }
+            return $0.durationSeconds > $1.durationSeconds
+        }
+        .prefix(6)
+        .map { $0 }
+    }
+
+    private func computeSwitchHotSlots(
+        activities: [ActivityRow],
+        rangeStart: Int64,
+        rangeEnd: Int64
+    ) -> [SwitchSlot] {
+        let sorted = activities
+            .filter { !$0.isIdle && $0.endTime > $0.startTime }
+            .map { activity in
+                ActivitySwitchSlice(
+                    start: max(activity.startTime, rangeStart),
+                    end: min(activity.endTime, rangeEnd),
+                    appName: activity.appName
+                )
+            }
+            .filter { $0.end > $0.start }
+            .sorted { $0.start < $1.start }
+
+        guard sorted.count > 1 else { return [] }
+
+        let calendar = Calendar.current
+        var counts: [Int64: Int] = [:]
+
+        for index in 1..<sorted.count {
+            let previous = sorted[index - 1]
+            let current = sorted[index]
+            guard previous.appName != current.appName else { continue }
+            let at = Date(timeIntervalSince1970: TimeInterval(current.start))
+            let components = calendar.dateComponents([.year, .month, .day, .hour], from: at)
+            guard let hourStartDate = calendar.date(from: components) else { continue }
+            let hourStart = Int64(hourStartDate.timeIntervalSince1970)
+            counts[hourStart, default: 0] += 1
+        }
+
+        return counts
+            .map { key, value in
+                SwitchSlot(start: key, end: key + 3600, count: value)
+            }
+            .sorted {
+                if $0.count == $1.count {
+                    return $0.start < $1.start
+                }
+                return $0.count > $1.count
+            }
+            .prefix(3)
+            .map { $0 }
+    }
+
+    private func computeTagSessionRows(
+        activities: [ActivityRow],
+        tags: [TagRow],
+        rangeStart: Int64,
+        rangeEnd: Int64
+    ) -> [TagSessionRow] {
+        let tagLookup = Dictionary(uniqueKeysWithValues: tags.map { ($0.id, $0.name) })
+        var rowsByName: [String: TagSessionRow] = [:]
+
+        let sorted = activities
+            .filter { !$0.isIdle && $0.endTime > $0.startTime }
+            .sorted { $0.startTime < $1.startTime }
+
+        for activity in sorted {
+            let start = max(activity.startTime, rangeStart)
+            let end = min(activity.endTime, rangeEnd)
+            guard end > start else { continue }
+            let duration = end - start
+            let resolvedTagId = activity.effectiveTagId ?? activity.tagId
+            let tagName = resolvedTagId.flatMap { tagLookup[$0] } ?? "Untagged"
+            let current = rowsByName[tagName] ?? TagSessionRow(
+                tagName: tagName,
+                sessionCount: 0,
+                durationSeconds: 0
+            )
+            rowsByName[tagName] = TagSessionRow(
+                tagName: tagName,
+                sessionCount: current.sessionCount + 1,
+                durationSeconds: current.durationSeconds + duration
+            )
+        }
+
+        return rowsByName.values.sorted {
+            if $0.durationSeconds == $1.durationSeconds {
+                return $0.tagName.localizedCaseInsensitiveCompare($1.tagName) == .orderedAscending
+            }
+            return $0.durationSeconds > $1.durationSeconds
+        }
     }
 
     private func formatDuration(_ seconds: Int64) -> String {
@@ -789,6 +1079,14 @@ final class ReportService {
         return formatter
     }()
 
+    private static let hourMinuteFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone.current
+        return formatter
+    }()
+
     private func buildCSV(
         activities: [ActivityRow],
         tags: [TagRow],
@@ -803,7 +1101,13 @@ final class ReportService {
             "app_name",
             "bundle_id",
             "window_title",
+            "tag_id",
+            "rule_tag_id",
+            "user_tag_override_id",
+            "effective_tag_id",
             "tag_name",
+            "rule_tag_name",
+            "effective_tag_name",
             "is_idle"
         ]
         var lines = [header.joined(separator: ",")]
@@ -815,14 +1119,28 @@ final class ReportService {
             guard end > start else { continue }
             let duration = end - start
             let tagName = activity.tagId.flatMap { tagLookup[$0] } ?? "Untagged"
-            let fields = [
-                "\(start)",
-                "\(end)",
-                "\(duration)",
+            let ruleTagName = activity.ruleTagId.flatMap { tagLookup[$0] } ?? ""
+            let effectiveTagName = activity.effectiveTagId.flatMap { tagLookup[$0] } ?? ""
+
+            let tagIdValue = activity.tagId.map { String($0) } ?? ""
+            let ruleTagIdValue = activity.ruleTagId.map { String($0) } ?? ""
+            let userTagOverrideValue = activity.userTagOverrideId.map { String($0) } ?? ""
+            let effectiveTagIdValue = activity.effectiveTagId.map { String($0) } ?? ""
+
+            let fields: [String] = [
+                String(start),
+                String(end),
+                String(duration),
                 csvEscape(activity.appName),
                 csvEscape(activity.bundleId ?? ""),
                 csvEscape(activity.windowTitle ?? ""),
+                tagIdValue,
+                ruleTagIdValue,
+                userTagOverrideValue,
+                effectiveTagIdValue,
                 csvEscape(tagName),
+                csvEscape(ruleTagName),
+                csvEscape(effectiveTagName),
                 activity.isIdle ? "1" : "0"
             ]
             lines.append(fields.joined(separator: ","))
@@ -940,4 +1258,30 @@ private struct ReportStats {
 private struct ReportBucket {
     let name: String
     let seconds: Int64
+}
+
+private struct ReportDeepWorkBlock {
+    let tagName: String
+    let start: Int64
+    let end: Int64
+    let durationSeconds: Int64
+    let switchCount: Int
+}
+
+private struct SwitchSlot {
+    let start: Int64
+    let end: Int64
+    let count: Int
+}
+
+private struct ActivitySwitchSlice {
+    let start: Int64
+    let end: Int64
+    let appName: String
+}
+
+private struct TagSessionRow {
+    let tagName: String
+    let sessionCount: Int
+    let durationSeconds: Int64
 }

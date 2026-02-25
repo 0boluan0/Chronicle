@@ -85,57 +85,8 @@ final class ReportSettings: ObservableObject {
         didSet { UserDefaults.standard.set(lastCsvExportIsError, forKey: Keys.lastCsvExportIsError) }
     }
 
-    static let defaultDailyTemplate = """
-    # Daily Report - {{date}}
-
-    ## Summary
-    - Total: {{total_time}}
-    - Active: {{active_time}}
-    - Idle: {{idle_time}}
-    - Sessions: {{sessions_count}}
-
-    ## Top Apps
-    {{top_apps_table}}
-
-    ## Top Tags
-    {{top_tags_table}}
-
-    ## Markers
-    {{markers_list}}
-
-    ## Marker Sessions
-    {{marker_spans}}
-
-    ## Timeline
-    {{timeline_bullets}}
-
-    ## Notes
-    {{notes}}
-    """
-
-    static let defaultWeeklyTemplate = """
-    # Weekly Report - {{week_range}} ({{week_id}})
-
-    ## Summary
-    - Total: {{total_time}}
-    - Active: {{active_time}}
-    - Idle: {{idle_time}}
-
-    ## Top Apps
-    {{top_apps_table}}
-
-    ## Top Tags
-    {{top_tags_table}}
-
-    ## Marker Highlights
-    {{markers_list}}
-
-    ## Marker Sessions
-    {{marker_spans}}
-
-    ## Notes
-    {{notes}}
-    """
+    static let defaultDailyTemplate = ReportTemplatePreset.retrospective.dailyTemplate
+    static let defaultWeeklyTemplate = ReportTemplatePreset.retrospective.weeklyTemplate
 
     private enum Keys {
         static let dailyFolderBookmark = "reports.dailyFolderBookmark"

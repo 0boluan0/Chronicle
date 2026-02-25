@@ -17,6 +17,8 @@ struct StatsView: View {
     @State private var topApps: [AppDuration] = []
     @State private var topTags: [TagDuration] = []
     @State private var topSwitches: [AppSwitches] = []
+    @State private var deepWorkBlocks: [DeepWorkBlock] = []
+    @State private var dataTrust = DataTrustMetrics.zero
     @State private var markerNotesCount = 0
     @State private var markerSessionsCount = 0
     @State private var recentMarkers: [MarkerRow] = []
@@ -51,14 +53,22 @@ struct StatsView: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
+            if appState.idleSuppressionMediaPlaying || appState.idleSuppressionFrontmostAllowed || appState.idleSuppressionResumeGrace {
+                Text(idleSuppressionStatusText)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
 
             ScrollView {
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
                     summarySection
+                    dataTrustSection
 
                     topAppsSection
 
                     topTagsSection
+
+                    deepWorkSection
 
                     if !topSwitches.isEmpty {
                         mostSwitchesSection
@@ -159,6 +169,30 @@ struct StatsView: View {
         }
     }
 
+    private var dataTrustSection: some View {
+        SectionCard(title: "stats.trust.title") {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                Text(String(format: L("stats.trust.raw_events"), dataTrust.rawEventCount))
+                    .font(DesignSystem.Typography.caption)
+                Text(String(format: L("stats.trust.sessions"), dataTrust.sessionCount))
+                    .font(DesignSystem.Typography.caption)
+                Text(String(format: L("stats.trust.overlays"), dataTrust.overlayCount, formatDuration(dataTrust.overlaySeconds)))
+                    .font(DesignSystem.Typography.caption)
+                Text(String(format: L("stats.trust.merged_today"), dataTrust.mergedToday))
+                    .font(DesignSystem.Typography.caption)
+                Text(
+                    String(
+                        format: L("stats.trust.compaction"),
+                        dataTrust.compactionMerged,
+                        dataTrust.compactionDropped
+                    )
+                )
+                .font(DesignSystem.Typography.caption)
+            }
+            .foregroundColor(DesignSystem.Colors.secondaryText)
+        }
+    }
+
     private var topTagsSection: some View {
         SectionCard(title: "Top Tags") {
             if topTags.isEmpty {
@@ -183,6 +217,40 @@ struct StatsView: View {
                     Text("\(app.count)")
                         .font(DesignSystem.Typography.caption)
                         .foregroundColor(DesignSystem.Colors.secondaryText)
+                }
+            }
+        }
+    }
+
+    private var deepWorkSection: some View {
+        SectionCard(title: "stats.deep_work.title") {
+            if deepWorkBlocks.isEmpty {
+                EmptyStateView(
+                    title: L("stats.deep_work.empty"),
+                    subtitle: L("stats.deep_work.empty_hint"),
+                    systemImage: "brain.head.profile"
+                )
+            } else {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    ForEach(deepWorkBlocks) { block in
+                        HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+                            Circle()
+                                .fill(block.color)
+                                .frame(width: 8, height: 8)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(block.tagName)
+                                    .font(.subheadline.weight(.semibold))
+                                Text(block.subtitle)
+                                    .font(.caption)
+                                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                            }
+                            Spacer()
+                            Button(L("stats.deep_work.open_dashboard")) {
+                                openDashboard(at: block.start)
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                    }
                 }
             }
         }
@@ -255,6 +323,7 @@ struct StatsView: View {
         var topTagsResult: [TopItem] = []
         var timelineItems: [TimelineItem] = []
         var tagRows: [TagRow] = []
+        var rawEventCount = 0
         var firstError: Error?
 
         group.enter()
@@ -319,6 +388,16 @@ struct StatsView: View {
             group.leave()
         }
 
+        group.enter()
+        DatabaseService.shared.fetchRawEventCount(start: bounds.start, end: bounds.end) { result in
+            if case .success(let count) = result {
+                rawEventCount = count
+            } else if case .failure(let error) = result {
+                firstError = error
+            }
+            group.leave()
+        }
+
         group.notify(queue: .main) {
             let markers = timelineItems.compactMap { item -> MarkerRow? in
                 if case .marker(let marker) = item { return marker }
@@ -353,6 +432,24 @@ struct StatsView: View {
                 return TagDuration(tagId: item.tagId, name: item.name, color: color, seconds: item.durationSeconds)
             }
             self.topSwitches = Array(switchItems)
+            self.deepWorkBlocks = self.buildDeepWorkBlocks(activities: activities, tagLookup: tagLookup)
+            let overlayRows = self.appState.rapidSwitchOverlays.filter {
+                max($0.startTime, bounds.start) < min($0.endTime, bounds.end)
+            }
+            let overlaySeconds = overlayRows.reduce(Int64(0)) { total, overlay in
+                let start = max(bounds.start, overlay.startTime)
+                let end = min(bounds.end, overlay.endTime)
+                return total + max(0, end - start)
+            }
+            self.dataTrust = DataTrustMetrics(
+                rawEventCount: rawEventCount,
+                sessionCount: summaryResult?.sessionsCount ?? activities.count,
+                overlayCount: overlayRows.count,
+                overlaySeconds: overlaySeconds,
+                mergedToday: self.appState.autoMergedSegmentsToday,
+                compactionMerged: self.appState.lastCompactionMergedCount,
+                compactionDropped: self.appState.lastCompactionDroppedCount
+            )
             self.markerNotesCount = summaryResult?.markerNotesCount ?? markers.count
             self.markerSessionsCount = summaryResult?.markerSessionsCount ?? markerSpans.count
             self.recentMarkers = markers
@@ -378,6 +475,131 @@ struct StatsView: View {
         return String(format: "%dh %02dm", hours, minutes)
     }
 
+    private func buildDeepWorkBlocks(
+        activities: [ActivityRow],
+        tagLookup: [Int64: TagRow]
+    ) -> [DeepWorkBlock] {
+        let minBlockSeconds: Int64 = 25 * 60
+        let maxSwitchCount = 6
+        let allowedGap = Int64(max(0, appState.mergeGapSeconds))
+        let sorted = activities
+            .filter { !$0.isIdle && $0.endTime > $0.startTime }
+            .sorted { $0.startTime < $1.startTime }
+
+        struct Builder {
+            var tagId: Int64?
+            var tagName: String
+            var color: Color
+            var start: Int64
+            var end: Int64
+            var durationSeconds: Int64
+            var switchCount: Int
+            var lastAppName: String
+        }
+
+        var results: [DeepWorkBlock] = []
+        var current: Builder?
+
+        func resolveTag(for activity: ActivityRow) -> (Int64?, String, Color) {
+            let resolvedId = activity.effectiveTagId ?? activity.tagId
+            if let resolvedId, let tag = tagLookup[resolvedId] {
+                return (resolvedId, tag.name, Color(hex: tag.color ?? "") ?? Color.gray.opacity(0.6))
+            }
+            return (nil, L("popover.daily_snapshot.untagged"), Color.gray.opacity(0.6))
+        }
+
+        func commit(_ builder: Builder?) {
+            guard let builder else { return }
+            guard builder.durationSeconds >= minBlockSeconds else { return }
+            guard builder.switchCount <= maxSwitchCount else { return }
+            results.append(
+                DeepWorkBlock(
+                    tagId: builder.tagId,
+                    tagName: builder.tagName,
+                    color: builder.color,
+                    start: builder.start,
+                    end: builder.end,
+                    durationSeconds: builder.durationSeconds,
+                    switchCount: builder.switchCount
+                )
+            )
+        }
+
+        for activity in sorted {
+            let resolved = resolveTag(for: activity)
+            let duration = activity.endTime - activity.startTime
+            if var builder = current {
+                let isSameTag = builder.tagId == resolved.0
+                let gap = activity.startTime - builder.end
+                if isSameTag && gap <= allowedGap {
+                    builder.end = max(builder.end, activity.endTime)
+                    builder.durationSeconds += duration
+                    if activity.appName != builder.lastAppName {
+                        builder.switchCount += 1
+                        builder.lastAppName = activity.appName
+                    }
+                    current = builder
+                } else {
+                    commit(builder)
+                    current = Builder(
+                        tagId: resolved.0,
+                        tagName: resolved.1,
+                        color: resolved.2,
+                        start: activity.startTime,
+                        end: activity.endTime,
+                        durationSeconds: duration,
+                        switchCount: 0,
+                        lastAppName: activity.appName
+                    )
+                }
+            } else {
+                current = Builder(
+                    tagId: resolved.0,
+                    tagName: resolved.1,
+                    color: resolved.2,
+                    start: activity.startTime,
+                    end: activity.endTime,
+                    durationSeconds: duration,
+                    switchCount: 0,
+                    lastAppName: activity.appName
+                )
+            }
+        }
+
+        commit(current)
+        return results.sorted {
+            if $0.durationSeconds == $1.durationSeconds {
+                return $0.start > $1.start
+            }
+            return $0.durationSeconds > $1.durationSeconds
+        }
+        .prefix(6)
+        .map { $0 }
+    }
+
+    private func openDashboard(at epochSeconds: Int64) {
+        appState.selectedDate = Date(timeIntervalSince1970: TimeInterval(epochSeconds))
+        appState.dateRangeMode = .day
+        DashboardWindowController.shared.show()
+    }
+
+    private var idleSuppressionStatusText: String {
+        var reasons: [String] = []
+        if appState.idleSuppressionMediaPlaying {
+            reasons.append(L("stats.idle_suppression.media"))
+        }
+        if appState.idleSuppressionFrontmostAllowed {
+            reasons.append(L("stats.idle_suppression.allowlist"))
+        }
+        if appState.idleSuppressionResumeGrace {
+            reasons.append(L("stats.idle_suppression.grace"))
+        }
+        if reasons.isEmpty {
+            return ""
+        }
+        return String(format: L("stats.idle_suppression.active"), reasons.joined(separator: ", "))
+    }
+
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
@@ -401,6 +623,26 @@ private struct SummaryMetrics {
     static let zero = SummaryMetrics(totalSeconds: 0, activeSeconds: 0, idleSeconds: 0, sessions: 0)
 }
 
+private struct DataTrustMetrics {
+    let rawEventCount: Int
+    let sessionCount: Int
+    let overlayCount: Int
+    let overlaySeconds: Int64
+    let mergedToday: Int
+    let compactionMerged: Int
+    let compactionDropped: Int
+
+    static let zero = DataTrustMetrics(
+        rawEventCount: 0,
+        sessionCount: 0,
+        overlayCount: 0,
+        overlaySeconds: 0,
+        mergedToday: 0,
+        compactionMerged: 0,
+        compactionDropped: 0
+    )
+}
+
 private struct AppDuration: Identifiable {
     let id = UUID()
     let appName: String
@@ -419,6 +661,24 @@ private struct TagDuration: Identifiable {
     let name: String
     let color: String?
     let seconds: Int64
+}
+
+private struct DeepWorkBlock: Identifiable {
+    let id = UUID()
+    let tagId: Int64?
+    let tagName: String
+    let color: Color
+    let start: Int64
+    let end: Int64
+    let durationSeconds: Int64
+    let switchCount: Int
+
+    var subtitle: String {
+        let range = TimeFormatters.timeRange(start: start, end: end)
+        let duration = TimeFormatters.durationText(start: start, end: end)
+        let switchesText = String(format: L("stats.deep_work.switches"), switchCount)
+        return "\(range) · \(duration) · \(switchesText)"
+    }
 }
 
 private struct SummaryCard: View {

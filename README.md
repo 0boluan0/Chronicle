@@ -5,7 +5,7 @@
 <h1 align="center">Chronicle</h1>
 
 <p align="center">
-  Offline macOS menubar activity tracker — timeline, stats, markers, tags, and exports.
+  Fully offline macOS menubar work timeline — auto-capture app sessions, add context with quick markers and tag rules, then export Markdown/CSV into your review workflow.
 </p>
 
 <p align="center">
@@ -32,7 +32,7 @@
 <details>
   <summary><b>中文简介</b></summary>
   <br>
-  Chronicle 是一个 macOS 菜单栏离线活动追踪应用。它将前台应用会话记录到本地 SQLite，并提供 Timeline/Stats 弹窗与 Dashboard（分析与浏览）；标签、规则与导出在偏好设置中完成。坚持完全离线，不做联网同步。
+  Chronicle 是一款完全离线的 macOS 菜单栏工作时间轴。它自动记录你在电脑上做了什么，再用快捷标记与标签规则补齐“上下文”，最后一键导出 Markdown/CSV 进入你的复盘与写作流程。数据保存在本地 SQLite，不做联网同步。
 </details>
 
 ## Download

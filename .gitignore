@@ -21,3 +21,6 @@ ops/ai-pipeline/runtime/state.yaml
 ops/ai-pipeline/reports/orchestrator-final-summary.md
 
 build-dmg-*/
+
+# Codex dual-agent pipeline runtime (state, logs, handoff prompts/reports)
+.codex/dual-pipeline/

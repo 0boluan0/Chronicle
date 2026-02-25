@@ -46,6 +46,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         if isRunningUnitTests {
             AppLogger.log("Test mode launch: runtime services disabled", category: "app")
         } else {
+            HealthCheckService.shared.runQuickChecks()
             if !appState.onboardingCompleted {
                 OnboardingWindowController.shared.show()
             }
@@ -72,9 +73,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 AccessibilityPermissionManager.shared.syncAppState(self.appState)
             }
         }
-#if DEBUG
-        HealthCheckService.shared.runStartupChecks()
-#endif
         AppLogger.log("App launched")
     }
 

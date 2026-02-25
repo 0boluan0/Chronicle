@@ -769,4 +769,21 @@ final class ChronicleTests: XCTestCase {
         let nextKey = ReportService.dayKey(for: nextDay)
         XCTAssertTrue(ReportService.shouldAttemptAutoExport(currentKey: nextKey, lastAttemptKey: dayKey, lastExportedKey: dayKey))
     }
+
+    func testReportTemplatePresetsIncludeCoreVariables() {
+        for preset in ReportTemplatePreset.allCases {
+            XCTAssertTrue(preset.dailyTemplate.contains("{{notes}}"))
+            XCTAssertTrue(preset.dailyTemplate.contains("{{top_tags_session_table}}"))
+            XCTAssertTrue(preset.dailyTemplate.contains("{{peak_switch_slots}}"))
+
+            XCTAssertTrue(preset.weeklyTemplate.contains("{{notes}}"))
+            XCTAssertTrue(preset.weeklyTemplate.contains("{{top_tags_session_table}}"))
+            XCTAssertTrue(preset.weeklyTemplate.contains("{{peak_switch_slots}}"))
+        }
+    }
+
+    func testDefaultTemplatesMatchRetrospectivePreset() {
+        XCTAssertEqual(ReportSettings.defaultDailyTemplate, ReportTemplatePreset.retrospective.dailyTemplate)
+        XCTAssertEqual(ReportSettings.defaultWeeklyTemplate, ReportTemplatePreset.retrospective.weeklyTemplate)
+    }
 }
