@@ -25,6 +25,7 @@
 <p align="center">
   <a href="#download">Download</a> ·
   <a href="#features">Features</a> ·
+  <a href="#custom-csv-analysis">Custom CSV Analysis</a> ·
   <a href="#privacy--data">Privacy &amp; Data</a> ·
   <a href="#build--test">Build</a>
 </p>
@@ -67,6 +68,25 @@
 - Select the `Chronicle` scheme and Run.
 - Run tests:
   - `xcodebuild -project Chronicle.xcodeproj -scheme Chronicle -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO test`
+
+## Custom CSV Analysis
+
+Chronicle exports CSV with stable technical fields (`start_time`, `end_time`, `duration`, `app_name`, `is_idle`, tag fields).  
+You can run local scripts to build your own analytics:
+
+- `python3 scripts/csv-analysis/tag_time_report.py --csv /path/to/export.csv`
+- `python3 scripts/csv-analysis/switch_transition_report.py --csv /path/to/export.csv`
+- `python3 scripts/csv-analysis/focus_block_report.py --csv /path/to/export.csv --min-minutes 25`
+
+See [`scripts/csv-analysis/README.md`](scripts/csv-analysis/README.md) for details.
+
+### Contributing Analysis Scripts
+
+- Keep scripts reproducible and offline-only.
+- Prefer Python standard library only (no heavy dependencies by default).
+- Accept input via CLI flags (at least `--csv`) and print deterministic text/CSV output.
+- Document expected CSV columns and include one runnable example in script help or README.
+- If a script depends on optional tools (e.g. pandas/notebook), place it in a separate folder with setup notes.
 
 ## Current Status
 
