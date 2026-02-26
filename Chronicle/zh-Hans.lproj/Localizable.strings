@@ -182,6 +182,11 @@
 "privacy.open_migration_guide" = "打开迁移策略指南";
 "privacy.docs_opened" = "已打开文档：%@";
 "privacy.docs_open_failed" = "打开文档失败：%@";
+"privacy.create_feedback_bundle" = "创建反馈包";
+"privacy.feedback_bundle.note" = "会在本地生成反馈模板与诊断 JSON，不会自动上传。";
+"privacy.feedback_bundle.generating" = "正在创建反馈包…";
+"privacy.feedback_bundle.saved" = "反馈包已保存：%@";
+"privacy.feedback_bundle.failed" = "创建反馈包失败：%@";
 "privacy.wipe_confirm.title" = "清除所有 Chronicle 数据？";
 "privacy.cancel" = "取消";
 "privacy.wipe_confirm.action" = "清除";

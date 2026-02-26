@@ -824,8 +824,10 @@ private struct PrivacyPreferencesView: View {
     @State private var showWipeConfirm = false
     @State private var wipeMessage: String?
     @State private var diagnosticsMessage: String?
+    @State private var feedbackMessage: String?
     @State private var docsMessage: String?
     @State private var isExportingDiagnostics = false
+    @State private var isCreatingFeedbackBundle = false
 
     private let dataSafetyGuideURL = URL(string: "https://github.com/0boluan0/Chronicle/blob/main/docs/data-safety.md")!
     private let migrationGuideURL = URL(string: "https://github.com/0boluan0/Chronicle/blob/main/docs/migrations-and-upgrades.md")!
@@ -867,10 +869,20 @@ private struct PrivacyPreferencesView: View {
                         }
                         .buttonStyle(.borderedProminent)
                         .disabled(isExportingDiagnostics)
+
+                        Button("privacy.create_feedback_bundle") {
+                            createFeedbackBundle()
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(isCreatingFeedbackBundle)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+
+            Text("privacy.feedback_bundle.note")
+                .font(.caption)
+                .foregroundColor(.secondary)
 
             Text("privacy.reminders_title")
                 .font(.headline)
@@ -913,6 +925,13 @@ private struct PrivacyPreferencesView: View {
 
             if let diagnosticsMessage {
                 Text(diagnosticsMessage)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .textSelection(.enabled)
+            }
+
+            if let feedbackMessage {
+                Text(feedbackMessage)
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .textSelection(.enabled)
@@ -989,6 +1008,24 @@ private struct PrivacyPreferencesView: View {
         docsMessage = opened
             ? String(format: L("privacy.docs_opened"), url.absoluteString)
             : String(format: L("privacy.docs_open_failed"), url.absoluteString)
+    }
+
+    private func createFeedbackBundle() {
+        guard !isCreatingFeedbackBundle else { return }
+        feedbackMessage = L("privacy.feedback_bundle.generating")
+        isCreatingFeedbackBundle = true
+        FeedbackBundleService.shared.createBundle { result in
+            DispatchQueue.main.async {
+                self.isCreatingFeedbackBundle = false
+                switch result {
+                case .success(let bundle):
+                    _ = NSWorkspace.shared.open(bundle.folderURL)
+                    self.feedbackMessage = String(format: L("privacy.feedback_bundle.saved"), bundle.folderURL.path)
+                case .failure(let error):
+                    self.feedbackMessage = String(format: L("privacy.feedback_bundle.failed"), error.localizedDescription)
+                }
+            }
+        }
     }
 }
 

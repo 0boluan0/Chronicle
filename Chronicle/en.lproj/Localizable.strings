@@ -182,6 +182,11 @@
 "privacy.open_migration_guide" = "Open Migration Guide";
 "privacy.docs_opened" = "Opened guide: %@";
 "privacy.docs_open_failed" = "Failed to open guide: %@";
+"privacy.create_feedback_bundle" = "Create Feedback Bundle";
+"privacy.feedback_bundle.note" = "Creates a local folder with a feedback template and diagnostics JSON. No upload is performed.";
+"privacy.feedback_bundle.generating" = "Creating feedback bundle…";
+"privacy.feedback_bundle.saved" = "Feedback bundle saved: %@";
+"privacy.feedback_bundle.failed" = "Failed to create feedback bundle: %@";
 "privacy.wipe_confirm.title" = "Wipe all Chronicle data?";
 "privacy.cancel" = "Cancel";
 "privacy.wipe_confirm.action" = "Wipe";

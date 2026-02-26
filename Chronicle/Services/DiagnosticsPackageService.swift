@@ -79,6 +79,109 @@ final class DiagnosticsPackageService {
     }()
 }
 
+struct FeedbackBundleResult {
+    let folderURL: URL
+    let templateURL: URL
+    let diagnosticsURL: URL
+}
+
+final class FeedbackBundleService {
+    static let shared = FeedbackBundleService()
+
+    private let queue = DispatchQueue(label: "com.chronicle.feedback-bundle", qos: .utility)
+
+    private init() {}
+
+    func createBundle(completion: @escaping (Result<FeedbackBundleResult, Error>) -> Void) {
+        DiagnosticsPackageService.shared.buildDiagnosticsJSON { result in
+            switch result {
+            case .failure(let error):
+                completion(.failure(error))
+            case .success(let diagnosticsData):
+                self.queue.async {
+                    do {
+                        let date = Date()
+                        let baseFolder = URL(fileURLWithPath: DatabaseService.shared.databasePath)
+                            .deletingLastPathComponent()
+                            .appendingPathComponent("feedback", isDirectory: true)
+                        try FileManager.default.createDirectory(at: baseFolder, withIntermediateDirectories: true)
+
+                        let bundleFolder = baseFolder.appendingPathComponent(
+                            "feedback-\(Self.bundleTimestampFormatter.string(from: date))",
+                            isDirectory: true
+                        )
+                        try FileManager.default.createDirectory(at: bundleFolder, withIntermediateDirectories: true)
+
+                        let diagnosticsURL = bundleFolder.appendingPathComponent(
+                            DiagnosticsPackageService.defaultFileName(for: date)
+                        )
+                        try diagnosticsData.write(to: diagnosticsURL, options: .atomic)
+
+                        let templateURL = bundleFolder.appendingPathComponent("feedback.md")
+                        let template = Self.feedbackTemplate(
+                            date: date,
+                            diagnosticsFileName: diagnosticsURL.lastPathComponent
+                        )
+                        try template.write(to: templateURL, atomically: true, encoding: .utf8)
+
+                        completion(.success(FeedbackBundleResult(
+                            folderURL: bundleFolder,
+                            templateURL: templateURL,
+                            diagnosticsURL: diagnosticsURL
+                        )))
+                    } catch {
+                        completion(.failure(error))
+                    }
+                }
+            }
+        }
+    }
+
+    private static func feedbackTemplate(date: Date, diagnosticsFileName: String) -> String {
+        let dateText = displayDateFormatter.string(from: date)
+        return """
+        # Chronicle Feedback
+
+        Created at: \(dateText)
+
+        ## What I expected
+        - 
+
+        ## What actually happened
+        - 
+
+        ## Steps to reproduce
+        1. 
+        2. 
+        3. 
+
+        ## Impact
+        - 
+
+        ## Notes
+        - If possible, include screenshots or copied error messages.
+        - Diagnostics attached: \(diagnosticsFileName)
+        """
+    }
+
+    private static let bundleTimestampFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd-HHmmss"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        return formatter
+    }()
+
+    private static let displayDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .medium
+        formatter.locale = .current
+        formatter.timeZone = .current
+        return formatter
+    }()
+}
+
 private struct DiagnosticsPayload: Codable {
     let generatedAt: String
     let app: DiagnosticsAppSnapshot
