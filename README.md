@@ -98,6 +98,8 @@ This project is under active development. Expect frequent changes and occasional
 - `Product Requirements Document_ Offline Timeline Activity Tracker (macOS).pdf` (PRD)
 - `docs/migrations-and-upgrades.md` (DB migration and rollback policy)
 - `docs/data-safety.md` (data location, backup, and upgrade validation)
+- `docs/update-strategy.md` (manual GitHub updates vs Sparkle recommendation)
+- `docs/stable-release-checklist.md` (non-breaking upgrade and rollback checklist)
 
 ## Checklists
 
