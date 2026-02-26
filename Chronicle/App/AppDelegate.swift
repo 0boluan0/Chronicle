@@ -24,11 +24,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var preferencesItem: NSMenuItem?
     private var welcomeItem: NSMenuItem?
     private var exportItem: NSMenuItem?
+    private var checkUpdatesItem: NSMenuItem?
+    private var openReleasesItem: NSMenuItem?
     private var quitItem: NSMenuItem?
     private var exportFeedbackToken: UUID?
     private var isRunningUnitTests: Bool {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
+    private let latestReleaseURL = URL(string: "https://github.com/0boluan0/Chronicle/releases/latest")!
+    private let releasesPageURL = URL(string: "https://github.com/0boluan0/Chronicle/releases")!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         #if DEBUG
@@ -128,6 +132,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         welcomeItem.target = self
         let exportItem = NSMenuItem(title: L("menu.export_now"), action: #selector(exportNow), keyEquivalent: "e")
         exportItem.target = self
+        let checkUpdatesItem = NSMenuItem(title: L("menu.check_updates"), action: #selector(checkForUpdates), keyEquivalent: "")
+        checkUpdatesItem.target = self
+        let openReleasesItem = NSMenuItem(title: L("menu.open_releases"), action: #selector(openReleasesPage), keyEquivalent: "")
+        openReleasesItem.target = self
         let quitItem = NSMenuItem(title: L("menu.quit"), action: #selector(quitApp), keyEquivalent: "q")
         quitItem.target = self
 
@@ -135,12 +143,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         self.preferencesItem = preferencesItem
         self.welcomeItem = welcomeItem
         self.exportItem = exportItem
+        self.checkUpdatesItem = checkUpdatesItem
+        self.openReleasesItem = openReleasesItem
         self.quitItem = quitItem
 
         statusMenu.addItem(dashboardItem)
         statusMenu.addItem(preferencesItem)
         statusMenu.addItem(welcomeItem)
         statusMenu.addItem(exportItem)
+        statusMenu.addItem(checkUpdatesItem)
+        statusMenu.addItem(openReleasesItem)
         statusMenu.addItem(.separator())
         statusMenu.addItem(quitItem)
     }
@@ -163,6 +175,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         preferencesItem?.title = L("menu.preferences")
         welcomeItem?.title = L("menu.welcome")
         exportItem?.title = L("menu.export_now")
+        checkUpdatesItem?.title = L("menu.check_updates")
+        openReleasesItem?.title = L("menu.open_releases")
         quitItem?.title = L("menu.quit")
         statusItem?.button?.image?.accessibilityDescription = L("app.name")
         DashboardWindowController.shared.updateTitle()
@@ -259,6 +273,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         NSApp.terminate(nil)
     }
 
+    @objc private func checkForUpdates() {
+        open(url: latestReleaseURL)
+    }
+
+    @objc private func openReleasesPage() {
+        open(url: releasesPageURL)
+    }
+
     func popoverDidClose(_ notification: Notification) {
         appState.isPopoverShown = false
         appState.lastPopoverToggle = Date()
@@ -280,6 +302,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             self.appState.exportNowMessage = nil
             self.appState.exportNowMessageIsError = false
             self.exportItem?.title = L("menu.export_now")
+        }
+    }
+
+    private func open(url: URL) {
+        if !NSWorkspace.shared.open(url) {
+            AppLogger.log("Failed to open URL: \(url.absoluteString)", category: "app")
         }
     }
 }

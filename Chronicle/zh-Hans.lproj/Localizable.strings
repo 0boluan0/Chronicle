@@ -7,6 +7,8 @@
 "menu.welcome" = "欢迎…";
 "menu.export_now" = "立即导出";
 "menu.exporting" = "导出中…";
+"menu.check_updates" = "检查更新…";
+"menu.open_releases" = "打开 Release 页面";
 "menu.quit" = "退出";
 
 "popover.open_dashboard" = "打开仪表盘";

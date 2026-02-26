@@ -7,6 +7,8 @@
 "menu.welcome" = "Welcome…";
 "menu.export_now" = "Export Now";
 "menu.exporting" = "Exporting…";
+"menu.check_updates" = "Check for Updates…";
+"menu.open_releases" = "Open Releases Page";
 "menu.quit" = "Quit";
 
 "popover.open_dashboard" = "Open Dashboard";
