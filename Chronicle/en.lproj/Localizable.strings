@@ -328,6 +328,8 @@
 "reports.csv.field.effective_tag_name" = "Effective Tag Name";
 "reports.csv.field.is_idle" = "Is Idle";
 "reports.export_now" = "Export Now";
+"reports.timesheet.export" = "Export Timesheet";
+"reports.timesheet.saved" = "Timesheet exported: %@";
 "reports.daily.auto" = "Auto-generate daily report once per day";
 "reports.weekly.auto" = "Auto-generate weekly report";
 "reports.reset_default" = "Reset to Default";

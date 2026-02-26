@@ -19,6 +19,7 @@ struct DashboardReportsView: View {
     @State private var dailyStatus: StatusMessage?
     @State private var weeklyStatus: StatusMessage?
     @State private var csvStatus: StatusMessage?
+    @State private var timesheetStatus: StatusMessage?
     @State private var previewKind: ReportKind?
     @State private var previewTitle: String = ""
     @State private var previewContent: String = ""
@@ -130,6 +131,11 @@ struct DashboardReportsView: View {
                         exportCsv()
                     }
                     .buttonStyle(.borderedProminent)
+
+                    Button(L("reports.timesheet.export")) {
+                        exportTimesheet()
+                    }
+                    .buttonStyle(.bordered)
                 }
 
                 DisclosureGroup(L("reports.csv.fields")) {
@@ -155,6 +161,7 @@ struct DashboardReportsView: View {
                 }
 
                 statusLine(csvStatus)
+                statusLine(timesheetStatus)
                 statusLine(lastRunLine(for: .csv))
 
                 if let diagnostics = settings.csvDiagnostics, diagnostics.errorDescription != nil {
@@ -670,6 +677,25 @@ struct DashboardReportsView: View {
                     csvStatus = StatusMessage(text: message, isError: true)
                     settings.recordExportResult(kind: .csv, message: message, isError: true)
                     TelemetryService.shared.increment("export_csv_failure")
+                }
+            }
+        }
+    }
+
+    private func exportTimesheet() {
+        timesheetStatus = StatusMessage(text: L("reports.status.exporting"), isError: false)
+        let range = csvExportRange()
+        ReportService.shared.exportTimesheet(range: range) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let info):
+                    let message = String(format: L("reports.timesheet.saved"), info.fileName)
+                    timesheetStatus = StatusMessage(text: message, isError: false)
+                    TelemetryService.shared.increment("export_timesheet_success")
+                case .failure(let error):
+                    let message = errorMessageWithReselectHint(error)
+                    timesheetStatus = StatusMessage(text: message, isError: true)
+                    TelemetryService.shared.increment("export_timesheet_failure")
                 }
             }
         }

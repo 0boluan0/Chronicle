@@ -433,6 +433,8 @@ final class TelemetryService {
         "export_weekly_failure",
         "export_csv_success",
         "export_csv_failure",
+        "export_timesheet_success",
+        "export_timesheet_failure",
         "diagnostics_export_success",
         "diagnostics_export_failure",
         "feedback_bundle_success",

@@ -176,6 +176,66 @@ final class ReportService {
         }
     }
 
+    func exportTimesheet(
+        range: CSVExportRange,
+        completion: @escaping (Result<ReportExportResult, Error>) -> Void
+    ) {
+        queue.async {
+            let bounds = range.bounds
+            let group = DispatchGroup()
+            var activities: [ActivityRow] = []
+            var tags: [TagRow] = []
+            var fetchError: Error?
+
+            group.enter()
+            DatabaseService.shared.fetchActivitiesOverlappingRange(start: bounds.start, end: bounds.end) { result in
+                switch result {
+                case .success(let rows):
+                    activities = rows
+                case .failure(let error):
+                    fetchError = error
+                }
+                group.leave()
+            }
+
+            group.enter()
+            DatabaseService.shared.fetchTags { result in
+                switch result {
+                case .success(let rows):
+                    tags = rows
+                case .failure(let error):
+                    fetchError = error
+                }
+                group.leave()
+            }
+
+            group.notify(queue: self.queue) {
+                if let fetchError {
+                    completion(.failure(fetchError))
+                    return
+                }
+                let content = self.buildTimesheetCSV(
+                    activities: activities,
+                    tags: tags,
+                    rangeStart: bounds.start,
+                    rangeEnd: bounds.end
+                )
+                do {
+                    let fileName = "timesheet-\(range.fileName)"
+                    let finalURL = try self.writeCSV(
+                        content: content,
+                        folderKind: .csv,
+                        fileName: fileName,
+                        overwrite: self.settings.overwriteCsvExports
+                    )
+                    completion(.success(ReportExportResult(fileURL: finalURL, fileName: finalURL.lastPathComponent)))
+                } catch {
+                    completion(.failure(error))
+                }
+            }
+        }
+    }
+
     func openDailyFolder() -> Result<Void, Error> {
         openFolder(kind: .daily)
     }
@@ -1155,6 +1215,76 @@ final class ReportService {
             }
             lines.append(fields.joined(separator: ","))
         }
+        return lines.joined(separator: "\n")
+    }
+
+    private func buildTimesheetCSV(
+        activities: [ActivityRow],
+        tags: [TagRow],
+        rangeStart: Int64,
+        rangeEnd: Int64
+    ) -> String {
+        struct Bucket {
+            var tagId: Int64?
+            var tagName: String
+            var sessionCount: Int
+            var activeSeconds: Int64
+        }
+
+        var buckets: [String: Bucket] = [:]
+        let tagLookup = Dictionary(uniqueKeysWithValues: tags.map { ($0.id, $0.name) })
+        let sorted = activities.sorted { $0.startTime < $1.startTime }
+
+        for activity in sorted {
+            if activity.isIdle { continue }
+            let start = max(activity.startTime, rangeStart)
+            let end = min(activity.endTime, rangeEnd)
+            guard end > start else { continue }
+            let duration = end - start
+
+            let resolvedTagId = activity.effectiveTagId ?? activity.tagId
+            let resolvedTagName = resolvedTagId.flatMap { tagLookup[$0] } ?? "Untagged"
+            let bucketKey: String
+            if let resolvedTagId {
+                bucketKey = "id:\(resolvedTagId)"
+            } else {
+                bucketKey = "name:\(resolvedTagName)"
+            }
+
+            var bucket = buckets[bucketKey] ?? Bucket(
+                tagId: resolvedTagId,
+                tagName: resolvedTagName,
+                sessionCount: 0,
+                activeSeconds: 0
+            )
+            bucket.sessionCount += 1
+            bucket.activeSeconds += duration
+            buckets[bucketKey] = bucket
+        }
+
+        let header = "tag_id,tag_name,session_count,active_seconds,active_hours"
+        var lines: [String] = [header]
+        let ordered = buckets.values.sorted { lhs, rhs in
+            if lhs.activeSeconds == rhs.activeSeconds {
+                return lhs.tagName.localizedCaseInsensitiveCompare(rhs.tagName) == .orderedAscending
+            }
+            return lhs.activeSeconds > rhs.activeSeconds
+        }
+
+        for bucket in ordered {
+            let tagIdText = bucket.tagId.map(String.init) ?? ""
+            let hours = Double(bucket.activeSeconds) / 3600.0
+            lines.append(
+                [
+                    tagIdText,
+                    csvEscape(bucket.tagName),
+                    String(bucket.sessionCount),
+                    String(bucket.activeSeconds),
+                    String(format: "%.2f", hours)
+                ].joined(separator: ",")
+            )
+        }
+
         return lines.joined(separator: "\n")
     }
 

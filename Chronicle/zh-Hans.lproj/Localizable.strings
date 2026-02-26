@@ -327,6 +327,8 @@
 "reports.csv.field.effective_tag_name" = "生效标签名";
 "reports.csv.field.is_idle" = "是否空闲";
 "reports.export_now" = "立即导出";
+"reports.timesheet.export" = "导出工时报表";
+"reports.timesheet.saved" = "工时报表已导出：%@";
 "reports.daily.auto" = "每天自动生成日报";
 "reports.weekly.auto" = "自动生成周报";
 "reports.reset_default" = "重置为默认";
