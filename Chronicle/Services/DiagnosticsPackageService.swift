@@ -97,7 +97,7 @@ private struct DiagnosticsPayload: Codable {
                 version: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0",
                 build: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0",
                 bundleId: Bundle.main.bundleIdentifier ?? "unknown",
-                databasePath: DatabaseService.shared.databasePath,
+                databasePath: redactHomePath(DatabaseService.shared.databasePath),
                 osVersion: ProcessInfo.processInfo.operatingSystemVersionString
             ),
             tracking: DiagnosticsTrackingSnapshot(
@@ -136,7 +136,7 @@ private struct DiagnosticsPayload: Codable {
                 idleSeconds: appState.idleSeconds,
                 currentActiveAppName: appState.currentActiveAppName,
                 currentActiveBundleId: appState.currentActiveAppBundleId,
-                lastDbErrorMessage: appState.lastDbErrorMessage,
+                lastDbErrorMessage: redactHomePath(in: appState.lastDbErrorMessage),
                 dbWriteBacklog: appState.runtimePerformance.dbWriteBacklog,
                 dbWriteLastLatencyMs: appState.runtimePerformance.dbWriteLastLatencyMs,
                 dbWriteAverageLatencyMs: appState.runtimePerformance.dbWriteAverageLatencyMs,
@@ -151,6 +151,17 @@ private struct DiagnosticsPayload: Codable {
     private static func toISO(timestamp: Double) -> String? {
         guard timestamp > 0 else { return nil }
         return DiagnosticsPackageService.iso8601String(for: Date(timeIntervalSince1970: timestamp))
+    }
+
+    private static func redactHomePath(_ value: String) -> String {
+        let home = NSHomeDirectory()
+        guard !home.isEmpty else { return value }
+        return value.replacingOccurrences(of: home, with: "~")
+    }
+
+    private static func redactHomePath(in value: String?) -> String? {
+        guard let value else { return nil }
+        return redactHomePath(value)
     }
 }
 

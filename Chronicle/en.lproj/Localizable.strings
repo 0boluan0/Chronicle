@@ -109,7 +109,7 @@
 "preferences.window_titles.needs_access" = "Accessibility permission required. Titles will not be recorded until granted.";
 "preferences.window_titles.open_settings" = "Open System Settings";
 "preferences.window_titles.privacy_mode" = "Title Privacy Mode";
-"preferences.window_titles.privacy_mode.note" = "Raw stores full text, Length stores only title length, Hash stores a fixed digest.";
+"preferences.window_titles.privacy_mode.note" = "Raw stores full text, Length stores only title length, Hash stores a fixed digest. Exports and diagnostics follow this policy.";
 "preferences.window_titles.mode.raw" = "Raw";
 "preferences.window_titles.mode.length" = "Length";
 "preferences.window_titles.mode.hash" = "Hash";

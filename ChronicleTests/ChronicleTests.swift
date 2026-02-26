@@ -819,6 +819,24 @@ final class ChronicleTests: XCTestCase {
         XCTAssertNil(blocked)
     }
 
+    func testWindowTitleSanitizationKeepsExistingTokens() {
+        let lengthToken = ActivityTracker.sanitizeWindowTitle(
+            "length:11",
+            bundleId: "com.apple.dt.Xcode",
+            mode: .lengthOnly,
+            blockedBundleIds: []
+        )
+        XCTAssertEqual(lengthToken, "length:11")
+
+        let hashToken = ActivityTracker.sanitizeWindowTitle(
+            "sha256:0123456789abcdef",
+            bundleId: "com.apple.dt.Xcode",
+            mode: .hashed,
+            blockedBundleIds: []
+        )
+        XCTAssertEqual(hashToken, "sha256:0123456789abcdef")
+    }
+
     func testAutoExportAttemptDecision() {
         let date = Date(timeIntervalSince1970: 0)
         let dayKey = ReportService.dayKey(for: date)

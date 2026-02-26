@@ -730,6 +730,7 @@ final class ReportService {
         rangeStart: Int64,
         rangeEnd: Int64
     ) -> String {
+        let policy = currentWindowTitlePolicy()
         let sorted = activities.sorted { $0.startTime < $1.startTime }
         guard !sorted.isEmpty else { return "- None" }
         return sorted.compactMap { activity in
@@ -738,7 +739,7 @@ final class ReportService {
             guard end > start else { return nil }
             let range = TimeFormatters.timeRange(start: start, end: end)
             let duration = TimeFormatters.durationText(start: start, end: end)
-            let title = activity.windowTitle?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let title = sanitizeWindowTitleForExport(activity, policy: policy) ?? ""
             let suffix = title.isEmpty ? "" : " — \(title)"
             let idleLabel = activity.isIdle ? " (Idle)" : ""
             return "- \(range) \(activity.appName)\(idleLabel) (\(duration))\(suffix)"
@@ -1099,6 +1100,7 @@ final class ReportService {
         rangeEnd: Int64,
         columns: [CSVExportColumn]
     ) -> String {
+        let policy = currentWindowTitlePolicy()
         let selectedColumns = columns.isEmpty ? CSVExportColumn.defaultColumns : columns
         let tagLookup = Dictionary(uniqueKeysWithValues: tags.map { ($0.id, $0.name) })
         let header = selectedColumns.map(\.rawValue)
@@ -1132,7 +1134,7 @@ final class ReportService {
                 case .bundleId:
                     return csvEscape(activity.bundleId ?? "")
                 case .windowTitle:
-                    return csvEscape(activity.windowTitle ?? "")
+                    return csvEscape(sanitizeWindowTitleForExport(activity, policy: policy) ?? "")
                 case .tagId:
                     return tagIdValue
                 case .ruleTagId:
@@ -1154,6 +1156,25 @@ final class ReportService {
             lines.append(fields.joined(separator: ","))
         }
         return lines.joined(separator: "\n")
+    }
+
+    private func currentWindowTitlePolicy() -> (mode: WindowTitlePrivacyMode, blockedBundleIds: Set<String>) {
+        (
+            mode: AppState.shared.windowTitlePrivacyMode,
+            blockedBundleIds: Set(AppState.shared.windowTitleBlockedBundleIDs)
+        )
+    }
+
+    private func sanitizeWindowTitleForExport(
+        _ activity: ActivityRow,
+        policy: (mode: WindowTitlePrivacyMode, blockedBundleIds: Set<String>)
+    ) -> String? {
+        ActivityTracker.sanitizeWindowTitle(
+            activity.windowTitle,
+            bundleId: activity.bundleId,
+            mode: policy.mode,
+            blockedBundleIds: policy.blockedBundleIds
+        )
     }
 
     private func csvEscape(_ value: String) -> String {

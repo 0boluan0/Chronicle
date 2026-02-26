@@ -430,11 +430,33 @@ final class ActivityTracker {
         case .raw:
             return title
         case .lengthOnly:
+            if isLengthOnlyToken(title) {
+                return title
+            }
             return "length:\(title.count)"
         case .hashed:
+            if isHashedToken(title) {
+                return title
+            }
             let digest = SHA256.hash(data: Data(title.utf8))
             let hex = digest.compactMap { String(format: "%02x", $0) }.joined()
             return "sha256:\(hex.prefix(16))"
+        }
+    }
+
+    private static func isLengthOnlyToken(_ title: String) -> Bool {
+        guard title.hasPrefix("length:") else { return false }
+        let suffix = title.dropFirst("length:".count)
+        guard !suffix.isEmpty else { return false }
+        return suffix.allSatisfy { $0.isNumber }
+    }
+
+    private static func isHashedToken(_ title: String) -> Bool {
+        guard title.hasPrefix("sha256:") else { return false }
+        let suffix = title.dropFirst("sha256:".count)
+        guard suffix.count == 16 else { return false }
+        return suffix.allSatisfy { ch in
+            ch.isHexDigit
         }
     }
 }
