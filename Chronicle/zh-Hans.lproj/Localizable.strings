@@ -175,6 +175,11 @@
 "privacy.diagnostics_failed" = "导出诊断包失败：%@";
 "privacy.reminders_title" = "隐私提示";
 "privacy.reminders_body" = "• Chronicle 不会同步或上传数据。\n• 窗口标题采集需要辅助功能权限，可按需开启。";
+"privacy.docs_title" = "透明度文档";
+"privacy.open_data_safety_guide" = "打开数据安全指南";
+"privacy.open_migration_guide" = "打开迁移策略指南";
+"privacy.docs_opened" = "已打开文档：%@";
+"privacy.docs_open_failed" = "打开文档失败：%@";
 "privacy.wipe_confirm.title" = "清除所有 Chronicle 数据？";
 "privacy.cancel" = "取消";
 "privacy.wipe_confirm.action" = "清除";

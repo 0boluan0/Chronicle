@@ -824,7 +824,11 @@ private struct PrivacyPreferencesView: View {
     @State private var showWipeConfirm = false
     @State private var wipeMessage: String?
     @State private var diagnosticsMessage: String?
+    @State private var docsMessage: String?
     @State private var isExportingDiagnostics = false
+
+    private let dataSafetyGuideURL = URL(string: "https://github.com/0boluan0/Chronicle/blob/main/docs/data-safety.md")!
+    private let migrationGuideURL = URL(string: "https://github.com/0boluan0/Chronicle/blob/main/docs/migrations-and-upgrades.md")!
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -875,10 +879,36 @@ private struct PrivacyPreferencesView: View {
                 .foregroundColor(.secondary)
                 .textSelection(.enabled)
 
+            GroupBox {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("privacy.docs_title")
+                        .font(.headline)
+                    HStack(spacing: 8) {
+                        Button("privacy.open_data_safety_guide") {
+                            openGuide(url: dataSafetyGuideURL)
+                        }
+                        .buttonStyle(.bordered)
+
+                        Button("privacy.open_migration_guide") {
+                            openGuide(url: migrationGuideURL)
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
             if let wipeMessage {
                 Text(wipeMessage)
                     .font(.caption)
                     .foregroundColor(.secondary)
+            }
+
+            if let docsMessage {
+                Text(docsMessage)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .textSelection(.enabled)
             }
 
             if let diagnosticsMessage {
@@ -952,6 +982,13 @@ private struct PrivacyPreferencesView: View {
                 }
             }
         }
+    }
+
+    private func openGuide(url: URL) {
+        let opened = NSWorkspace.shared.open(url)
+        docsMessage = opened
+            ? String(format: L("privacy.docs_opened"), url.absoluteString)
+            : String(format: L("privacy.docs_open_failed"), url.absoluteString)
     }
 }
 

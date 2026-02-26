@@ -76,6 +76,8 @@ This project is under active development. Expect frequent changes and occasional
 
 - `UI-design.md` (UI notes and architecture)
 - `Product Requirements Document_ Offline Timeline Activity Tracker (macOS).pdf` (PRD)
+- `docs/migrations-and-upgrades.md` (DB migration and rollback policy)
+- `docs/data-safety.md` (data location, backup, and upgrade validation)
 
 ## Checklists
 

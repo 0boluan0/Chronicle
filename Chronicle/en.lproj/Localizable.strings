@@ -175,6 +175,11 @@
 "privacy.diagnostics_failed" = "Diagnostics export failed: %@";
 "privacy.reminders_title" = "Privacy reminders";
 "privacy.reminders_body" = "• Chronicle does not sync or upload data.\n• Window title capture requires Accessibility permission and is optional.";
+"privacy.docs_title" = "Transparency Docs";
+"privacy.open_data_safety_guide" = "Open Data Safety Guide";
+"privacy.open_migration_guide" = "Open Migration Guide";
+"privacy.docs_opened" = "Opened guide: %@";
+"privacy.docs_open_failed" = "Failed to open guide: %@";
 "privacy.wipe_confirm.title" = "Wipe all Chronicle data?";
 "privacy.cancel" = "Cancel";
 "privacy.wipe_confirm.action" = "Wipe";
