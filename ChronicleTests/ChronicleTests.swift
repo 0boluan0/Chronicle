@@ -3,16 +3,21 @@ import XCTest
 
 final class ChronicleTests: XCTestCase {
     private var previousDebugLoggingEnabled: Bool?
+    private var previousTelemetryEnabled: Bool?
 
     override func setUp() {
         super.setUp()
         previousDebugLoggingEnabled = AppState.shared.debugLoggingEnabled
+        previousTelemetryEnabled = AppState.shared.telemetryEnabled
         AppState.shared.debugLoggingEnabled = false
     }
 
     override func tearDown() {
         if let previousDebugLoggingEnabled {
             AppState.shared.debugLoggingEnabled = previousDebugLoggingEnabled
+        }
+        if let previousTelemetryEnabled {
+            AppState.shared.telemetryEnabled = previousTelemetryEnabled
         }
         super.tearDown()
     }
@@ -65,6 +70,33 @@ final class ChronicleTests: XCTestCase {
     private func makeTestDatabase(_ name: String) -> DatabaseService {
         let url = makeTempDatabaseURL(name)
         return DatabaseService.makeTestInstance(databaseURL: url)
+    }
+
+    private let telemetryCounterKeys: [String] = [
+        "app_launch",
+        "menu_export_daily_success",
+        "menu_export_daily_failure",
+        "export_daily_success",
+        "export_daily_failure",
+        "export_weekly_success",
+        "export_weekly_failure",
+        "export_csv_success",
+        "export_csv_failure",
+        "diagnostics_export_success",
+        "diagnostics_export_failure",
+        "feedback_bundle_success",
+        "feedback_bundle_failure",
+        "telemetry_export_success",
+        "telemetry_export_failure",
+        "check_updates_opened",
+        "releases_page_opened"
+    ]
+
+    private func clearTelemetryCounters() {
+        let defaults = UserDefaults.standard
+        for key in telemetryCounterKeys {
+            defaults.removeObject(forKey: "telemetry.counter.\(key)")
+        }
     }
 
     private func insertRawEvents(_ events: [RawEvent], into db: DatabaseService) {
@@ -772,6 +804,52 @@ final class ChronicleTests: XCTestCase {
         defaults.removePersistentDomain(forName: suiteName)
         let state = AppState.makeTestInstance(defaults: defaults)
         XCTAssertFalse(state.windowTitleCaptureEnabled)
+    }
+
+    func testTelemetryDefaultsOffAndPersists() {
+        let suiteName = "chronicle-tests-telemetry-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+
+        let state = AppState.makeTestInstance(defaults: defaults)
+        XCTAssertFalse(state.telemetryEnabled)
+
+        state.telemetryEnabled = true
+        let reloaded = AppState.makeTestInstance(defaults: defaults)
+        XCTAssertTrue(reloaded.telemetryEnabled)
+    }
+
+    func testTelemetryExportIncludesCounters() {
+        clearTelemetryCounters()
+        AppState.shared.telemetryEnabled = true
+        defer {
+            clearTelemetryCounters()
+        }
+
+        TelemetryService.shared.increment("export_daily_success")
+        TelemetryService.shared.increment("diagnostics_export_failure", by: 2)
+
+        let expectation = XCTestExpectation(description: "export telemetry json")
+        var payload: [String: Any] = [:]
+        TelemetryService.shared.exportJSON { result in
+            switch result {
+            case .success(let data):
+                if let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    payload = object
+                } else {
+                    XCTFail("Failed to decode telemetry JSON")
+                }
+            case .failure(let error):
+                XCTFail("Export telemetry failed: \(error)")
+            }
+            expectation.fulfill()
+        }
+        wait(for: [expectation], timeout: 5)
+
+        let counters = payload["counters"] as? [String: Any]
+        XCTAssertEqual(counters?["export_daily_success"] as? Int, 1)
+        XCTAssertEqual(counters?["diagnostics_export_failure"] as? Int, 2)
+        XCTAssertEqual(payload["telemetryEnabled"] as? Bool, true)
     }
 
     func testWindowTitleCaptureAuthorizationLogic() {

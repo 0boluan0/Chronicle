@@ -821,13 +821,16 @@ private struct TagsPreferencesView: View {
 }
 
 private struct PrivacyPreferencesView: View {
+    @EnvironmentObject private var appState: AppState
     @State private var showWipeConfirm = false
     @State private var wipeMessage: String?
     @State private var diagnosticsMessage: String?
     @State private var feedbackMessage: String?
+    @State private var telemetryMessage: String?
     @State private var docsMessage: String?
     @State private var isExportingDiagnostics = false
     @State private var isCreatingFeedbackBundle = false
+    @State private var isExportingTelemetry = false
 
     private let dataSafetyGuideURL = URL(string: "https://github.com/0boluan0/Chronicle/blob/main/docs/data-safety.md")!
     private let migrationGuideURL = URL(string: "https://github.com/0boluan0/Chronicle/blob/main/docs/migrations-and-upgrades.md")!
@@ -893,6 +896,26 @@ private struct PrivacyPreferencesView: View {
 
             GroupBox {
                 VStack(alignment: .leading, spacing: 8) {
+                    Text("privacy.telemetry_title")
+                        .font(.headline)
+                    Toggle("privacy.telemetry_enabled", isOn: $appState.telemetryEnabled)
+                    Text("privacy.telemetry_note")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    HStack(spacing: 8) {
+                        Button("privacy.export_telemetry") {
+                            exportTelemetry()
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(isExportingTelemetry)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            GroupBox {
+                VStack(alignment: .leading, spacing: 8) {
                     Text("privacy.docs_title")
                         .font(.headline)
                     HStack(spacing: 8) {
@@ -932,6 +955,13 @@ private struct PrivacyPreferencesView: View {
 
             if let feedbackMessage {
                 Text(feedbackMessage)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .textSelection(.enabled)
+            }
+
+            if let telemetryMessage {
+                Text(telemetryMessage)
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .textSelection(.enabled)
@@ -989,8 +1019,10 @@ private struct PrivacyPreferencesView: View {
                         do {
                             try data.write(to: url, options: .atomic)
                             self.diagnosticsMessage = String(format: L("privacy.diagnostics_saved"), url.path)
+                            TelemetryService.shared.increment("diagnostics_export_success")
                         } catch {
                             self.diagnosticsMessage = String(format: L("privacy.diagnostics_failed"), error.localizedDescription)
+                            TelemetryService.shared.increment("diagnostics_export_failure")
                         }
                     }
                 }
@@ -998,6 +1030,7 @@ private struct PrivacyPreferencesView: View {
                 DispatchQueue.main.async {
                     self.isExportingDiagnostics = false
                     self.diagnosticsMessage = String(format: L("privacy.diagnostics_failed"), error.localizedDescription)
+                    TelemetryService.shared.increment("diagnostics_export_failure")
                 }
             }
         }
@@ -1021,8 +1054,51 @@ private struct PrivacyPreferencesView: View {
                 case .success(let bundle):
                     _ = NSWorkspace.shared.open(bundle.folderURL)
                     self.feedbackMessage = String(format: L("privacy.feedback_bundle.saved"), bundle.folderURL.path)
+                    TelemetryService.shared.increment("feedback_bundle_success")
                 case .failure(let error):
                     self.feedbackMessage = String(format: L("privacy.feedback_bundle.failed"), error.localizedDescription)
+                    TelemetryService.shared.increment("feedback_bundle_failure")
+                }
+            }
+        }
+    }
+
+    private func exportTelemetry() {
+        guard !isExportingTelemetry else { return }
+        telemetryMessage = L("privacy.telemetry_exporting")
+        isExportingTelemetry = true
+
+        TelemetryService.shared.exportJSON { result in
+            switch result {
+            case .success(let data):
+                DispatchQueue.main.async {
+                    let panel = NSSavePanel()
+                    panel.allowedContentTypes = [.json]
+                    panel.canCreateDirectories = true
+                    panel.nameFieldStringValue = TelemetryService.defaultFileName()
+                    panel.begin { response in
+                        DispatchQueue.main.async {
+                            self.isExportingTelemetry = false
+                            guard response == .OK, let url = panel.url else {
+                                self.telemetryMessage = L("privacy.telemetry_cancelled")
+                                return
+                            }
+                            do {
+                                try data.write(to: url, options: .atomic)
+                                self.telemetryMessage = String(format: L("privacy.telemetry_saved"), url.path)
+                                TelemetryService.shared.increment("telemetry_export_success")
+                            } catch {
+                                self.telemetryMessage = String(format: L("privacy.telemetry_failed"), error.localizedDescription)
+                                TelemetryService.shared.increment("telemetry_export_failure")
+                            }
+                        }
+                    }
+                }
+            case .failure(let error):
+                DispatchQueue.main.async {
+                    self.isExportingTelemetry = false
+                    self.telemetryMessage = String(format: L("privacy.telemetry_failed"), error.localizedDescription)
+                    TelemetryService.shared.increment("telemetry_export_failure")
                 }
             }
         }

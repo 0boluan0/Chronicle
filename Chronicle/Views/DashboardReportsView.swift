@@ -568,10 +568,12 @@ struct DashboardReportsView: View {
                     let message = String(format: L("reports.daily.saved"), info.fileName)
                     dailyStatus = StatusMessage(text: message, isError: false)
                     settings.recordExportResult(kind: .daily, message: message, isError: false)
+                    TelemetryService.shared.increment("export_daily_success")
                 case .failure(let error):
                     let message = errorMessageWithReselectHint(error)
                     dailyStatus = StatusMessage(text: message, isError: true)
                     settings.recordExportResult(kind: .daily, message: message, isError: true)
+                    TelemetryService.shared.increment("export_daily_failure")
                 }
             }
         }
@@ -586,10 +588,12 @@ struct DashboardReportsView: View {
                     let message = String(format: L("reports.weekly.saved"), info.fileName)
                     weeklyStatus = StatusMessage(text: message, isError: false)
                     settings.recordExportResult(kind: .weekly, message: message, isError: false)
+                    TelemetryService.shared.increment("export_weekly_success")
                 case .failure(let error):
                     let message = errorMessageWithReselectHint(error)
                     weeklyStatus = StatusMessage(text: message, isError: true)
                     settings.recordExportResult(kind: .weekly, message: message, isError: true)
+                    TelemetryService.shared.increment("export_weekly_failure")
                 }
             }
         }
@@ -660,10 +664,12 @@ struct DashboardReportsView: View {
                     let message = String(format: L("reports.csv.saved"), info.fileName)
                     csvStatus = StatusMessage(text: message, isError: false)
                     settings.recordExportResult(kind: .csv, message: message, isError: false)
+                    TelemetryService.shared.increment("export_csv_success")
                 case .failure(let error):
                     let message = errorMessageWithReselectHint(error)
                     csvStatus = StatusMessage(text: message, isError: true)
                     settings.recordExportResult(kind: .csv, message: message, isError: true)
+                    TelemetryService.shared.increment("export_csv_failure")
                 }
             }
         }

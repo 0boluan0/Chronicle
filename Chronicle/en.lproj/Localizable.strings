@@ -187,6 +187,14 @@
 "privacy.feedback_bundle.generating" = "Creating feedback bundle…";
 "privacy.feedback_bundle.saved" = "Feedback bundle saved: %@";
 "privacy.feedback_bundle.failed" = "Failed to create feedback bundle: %@";
+"privacy.telemetry_title" = "Anonymous Telemetry";
+"privacy.telemetry_enabled" = "Enable anonymous usage counters";
+"privacy.telemetry_note" = "When disabled, counters are not collected. You can export a local JSON snapshot at any time.";
+"privacy.export_telemetry" = "Export Telemetry JSON";
+"privacy.telemetry_exporting" = "Preparing telemetry export…";
+"privacy.telemetry_cancelled" = "Telemetry export cancelled.";
+"privacy.telemetry_saved" = "Telemetry saved: %@";
+"privacy.telemetry_failed" = "Telemetry export failed: %@";
 "privacy.wipe_confirm.title" = "Wipe all Chronicle data?";
 "privacy.cancel" = "Cancel";
 "privacy.wipe_confirm.action" = "Wipe";

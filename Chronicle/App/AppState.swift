@@ -168,6 +168,9 @@ final class AppState: ObservableObject {
     @Published var debugLoggingEnabled: Bool {
         didSet { defaults.set(debugLoggingEnabled, forKey: Keys.debugLoggingEnabled) }
     }
+    @Published var telemetryEnabled: Bool {
+        didSet { defaults.set(telemetryEnabled, forKey: Keys.telemetryEnabled) }
+    }
     @Published var isIdle = false
     @Published var idleSeconds = 0
     @Published var idleSuppressionMediaPlaying = false
@@ -252,6 +255,7 @@ final class AppState: ObservableObject {
         } else {
             debugLoggingEnabled = Self.defaultDebugLoggingEnabled
         }
+        telemetryEnabled = defaults.object(forKey: Keys.telemetryEnabled) as? Bool ?? false
         if let storedMode = defaults.string(forKey: Keys.quickMarkerMode),
            let mode = QuickMarkerMode(rawValue: storedMode) {
             quickMarkerMode = mode
@@ -304,6 +308,7 @@ final class AppState: ObservableObject {
         static let countOverlaysInTotals = "settings.countOverlaysInTotals"
         static let dateRangeMode = "settings.dateRangeMode"
         static let debugLoggingEnabled = "settings.debugLoggingEnabled"
+        static let telemetryEnabled = "settings.telemetryEnabled"
     }
 
     static let defaultWindowTitleCaptureEnabled = false
@@ -337,6 +342,106 @@ final class AppState: ObservableObject {
     static func makeTestInstance(defaults: UserDefaults) -> AppState {
         AppState(defaults: defaults)
     }
+}
+
+private struct TelemetryPayload: Codable {
+    let generatedAt: String
+    let appVersion: String
+    let appBuild: String
+    let telemetryEnabled: Bool
+    let counters: [String: Int]
+}
+
+final class TelemetryService {
+    static let shared = TelemetryService()
+
+    private let queue = DispatchQueue(label: "com.chronicle.telemetry", qos: .utility)
+    private let defaults: UserDefaults
+
+    private init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+    }
+
+    func increment(_ key: String, by delta: Int = 1) {
+        guard delta != 0 else { return }
+        queue.async {
+            guard AppState.shared.telemetryEnabled else { return }
+            let fullKey = Self.counterKeyPrefix + key
+            let current = self.defaults.integer(forKey: fullKey)
+            self.defaults.set(max(0, current + delta), forKey: fullKey)
+        }
+    }
+
+    func exportJSON(completion: @escaping (Result<Data, Error>) -> Void) {
+        queue.async {
+            do {
+                let payload = TelemetryPayload(
+                    generatedAt: Self.iso8601String(for: Date()),
+                    appVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0",
+                    appBuild: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0",
+                    telemetryEnabled: AppState.shared.telemetryEnabled,
+                    counters: self.readCounters()
+                )
+                let encoder = JSONEncoder()
+                encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+                let data = try encoder.encode(payload)
+                completion(.success(data))
+            } catch {
+                completion(.failure(error))
+            }
+        }
+    }
+
+    static func defaultFileName(for date: Date = Date()) -> String {
+        "chronicle-telemetry-\(fileTimestampFormatter.string(from: date)).json"
+    }
+
+    private func readCounters() -> [String: Int] {
+        var counters: [String: Int] = [:]
+        for key in Self.counterKeys {
+            counters[key] = defaults.integer(forKey: Self.counterKeyPrefix + key)
+        }
+        return counters
+    }
+
+    private static let counterKeyPrefix = "telemetry.counter."
+    private static func iso8601String(for date: Date) -> String {
+        iso8601Formatter.string(from: date)
+    }
+
+    private static let iso8601Formatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
+
+    private static let fileTimestampFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd-HHmmss"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        return formatter
+    }()
+
+    private static let counterKeys: [String] = [
+        "app_launch",
+        "menu_export_daily_success",
+        "menu_export_daily_failure",
+        "export_daily_success",
+        "export_daily_failure",
+        "export_weekly_success",
+        "export_weekly_failure",
+        "export_csv_success",
+        "export_csv_failure",
+        "diagnostics_export_success",
+        "diagnostics_export_failure",
+        "feedback_bundle_success",
+        "feedback_bundle_failure",
+        "telemetry_export_success",
+        "telemetry_export_failure",
+        "check_updates_opened",
+        "releases_page_opened"
+    ]
 }
 
 final class RuntimePerformanceMonitor {

@@ -187,6 +187,14 @@
 "privacy.feedback_bundle.generating" = "正在创建反馈包…";
 "privacy.feedback_bundle.saved" = "反馈包已保存：%@";
 "privacy.feedback_bundle.failed" = "创建反馈包失败：%@";
+"privacy.telemetry_title" = "匿名遥测";
+"privacy.telemetry_enabled" = "启用匿名使用计数";
+"privacy.telemetry_note" = "关闭后不会采集计数；你仍可随时导出本地 JSON 快照。";
+"privacy.export_telemetry" = "导出遥测 JSON";
+"privacy.telemetry_exporting" = "正在准备遥测导出…";
+"privacy.telemetry_cancelled" = "已取消导出遥测。";
+"privacy.telemetry_saved" = "遥测已保存：%@";
+"privacy.telemetry_failed" = "导出遥测失败：%@";
 "privacy.wipe_confirm.title" = "清除所有 Chronicle 数据？";
 "privacy.cancel" = "取消";
 "privacy.wipe_confirm.action" = "清除";

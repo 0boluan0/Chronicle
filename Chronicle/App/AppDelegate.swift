@@ -47,6 +47,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         LaunchAtLoginManager.shared.syncAppState(appState)
         AccessibilityPermissionManager.shared.syncAppState(appState)
         DatabaseService.shared.initializeIfNeeded()
+        TelemetryService.shared.increment("app_launch")
         if isRunningUnitTests {
             AppLogger.log("Test mode launch: runtime services disabled", category: "app")
         } else {
@@ -257,10 +258,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 case .success(let info):
                     let message = String(format: L("export.now.success"), info.fileName)
                     ReportSettings.shared.recordExportResult(kind: .daily, message: message, isError: false)
+                    TelemetryService.shared.increment("menu_export_daily_success")
                     self.setExportFeedback(message: message, isError: false)
                 case .failure(let error):
                     let message = String(format: L("export.now.failed"), error.localizedDescription)
                     ReportSettings.shared.recordExportResult(kind: .daily, message: message, isError: true)
+                    TelemetryService.shared.increment("menu_export_daily_failure")
                     self.setExportFeedback(message: message, isError: true)
                     AppLogger.log("Export now failed: \(error.localizedDescription)", category: "report")
                 }
@@ -274,10 +277,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     @objc private func checkForUpdates() {
+        TelemetryService.shared.increment("check_updates_opened")
         open(url: latestReleaseURL)
     }
 
     @objc private func openReleasesPage() {
+        TelemetryService.shared.increment("releases_page_opened")
         open(url: releasesPageURL)
     }
 
