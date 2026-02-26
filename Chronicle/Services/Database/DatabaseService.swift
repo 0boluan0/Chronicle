@@ -101,6 +101,16 @@ final class DatabaseService {
         databaseURL.path
     }
 
+    private func enqueueWrite(operation _: String, execute: @escaping () -> Void) {
+        let token = RuntimePerformanceMonitor.shared.beginDBWrite()
+        queue.async {
+            defer {
+                RuntimePerformanceMonitor.shared.endDBWrite(token)
+            }
+            execute()
+        }
+    }
+
     func initializeIfNeeded() {
         queue.async { [self] in
             do {
@@ -127,7 +137,7 @@ final class DatabaseService {
             AppLogger.log("Warning: insertActivity called on main thread", category: "db")
         }
 
-        queue.async { [self] in
+        enqueueWrite(operation: "insert_activity") { [self] in
             do {
                 try self.openDatabaseIfNeeded()
                 self.validateEpochSeconds(start, label: "start_time")
@@ -160,7 +170,7 @@ final class DatabaseService {
             AppLogger.log("Warning: insertRawEvent called on main thread", category: "db")
         }
 
-        queue.async { [self] in
+        enqueueWrite(operation: "insert_raw_event") { [self] in
             do {
                 try self.openDatabaseIfNeeded()
                 let rowId = try self.insertRawEventInternal(event)
@@ -220,7 +230,7 @@ final class DatabaseService {
             AppLogger.log("Warning: deleteActivitiesInRange called on main thread", category: "db")
         }
 
-        queue.async { [self] in
+        enqueueWrite(operation: "delete_activities_range") { [self] in
             do {
                 try self.openDatabaseIfNeeded()
                 let deleted = try self.deleteActivitiesInRangeInternal(start: start, end: end)
@@ -246,7 +256,7 @@ final class DatabaseService {
             AppLogger.log("Warning: rebuildSessionsFromRawEvents called on main thread", category: "db")
         }
 
-        queue.async { [self] in
+        enqueueWrite(operation: "rebuild_sessions") { [self] in
             do {
                 try self.openDatabaseIfNeeded()
                 let start = max(0, rangeStart - lookbackSeconds)
@@ -313,7 +323,7 @@ final class DatabaseService {
             AppLogger.log("Warning: updateActivityEndTime called on main thread", category: "db")
         }
 
-        queue.async { [self] in
+        enqueueWrite(operation: "update_activity_end_time") { [self] in
             do {
                 try self.openDatabaseIfNeeded()
                 self.validateEpochSeconds(endTime, label: "end_time")
@@ -1362,7 +1372,7 @@ final class DatabaseService {
             AppLogger.log("Warning: applyRulesToDay called on main thread", category: "db")
         }
 
-        queue.async { [self] in
+        enqueueWrite(operation: "apply_rules_day") { [self] in
             do {
                 try self.openDatabaseIfNeeded()
                 let updated = try self.recomputeTagsInternal(rangeStart: dayStart, rangeEnd: dayEnd)
@@ -1388,7 +1398,7 @@ final class DatabaseService {
             AppLogger.log("Warning: recomputeTags called on main thread", category: "db")
         }
 
-        queue.async { [self] in
+        enqueueWrite(operation: "recompute_tags") { [self] in
             do {
                 try self.openDatabaseIfNeeded()
                 let updated = try self.recomputeTagsInternal(rangeStart: rangeStart, rangeEnd: rangeEnd)
@@ -1432,7 +1442,7 @@ final class DatabaseService {
             AppLogger.log("Warning: deleteActivity called on main thread", category: "db")
         }
 
-        queue.async { [self] in
+        enqueueWrite(operation: "delete_activity") { [self] in
             do {
                 try self.openDatabaseIfNeeded()
                 try self.deleteActivityInternal(id: id)
@@ -1493,7 +1503,7 @@ final class DatabaseService {
             AppLogger.log("Warning: mergeShortActivityIfNeeded called on main thread", category: "db")
         }
 
-        queue.async { [self] in
+        enqueueWrite(operation: "merge_short_activity") { [self] in
             do {
                 try self.openDatabaseIfNeeded()
                 let mergedCount = try self.mergeShortActivityIfNeededInternal(
@@ -1534,7 +1544,7 @@ final class DatabaseService {
             AppLogger.log("Warning: compactRecentActivities called on main thread", category: "db")
         }
 
-        queue.async { [self] in
+        enqueueWrite(operation: "compact_recent_activities") { [self] in
             do {
                 try self.openDatabaseIfNeeded()
                 let clampedDays = max(1, days)
@@ -1566,7 +1576,7 @@ final class DatabaseService {
     }
 
     func wipeDatabase(completion: @escaping (Result<Void, Error>) -> Void) {
-        queue.async { [self] in
+        enqueueWrite(operation: "wipe_database") { [self] in
             do {
                 if let connection = db {
                     sqlite3_close(connection)

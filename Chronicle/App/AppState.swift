@@ -42,6 +42,32 @@ enum WindowTitlePrivacyMode: String, CaseIterable, Identifiable {
     }
 }
 
+struct RuntimePerformanceSnapshot: Equatable {
+    let dbWriteBacklog: Int
+    let dbWriteLastLatencyMs: Int
+    let dbWriteAverageLatencyMs: Int
+    let dbWriteMaxLatencyMs: Int
+    let dbWriteSampleCount: Int
+    let aggregationBacklog: Int
+    let aggregationLastLatencyMs: Int
+    let aggregationAverageLatencyMs: Int
+    let aggregationMaxLatencyMs: Int
+    let aggregationSampleCount: Int
+
+    static let zero = RuntimePerformanceSnapshot(
+        dbWriteBacklog: 0,
+        dbWriteLastLatencyMs: 0,
+        dbWriteAverageLatencyMs: 0,
+        dbWriteMaxLatencyMs: 0,
+        dbWriteSampleCount: 0,
+        aggregationBacklog: 0,
+        aggregationLastLatencyMs: 0,
+        aggregationAverageLatencyMs: 0,
+        aggregationMaxLatencyMs: 0,
+        aggregationSampleCount: 0
+    )
+}
+
 final class AppState: ObservableObject {
     static let shared = AppState()
 
@@ -164,6 +190,7 @@ final class AppState: ObservableObject {
     @Published var selectedTagFilterId: Int64 = -1
     @Published var selectedAppFilterName = "All Apps"
     @Published var rapidSwitchOverlays: [RapidSwitchOverlay] = []
+    @Published var runtimePerformance = RuntimePerformanceSnapshot.zero
     @Published var exportNowMessage: String?
     @Published var exportNowMessageIsError: Bool = false
     let launchDate = Date()
@@ -309,5 +336,107 @@ final class AppState: ObservableObject {
 
     static func makeTestInstance(defaults: UserDefaults) -> AppState {
         AppState(defaults: defaults)
+    }
+}
+
+final class RuntimePerformanceMonitor {
+    static let shared = RuntimePerformanceMonitor()
+
+    struct Token {
+        fileprivate let kind: Kind
+        fileprivate let startedAt: DispatchTime
+    }
+
+    fileprivate enum Kind {
+        case dbWrite
+        case aggregation
+    }
+
+    private let queue = DispatchQueue(label: "com.chronicle.runtime-performance")
+    private let maxSamples = 120
+
+    private var dbWriteBacklog = 0
+    private var dbWriteSamples: [Int] = []
+    private var aggregationBacklog = 0
+    private var aggregationSamples: [Int] = []
+
+    private init() {}
+
+    func beginDBWrite() -> Token {
+        let token = Token(kind: .dbWrite, startedAt: .now())
+        queue.async {
+            self.dbWriteBacklog += 1
+            self.publishLocked()
+        }
+        return token
+    }
+
+    func endDBWrite(_ token: Token) {
+        complete(token)
+    }
+
+    func beginAggregation() -> Token {
+        let token = Token(kind: .aggregation, startedAt: .now())
+        queue.async {
+            self.aggregationBacklog += 1
+            self.publishLocked()
+        }
+        return token
+    }
+
+    func endAggregation(_ token: Token) {
+        complete(token)
+    }
+
+    private func complete(_ token: Token) {
+        let elapsedMs = elapsedMilliseconds(since: token.startedAt)
+        queue.async {
+            switch token.kind {
+            case .dbWrite:
+                self.dbWriteBacklog = max(0, self.dbWriteBacklog - 1)
+                self.append(elapsedMs, into: &self.dbWriteSamples)
+            case .aggregation:
+                self.aggregationBacklog = max(0, self.aggregationBacklog - 1)
+                self.append(elapsedMs, into: &self.aggregationSamples)
+            }
+            self.publishLocked()
+        }
+    }
+
+    private func append(_ value: Int, into samples: inout [Int]) {
+        samples.append(max(0, value))
+        if samples.count > maxSamples {
+            samples.removeFirst(samples.count - maxSamples)
+        }
+    }
+
+    private func elapsedMilliseconds(since start: DispatchTime) -> Int {
+        let now = DispatchTime.now()
+        let nanos = now.uptimeNanoseconds &- start.uptimeNanoseconds
+        return Int(nanos / 1_000_000)
+    }
+
+    private func publishLocked() {
+        let snapshot = RuntimePerformanceSnapshot(
+            dbWriteBacklog: dbWriteBacklog,
+            dbWriteLastLatencyMs: dbWriteSamples.last ?? 0,
+            dbWriteAverageLatencyMs: average(dbWriteSamples),
+            dbWriteMaxLatencyMs: dbWriteSamples.max() ?? 0,
+            dbWriteSampleCount: dbWriteSamples.count,
+            aggregationBacklog: aggregationBacklog,
+            aggregationLastLatencyMs: aggregationSamples.last ?? 0,
+            aggregationAverageLatencyMs: average(aggregationSamples),
+            aggregationMaxLatencyMs: aggregationSamples.max() ?? 0,
+            aggregationSampleCount: aggregationSamples.count
+        )
+        DispatchQueue.main.async {
+            AppState.shared.runtimePerformance = snapshot
+        }
+    }
+
+    private func average(_ values: [Int]) -> Int {
+        guard !values.isEmpty else { return 0 }
+        let total = values.reduce(0, +)
+        return total / values.count
     }
 }

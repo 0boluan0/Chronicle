@@ -109,6 +109,7 @@ final class AggregationService {
         offset: Int? = nil,
         completion: @escaping (Result<[TimelineItem], Error>) -> Void
     ) {
+        let perfToken = RuntimePerformanceMonitor.shared.beginAggregation()
         let group = DispatchGroup()
         var activities: [ActivityRow] = []
         var markers: [MarkerRow] = []
@@ -149,6 +150,9 @@ final class AggregationService {
         }
 
         group.notify(queue: .global(qos: .userInitiated)) {
+            defer {
+                RuntimePerformanceMonitor.shared.endAggregation(perfToken)
+            }
             if let firstError {
                 completion(.failure(firstError))
                 return
@@ -179,6 +183,7 @@ final class AggregationService {
             completion(.success(cached))
             return
         }
+        let perfToken = RuntimePerformanceMonitor.shared.beginAggregation()
 
         let group = DispatchGroup()
         var activities: [ActivityRow] = []
@@ -220,6 +225,9 @@ final class AggregationService {
         }
 
         group.notify(queue: queue) {
+            defer {
+                RuntimePerformanceMonitor.shared.endAggregation(perfToken)
+            }
             if let firstError {
                 completion(.failure(firstError))
                 return
@@ -272,13 +280,18 @@ final class AggregationService {
             completion(.success(cached))
             return
         }
+        let perfToken = RuntimePerformanceMonitor.shared.beginAggregation()
 
         db.fetchActivitiesOverlappingRange(start: rangeStart, end: rangeEnd) { result in
             switch result {
             case .failure(let error):
+                RuntimePerformanceMonitor.shared.endAggregation(perfToken)
                 completion(.failure(error))
             case .success(let rows):
                 self.queue.async {
+                    defer {
+                        RuntimePerformanceMonitor.shared.endAggregation(perfToken)
+                    }
                     let filteredActivities = self.applyActivityFilters(rows, filters: filters)
                     let overlayContributions = filters.countOverlaysInTotals
                         ? self.overlayContributions(rangeStart: rangeStart, rangeEnd: rangeEnd, filters: filters, activities: rows)
@@ -362,6 +375,7 @@ final class AggregationService {
             completion(.success(cached))
             return
         }
+        let perfToken = RuntimePerformanceMonitor.shared.beginAggregation()
 
         let group = DispatchGroup()
         var activities: [ActivityRow] = []
@@ -391,6 +405,9 @@ final class AggregationService {
         }
 
         group.notify(queue: queue) {
+            defer {
+                RuntimePerformanceMonitor.shared.endAggregation(perfToken)
+            }
             if let firstError {
                 completion(.failure(firstError))
                 return
@@ -489,6 +506,7 @@ final class AggregationService {
         includeIdle: Bool,
         completion: @escaping (Result<([WeeklyBucketRow], [String], [Int64], Int64), Error>) -> Void
     ) {
+        let perfToken = RuntimePerformanceMonitor.shared.beginAggregation()
         let calendar = Calendar.current
         var dayStarts: [Int64] = []
         var dayLabels: [String] = []
@@ -540,6 +558,9 @@ final class AggregationService {
         }
 
         group.notify(queue: queue) {
+            defer {
+                RuntimePerformanceMonitor.shared.endAggregation(perfToken)
+            }
             if let firstError {
                 completion(.failure(firstError))
                 return
@@ -620,6 +641,7 @@ final class AggregationService {
         overlays: [RapidSwitchOverlay],
         completion: @escaping (Result<[GanttRowData], Error>) -> Void
     ) {
+        let perfToken = RuntimePerformanceMonitor.shared.beginAggregation()
         let group = DispatchGroup()
         var activities: [ActivityRow] = []
         var tags: [TagRow] = []
@@ -648,6 +670,9 @@ final class AggregationService {
         }
 
         group.notify(queue: queue) {
+            defer {
+                RuntimePerformanceMonitor.shared.endAggregation(perfToken)
+            }
             if let firstError {
                 completion(.failure(firstError))
                 return

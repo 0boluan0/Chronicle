@@ -48,6 +48,16 @@ struct DashboardDebugView: View {
             Text("Compaction counts: merged=\(appState.lastCompactionMergedCount), dropped=\(appState.lastCompactionDroppedCount)")
                 .font(DesignSystem.Typography.caption)
                 .foregroundColor(DesignSystem.Colors.secondaryText)
+            Text(
+                "Perf(DB writes): backlog=\(appState.runtimePerformance.dbWriteBacklog), last=\(appState.runtimePerformance.dbWriteLastLatencyMs)ms, avg=\(appState.runtimePerformance.dbWriteAverageLatencyMs)ms, max=\(appState.runtimePerformance.dbWriteMaxLatencyMs)ms, n=\(appState.runtimePerformance.dbWriteSampleCount)"
+            )
+            .font(DesignSystem.Typography.caption)
+            .foregroundColor(DesignSystem.Colors.secondaryText)
+            Text(
+                "Perf(aggregation): backlog=\(appState.runtimePerformance.aggregationBacklog), last=\(appState.runtimePerformance.aggregationLastLatencyMs)ms, avg=\(appState.runtimePerformance.aggregationAverageLatencyMs)ms, max=\(appState.runtimePerformance.aggregationMaxLatencyMs)ms, n=\(appState.runtimePerformance.aggregationSampleCount)"
+            )
+            .font(DesignSystem.Typography.caption)
+            .foregroundColor(DesignSystem.Colors.secondaryText)
             Text("DB Path: \(DatabaseService.shared.databasePath)")
                 .font(DesignSystem.Typography.caption)
                 .foregroundColor(DesignSystem.Colors.secondaryText)

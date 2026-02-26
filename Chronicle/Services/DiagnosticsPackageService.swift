@@ -136,7 +136,13 @@ private struct DiagnosticsPayload: Codable {
                 idleSeconds: appState.idleSeconds,
                 currentActiveAppName: appState.currentActiveAppName,
                 currentActiveBundleId: appState.currentActiveAppBundleId,
-                lastDbErrorMessage: appState.lastDbErrorMessage
+                lastDbErrorMessage: appState.lastDbErrorMessage,
+                dbWriteBacklog: appState.runtimePerformance.dbWriteBacklog,
+                dbWriteLastLatencyMs: appState.runtimePerformance.dbWriteLastLatencyMs,
+                dbWriteAverageLatencyMs: appState.runtimePerformance.dbWriteAverageLatencyMs,
+                aggregationBacklog: appState.runtimePerformance.aggregationBacklog,
+                aggregationLastLatencyMs: appState.runtimePerformance.aggregationLastLatencyMs,
+                aggregationAverageLatencyMs: appState.runtimePerformance.aggregationAverageLatencyMs
             ),
             healthCheck: health
         )
@@ -195,6 +201,12 @@ private struct DiagnosticsRuntimeSnapshot: Codable {
     let currentActiveAppName: String
     let currentActiveBundleId: String?
     let lastDbErrorMessage: String?
+    let dbWriteBacklog: Int
+    let dbWriteLastLatencyMs: Int
+    let dbWriteAverageLatencyMs: Int
+    let aggregationBacklog: Int
+    let aggregationLastLatencyMs: Int
+    let aggregationAverageLatencyMs: Int
 }
 
 private struct DiagnosticsHealthSnapshot: Codable {
