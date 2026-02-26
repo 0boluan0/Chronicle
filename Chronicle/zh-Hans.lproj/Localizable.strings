@@ -108,6 +108,16 @@
 "preferences.window_titles.note" = "记录前台窗口标题，用于提升打标与搜索准确性。";
 "preferences.window_titles.needs_access" = "需要辅助功能权限，未授权时不会记录窗口标题。";
 "preferences.window_titles.open_settings" = "打开系统设置";
+"preferences.window_titles.privacy_mode" = "标题隐私模式";
+"preferences.window_titles.privacy_mode.note" = "原文会保存完整标题；长度仅保存标题长度；哈希保存固定摘要。";
+"preferences.window_titles.mode.raw" = "原文";
+"preferences.window_titles.mode.length" = "长度";
+"preferences.window_titles.mode.hash" = "哈希";
+"preferences.window_titles.blocklist" = "禁用应用（不采集标题）";
+"preferences.window_titles.blocklist.search" = "搜索禁用应用";
+"preferences.window_titles.blocklist.empty" = "暂无禁用应用。";
+"preferences.window_titles.blocklist.add" = "添加应用…";
+"preferences.window_titles.blocklist.note" = "这些应用的窗口标题会在写入前被丢弃。";
 "Tracking Quality" = "追踪质量";
 "Enable Session Aggregation" = "启用会话聚合";
 "Reduce short session noise by debouncing and merging." = "通过去抖与合并减少短会话噪声。";

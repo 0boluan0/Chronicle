@@ -7,6 +7,7 @@
 
 import AppKit
 import Combine
+import CryptoKit
 import Foundation
 import MediaPlayer
 
@@ -76,10 +77,16 @@ final class ActivityTracker {
     private func handleActivation(_ app: NSRunningApplication, immediate: Bool) {
         let appName = app.localizedName ?? app.bundleIdentifier ?? "Unknown"
         let bundleId = app.bundleIdentifier
-        let windowTitle = Self.shouldCaptureWindowTitle(
+        let rawWindowTitle = Self.shouldCaptureWindowTitle(
             enabled: appState.windowTitleCaptureEnabled,
             authorized: appState.accessibilityAuthorized
         ) ? windowTitleProvider.currentWindowTitle(bundleId: bundleId) : nil
+        let windowTitle = Self.sanitizeWindowTitle(
+            rawWindowTitle,
+            bundleId: bundleId,
+            mode: appState.windowTitlePrivacyMode,
+            blockedBundleIds: Set(appState.windowTitleBlockedBundleIDs)
+        )
         let now = Date()
         updateAppState(activeAppName: appName, bundleId: bundleId)
         let event = RawEvent(
@@ -404,6 +411,31 @@ final class ActivityTracker {
 
     static func shouldCaptureWindowTitle(enabled: Bool, authorized: Bool) -> Bool {
         enabled && authorized
+    }
+
+    static func sanitizeWindowTitle(
+        _ title: String?,
+        bundleId: String?,
+        mode: WindowTitlePrivacyMode,
+        blockedBundleIds: Set<String>
+    ) -> String? {
+        if let bundleId, blockedBundleIds.contains(bundleId) {
+            return nil
+        }
+        guard let title = title?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !title.isEmpty else {
+            return nil
+        }
+        switch mode {
+        case .raw:
+            return title
+        case .lengthOnly:
+            return "length:\(title.count)"
+        case .hashed:
+            let digest = SHA256.hash(data: Data(title.utf8))
+            let hex = digest.compactMap { String(format: "%02x", $0) }.joined()
+            return "sha256:\(hex.prefix(16))"
+        }
     }
 }
 

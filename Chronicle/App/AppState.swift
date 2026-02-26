@@ -23,6 +23,25 @@ enum QuickMarkerAction: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+enum WindowTitlePrivacyMode: String, CaseIterable, Identifiable {
+    case raw
+    case lengthOnly
+    case hashed
+
+    var id: String { rawValue }
+
+    var titleKey: String {
+        switch self {
+        case .raw:
+            return "preferences.window_titles.mode.raw"
+        case .lengthOnly:
+            return "preferences.window_titles.mode.length"
+        case .hashed:
+            return "preferences.window_titles.mode.hash"
+        }
+    }
+}
+
 final class AppState: ObservableObject {
     static let shared = AppState()
 
@@ -77,6 +96,12 @@ final class AppState: ObservableObject {
     }
     @Published var windowTitleCaptureEnabled: Bool {
         didSet { defaults.set(windowTitleCaptureEnabled, forKey: Keys.windowTitleCaptureEnabled) }
+    }
+    @Published var windowTitlePrivacyMode: WindowTitlePrivacyMode {
+        didSet { defaults.set(windowTitlePrivacyMode.rawValue, forKey: Keys.windowTitlePrivacyMode) }
+    }
+    @Published var windowTitleBlockedBundleIDs: [String] {
+        didSet { defaults.set(windowTitleBlockedBundleIDs, forKey: Keys.windowTitleBlockedBundleIDs) }
     }
     @Published var accessibilityAuthorized: Bool {
         didSet { defaults.set(accessibilityAuthorized, forKey: Keys.accessibilityAuthorized) }
@@ -154,6 +179,13 @@ final class AppState: ObservableObject {
         onboardingCompleted = defaults.object(forKey: Keys.onboardingCompleted) as? Bool ?? false
         ignoreChronicleSelf = defaults.object(forKey: Keys.ignoreChronicleSelf) as? Bool ?? true
         windowTitleCaptureEnabled = defaults.object(forKey: Keys.windowTitleCaptureEnabled) as? Bool ?? Self.defaultWindowTitleCaptureEnabled
+        if let raw = defaults.string(forKey: Keys.windowTitlePrivacyMode),
+           let mode = WindowTitlePrivacyMode(rawValue: raw) {
+            windowTitlePrivacyMode = mode
+        } else {
+            windowTitlePrivacyMode = .raw
+        }
+        windowTitleBlockedBundleIDs = defaults.stringArray(forKey: Keys.windowTitleBlockedBundleIDs) ?? []
         accessibilityAuthorized = defaults.object(forKey: Keys.accessibilityAuthorized) as? Bool ?? false
         launchAtLoginEnabled = defaults.object(forKey: Keys.launchAtLoginEnabled) as? Bool ?? false
         trackingAggregationEnabled = defaults.object(forKey: Keys.trackingAggregationEnabled) as? Bool ?? true
@@ -214,6 +246,8 @@ final class AppState: ObservableObject {
         static let onboardingCompleted = "onboarding.completed"
         static let ignoreChronicleSelf = "settings.ignoreChronicleSelf"
         static let windowTitleCaptureEnabled = "settings.windowTitleCaptureEnabled"
+        static let windowTitlePrivacyMode = "settings.windowTitlePrivacyMode"
+        static let windowTitleBlockedBundleIDs = "settings.windowTitleBlockedBundleIDs"
         static let accessibilityAuthorized = "settings.accessibilityAuthorized"
         static let quickMarkerMode = "settings.quickMarkerMode"
         static let quickMarkerAction = "settings.quickMarkerAction"

@@ -781,6 +781,44 @@ final class ChronicleTests: XCTestCase {
         XCTAssertTrue(ActivityTracker.shouldCaptureWindowTitle(enabled: true, authorized: true))
     }
 
+    func testWindowTitleSanitizationModes() {
+        let raw = ActivityTracker.sanitizeWindowTitle(
+            "  Chronicle  ",
+            bundleId: "com.apple.dt.Xcode",
+            mode: .raw,
+            blockedBundleIds: []
+        )
+        XCTAssertEqual(raw, "Chronicle")
+
+        let lengthOnly = ActivityTracker.sanitizeWindowTitle(
+            "Hello World",
+            bundleId: "com.apple.dt.Xcode",
+            mode: .lengthOnly,
+            blockedBundleIds: []
+        )
+        XCTAssertEqual(lengthOnly, "length:11")
+
+        let hashed = ActivityTracker.sanitizeWindowTitle(
+            "Secret Plan",
+            bundleId: "com.apple.dt.Xcode",
+            mode: .hashed,
+            blockedBundleIds: []
+        )
+        XCTAssertNotNil(hashed)
+        XCTAssertTrue(hashed?.hasPrefix("sha256:") ?? false)
+        XCTAssertEqual(hashed?.count, "sha256:".count + 16)
+    }
+
+    func testWindowTitleSanitizationBlockedApp() {
+        let blocked = ActivityTracker.sanitizeWindowTitle(
+            "Visible",
+            bundleId: "com.apple.Safari",
+            mode: .raw,
+            blockedBundleIds: ["com.apple.Safari"]
+        )
+        XCTAssertNil(blocked)
+    }
+
     func testAutoExportAttemptDecision() {
         let date = Date(timeIntervalSince1970: 0)
         let dayKey = ReportService.dayKey(for: date)

@@ -126,6 +126,7 @@ private struct GeneralPreferencesView: View {
     @EnvironmentObject private var appState: AppState
     @EnvironmentObject private var languageManager: AppLanguageManager
     @State private var allowlistSearch = ""
+    @State private var windowTitleBlocklistSearch = ""
     @State private var idleDiagnosticsExpanded = false
 #if DEBUG
     @State private var idleTestToken: UUID?
@@ -157,6 +158,79 @@ private struct GeneralPreferencesView: View {
             Text("preferences.window_titles.note")
                 .font(.caption)
                 .foregroundColor(.secondary)
+
+            if appState.windowTitleCaptureEnabled {
+                GroupBox {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("preferences.window_titles.privacy_mode")
+                            .font(.subheadline.weight(.medium))
+
+                        Picker("preferences.window_titles.privacy_mode", selection: $appState.windowTitlePrivacyMode) {
+                            ForEach(WindowTitlePrivacyMode.allCases) { mode in
+                                Text(LocalizedStringKey(mode.titleKey)).tag(mode)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+
+                        Text("preferences.window_titles.privacy_mode.note")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+
+                        Divider()
+
+                        Text("preferences.window_titles.blocklist")
+                            .font(.subheadline.weight(.medium))
+
+                        TextField("preferences.window_titles.blocklist.search", text: $windowTitleBlocklistSearch)
+                            .textFieldStyle(.roundedBorder)
+
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 8) {
+                                if filteredWindowTitleBlocklistItems.isEmpty {
+                                    Text("preferences.window_titles.blocklist.empty")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                } else {
+                                    ForEach(filteredWindowTitleBlocklistItems) { item in
+                                        HStack(spacing: 10) {
+                                            Image(nsImage: item.icon)
+                                                .resizable()
+                                                .frame(width: 20, height: 20)
+                                                .cornerRadius(4)
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text(item.name)
+                                                    .font(.subheadline.weight(.medium))
+                                                Text(item.bundleId)
+                                                    .font(.caption2)
+                                                    .foregroundColor(.secondary)
+                                            }
+                                            Spacer()
+                                            Button("Remove") {
+                                                removeWindowTitleBlockedApp(bundleId: item.bundleId)
+                                            }
+                                            .buttonStyle(.bordered)
+                                        }
+                                    }
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.vertical, 2)
+                        }
+                        .frame(maxHeight: 180)
+
+                        HStack(spacing: 8) {
+                            Button("preferences.window_titles.blocklist.add") {
+                                addWindowTitleBlockedApp()
+                            }
+                            .buttonStyle(.bordered)
+                            Text("preferences.window_titles.blocklist.note")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
 
             if appState.windowTitleCaptureEnabled && !appState.accessibilityAuthorized {
                 HStack(spacing: 8) {
@@ -597,6 +671,22 @@ private struct GeneralPreferencesView: View {
         }
     }
 
+    private var windowTitleBlocklistItems: [AllowlistItem] {
+        appState.windowTitleBlockedBundleIDs.compactMap { bundleId in
+            let info = resolveAppInfo(bundleId: bundleId)
+            return AllowlistItem(bundleId: bundleId, name: info.name, icon: info.icon)
+        }
+        .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    private var filteredWindowTitleBlocklistItems: [AllowlistItem] {
+        let search = windowTitleBlocklistSearch.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !search.isEmpty else { return windowTitleBlocklistItems }
+        return windowTitleBlocklistItems.filter {
+            $0.name.lowercased().contains(search) || $0.bundleId.lowercased().contains(search)
+        }
+    }
+
     private func addAllowlistApp() {
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
@@ -616,6 +706,27 @@ private struct GeneralPreferencesView: View {
 
     private func removeAllowlist(bundleId: String) {
         appState.idleSuppressedBundleIDs.removeAll { $0 == bundleId }
+    }
+
+    private func addWindowTitleBlockedApp() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.allowedContentTypes = [.application]
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else { return }
+            guard let bundle = Bundle(url: url), let bundleId = bundle.bundleIdentifier else { return }
+            DispatchQueue.main.async {
+                if !appState.windowTitleBlockedBundleIDs.contains(bundleId) {
+                    appState.windowTitleBlockedBundleIDs.append(bundleId)
+                }
+            }
+        }
+    }
+
+    private func removeWindowTitleBlockedApp(bundleId: String) {
+        appState.windowTitleBlockedBundleIDs.removeAll { $0 == bundleId }
     }
 
     private func resolveAppInfo(bundleId: String) -> (name: String, icon: NSImage) {

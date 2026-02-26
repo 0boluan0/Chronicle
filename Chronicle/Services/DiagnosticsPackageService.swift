@@ -104,6 +104,8 @@ private struct DiagnosticsPayload: Codable {
                 onboardingCompleted: appState.onboardingCompleted,
                 accessibilityAuthorized: appState.accessibilityAuthorized,
                 windowTitleCaptureEnabled: appState.windowTitleCaptureEnabled,
+                windowTitlePrivacyMode: appState.windowTitlePrivacyMode.rawValue,
+                windowTitleBlockedBundleCount: appState.windowTitleBlockedBundleIDs.count,
                 idleDetectionEnabled: appState.idleDetectionEnabled,
                 suppressIdleWhileMediaPlaying: appState.suppressIdleWhileMediaPlaying,
                 idleThresholdSeconds: appState.idleThresholdSeconds,
@@ -158,6 +160,8 @@ private struct DiagnosticsTrackingSnapshot: Codable {
     let onboardingCompleted: Bool
     let accessibilityAuthorized: Bool
     let windowTitleCaptureEnabled: Bool
+    let windowTitlePrivacyMode: String
+    let windowTitleBlockedBundleCount: Int
     let idleDetectionEnabled: Bool
     let suppressIdleWhileMediaPlaying: Bool
     let idleThresholdSeconds: Int
