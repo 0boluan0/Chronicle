@@ -52,4 +52,11 @@ hdiutil create \
   -format UDZO \
   "${DMG_PATH}"
 
+echo "Computing SHA-256 checksum..."
+(
+  cd "${OUTPUT_DIR}"
+  shasum -a 256 "${DMG_NAME}" > "${DMG_NAME}.sha256"
+)
+
 echo "DMG ready: ${DMG_PATH}"
+echo "Checksum ready: ${DMG_PATH}.sha256"
