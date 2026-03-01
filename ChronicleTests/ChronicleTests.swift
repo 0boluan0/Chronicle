@@ -821,6 +821,23 @@ final class ChronicleTests: XCTestCase {
         XCTAssertTrue(reloaded.telemetryEnabled)
     }
 
+    func testDailyReviewReminderDefaultsAndPersists() {
+        let suiteName = "chronicle-tests-review-reminder-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+
+        let state = AppState.makeTestInstance(defaults: defaults)
+        XCTAssertTrue(state.dailyReviewReminderEnabled)
+        XCTAssertEqual(state.dailyReviewReminderTimeMinutes, 18 * 60)
+
+        state.dailyReviewReminderEnabled = false
+        state.dailyReviewReminderTimeMinutes = 9 * 60 + 30
+
+        let reloaded = AppState.makeTestInstance(defaults: defaults)
+        XCTAssertFalse(reloaded.dailyReviewReminderEnabled)
+        XCTAssertEqual(reloaded.dailyReviewReminderTimeMinutes, 9 * 60 + 30)
+    }
+
     func testTelemetryExportIncludesCounters() {
         clearTelemetryCounters()
         AppState.shared.telemetryEnabled = true

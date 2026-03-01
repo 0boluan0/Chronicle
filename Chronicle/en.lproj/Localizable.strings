@@ -34,7 +34,7 @@
 "popover.export_status.title" = "Export Status";
 "popover.export_status.not_run" = "Daily export has not run yet.";
 "popover.daily_review.title" = "Daily Review Reminder";
-"popover.daily_review.body" = "It is after 18:00 and today's daily report is not exported yet.";
+"popover.daily_review.body" = "It is after %@ and today's daily report is not exported yet.";
 "popover.daily_review.export_now" = "Export Now";
 "popover.daily_review.open_dashboard" = "Open Dashboard";
 "popover.daily_review.dismiss_today" = "Dismiss Today";
@@ -306,6 +306,10 @@
 "reports.folder.label" = "Folder: %@";
 "reports.open_folder" = "Open Folder";
 "reports.overwrite_existing" = "Overwrite existing";
+"reports.review_reminder.title" = "Review Reminder";
+"reports.review_reminder.enabled" = "Enable daily review reminder";
+"reports.review_reminder.time" = "Reminder time";
+"reports.review_reminder.note" = "Shows in the menubar popover after the selected time if today's daily report was not exported.";
 "reports.csv.range" = "Export Range";
 "reports.csv.range_picker" = "Range";
 "reports.csv.start_date" = "Start";

@@ -171,6 +171,12 @@ final class AppState: ObservableObject {
     @Published var telemetryEnabled: Bool {
         didSet { defaults.set(telemetryEnabled, forKey: Keys.telemetryEnabled) }
     }
+    @Published var dailyReviewReminderEnabled: Bool {
+        didSet { defaults.set(dailyReviewReminderEnabled, forKey: Keys.dailyReviewReminderEnabled) }
+    }
+    @Published var dailyReviewReminderTimeMinutes: Int {
+        didSet { defaults.set(Self.clampMinutesOfDay(dailyReviewReminderTimeMinutes), forKey: Keys.dailyReviewReminderTimeMinutes) }
+    }
     @Published var isIdle = false
     @Published var idleSeconds = 0
     @Published var idleSuppressionMediaPlaying = false
@@ -256,6 +262,8 @@ final class AppState: ObservableObject {
             debugLoggingEnabled = Self.defaultDebugLoggingEnabled
         }
         telemetryEnabled = defaults.object(forKey: Keys.telemetryEnabled) as? Bool ?? false
+        dailyReviewReminderEnabled = defaults.object(forKey: Keys.dailyReviewReminderEnabled) as? Bool ?? true
+        dailyReviewReminderTimeMinutes = Self.clampMinutesOfDay(defaults.object(forKey: Keys.dailyReviewReminderTimeMinutes) as? Int ?? 18 * 60)
         if let storedMode = defaults.string(forKey: Keys.quickMarkerMode),
            let mode = QuickMarkerMode(rawValue: storedMode) {
             quickMarkerMode = mode
@@ -309,6 +317,8 @@ final class AppState: ObservableObject {
         static let dateRangeMode = "settings.dateRangeMode"
         static let debugLoggingEnabled = "settings.debugLoggingEnabled"
         static let telemetryEnabled = "settings.telemetryEnabled"
+        static let dailyReviewReminderEnabled = "settings.dailyReviewReminderEnabled"
+        static let dailyReviewReminderTimeMinutes = "settings.dailyReviewReminderTimeMinutes"
     }
 
     static let defaultWindowTitleCaptureEnabled = false
@@ -341,6 +351,10 @@ final class AppState: ObservableObject {
 
     static func makeTestInstance(defaults: UserDefaults) -> AppState {
         AppState(defaults: defaults)
+    }
+
+    private static func clampMinutesOfDay(_ value: Int) -> Int {
+        Swift.min(Swift.max(0, value), 23 * 60 + 59)
     }
 }
 

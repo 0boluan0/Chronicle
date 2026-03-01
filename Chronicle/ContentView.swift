@@ -214,7 +214,7 @@ struct ContentView: View {
     private var dailyReviewReminderView: some View {
         SectionCard(title: "popover.daily_review.title") {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                Text(L("popover.daily_review.body"))
+                Text(String(format: L("popover.daily_review.body"), dailyReviewReminderTimeText))
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
 
@@ -279,12 +279,15 @@ struct ContentView: View {
     }
 
     private var shouldShowDailyReviewReminder: Bool {
+        guard appState.dailyReviewReminderEnabled else { return false }
         let todayKey = ReportService.dayKey(for: now)
         if dismissedDailyReviewDay == todayKey {
             return false
         }
-        let hour = Calendar.current.component(.hour, from: now)
-        guard hour >= 18 else {
+        let calendar = Calendar.current
+        let components = calendar.dateComponents([.hour, .minute], from: now)
+        let nowMinutes = (components.hour ?? 0) * 60 + (components.minute ?? 0)
+        guard nowMinutes >= appState.dailyReviewReminderTimeMinutes else {
             return false
         }
         guard reportSettings.lastDailyExportAt > 0 else {
@@ -292,6 +295,13 @@ struct ContentView: View {
         }
         let lastExportDate = Date(timeIntervalSince1970: reportSettings.lastDailyExportAt)
         return !Calendar.current.isDate(lastExportDate, inSameDayAs: now)
+    }
+
+    private var dailyReviewReminderTimeText: String {
+        let minutes = appState.dailyReviewReminderTimeMinutes
+        let hour = minutes / 60
+        let minute = minutes % 60
+        return String(format: "%02d:%02d", hour, minute)
     }
 
     private var healthStatusText: String {

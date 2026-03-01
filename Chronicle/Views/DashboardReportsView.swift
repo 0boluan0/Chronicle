@@ -63,6 +63,8 @@ struct DashboardReportsView: View {
                     .font(.title2.weight(.semibold))
             }
 
+            reviewReminderSection
+
             csvSection
 
             dailySection
@@ -180,6 +182,36 @@ struct DashboardReportsView: View {
                         }
                     )
                 }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var reviewReminderSection: some View {
+        SectionCard(title: "reports.review_reminder.title") {
+            VStack(alignment: .leading, spacing: 12) {
+                Toggle(L("reports.review_reminder.enabled"), isOn: $appState.dailyReviewReminderEnabled)
+                    .toggleStyle(.switch)
+
+                HStack(spacing: 12) {
+                    Text(L("reports.review_reminder.time"))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+
+                    DatePicker(
+                        "",
+                        selection: dailyReviewReminderTimeBinding,
+                        displayedComponents: .hourAndMinute
+                    )
+                    .labelsHidden()
+                    .disabled(!appState.dailyReviewReminderEnabled)
+
+                    Spacer()
+                }
+
+                Text(L("reports.review_reminder.note"))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -703,6 +735,33 @@ struct DashboardReportsView: View {
 
     private var selectedCSVColumns: [CSVExportColumn] {
         CSVExportColumn.decodeStorageValue(csvSelectedColumnsRaw)
+    }
+
+    private var dailyReviewReminderTimeBinding: Binding<Date> {
+        Binding(
+            get: { dateForMinutesOfDay(appState.dailyReviewReminderTimeMinutes) },
+            set: { newValue in
+                appState.dailyReviewReminderTimeMinutes = minutesOfDay(from: newValue)
+            }
+        )
+    }
+
+    private func dateForMinutesOfDay(_ minutes: Int) -> Date {
+        let clamped = Swift.min(Swift.max(0, minutes), 23 * 60 + 59)
+        let hour = clamped / 60
+        let minute = clamped % 60
+
+        var components = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+        components.hour = hour
+        components.minute = minute
+        return Calendar.current.date(from: components) ?? Date()
+    }
+
+    private func minutesOfDay(from date: Date) -> Int {
+        let components = Calendar.current.dateComponents([.hour, .minute], from: date)
+        let hour = components.hour ?? 0
+        let minute = components.minute ?? 0
+        return Swift.min(Swift.max(0, hour), 23) * 60 + Swift.min(Swift.max(0, minute), 59)
     }
 
     private func csvColumnBinding(for column: CSVExportColumn) -> Binding<Bool> {
