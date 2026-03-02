@@ -22,6 +22,7 @@ struct ContentView: View {
     @AppStorage("popover.dailyReviewReminderDismissedDay") private var dismissedDailyReviewDay = ""
     @State private var dailySnapshot = DailySnapshot.empty
     @State private var isSnapshotLoading = false
+    @State private var showHealthDetails = false
     @State private var now = Date()
     private let reminderRefreshTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
 
@@ -94,6 +95,10 @@ struct ContentView: View {
         .onReceive(reminderRefreshTimer) { value in
             now = value
         }
+        .sheet(isPresented: $showHealthDetails) {
+            HealthCheckDetailsView(onClose: { showHealthDetails = false })
+                .environmentObject(appState)
+        }
     }
 
     @ViewBuilder
@@ -115,6 +120,11 @@ struct ContentView: View {
                 }
 
                 Spacer()
+
+                Button(L("popover.self_check.details")) {
+                    showHealthDetails = true
+                }
+                .buttonStyle(.bordered)
 
                 Button(L("popover.self_check.run")) {
                     healthCheckService.runQuickChecks()

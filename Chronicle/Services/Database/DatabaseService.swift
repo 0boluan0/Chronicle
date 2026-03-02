@@ -1322,6 +1322,50 @@ final class DatabaseService {
         }
     }
 
+    func setUserTagOverrides(
+        activityOverrides: [(activityId: Int64, tagId: Int64?)],
+        completion: @escaping (Result<Int, Error>) -> Void
+    ) {
+        if Thread.isMainThread {
+            AppLogger.log("Warning: setUserTagOverrides(activityOverrides:) called on main thread", category: "db")
+        }
+
+        queue.async { [self] in
+            do {
+                let sorted = activityOverrides.sorted { lhs, rhs in lhs.activityId < rhs.activityId }
+                guard !sorted.isEmpty else {
+                    completion(.success(0))
+                    return
+                }
+
+                // De-dupe while preserving nil tag values.
+                var unique: [(activityId: Int64, tagId: Int64?)] = []
+                unique.reserveCapacity(sorted.count)
+                for item in sorted {
+                    if let last = unique.last, last.activityId == item.activityId {
+                        unique[unique.count - 1] = item
+                    } else {
+                        unique.append(item)
+                    }
+                }
+
+                try self.openDatabaseIfNeeded()
+                let updated = try self.updateActivityUserOverridesInternal(
+                    overrides: unique.map { (id: $0.activityId, userTagOverrideId: $0.tagId) }
+                )
+                AppLogger.log("Batch override restore success count=\(updated)", category: "db")
+                AggregationService.shared.recordDatabaseChange(rangeStart: 0, rangeEnd: Int64.max)
+                completion(.success(updated))
+            } catch let error as DatabaseError {
+                AppLogger.log("Batch override restore failed: \(error.logDescription)", category: "db")
+                completion(.failure(error))
+            } catch {
+                AppLogger.log("Batch override restore failed: \(error.localizedDescription)", category: "db")
+                completion(.failure(error))
+            }
+        }
+    }
+
     func applyRuleToActivity(
         activityId: Int64,
         appName: String,
@@ -4212,6 +4256,72 @@ final class DatabaseService {
                     try bind(sql: sql, result: sqlite3_bind_null(statement, 3), detail: "tag_id")
                 }
                 try bind(sql: sql, result: sqlite3_bind_int64(statement, 4, id), detail: "id")
+
+                let stepResult = sqlite3_step(statement)
+                guard stepResult == SQLITE_DONE else {
+                    let message = sqliteErrorMessage(db)
+                    logSQLiteError(operation: "step", sql: sql, message: message)
+                    throw DatabaseError.stepFailed(message, sql: sql)
+                }
+                if sqliteChanges() > 0 {
+                    updated += 1
+                }
+            }
+
+            try execute(sql: "COMMIT;")
+            return updated
+        } catch {
+            try? execute(sql: "ROLLBACK;")
+            throw error
+        }
+    }
+
+    private func updateActivityUserOverridesInternal(overrides: [(id: Int64, userTagOverrideId: Int64?)]) throws -> Int {
+        guard !overrides.isEmpty else { return 0 }
+        guard hasRuleTagColumn || hasEffectiveTagColumn || hasUserTagOverrideColumn else {
+            var updated = 0
+            for item in overrides {
+                try updateActivityTagInternal(id: item.id, tagId: item.userTagOverrideId)
+                if sqliteChanges() > 0 {
+                    updated += 1
+                }
+            }
+            return updated
+        }
+
+        let sql = """
+        UPDATE Activities
+        SET user_tag_override_id = ?,
+            effective_tag_id = COALESCE(?, rule_tag_id),
+            tag_id = COALESCE(?, rule_tag_id)
+        WHERE id = ?;
+        """
+
+        try execute(sql: "BEGIN IMMEDIATE;")
+        var statement: OpaquePointer?
+        do {
+            guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+                let message = sqliteErrorMessage(db)
+                logSQLiteError(operation: "prepare", sql: sql, message: message)
+                throw DatabaseError.prepareFailed(message, sql: sql)
+            }
+            defer { sqlite3_finalize(statement) }
+
+            var updated = 0
+            for item in overrides {
+                sqlite3_reset(statement)
+                sqlite3_clear_bindings(statement)
+
+                if let userTagOverrideId = item.userTagOverrideId {
+                    try bind(sql: sql, result: sqlite3_bind_int64(statement, 1, userTagOverrideId), detail: "user_tag_override_id")
+                    try bind(sql: sql, result: sqlite3_bind_int64(statement, 2, userTagOverrideId), detail: "effective_tag_id")
+                    try bind(sql: sql, result: sqlite3_bind_int64(statement, 3, userTagOverrideId), detail: "tag_id")
+                } else {
+                    try bind(sql: sql, result: sqlite3_bind_null(statement, 1), detail: "user_tag_override_id")
+                    try bind(sql: sql, result: sqlite3_bind_null(statement, 2), detail: "effective_tag_id")
+                    try bind(sql: sql, result: sqlite3_bind_null(statement, 3), detail: "tag_id")
+                }
+                try bind(sql: sql, result: sqlite3_bind_int64(statement, 4, item.id), detail: "id")
 
                 let stepResult = sqlite3_step(statement)
                 guard stepResult == SQLITE_DONE else {

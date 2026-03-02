@@ -36,6 +36,10 @@ final class ActivityTracker {
 
     private init() {}
 
+    var isRunning: Bool {
+        observer != nil
+    }
+
     func start() {
         guard observer == nil else { return }
 

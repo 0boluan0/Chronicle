@@ -24,11 +24,17 @@ struct DashboardTimelineView: View {
     @State private var selectedActivityIds: Set<Int64> = []
     @State private var selectedBatchTagId: Int64 = -1
     @State private var isApplyingBatchOverride = false
+    @State private var isUndoingBatchOverride = false
     @State private var batchStatusMessage: String?
     @State private var batchStatusIsError = false
+    @State private var lastBatchUndo: BatchUndoAction?
 
     private let untaggedFilterValue: Int64 = -2
     private let batchUseAutoValue: Int64 = -1
+
+    private struct BatchUndoAction {
+        let activityOverrides: [(activityId: Int64, tagId: Int64?)]
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
@@ -205,7 +211,13 @@ struct DashboardTimelineView: View {
                         applyBatchOverride()
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(selectedActivityIds.isEmpty || isApplyingBatchOverride)
+                    .disabled(selectedActivityIds.isEmpty || isApplyingBatchOverride || isUndoingBatchOverride)
+
+                    Button(isUndoingBatchOverride ? L("timeline.batch.undoing") : L("timeline.batch.undo")) {
+                        undoLastBatch()
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(lastBatchUndo == nil || isApplyingBatchOverride || isUndoingBatchOverride)
 
                     Spacer()
                 }
@@ -583,6 +595,13 @@ struct DashboardTimelineView: View {
         batchStatusMessage = nil
         batchStatusIsError = false
 
+        let undoAction = BatchUndoAction(
+            activityOverrides: ids.map { activityId in
+                let previous = activities.first(where: { $0.id == activityId })?.userTagOverrideId
+                return (activityId: activityId, tagId: previous)
+            }
+        )
+
         let targetTagId = selectedBatchTagId == batchUseAutoValue ? nil : selectedBatchTagId
         for activityId in ids {
             applyOverrideLocally(activityId: activityId, tagId: targetTagId)
@@ -599,13 +618,47 @@ struct DashboardTimelineView: View {
                     self.batchStatusMessage = String(format: L("timeline.batch.applied"), updated, tagName)
                     self.batchStatusIsError = false
                     self.selectedActivityIds.removeAll()
+                    self.lastBatchUndo = undoAction
                     self.refreshData(reason: "batch tag override", resetLimit: false)
                     NotificationCenter.default.post(name: ActivityTracker.didRecordSessionNotification, object: nil)
                 case .failure(let error):
                     self.batchStatusMessage = String(format: L("timeline.batch.failed"), error.localizedDescription)
                     self.batchStatusIsError = true
+                    self.lastBatchUndo = nil
                     self.appState.lastDbErrorMessage = error.localizedDescription
                     self.refreshData(reason: "batch tag override failed", resetLimit: false)
+                }
+            }
+        }
+    }
+
+    private func undoLastBatch() {
+        guard let action = lastBatchUndo else { return }
+
+        isUndoingBatchOverride = true
+        batchStatusMessage = nil
+        batchStatusIsError = false
+
+        for item in action.activityOverrides {
+            applyOverrideLocally(activityId: item.activityId, tagId: item.tagId)
+        }
+
+        DatabaseService.shared.setUserTagOverrides(activityOverrides: action.activityOverrides) { result in
+            DispatchQueue.main.async {
+                self.isUndoingBatchOverride = false
+                switch result {
+                case .success(let updated):
+                    self.batchStatusMessage = String(format: L("timeline.batch.undone"), updated)
+                    self.batchStatusIsError = false
+                    self.selectedActivityIds.removeAll()
+                    self.lastBatchUndo = nil
+                    self.refreshData(reason: "batch undo", resetLimit: false)
+                    NotificationCenter.default.post(name: ActivityTracker.didRecordSessionNotification, object: nil)
+                case .failure(let error):
+                    self.batchStatusMessage = String(format: L("timeline.batch.undo_failed"), error.localizedDescription)
+                    self.batchStatusIsError = true
+                    self.appState.lastDbErrorMessage = error.localizedDescription
+                    self.refreshData(reason: "batch undo failed", resetLimit: false)
                 }
             }
         }

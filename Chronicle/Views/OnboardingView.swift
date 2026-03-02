@@ -9,17 +9,18 @@ import AppKit
 import SwiftUI
 
 struct OnboardingView: View {
-    enum Step: Int, CaseIterable, Identifiable {
-        case welcome
-        case permissions
+    enum Step: String, CaseIterable, Identifiable {
+        case value
+        case windowTitles
         case convenience
+        case permissions
         case finish
 
-        var id: Int { rawValue }
+        var id: String { rawValue }
     }
 
     @EnvironmentObject private var appState: AppState
-    @State private var step: Step = .welcome
+    @State private var step: Step = .value
     @State private var launchAtLoginMessage: String?
 
     let onClose: () -> Void
@@ -43,6 +44,11 @@ struct OnboardingView: View {
             AccessibilityPermissionManager.shared.syncAppState(appState)
             LaunchAtLoginManager.shared.syncAppState(appState)
         }
+        .onChange(of: appState.windowTitleCaptureEnabled) { enabled in
+            if !enabled && step == .permissions {
+                step = .finish
+            }
+        }
         .onExitCommand(perform: onClose)
     }
 
@@ -59,8 +65,10 @@ struct OnboardingView: View {
 
     private var content: some View {
         switch step {
-        case .welcome:
-            return AnyView(welcomeContent)
+        case .value:
+            return AnyView(valueContent)
+        case .windowTitles:
+            return AnyView(windowTitlesContent)
         case .permissions:
             return AnyView(permissionsContent)
         case .convenience:
@@ -72,7 +80,7 @@ struct OnboardingView: View {
 
     private var footer: some View {
         HStack(spacing: DesignSystem.Spacing.sm) {
-            if step != .welcome && step != .finish {
+            if step != (flowSteps.first ?? .value) && step != .finish {
                 Button(L("actions.back")) {
                     goBack()
                 }
@@ -82,12 +90,19 @@ struct OnboardingView: View {
             Spacer()
 
             switch step {
-            case .welcome:
+            case .value:
                 Button(L("actions.open_preferences")) {
                     PreferencesWindowController.shared.show()
                 }
                 .buttonStyle(.bordered)
 
+                Button(L("actions.next")) {
+                    goNext()
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(DesignSystem.Colors.accentSkyBlue)
+
+            case .windowTitles:
                 Button(L("actions.next")) {
                     goNext()
                 }
@@ -123,7 +138,7 @@ struct OnboardingView: View {
         }
     }
 
-    private var welcomeContent: some View {
+    private var valueContent: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
             Text("privacy.offline_note")
                 .foregroundColor(DesignSystem.Colors.secondaryText)
@@ -145,9 +160,9 @@ struct OnboardingView: View {
         }
     }
 
-    private var permissionsContent: some View {
+    private var windowTitlesContent: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            Text("onboarding.permissions.body")
+            Text("onboarding.window_titles.body")
                 .font(DesignSystem.Typography.caption)
                 .foregroundColor(DesignSystem.Colors.secondaryText)
 
@@ -156,35 +171,58 @@ struct OnboardingView: View {
                     Toggle("preferences.window_titles.capture", isOn: windowTitleCaptureBinding)
                         .toggleStyle(.switch)
 
-                    Text("preferences.window_titles.note")
+                    Text("onboarding.window_titles.hint")
                         .font(DesignSystem.Typography.caption)
                         .foregroundColor(DesignSystem.Colors.secondaryText)
 
-                    if appState.windowTitleCaptureEnabled {
-                        if appState.accessibilityAuthorized {
-                            Label(LocalizedStringKey("onboarding.permissions.authorized"), systemImage: "checkmark.seal.fill")
-                                .font(DesignSystem.Typography.caption)
-                                .foregroundColor(Color(nsColor: .systemGreen))
-                        } else {
-                            Text("onboarding.permissions.choice_hint")
-                                .font(DesignSystem.Typography.caption)
-                                .foregroundColor(DesignSystem.Colors.secondaryText)
-                            HStack(spacing: DesignSystem.Spacing.sm) {
-                                Button("onboarding.permissions.grant") {
-                                    _ = AccessibilityPermissionManager.shared.requestPermission(prompt: true)
-                                    AccessibilityPermissionManager.shared.syncAppState(appState)
-                                }
-                                .buttonStyle(.borderedProminent)
-                                .tint(DesignSystem.Colors.accentSkyBlue)
+                    Divider()
 
-                                Button("preferences.window_titles.open_settings") {
-                                    AccessibilityPermissionManager.shared.openSystemSettings()
-                                }
-                                .buttonStyle(.bordered)
-                            }
+                    Picker("preferences.window_titles.privacy_mode", selection: $appState.windowTitlePrivacyMode) {
+                        ForEach(WindowTitlePrivacyMode.allCases) { mode in
+                            Text(LocalizedStringKey(mode.titleKey)).tag(mode)
                         }
+                    }
+                    .disabled(!appState.windowTitleCaptureEnabled)
+
+                    Text("preferences.window_titles.privacy_mode.note")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    private var permissionsContent: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            Text("onboarding.permissions.body")
+                .font(DesignSystem.Typography.caption)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+
+            SectionCard {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    if appState.accessibilityAuthorized {
+                        Label(LocalizedStringKey("onboarding.permissions.authorized"), systemImage: "checkmark.seal.fill")
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(Color(nsColor: .systemGreen))
                     } else {
-                        Text("onboarding.permissions.degraded_mode")
+                        Text("onboarding.permissions.choice_hint")
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                        HStack(spacing: DesignSystem.Spacing.sm) {
+                            Button("onboarding.permissions.grant") {
+                                _ = AccessibilityPermissionManager.shared.requestPermission(prompt: true)
+                                AccessibilityPermissionManager.shared.syncAppState(appState)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(DesignSystem.Colors.accentSkyBlue)
+
+                            Button("preferences.window_titles.open_settings") {
+                                AccessibilityPermissionManager.shared.openSystemSettings()
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                        Text("preferences.window_titles.needs_access")
                             .font(DesignSystem.Typography.caption)
                             .foregroundColor(DesignSystem.Colors.secondaryText)
                     }
@@ -242,8 +280,10 @@ struct OnboardingView: View {
 
     private var titleKey: String {
         switch step {
-        case .welcome:
+        case .value:
             return "onboarding.welcome.title"
+        case .windowTitles:
+            return "onboarding.window_titles.title"
         case .permissions:
             return "onboarding.permissions.title"
         case .convenience:
@@ -254,9 +294,18 @@ struct OnboardingView: View {
     }
 
     private var stepIndicator: String {
-        let index = step.rawValue + 1
-        let total = Step.allCases.count
+        let index = (flowSteps.firstIndex(of: step) ?? 0) + 1
+        let total = flowSteps.count
         return String(format: L("onboarding.step"), index, total)
+    }
+
+    private var flowSteps: [Step] {
+        var steps: [Step] = [.value, .windowTitles, .convenience]
+        if appState.windowTitleCaptureEnabled {
+            steps.append(.permissions)
+        }
+        steps.append(.finish)
+        return steps
     }
 
     private var windowTitleCaptureBinding: Binding<Bool> {
@@ -286,13 +335,17 @@ struct OnboardingView: View {
     }
 
     private func goNext() {
-        guard let next = Step(rawValue: step.rawValue + 1) else { return }
-        step = next
+        guard let index = flowSteps.firstIndex(of: step), index + 1 < flowSteps.count else {
+            return
+        }
+        step = flowSteps[index + 1]
     }
 
     private func goBack() {
-        guard let prev = Step(rawValue: step.rawValue - 1) else { return }
-        step = prev
+        guard let index = flowSteps.firstIndex(of: step), index > 0 else {
+            return
+        }
+        step = flowSteps[index - 1]
     }
 
     private func finish() {

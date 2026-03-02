@@ -19,16 +19,17 @@ final class DiagnosticsPackageService {
                     let healthSnapshot: DiagnosticsHealthSnapshot
                     switch result {
                     case .success(let report):
+                        let augmented = HealthCheckService.augmentedReport(from: report)
                         healthSnapshot = DiagnosticsHealthSnapshot(
-                            checkedAt: Self.iso8601String(for: report.checkedAt),
-                            issues: report.issues.map {
+                            checkedAt: Self.iso8601String(for: augmented.checkedAt),
+                            issues: augmented.issues.map {
                                 DiagnosticsHealthIssue(
                                     severity: $0.severity.rawValue,
                                     message: $0.message,
                                     details: $0.details
                                 )
                             },
-                            metrics: report.metrics
+                            metrics: augmented.metrics
                         )
                     case .failure(let error):
                         healthSnapshot = DiagnosticsHealthSnapshot(

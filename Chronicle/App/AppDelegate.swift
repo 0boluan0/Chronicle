@@ -51,11 +51,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         if isRunningUnitTests {
             AppLogger.log("Test mode launch: runtime services disabled", category: "app")
         } else {
+            activityTracker.start()
             HealthCheckService.shared.runQuickChecks()
             if !appState.onboardingCompleted {
                 OnboardingWindowController.shared.show()
             }
-            activityTracker.start()
             ReportService.shared.autoExportIfNeeded(currentDate: Date())
             HotKeyManager.shared.onHotKeyPressed = { [weak self] in
                 self?.showQuickMarkerPanel()
