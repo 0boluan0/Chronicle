@@ -8,7 +8,7 @@
 import Foundation
 import SwiftUI
 
-struct AggregationFilters: Hashable {
+nonisolated struct AggregationFilters: Hashable {
     var includeIdle: Bool
     var countOverlaysInTotals: Bool
     var tagId: Int64?
@@ -26,7 +26,7 @@ struct AggregationFilters: Hashable {
     )
 }
 
-struct AggregationSummary: Equatable {
+nonisolated struct AggregationSummary: Equatable {
     let totalSeconds: Int64
     let activeSeconds: Int64
     let idleSeconds: Int64
@@ -35,7 +35,7 @@ struct AggregationSummary: Equatable {
     let markerSessionsCount: Int
 }
 
-struct TopItem: Identifiable, Equatable {
+nonisolated struct TopItem: Identifiable, Equatable {
     let id: String
     let name: String
     let bundleId: String?
@@ -45,7 +45,7 @@ struct TopItem: Identifiable, Equatable {
     let percentOfActive: Double
 }
 
-struct WeeklyBucketRow: Identifiable {
+nonisolated struct WeeklyBucketRow: Identifiable {
     let id: String
     let title: String
     let colorHex: String?
@@ -715,7 +715,7 @@ final class AggregationService {
 
     // MARK: - Helpers
 
-    private struct Bucket: Hashable {
+    private nonisolated struct Bucket: Hashable {
         var id: String
         var name: String
         var bundleId: String?
@@ -724,19 +724,19 @@ final class AggregationService {
         var sessionCount: Int
     }
 
-    private struct OverlayContribution {
+    private nonisolated struct OverlayContribution {
         let bundleId: String?
         let appName: String
         let tagId: Int64?
         let durationSeconds: Int64
     }
 
-    private struct CacheEntry<Value> {
+    private nonisolated struct CacheEntry<Value> {
         let value: Value
         let counter: Int64
     }
 
-    private struct CacheKey: Hashable {
+    private nonisolated struct CacheKey: Hashable {
         let rangeStart: Int64
         let rangeEnd: Int64
         let filters: AggregationFilters

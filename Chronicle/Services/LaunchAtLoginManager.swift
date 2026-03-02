@@ -25,6 +25,8 @@ final class LaunchAtLoginManager {
             return .enabled
         case .requiresApproval:
             return .requiresApproval
+        case .notFound:
+            return .disabled
         case .notRegistered:
             return .disabled
         @unknown default:

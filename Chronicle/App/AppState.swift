@@ -358,7 +358,7 @@ final class AppState: ObservableObject {
     }
 }
 
-private struct TelemetryPayload: Codable {
+private nonisolated struct TelemetryPayload: Codable {
     let generatedAt: String
     let appVersion: String
     let appBuild: String
@@ -366,7 +366,7 @@ private struct TelemetryPayload: Codable {
     let counters: [String: Int]
 }
 
-final class TelemetryService {
+nonisolated final class TelemetryService {
     static let shared = TelemetryService()
 
     private let queue = DispatchQueue(label: "com.chronicle.telemetry", qos: .utility)
@@ -379,7 +379,7 @@ final class TelemetryService {
     func increment(_ key: String, by delta: Int = 1) {
         guard delta != 0 else { return }
         queue.async {
-            guard AppState.shared.telemetryEnabled else { return }
+            guard self.defaults.bool(forKey: Self.telemetryEnabledDefaultsKey) else { return }
             let fullKey = Self.counterKeyPrefix + key
             let current = self.defaults.integer(forKey: fullKey)
             self.defaults.set(max(0, current + delta), forKey: fullKey)
@@ -393,7 +393,7 @@ final class TelemetryService {
                     generatedAt: Self.iso8601String(for: Date()),
                     appVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0",
                     appBuild: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0",
-                    telemetryEnabled: AppState.shared.telemetryEnabled,
+                    telemetryEnabled: self.defaults.bool(forKey: Self.telemetryEnabledDefaultsKey),
                     counters: self.readCounters()
                 )
                 let encoder = JSONEncoder()
@@ -419,6 +419,7 @@ final class TelemetryService {
     }
 
     private static let counterKeyPrefix = "telemetry.counter."
+    private static let telemetryEnabledDefaultsKey = "settings.telemetryEnabled"
     private static func iso8601String(for date: Date) -> String {
         iso8601Formatter.string(from: date)
     }
