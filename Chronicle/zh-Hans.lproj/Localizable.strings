@@ -180,6 +180,7 @@
 "privacy.docs_title" = "透明度文档";
 "privacy.open_data_safety_guide" = "打开数据安全指南";
 "privacy.open_migration_guide" = "打开迁移策略指南";
+"privacy.open_privacy_permissions_guide" = "打开隐私与权限说明";
 "privacy.docs_opened" = "已打开文档：%@";
 "privacy.docs_open_failed" = "打开文档失败：%@";
 "privacy.create_feedback_bundle" = "创建反馈包";

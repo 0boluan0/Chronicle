@@ -180,6 +180,7 @@
 "privacy.docs_title" = "Transparency Docs";
 "privacy.open_data_safety_guide" = "Open Data Safety Guide";
 "privacy.open_migration_guide" = "Open Migration Guide";
+"privacy.open_privacy_permissions_guide" = "Open Privacy & Permissions";
 "privacy.docs_opened" = "Opened guide: %@";
 "privacy.docs_open_failed" = "Failed to open guide: %@";
 "privacy.create_feedback_bundle" = "Create Feedback Bundle";

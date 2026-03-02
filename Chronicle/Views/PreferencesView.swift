@@ -834,6 +834,7 @@ private struct PrivacyPreferencesView: View {
 
     private let dataSafetyGuideURL = URL(string: "https://github.com/0boluan0/Chronicle/blob/main/docs/data-safety.md")!
     private let migrationGuideURL = URL(string: "https://github.com/0boluan0/Chronicle/blob/main/docs/migrations-and-upgrades.md")!
+    private let privacyPermissionsGuideURL = URL(string: "https://github.com/0boluan0/Chronicle/blob/main/docs/privacy-and-permissions.md")!
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -926,6 +927,11 @@ private struct PrivacyPreferencesView: View {
 
                         Button("privacy.open_migration_guide") {
                             openGuide(url: migrationGuideURL)
+                        }
+                        .buttonStyle(.bordered)
+
+                        Button("privacy.open_privacy_permissions_guide") {
+                            openGuide(url: privacyPermissionsGuideURL)
                         }
                         .buttonStyle(.bordered)
                     }
