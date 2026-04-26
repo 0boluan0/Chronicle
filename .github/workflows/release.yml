@@ -88,10 +88,23 @@ jobs:
           chmod +x scripts/build_dmg.sh
           scripts/build_dmg.sh
 
+      - name: Prepare release notes
+        run: |
+          mkdir -p build
+          NOTES_PATH="docs/releases/${RELEASE_TAG}.md"
+          if [ -f "$NOTES_PATH" ]; then
+            cp "$NOTES_PATH" build/release-notes.md
+          else
+            printf '# %s\n' "$RELEASE_TAG" > build/release-notes.md
+          fi
+
       - name: Upload Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.RELEASE_TAG }}
+          name: ${{ env.RELEASE_TAG }}
+          body_path: build/release-notes.md
+          make_latest: true
           files: |
             dist/*.dmg
             dist/*.sha256
