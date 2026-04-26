@@ -8,12 +8,6 @@ import SQLite3
 
 // MARK: - SQLite Helpers
 
-private func sqliteDestroyManagedText(_ pointer: UnsafeMutableRawPointer?) {
-    sqlite3_free(pointer)
-}
-
-private let sqliteManagedTextDestructor: sqlite3_destructor_type = sqliteDestroyManagedText
-
 extension DatabaseService {
     func execute(sql: String) throws {
         guard sqlite3_exec(db, sql, nil, nil, nil) == SQLITE_OK else {
@@ -43,19 +37,14 @@ extension DatabaseService {
         guard byteCount <= Int(Int32.max) else {
             throw DatabaseError.bindFailed("SQLite text binding is too large", sql: sql)
         }
-        guard let copiedValue = sqlite3_malloc64(UInt64(utf8Bytes.count)) else {
-            throw DatabaseError.bindFailed("Unable to allocate SQLite text binding", sql: sql)
+        let result = utf8Bytes.withUnsafeBufferPointer { buffer in
+            ChronicleSQLiteBindTransientText(
+                statement,
+                index,
+                buffer.baseAddress,
+                Int32(byteCount)
+            )
         }
-        utf8Bytes.withUnsafeBufferPointer { buffer in
-            copiedValue.copyMemory(from: buffer.baseAddress!, byteCount: utf8Bytes.count)
-        }
-        let result = sqlite3_bind_text(
-            statement,
-            index,
-            copiedValue.assumingMemoryBound(to: CChar.self),
-            Int32(byteCount),
-            sqliteManagedTextDestructor
-        )
         try bind(sql: sql, result: result, detail: detail)
     }
 
