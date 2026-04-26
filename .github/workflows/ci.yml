@@ -53,6 +53,20 @@ jobs:
             -testRegion US \
             test
 
+      - name: Print crash diagnostics
+        if: failure()
+        run: |
+          reports=$(find "$HOME/Library/Logs/DiagnosticReports" -type f \( -name 'Chronicle*.crash' -o -name 'Chronicle*.ips' \) | sort | tail -n 8)
+          if [ -z "$reports" ]; then
+            echo "No Chronicle crash reports found."
+            exit 0
+          fi
+          for report in $reports; do
+            echo "::group::$report"
+            sed -n '1,260p' "$report"
+            echo "::endgroup::"
+          done
+
   ui-smoke:
     if: ${{ vars.CHRONICLE_UI_SMOKE_ENABLED == '1' || (github.event_name == 'workflow_dispatch' && inputs.run_ui_smoke) }}
     runs-on: [self-hosted, macOS, chronicle-ui]
