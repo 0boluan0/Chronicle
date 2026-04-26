@@ -16,6 +16,7 @@ jobs:
   build-and-unit-tests:
     runs-on: macos-latest
     env:
+      CHRONICLE_UNIT_TEST_MODE: "1"
       LANG: en_US.UTF-8
       LC_ALL: en_US.UTF-8
     steps:

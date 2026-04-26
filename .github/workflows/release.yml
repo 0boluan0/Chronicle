@@ -18,6 +18,7 @@ jobs:
     runs-on: macos-latest
     env:
       RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+      CHRONICLE_UNIT_TEST_MODE: "1"
       LANG: en_US.UTF-8
       LC_ALL: en_US.UTF-8
       CODESIGN_IDENTITY: ${{ secrets.CODESIGN_IDENTITY }}

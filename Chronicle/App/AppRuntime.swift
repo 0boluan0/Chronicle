@@ -22,7 +22,9 @@ enum AppRuntime {
         return true
     }()
 
-    static let isRunningUnitTests = environment["XCTestConfigurationFilePath"] != nil
+    static let isRunningUnitTests = environment["CHRONICLE_UNIT_TEST_MODE"] == "1"
+        || environment["XCTestConfigurationFilePath"] != nil
+        || environment["__XPC_XCTEST_CONFIGURATION_FILE_PATH"] != nil
     static let isUITestMode = environment["CHRONICLE_UI_TEST_MODE"] == "1"
     static let uiTestLaunchRoute = environment["CHRONICLE_UI_TEST_ROUTE"]
     static let uiTestExportRoot = environment["CHRONICLE_UI_TEST_EXPORT_ROOT"]

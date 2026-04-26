@@ -41,6 +41,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         _ = AppRuntime.prepareUITestDefaultsIfNeeded()
         if AppRuntime.isRunningUnitTests && !AppRuntime.isUITestMode {
+            print("[app] Unit test launch: app services skipped")
             AppLogger.log("Unit test launch: app services skipped", category: "app")
             return
         }
