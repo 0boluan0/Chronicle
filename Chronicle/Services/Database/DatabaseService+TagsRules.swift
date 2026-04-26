@@ -59,9 +59,9 @@ extension DatabaseService {
         }
         defer { sqlite3_finalize(statement) }
 
-        try bind(sql: sql, result: sqlite3_bind_text(statement, 1, name, -1, sqliteTransientDestructor), detail: "name")
+        try bindText(statement, index: 1, value: name, sql: sql, detail: "name")
         if let color, !color.isEmpty {
-            try bind(sql: sql, result: sqlite3_bind_text(statement, 2, color, -1, sqliteTransientDestructor), detail: "color")
+            try bindText(statement, index: 2, value: color, sql: sql, detail: "color")
         } else {
             try bind(sql: sql, result: sqlite3_bind_null(statement, 2), detail: "color")
         }
@@ -86,9 +86,9 @@ extension DatabaseService {
         }
         defer { sqlite3_finalize(statement) }
 
-        try bind(sql: sql, result: sqlite3_bind_text(statement, 1, tag.name, -1, sqliteTransientDestructor), detail: "name")
+        try bindText(statement, index: 1, value: tag.name, sql: sql, detail: "name")
         if let color = tag.color, !color.isEmpty {
-            try bind(sql: sql, result: sqlite3_bind_text(statement, 2, color, -1, sqliteTransientDestructor), detail: "color")
+            try bindText(statement, index: 2, value: color, sql: sql, detail: "color")
         } else {
             try bind(sql: sql, result: sqlite3_bind_null(statement, 2), detail: "color")
         }
@@ -178,7 +178,7 @@ extension DatabaseService {
         }
         defer { sqlite3_finalize(statement) }
 
-        try bind(sql: sql, result: sqlite3_bind_text(statement, 1, name, -1, sqliteTransientDestructor), detail: "name")
+        try bindText(statement, index: 1, value: name, sql: sql, detail: "name")
 
         let stepResult = sqlite3_step(statement)
         if stepResult == SQLITE_ROW {
@@ -451,30 +451,30 @@ extension DatabaseService {
         }
         defer { sqlite3_finalize(statement) }
 
-        try bind(sql: sql, result: sqlite3_bind_text(statement, 1, name, -1, sqliteTransientDestructor), detail: "name")
+        try bindText(statement, index: 1, value: name, sql: sql, detail: "name")
         try bind(sql: sql, result: sqlite3_bind_int(statement, 2, enabled ? 1 : 0), detail: "enabled")
         var index: Int32 = 3
         if hasRulesBundleIdColumn {
             if let matchBundleId, !matchBundleId.isEmpty {
-                try bind(sql: sql, result: sqlite3_bind_text(statement, index, matchBundleId, -1, sqliteTransientDestructor), detail: "match_bundle_id")
+                try bindText(statement, index: index, value: matchBundleId, sql: sql, detail: "match_bundle_id")
             } else {
                 try bind(sql: sql, result: sqlite3_bind_null(statement, index), detail: "match_bundle_id")
             }
             index += 1
         }
         if let matchAppName, !matchAppName.isEmpty {
-            try bind(sql: sql, result: sqlite3_bind_text(statement, index, matchAppName, -1, sqliteTransientDestructor), detail: "match_app_name")
+            try bindText(statement, index: index, value: matchAppName, sql: sql, detail: "match_app_name")
         } else {
             try bind(sql: sql, result: sqlite3_bind_null(statement, index), detail: "match_app_name")
         }
         index += 1
         if let matchWindowTitle, !matchWindowTitle.isEmpty {
-            try bind(sql: sql, result: sqlite3_bind_text(statement, index, matchWindowTitle, -1, sqliteTransientDestructor), detail: "match_window_title")
+            try bindText(statement, index: index, value: matchWindowTitle, sql: sql, detail: "match_window_title")
         } else {
             try bind(sql: sql, result: sqlite3_bind_null(statement, index), detail: "match_window_title")
         }
         index += 1
-        try bind(sql: sql, result: sqlite3_bind_text(statement, index, matchMode.rawValue, -1, sqliteTransientDestructor), detail: "match_mode")
+        try bindText(statement, index: index, value: matchMode.rawValue, sql: sql, detail: "match_mode")
         index += 1
         if let tagId {
             try bind(sql: sql, result: sqlite3_bind_int64(statement, index, tagId), detail: "tag_id")
@@ -517,30 +517,30 @@ extension DatabaseService {
         }
         defer { sqlite3_finalize(statement) }
 
-        try bind(sql: sql, result: sqlite3_bind_text(statement, 1, rule.name, -1, sqliteTransientDestructor), detail: "name")
+        try bindText(statement, index: 1, value: rule.name, sql: sql, detail: "name")
         try bind(sql: sql, result: sqlite3_bind_int(statement, 2, rule.enabled ? 1 : 0), detail: "enabled")
         var index: Int32 = 3
         if hasRulesBundleIdColumn {
             if let matchBundleId = rule.matchBundleId, !matchBundleId.isEmpty {
-                try bind(sql: sql, result: sqlite3_bind_text(statement, index, matchBundleId, -1, sqliteTransientDestructor), detail: "match_bundle_id")
+                try bindText(statement, index: index, value: matchBundleId, sql: sql, detail: "match_bundle_id")
             } else {
                 try bind(sql: sql, result: sqlite3_bind_null(statement, index), detail: "match_bundle_id")
             }
             index += 1
         }
         if let matchAppName = rule.matchAppName, !matchAppName.isEmpty {
-            try bind(sql: sql, result: sqlite3_bind_text(statement, index, matchAppName, -1, sqliteTransientDestructor), detail: "match_app_name")
+            try bindText(statement, index: index, value: matchAppName, sql: sql, detail: "match_app_name")
         } else {
             try bind(sql: sql, result: sqlite3_bind_null(statement, index), detail: "match_app_name")
         }
         index += 1
         if let matchWindowTitle = rule.matchWindowTitle, !matchWindowTitle.isEmpty {
-            try bind(sql: sql, result: sqlite3_bind_text(statement, index, matchWindowTitle, -1, sqliteTransientDestructor), detail: "match_window_title")
+            try bindText(statement, index: index, value: matchWindowTitle, sql: sql, detail: "match_window_title")
         } else {
             try bind(sql: sql, result: sqlite3_bind_null(statement, index), detail: "match_window_title")
         }
         index += 1
-        try bind(sql: sql, result: sqlite3_bind_text(statement, index, rule.matchMode.rawValue, -1, sqliteTransientDestructor), detail: "match_mode")
+        try bindText(statement, index: index, value: rule.matchMode.rawValue, sql: sql, detail: "match_mode")
         index += 1
         if let tagId = rule.tagId {
             try bind(sql: sql, result: sqlite3_bind_int64(statement, index, tagId), detail: "tag_id")

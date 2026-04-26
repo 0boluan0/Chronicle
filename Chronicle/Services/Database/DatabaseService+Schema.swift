@@ -339,7 +339,7 @@ extension DatabaseService {
         defer { sqlite3_finalize(statement) }
 
         let nowEpoch = Int64(Date().timeIntervalSince1970)
-        try bind(sql: sql, result: sqlite3_bind_text(statement, 1, id, -1, sqliteTransientDestructor), detail: "id")
+        try bindText(statement, index: 1, value: id, sql: sql, detail: "id")
         try bind(sql: sql, result: sqlite3_bind_int64(statement, 2, nowEpoch), detail: "applied_at")
 
         let stepResult = sqlite3_step(statement)
@@ -652,7 +652,7 @@ extension DatabaseService {
         }
         defer { sqlite3_finalize(statement) }
 
-        try bind(sql: sql, result: sqlite3_bind_text(statement, 1, name, -1, sqliteTransientDestructor), detail: "name")
+        try bindText(statement, index: 1, value: name, sql: sql, detail: "name")
 
         let stepResult = sqlite3_step(statement)
         if stepResult == SQLITE_ROW {

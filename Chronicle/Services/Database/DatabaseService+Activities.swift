@@ -74,12 +74,12 @@ extension DatabaseService {
 
         try bind(sql: sql, result: sqlite3_bind_int64(statement, 1, start), detail: "start_time")
         try bind(sql: sql, result: sqlite3_bind_int64(statement, 2, end), detail: "end_time")
-        try bind(sql: sql, result: sqlite3_bind_text(statement, 3, appName, -1, sqliteTransientDestructor), detail: "app_name")
+        try bindText(statement, index: 3, value: appName, sql: sql, detail: "app_name")
 
         var index: Int32 = 4
         if hasBundleIdColumn {
             if let bundleId, !bundleId.isEmpty {
-                try bind(sql: sql, result: sqlite3_bind_text(statement, index, bundleId, -1, sqliteTransientDestructor), detail: "bundle_id")
+                try bindText(statement, index: index, value: bundleId, sql: sql, detail: "bundle_id")
             } else {
                 try bind(sql: sql, result: sqlite3_bind_null(statement, index), detail: "bundle_id")
             }
@@ -87,7 +87,7 @@ extension DatabaseService {
         }
 
         if let windowTitle {
-            try bind(sql: sql, result: sqlite3_bind_text(statement, index, windowTitle, -1, sqliteTransientDestructor), detail: "window_title")
+            try bindText(statement, index: index, value: windowTitle, sql: sql, detail: "window_title")
         } else {
             try bind(sql: sql, result: sqlite3_bind_null(statement, index), detail: "window_title")
         }
@@ -175,24 +175,24 @@ extension DatabaseService {
         defer { sqlite3_finalize(statement) }
 
         try bind(sql: sql, result: sqlite3_bind_int64(statement, 1, event.timestamp), detail: "ts")
-        try bind(sql: sql, result: sqlite3_bind_text(statement, 2, event.type.rawValue, -1, sqliteTransientDestructor), detail: "type")
+        try bindText(statement, index: 2, value: event.type.rawValue, sql: sql, detail: "type")
         if let bundleId = event.bundleId {
-            try bind(sql: sql, result: sqlite3_bind_text(statement, 3, bundleId, -1, sqliteTransientDestructor), detail: "bundle_id")
+            try bindText(statement, index: 3, value: bundleId, sql: sql, detail: "bundle_id")
         } else {
             try bind(sql: sql, result: sqlite3_bind_null(statement, 3), detail: "bundle_id")
         }
         if let appName = event.appName {
-            try bind(sql: sql, result: sqlite3_bind_text(statement, 4, appName, -1, sqliteTransientDestructor), detail: "app_name")
+            try bindText(statement, index: 4, value: appName, sql: sql, detail: "app_name")
         } else {
             try bind(sql: sql, result: sqlite3_bind_null(statement, 4), detail: "app_name")
         }
         if let title = event.windowTitle {
-            try bind(sql: sql, result: sqlite3_bind_text(statement, 5, title, -1, sqliteTransientDestructor), detail: "window_title")
+            try bindText(statement, index: 5, value: title, sql: sql, detail: "window_title")
         } else {
             try bind(sql: sql, result: sqlite3_bind_null(statement, 5), detail: "window_title")
         }
         if let payload = event.payload {
-            try bind(sql: sql, result: sqlite3_bind_text(statement, 6, payload, -1, sqliteTransientDestructor), detail: "payload")
+            try bindText(statement, index: 6, value: payload, sql: sql, detail: "payload")
         } else {
             try bind(sql: sql, result: sqlite3_bind_null(statement, 6), detail: "payload")
         }

@@ -24,7 +24,7 @@ extension DatabaseService {
         defer { sqlite3_finalize(statement) }
 
         try bind(sql: sql, result: sqlite3_bind_int64(statement, 1, timestamp), detail: "timestamp")
-        try bind(sql: sql, result: sqlite3_bind_text(statement, 2, text, -1, sqliteTransientDestructor), detail: "text")
+        try bindText(statement, index: 2, value: text, sql: sql, detail: "text")
 
         let stepResult = sqlite3_step(statement)
         guard stepResult == SQLITE_DONE else {
@@ -71,7 +71,7 @@ extension DatabaseService {
         defer { sqlite3_finalize(statement) }
 
         try bind(sql: sql, result: sqlite3_bind_int64(statement, 1, startTime), detail: "start_time")
-        try bind(sql: sql, result: sqlite3_bind_text(statement, 2, text, -1, sqliteTransientDestructor), detail: "text")
+        try bindText(statement, index: 2, value: text, sql: sql, detail: "text")
 
         let stepResult = sqlite3_step(statement)
         guard stepResult == SQLITE_DONE else {
@@ -153,7 +153,7 @@ extension DatabaseService {
         defer { sqlite3_finalize(statement) }
 
         try bind(sql: sql, result: sqlite3_bind_int64(statement, 1, endTime), detail: "end_time")
-        try bind(sql: sql, result: sqlite3_bind_text(statement, 2, text, -1, sqliteTransientDestructor), detail: "text")
+        try bindText(statement, index: 2, value: text, sql: sql, detail: "text")
 
         let stepResult = sqlite3_step(statement)
         guard stepResult == SQLITE_DONE else {

@@ -102,7 +102,7 @@ extension DatabaseService {
         }
         defer { sqlite3_finalize(statement) }
 
-        try bind(sql: sql, result: sqlite3_bind_text(statement, 1, bundleId, -1, sqliteTransientDestructor), detail: "bundle_id")
+        try bindText(statement, index: 1, value: bundleId, sql: sql, detail: "bundle_id")
         let stepResult = sqlite3_step(statement)
         if stepResult == SQLITE_ROW {
             let id = sqlite3_column_int64(statement, 0)
@@ -169,9 +169,9 @@ extension DatabaseService {
         defer { sqlite3_finalize(statement) }
 
         var bindIndex: Int32 = 1
-        try bind(sql: sql, result: sqlite3_bind_text(statement, bindIndex, bundleId, -1, sqliteTransientDestructor), detail: "bundle_id")
+        try bindText(statement, index: bindIndex, value: bundleId, sql: sql, detail: "bundle_id")
         bindIndex += 1
-        try bind(sql: sql, result: sqlite3_bind_text(statement, bindIndex, appName, -1, sqliteTransientDestructor), detail: "app_name")
+        try bindText(statement, index: bindIndex, value: appName, sql: sql, detail: "app_name")
         bindIndex += 1
         if let tagId {
             try bind(sql: sql, result: sqlite3_bind_int64(statement, bindIndex, tagId), detail: "tag_id")
@@ -180,7 +180,7 @@ extension DatabaseService {
         }
         bindIndex += 1
         if hasAppMappingsTaggingModeColumn {
-            try bind(sql: sql, result: sqlite3_bind_text(statement, bindIndex, taggingMode.rawValue, -1, sqliteTransientDestructor), detail: "tagging_mode")
+            try bindText(statement, index: bindIndex, value: taggingMode.rawValue, sql: sql, detail: "tagging_mode")
             bindIndex += 1
         }
         try bind(sql: sql, result: sqlite3_bind_int64(statement, bindIndex, updatedAt), detail: "updated_at")
@@ -219,10 +219,10 @@ extension DatabaseService {
         defer { sqlite3_finalize(statement) }
 
         var bindIndex: Int32 = 1
-        try bind(sql: sql, result: sqlite3_bind_text(statement, bindIndex, mapping.appName, -1, sqliteTransientDestructor), detail: "app_name")
+        try bindText(statement, index: bindIndex, value: mapping.appName, sql: sql, detail: "app_name")
         bindIndex += 1
         if hasAppMappingsTaggingModeColumn {
-            try bind(sql: sql, result: sqlite3_bind_text(statement, bindIndex, mapping.taggingMode.rawValue, -1, sqliteTransientDestructor), detail: "tagging_mode")
+            try bindText(statement, index: bindIndex, value: mapping.taggingMode.rawValue, sql: sql, detail: "tagging_mode")
             bindIndex += 1
         }
         try bind(sql: sql, result: sqlite3_bind_int64(statement, bindIndex, mapping.updatedAt), detail: "updated_at")
@@ -276,7 +276,7 @@ extension DatabaseService {
         defer { sqlite3_finalize(statement) }
 
         let nowEpoch = Int64(Date().timeIntervalSince1970)
-        try bind(sql: sql, result: sqlite3_bind_text(statement, 1, mode.rawValue, -1, sqliteTransientDestructor), detail: "tagging_mode")
+        try bindText(statement, index: 1, value: mode.rawValue, sql: sql, detail: "tagging_mode")
         try bind(sql: sql, result: sqlite3_bind_int64(statement, 2, nowEpoch), detail: "updated_at")
         try bind(sql: sql, result: sqlite3_bind_int64(statement, 3, id), detail: "id")
 
@@ -351,12 +351,12 @@ extension DatabaseService {
         }
 
         if hasBundleIdColumn {
-            try bind(sql: sql, result: sqlite3_bind_text(statement, index, bundleId, -1, sqliteTransientDestructor), detail: "bundle_id")
+            try bindText(statement, index: index, value: bundleId, sql: sql, detail: "bundle_id")
             index += 1
-            try bind(sql: sql, result: sqlite3_bind_text(statement, index, appName, -1, sqliteTransientDestructor), detail: "app_name")
+            try bindText(statement, index: index, value: appName, sql: sql, detail: "app_name")
             index += 1
         } else {
-            try bind(sql: sql, result: sqlite3_bind_text(statement, index, appName, -1, sqliteTransientDestructor), detail: "app_name")
+            try bindText(statement, index: index, value: appName, sql: sql, detail: "app_name")
             index += 1
         }
 
@@ -407,12 +407,12 @@ extension DatabaseService {
 
         var index: Int32 = 1
         if hasBundleIdColumn {
-            try bind(sql: sql, result: sqlite3_bind_text(statement, index, bundleId, -1, sqliteTransientDestructor), detail: "bundle_id")
+            try bindText(statement, index: index, value: bundleId, sql: sql, detail: "bundle_id")
             index += 1
-            try bind(sql: sql, result: sqlite3_bind_text(statement, index, appName, -1, sqliteTransientDestructor), detail: "app_name")
+            try bindText(statement, index: index, value: appName, sql: sql, detail: "app_name")
             index += 1
         } else {
-            try bind(sql: sql, result: sqlite3_bind_text(statement, index, appName, -1, sqliteTransientDestructor), detail: "app_name")
+            try bindText(statement, index: index, value: appName, sql: sql, detail: "app_name")
             index += 1
         }
         if let dayStart, let dayEnd {

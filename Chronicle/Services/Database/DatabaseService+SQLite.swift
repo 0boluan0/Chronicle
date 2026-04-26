@@ -4,9 +4,16 @@
 //
 
 import Foundation
+import Darwin
 import SQLite3
 
 // MARK: - SQLite Helpers
+
+private let sqliteFreeDestructor: sqlite3_destructor_type = { pointer in
+    if let pointer {
+        free(pointer)
+    }
+}
 
 extension DatabaseService {
     func execute(sql: String) throws {
@@ -29,6 +36,14 @@ extension DatabaseService {
             logSQLiteError(operation: "bind \(detail)", sql: sql, message: message)
             throw DatabaseError.bindFailed(message, sql: sql)
         }
+    }
+
+    func bindText(_ statement: OpaquePointer?, index: Int32, value: String, sql: String, detail: String) throws {
+        guard let copiedValue = strdup(value) else {
+            throw DatabaseError.bindFailed("Unable to allocate SQLite text binding", sql: sql)
+        }
+        let result = sqlite3_bind_text(statement, index, copiedValue, Int32(strlen(copiedValue)), sqliteFreeDestructor)
+        try bind(sql: sql, result: result, detail: detail)
     }
 
     func sqliteChanges() -> Int32 {
@@ -60,7 +75,4 @@ extension DatabaseService {
         }
     }
 
-    var sqliteTransientDestructor: sqlite3_destructor_type {
-        unsafeBitCast(-1, to: sqlite3_destructor_type.self)
-    }
 }

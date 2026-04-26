@@ -19,6 +19,11 @@ jobs:
     env:
       RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
       CODESIGN_IDENTITY: ${{ secrets.CODESIGN_IDENTITY }}
+      MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+      MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+      APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
+      APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+      APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -43,10 +48,7 @@ jobs:
             test
 
       - name: Import signing certificate
-        if: ${{ secrets.MACOS_CERTIFICATE_P12 != '' && secrets.MACOS_CERTIFICATE_PASSWORD != '' }}
-        env:
-          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
-          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+        if: ${{ env.MACOS_CERTIFICATE_P12 != '' && env.MACOS_CERTIFICATE_PASSWORD != '' }}
         run: |
           CERT_PATH="$RUNNER_TEMP/chronicle-signing.p12"
           KEYCHAIN_PATH="$RUNNER_TEMP/chronicle-signing.keychain-db"
@@ -59,11 +61,7 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" "$KEYCHAIN_PATH"
 
       - name: Prepare notarization key
-        if: ${{ secrets.APPLE_API_KEY_BASE64 != '' && secrets.APPLE_API_KEY_ID != '' && secrets.APPLE_API_ISSUER_ID != '' }}
-        env:
-          APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
-          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+        if: ${{ env.APPLE_API_KEY_BASE64 != '' && env.APPLE_API_KEY_ID != '' && env.APPLE_API_ISSUER_ID != '' }}
         run: |
           KEY_PATH="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
           echo "$APPLE_API_KEY_BASE64" | base64 --decode > "$KEY_PATH"
