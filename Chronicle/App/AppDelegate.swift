@@ -50,12 +50,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         configureAppNotifications()
         LaunchAtLoginManager.shared.syncAppState(appState)
         AccessibilityPermissionManager.shared.syncAppState(appState)
-        DatabaseService.shared.initializeIfNeeded()
         TelemetryService.shared.increment("app_launch")
         if AppRuntime.disablesRuntimeServices {
             AppLogger.log("Test mode launch: runtime services disabled", category: "app")
             openInitialRouteIfNeeded()
         } else {
+            DatabaseService.shared.initializeIfNeeded()
             activityTracker.start()
             HealthCheckService.shared.runQuickChecks()
             openInitialRouteIfNeeded()

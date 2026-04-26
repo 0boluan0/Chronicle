@@ -4,16 +4,11 @@
 //
 
 import Foundation
-import Darwin
 import SQLite3
 
 // MARK: - SQLite Helpers
 
-private let sqliteFreeDestructor: sqlite3_destructor_type = { pointer in
-    if let pointer {
-        free(pointer)
-    }
-}
+private let sqliteManagedTextDestructor: sqlite3_destructor_type = sqlite3_free
 
 extension DatabaseService {
     func execute(sql: String) throws {
@@ -39,10 +34,24 @@ extension DatabaseService {
     }
 
     func bindText(_ statement: OpaquePointer?, index: Int32, value: String, sql: String, detail: String) throws {
-        guard let copiedValue = strdup(value) else {
+        let utf8Bytes = Array(value.utf8CString)
+        let byteCount = utf8Bytes.count - 1
+        guard byteCount <= Int(Int32.max) else {
+            throw DatabaseError.bindFailed("SQLite text binding is too large", sql: sql)
+        }
+        guard let copiedValue = sqlite3_malloc64(UInt64(utf8Bytes.count)) else {
             throw DatabaseError.bindFailed("Unable to allocate SQLite text binding", sql: sql)
         }
-        let result = sqlite3_bind_text(statement, index, copiedValue, Int32(strlen(copiedValue)), sqliteFreeDestructor)
+        utf8Bytes.withUnsafeBufferPointer { buffer in
+            copiedValue.copyMemory(from: buffer.baseAddress!, byteCount: utf8Bytes.count)
+        }
+        let result = sqlite3_bind_text(
+            statement,
+            index,
+            copiedValue.assumingMemoryBound(to: CChar.self),
+            Int32(byteCount),
+            sqliteManagedTextDestructor
+        )
         try bind(sql: sql, result: result, detail: detail)
     }
 
