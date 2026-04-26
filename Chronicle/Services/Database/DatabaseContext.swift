@@ -25,6 +25,8 @@ final class DatabaseContext {
         self.appSupportURL = appSupportURL
     }
 
+    nonisolated deinit {}
+
     func resetSchemaState() {
         isInitialized = false
         hasBundleIdColumn = false
