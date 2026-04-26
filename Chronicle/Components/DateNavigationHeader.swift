@@ -13,6 +13,7 @@ struct DateNavigationHeader: View {
     @Binding var selectedDate: Date
     let isLoading: Bool
     let isTodaySelected: Bool
+    let accessibilityPrefix: String
     let onPreviousDay: () -> Void
     let onNextDay: () -> Void
     let onToday: () -> Void
@@ -39,10 +40,12 @@ struct DateNavigationHeader: View {
             }
             .buttonStyle(.borderless)
             .accessibilityLabel(L("dashboard.stats.previous_day"))
+            .accessibilityIdentifier("\(accessibilityPrefix).previous")
 
             DatePicker("", selection: $selectedDate, displayedComponents: .date)
                 .labelsHidden()
                 .datePickerStyle(.compact)
+                .accessibilityIdentifier("\(accessibilityPrefix).date")
 
             Button(action: onNextDay) {
                 Image(systemName: "chevron.right")
@@ -50,11 +53,12 @@ struct DateNavigationHeader: View {
             .buttonStyle(.borderless)
             .accessibilityLabel(L("dashboard.stats.next_day"))
             .disabled(isTodaySelected)
+            .accessibilityIdentifier("\(accessibilityPrefix).next")
 
             Button("Today", action: onToday)
                 .buttonStyle(.bordered)
                 .tint(DesignSystem.Colors.accentSkyBlue)
+                .accessibilityIdentifier("\(accessibilityPrefix).today")
         }
     }
 }
-

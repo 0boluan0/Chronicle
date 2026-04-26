@@ -599,6 +599,33 @@ final class ReportService {
     private func withSecurityScopedFolder<T>(kind: ReportFolderKind, _ block: (URL) throws -> T) throws -> T {
         let resolution = try resolveFolderAccess(kind: kind)
         let url = resolution.url
+        if AppRuntime.isUITestMode {
+            do {
+                let result = try block(url)
+                settings.setDiagnostics(
+                    ReportExportDiagnostics(
+                        resolvedURL: url.path,
+                        bookmarkStale: resolution.stale,
+                        startAccessing: nil,
+                        errorDescription: nil
+                    ),
+                    for: kind
+                )
+                return result
+            } catch {
+                settings.setDiagnostics(
+                    ReportExportDiagnostics(
+                        resolvedURL: url.path,
+                        bookmarkStale: resolution.stale,
+                        startAccessing: nil,
+                        errorDescription: error.localizedDescription
+                    ),
+                    for: kind
+                )
+                throw error
+            }
+        }
+
         let started = url.startAccessingSecurityScopedResource()
         if !started {
             settings.setDiagnostics(
@@ -652,6 +679,11 @@ final class ReportService {
     }
 
     private func resolveFolderAccess(kind: ReportFolderKind) throws -> (url: URL, stale: Bool) {
+        if AppRuntime.isUITestMode, let uiTestFolder = AppRuntime.resolvedUITestFolderURL() {
+            try? FileManager.default.createDirectory(at: uiTestFolder, withIntermediateDirectories: true)
+            return (url: uiTestFolder, stale: false)
+        }
+
         guard let data = settings.bookmarkData(for: kind) else {
             settings.setDiagnostics(
                 ReportExportDiagnostics(
@@ -670,7 +702,7 @@ final class ReportService {
         do {
             url = try URL(
                 resolvingBookmarkData: data,
-                options: [.withSecurityScope, .withoutUI],
+                options: bookmarkResolutionOptions,
                 relativeTo: nil,
                 bookmarkDataIsStale: &stale
             )
@@ -690,7 +722,7 @@ final class ReportService {
         if stale {
             do {
                 let refreshed = try url.bookmarkData(
-                    options: [.withSecurityScope],
+                    options: bookmarkCreationOptions,
                     includingResourceValuesForKeys: nil,
                     relativeTo: nil
                 )
@@ -710,6 +742,14 @@ final class ReportService {
         }
 
         return (url: url, stale: stale)
+    }
+
+    private var bookmarkCreationOptions: URL.BookmarkCreationOptions {
+        AppRuntime.isUITestMode ? [] : [.withSecurityScope]
+    }
+
+    private var bookmarkResolutionOptions: URL.BookmarkResolutionOptions {
+        AppRuntime.isUITestMode ? [.withoutUI] : [.withSecurityScope, .withoutUI]
     }
 
     private func rangeBounds(for kind: ReportKind, date: Date) -> (start: Int64, end: Int64) {

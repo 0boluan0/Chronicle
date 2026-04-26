@@ -26,44 +26,17 @@ struct DashboardMarkersView: View {
     }
 
     private var headerView: some View {
-        HStack(alignment: .center, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("Markers")
-                    .font(DesignSystem.Typography.title)
-                Text(Self.dateFormatter.string(from: appState.selectedDate))
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-            }
-
-            Spacer()
-
-            Button {
-                shiftDate(by: -1)
-            } label: {
-                Image(systemName: "chevron.left")
-            }
-            .buttonStyle(.borderless)
-            .accessibilityLabel(L("dashboard.stats.previous_day"))
-
-            DatePicker("", selection: $appState.selectedDate, displayedComponents: .date)
-                .labelsHidden()
-                .datePickerStyle(.compact)
-
-            Button {
-                shiftDate(by: 1)
-            } label: {
-                Image(systemName: "chevron.right")
-            }
-            .buttonStyle(.borderless)
-            .accessibilityLabel(L("dashboard.stats.next_day"))
-            .disabled(isTodaySelected)
-
-            Button("Today") {
-                appState.selectedDate = Date()
-            }
-            .buttonStyle(.bordered)
-            .tint(DesignSystem.Colors.accentSkyBlue)
-        }
+        DateNavigationHeader(
+            title: "dashboard.markers",
+            subtitle: Self.dateFormatter.string(from: appState.selectedDate),
+            selectedDate: $appState.selectedDate,
+            isLoading: false,
+            isTodaySelected: isTodaySelected,
+            accessibilityPrefix: "dashboard.markers",
+            onPreviousDay: { shiftDate(by: -1) },
+            onNextDay: { shiftDate(by: 1) },
+            onToday: { appState.selectedDate = Date() }
+        )
     }
 
     private var isTodaySelected: Bool {

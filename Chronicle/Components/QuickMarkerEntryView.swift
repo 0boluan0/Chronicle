@@ -13,7 +13,10 @@ struct QuickMarkerEntryView: View {
     @State private var markerText = ""
     @State private var isSubmitting = false
     @State private var suggestions: [String] = []
+    @State private var openSpan: MarkerSpanRow?
     @State private var lastSubmitAt: Date?
+    @State private var statusMessage: String?
+    @State private var statusIsError = false
     @FocusState private var isFocused: Bool
 
     let timestampProvider: () -> Date
@@ -32,6 +35,7 @@ struct QuickMarkerEntryView: View {
                     .textFieldStyle(.roundedBorder)
                     .focused($isFocused)
                     .onSubmit { submit() }
+                    .accessibilityIdentifier("quickMarker.text")
 
                 Button(submitLabel) {
                     submit()
@@ -39,6 +43,7 @@ struct QuickMarkerEntryView: View {
                 .buttonStyle(.borderedProminent)
                 .tint(DesignSystem.Colors.accentSkyBlue)
                 .disabled(isSubmitting || markerText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .accessibilityIdentifier("quickMarker.submit")
             }
 
             Picker("", selection: $appState.quickMarkerMode) {
@@ -47,6 +52,18 @@ struct QuickMarkerEntryView: View {
             }
             .pickerStyle(.segmented)
             .tint(DesignSystem.Colors.accentSkyBlue)
+            .accessibilityIdentifier("quickMarker.mode")
+
+            if appState.quickMarkerMode == .interval {
+                intervalStatusView
+            }
+
+            if let statusMessage, !statusMessage.isEmpty {
+                Text(statusMessage)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(statusIsError ? .red : DesignSystem.Colors.secondaryText)
+                    .accessibilityIdentifier("quickMarker.status")
+            }
 
             if !suggestions.isEmpty {
                 Text(L("quick_marker.recent"))
@@ -65,6 +82,17 @@ struct QuickMarkerEntryView: View {
                     }
                 }
             }
+
+            if let onCancel {
+                HStack {
+                    Spacer()
+                    Button(L("actions.close")) {
+                        onCancel()
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("quickMarker.close")
+                }
+            }
         }
         .onAppear {
             deferStateUpdate {
@@ -72,12 +100,42 @@ struct QuickMarkerEntryView: View {
                     markerText = last
                 }
                 loadSuggestions()
+                loadOpenSpan()
+                TelemetryService.shared.increment("quick_marker_opened")
                 if autoFocus {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
                         isFocused = true
                     }
                 }
             }
+        }
+        .onChange(of: appState.quickMarkerMode) { _, _ in
+            loadOpenSpan()
+        }
+    }
+
+    @ViewBuilder
+    private var intervalStatusView: some View {
+        if let openSpan {
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                Image(systemName: "clock.arrow.trianglehead.2.counterclockwise.rotate.90")
+                    .foregroundColor(Color(nsColor: .systemOrange))
+                Text(String(format: L("quick_marker.session_running"), openSpan.text))
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(1)
+                Spacer()
+                Button(L("quick_marker.session_stop")) {
+                    stopOpenSpan(openSpan)
+                }
+                .buttonStyle(.bordered)
+                .disabled(isSubmitting)
+                .accessibilityIdentifier("quickMarker.stopSession")
+            }
+        } else {
+            Text(L("quick_marker.session_none"))
+                .font(DesignSystem.Typography.caption)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
         }
     }
 
@@ -112,6 +170,8 @@ struct QuickMarkerEntryView: View {
         let now = timestampProvider()
         deferStateUpdate {
             appState.quickMarkerLastText = trimmed
+            statusMessage = nil
+            statusIsError = false
         }
 
         QuickMarkerService.shared.submit(
@@ -125,21 +185,29 @@ struct QuickMarkerEntryView: View {
         }
     }
 
-    private func handleResult(_ result: Result<Void, Error>) {
-        let shouldRefresh = (try? result.get()) != nil
+    private func handleResult(_ result: Result<QuickMarkerSubmissionOutcome, Error>) {
+        let outcome = try? result.get()
+        let shouldRefresh = outcome != nil
 
         deferStateUpdate {
             switch result {
-            case .success:
-                self.markerText = ""
+            case .success(let outcome):
+                self.statusMessage = self.statusText(for: outcome)
+                self.statusIsError = false
+                if outcome != .noChange {
+                    self.markerText = ""
+                }
                 self.loadSuggestions()
+                self.loadOpenSpan()
             case .failure(let error):
                 AppLogger.log("Quick marker failed: \(error.localizedDescription)", category: "ui")
+                self.statusMessage = error.localizedDescription
+                self.statusIsError = true
             }
             self.isSubmitting = false
         }
 
-        if shouldRefresh {
+        if shouldRefresh, !AppRuntime.isUITestMode {
             DispatchQueue.main.async {
                 self.onSubmit?()
             }
@@ -184,10 +252,61 @@ struct QuickMarkerEntryView: View {
         }
     }
 
+    private func loadOpenSpan() {
+        guard appState.quickMarkerMode == .interval else {
+            deferStateUpdate {
+                self.openSpan = nil
+            }
+            return
+        }
+        DatabaseService.shared.fetchOpenMarkerSpans { result in
+            switch result {
+            case .success(let rows):
+                let running = rows.sorted { $0.startTime > $1.startTime }.first
+                self.deferStateUpdate {
+                    self.openSpan = running
+                }
+            case .failure:
+                self.deferStateUpdate {
+                    self.openSpan = nil
+                }
+            }
+        }
+    }
+
+    private func stopOpenSpan(_ span: MarkerSpanRow) {
+        guard !isSubmitting else { return }
+        deferStateUpdate {
+            self.isSubmitting = true
+            self.statusMessage = nil
+            self.statusIsError = false
+        }
+        QuickMarkerService.shared.submitInterval(
+            text: span.text,
+            at: timestampProvider(),
+            action: .stop
+        ) { result in
+            self.handleResult(result)
+        }
+    }
+
     private func deferStateUpdate(_ updates: @escaping () -> Void) {
         Task { @MainActor in
             await Task.yield()
             updates()
+        }
+    }
+
+    private func statusText(for outcome: QuickMarkerSubmissionOutcome) -> String {
+        switch outcome {
+        case .pointCreated:
+            return L("quick_marker.status.point_added")
+        case .intervalStarted:
+            return L("quick_marker.status.interval_started")
+        case .intervalStopped:
+            return L("quick_marker.status.interval_stopped")
+        case .noChange:
+            return L("quick_marker.status.no_change")
         }
     }
 }

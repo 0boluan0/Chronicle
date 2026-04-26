@@ -2,6 +2,13 @@ build/
 dist/
 DerivedData/
 *.dmg
+*.xcresult
+build-ci-test-*/
+build-release-*/
+build-dmg-*/
+job-*.zip
+ops/dual-codex-pipeline/
+
 ops/ai-pipeline/baseline/runs/*.log
 !ops/ai-pipeline/baseline/runs/.gitkeep
 ops/ai-pipeline/dispatch/runs/*.log
@@ -20,7 +27,5 @@ ops/ai-pipeline/runtime/locks/*.lock
 ops/ai-pipeline/runtime/state.yaml
 ops/ai-pipeline/reports/orchestrator-final-summary.md
 
-build-dmg-*/
-
-# Codex dual-agent pipeline runtime (state, logs, handoff prompts/reports)
-.codex/dual-pipeline/
+# Codex local runtime state, environments, logs, and handoff files.
+.codex/

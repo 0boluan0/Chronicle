@@ -11,16 +11,19 @@ import SwiftUI
 struct OnboardingView: View {
     enum Step: String, CaseIterable, Identifiable {
         case value
-        case windowTitles
-        case convenience
-        case permissions
+        case exports
+        case privacy
         case finish
 
         var id: String { rawValue }
     }
 
     @EnvironmentObject private var appState: AppState
+    @ObservedObject private var reportSettings = ReportSettings.shared
+
     @State private var step: Step = .value
+    @State private var exportStatusMessage: String?
+    @State private var exportStatusIsError = false
     @State private var launchAtLoginMessage: String?
 
     let onClose: () -> Void
@@ -44,11 +47,6 @@ struct OnboardingView: View {
             AccessibilityPermissionManager.shared.syncAppState(appState)
             LaunchAtLoginManager.shared.syncAppState(appState)
         }
-        .onChange(of: appState.windowTitleCaptureEnabled) { enabled in
-            if !enabled && step == .permissions {
-                step = .finish
-            }
-        }
         .onExitCommand(perform: onClose)
     }
 
@@ -63,28 +61,28 @@ struct OnboardingView: View {
         }
     }
 
+    @ViewBuilder
     private var content: some View {
         switch step {
         case .value:
-            return AnyView(valueContent)
-        case .windowTitles:
-            return AnyView(windowTitlesContent)
-        case .permissions:
-            return AnyView(permissionsContent)
-        case .convenience:
-            return AnyView(convenienceContent)
+            valueContent
+        case .exports:
+            exportsContent
+        case .privacy:
+            privacyContent
         case .finish:
-            return AnyView(finishContent)
+            finishContent
         }
     }
 
     private var footer: some View {
         HStack(spacing: DesignSystem.Spacing.sm) {
-            if step != (flowSteps.first ?? .value) && step != .finish {
+            if let first = flowSteps.first, step != first {
                 Button(L("actions.back")) {
                     goBack()
                 }
                 .buttonStyle(.bordered)
+                .accessibilityIdentifier("onboarding.back")
             }
 
             Spacer()
@@ -92,41 +90,32 @@ struct OnboardingView: View {
             switch step {
             case .value:
                 Button(L("actions.open_preferences")) {
-                    PreferencesWindowController.shared.show()
+                    AppWindowRouter.shared.open(.settings())
                 }
                 .buttonStyle(.bordered)
+                .accessibilityIdentifier("onboarding.openPreferences")
 
-                Button(L("actions.next")) {
-                    goNext()
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(DesignSystem.Colors.accentSkyBlue)
+                primaryNextButton(id: "onboarding.next.value")
 
-            case .windowTitles:
-                Button(L("actions.next")) {
-                    goNext()
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(DesignSystem.Colors.accentSkyBlue)
-
-            case .permissions:
+            case .exports:
                 Button(L("actions.skip")) {
                     goNext()
                 }
                 .buttonStyle(.bordered)
+                .accessibilityIdentifier("onboarding.skipExports")
 
-                Button(L("actions.next")) {
-                    goNext()
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(DesignSystem.Colors.accentSkyBlue)
+                primaryNextButton(id: "onboarding.next.exports")
 
-            case .convenience:
-                Button(L("actions.next")) {
-                    goNext()
+            case .privacy:
+                if appState.windowTitleCaptureEnabled && !appState.accessibilityAuthorized {
+                    Button(L("onboarding.privacy.open_settings")) {
+                        AccessibilityPermissionManager.shared.openSystemSettings()
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("onboarding.openAccessibility")
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(DesignSystem.Colors.accentSkyBlue)
+
+                primaryNextButton(id: "onboarding.next.privacy")
 
             case .finish:
                 Button(L("onboarding.finish.start")) {
@@ -134,8 +123,18 @@ struct OnboardingView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(DesignSystem.Colors.accentSkyBlue)
+                .accessibilityIdentifier("onboarding.finish")
             }
         }
+    }
+
+    private func primaryNextButton(id: String) -> some View {
+        Button(L("actions.next")) {
+            goNext()
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(DesignSystem.Colors.accentSkyBlue)
+        .accessibilityIdentifier(id)
     }
 
     private var valueContent: some View {
@@ -160,22 +159,91 @@ struct OnboardingView: View {
         }
     }
 
-    private var windowTitlesContent: some View {
+    private var exportsContent: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            Text("onboarding.window_titles.body")
+            Text("onboarding.exports.body")
                 .font(DesignSystem.Typography.caption)
                 .foregroundColor(DesignSystem.Colors.secondaryText)
 
-            SectionCard {
+            SectionCard(title: "onboarding.exports.title") {
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    Toggle("preferences.window_titles.capture", isOn: windowTitleCaptureBinding)
-                        .toggleStyle(.switch)
+                    HStack(alignment: .center, spacing: 8) {
+                        Image(systemName: hasDailyExportFolderConfigured ? "checkmark.circle.fill" : "exclamationmark.circle")
+                            .foregroundColor(
+                                hasDailyExportFolderConfigured
+                                ? Color(nsColor: .systemGreen)
+                                : Color(nsColor: .systemOrange)
+                            )
+                        Text(
+                            hasDailyExportFolderConfigured
+                            ? L("onboarding.exports.configured")
+                            : L("onboarding.exports.not_configured")
+                        )
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+                    }
 
-                    Text("onboarding.window_titles.hint")
+                    Text(String(format: L("reports.folder.label"), reportSettings.dailyFolderDisplayPath))
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .textSelection(.enabled)
+
+                    HStack(spacing: 8) {
+                        Button(L("onboarding.exports.setup")) {
+                            chooseDailyFolder()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(DesignSystem.Colors.accentSkyBlue)
+                        .accessibilityIdentifier("onboarding.chooseExportFolder")
+
+                        Button(L("actions.open_preferences")) {
+                            AppWindowRouter.shared.open(.settings(.export))
+                        }
+                        .buttonStyle(.bordered)
+                        .accessibilityIdentifier("onboarding.openExportPreferences")
+
+                        if hasDailyExportFolderConfigured {
+                            Button(L("reports.open_folder")) {
+                                openDailyFolder()
+                            }
+                            .buttonStyle(.bordered)
+                            .accessibilityIdentifier("onboarding.openExportFolder")
+                        }
+
+                        Spacer()
+                    }
+
+                    Text("onboarding.exports.hint")
                         .font(DesignSystem.Typography.caption)
                         .foregroundColor(DesignSystem.Colors.secondaryText)
 
-                    Divider()
+                    if let exportStatusMessage, !exportStatusMessage.isEmpty {
+                        Text(exportStatusMessage)
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(exportStatusIsError ? .red : DesignSystem.Colors.secondaryText)
+                            .textSelection(.enabled)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    private var privacyContent: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            Text("onboarding.privacy.body")
+                .font(DesignSystem.Typography.caption)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+
+            SectionCard(title: "onboarding.privacy.capture_title") {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    Toggle("preferences.window_titles.capture", isOn: windowTitleCaptureBinding)
+                        .toggleStyle(.switch)
+                        .accessibilityIdentifier("onboarding.windowTitleToggle")
+
+                    Text("onboarding.privacy.hint")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
 
                     Picker("preferences.window_titles.privacy_mode", selection: $appState.windowTitlePrivacyMode) {
                         ForEach(WindowTitlePrivacyMode.allCases) { mode in
@@ -183,6 +251,7 @@ struct OnboardingView: View {
                         }
                     }
                     .disabled(!appState.windowTitleCaptureEnabled)
+                    .accessibilityIdentifier("onboarding.windowTitleMode")
 
                     Text("preferences.window_titles.privacy_mode.note")
                         .font(DesignSystem.Typography.caption)
@@ -190,76 +259,28 @@ struct OnboardingView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-        }
-    }
 
-    private var permissionsContent: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            Text("onboarding.permissions.body")
-                .font(DesignSystem.Typography.caption)
-                .foregroundColor(DesignSystem.Colors.secondaryText)
-
-            SectionCard {
+            SectionCard(title: "onboarding.privacy.permissions_title") {
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    if appState.accessibilityAuthorized {
-                        Label(LocalizedStringKey("onboarding.permissions.authorized"), systemImage: "checkmark.seal.fill")
-                            .font(DesignSystem.Typography.caption)
-                            .foregroundColor(Color(nsColor: .systemGreen))
-                    } else {
-                        Text("onboarding.permissions.choice_hint")
-                            .font(DesignSystem.Typography.caption)
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
-                        HStack(spacing: DesignSystem.Spacing.sm) {
-                            Button("onboarding.permissions.grant") {
-                                _ = AccessibilityPermissionManager.shared.requestPermission(prompt: true)
-                                AccessibilityPermissionManager.shared.syncAppState(appState)
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .tint(DesignSystem.Colors.accentSkyBlue)
+                    Label(
+                        appState.accessibilityAuthorized
+                        ? LocalizedStringKey("onboarding.permissions.authorized")
+                        : LocalizedStringKey("onboarding.permissions.degraded_mode"),
+                        systemImage: appState.accessibilityAuthorized ? "checkmark.seal.fill" : "hand.raised"
+                    )
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(appState.accessibilityAuthorized ? Color(nsColor: .systemGreen) : DesignSystem.Colors.secondaryText)
 
-                            Button("preferences.window_titles.open_settings") {
-                                AccessibilityPermissionManager.shared.openSystemSettings()
-                            }
-                            .buttonStyle(.bordered)
-                        }
-                        Text("preferences.window_titles.needs_access")
-                            .font(DesignSystem.Typography.caption)
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
-                    }
-
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-        }
-    }
-
-    private var convenienceContent: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            Text("onboarding.convenience.body")
-                .font(DesignSystem.Typography.caption)
-                .foregroundColor(DesignSystem.Colors.secondaryText)
-
-            SectionCard {
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    Toggle("Launch at Login", isOn: launchAtLoginBinding)
-                        .toggleStyle(.switch)
-
-                    if let launchAtLoginMessage {
-                        Text(launchAtLoginMessage)
-                            .font(DesignSystem.Typography.caption)
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
-                    }
-
-                    Divider()
-
-                    Text("onboarding.convenience.hotkey")
+                    Text("onboarding.permissions.choice_hint")
                         .font(DesignSystem.Typography.caption)
                         .foregroundColor(DesignSystem.Colors.secondaryText)
 
-                    Button(L("onboarding.convenience.try_quick_marker")) {
-                        QuickMarkerPanelController.shared.toggle()
+                    if appState.windowTitleCaptureEnabled && !appState.accessibilityAuthorized {
+                        Button(L("onboarding.permissions.grant")) {
+                            AccessibilityPermissionManager.shared.openSystemSettings()
+                        }
+                        .buttonStyle(.bordered)
                     }
-                    .buttonStyle(.bordered)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -275,6 +296,39 @@ struct OnboardingView: View {
             Text("onboarding.finish.hint")
                 .font(DesignSystem.Typography.caption)
                 .foregroundColor(DesignSystem.Colors.secondaryText)
+
+            SectionCard(title: "onboarding.finish.setup_title") {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    Toggle("Launch at Login", isOn: launchAtLoginBinding)
+                        .toggleStyle(.switch)
+                        .accessibilityIdentifier("onboarding.launchAtLogin")
+
+                    if let launchAtLoginMessage {
+                        Text(launchAtLoginMessage)
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                    }
+
+                    Toggle("preferences.entry_fallback.show_dock_icon", isOn: $appState.showDockIcon)
+                        .toggleStyle(.switch)
+                        .accessibilityIdentifier("onboarding.showDockIcon")
+
+                    HStack(spacing: 8) {
+                        Button(L("onboarding.convenience.try_quick_marker")) {
+                            AppWindowRouter.shared.open(.quickMarker)
+                        }
+                        .buttonStyle(.bordered)
+                        .accessibilityIdentifier("onboarding.openQuickMarker")
+
+                        Button(L("popover.open_dashboard")) {
+                            AppWindowRouter.shared.open(.dashboard)
+                        }
+                        .buttonStyle(.bordered)
+                        .accessibilityIdentifier("onboarding.openDashboard")
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
     }
 
@@ -282,12 +336,10 @@ struct OnboardingView: View {
         switch step {
         case .value:
             return "onboarding.welcome.title"
-        case .windowTitles:
-            return "onboarding.window_titles.title"
-        case .permissions:
-            return "onboarding.permissions.title"
-        case .convenience:
-            return "onboarding.convenience.title"
+        case .exports:
+            return "onboarding.exports.title"
+        case .privacy:
+            return "onboarding.privacy.title"
         case .finish:
             return "onboarding.finish.title"
         }
@@ -295,17 +347,15 @@ struct OnboardingView: View {
 
     private var stepIndicator: String {
         let index = (flowSteps.firstIndex(of: step) ?? 0) + 1
-        let total = flowSteps.count
-        return String(format: L("onboarding.step"), index, total)
+        return String(format: L("onboarding.step"), index, flowSteps.count)
     }
 
     private var flowSteps: [Step] {
-        var steps: [Step] = [.value, .windowTitles, .convenience]
-        if appState.windowTitleCaptureEnabled {
-            steps.append(.permissions)
-        }
-        steps.append(.finish)
-        return steps
+        Step.allCases
+    }
+
+    private var hasDailyExportFolderConfigured: Bool {
+        reportSettings.dailyFolderBookmark != nil
     }
 
     private var windowTitleCaptureBinding: Binding<Bool> {
@@ -325,7 +375,9 @@ struct OnboardingView: View {
                 do {
                     let status = try LaunchAtLoginManager.shared.setEnabled(newValue)
                     appState.launchAtLoginEnabled = status != .disabled
-                    launchAtLoginMessage = status == .requiresApproval ? L("login_items.needs_approval") : nil
+                    launchAtLoginMessage = status == .requiresApproval
+                        ? L("login_items.needs_approval")
+                        : nil
                 } catch {
                     appState.launchAtLoginEnabled = false
                     launchAtLoginMessage = String(format: L("login_items.update_failed"), error.localizedDescription)
@@ -334,22 +386,73 @@ struct OnboardingView: View {
         )
     }
 
-    private func goNext() {
-        guard let index = flowSteps.firstIndex(of: step), index + 1 < flowSteps.count else {
+    private func chooseDailyFolder() {
+        if let uiTestFolder = AppRuntime.resolvedUITestFolderURL() {
+            try? FileManager.default.createDirectory(at: uiTestFolder, withIntermediateDirectories: true)
+            do {
+                try reportSettings.updateDailyFolderBookmark(url: uiTestFolder)
+                exportStatusMessage = String(format: L("reports.folder.label"), uiTestFolder.path)
+                exportStatusIsError = false
+            } catch {
+                exportStatusMessage = error.localizedDescription
+                exportStatusIsError = true
+            }
             return
         }
+
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.prompt = L("onboarding.exports.setup")
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else { return }
+            do {
+                try reportSettings.updateDailyFolderBookmark(url: url)
+                exportStatusMessage = String(format: L("reports.folder.label"), url.path)
+                exportStatusIsError = false
+            } catch {
+                exportStatusMessage = error.localizedDescription
+                exportStatusIsError = true
+            }
+        }
+    }
+
+    private func exportStatus(_ result: Result<Void, Error>) {
+        switch result {
+        case .success:
+            let openResult = ReportService.shared.openDailyFolder()
+            switch openResult {
+            case .success:
+                exportStatusMessage = L("reports.opened_folder")
+                exportStatusIsError = false
+            case .failure(let error):
+                exportStatusMessage = error.localizedDescription
+                exportStatusIsError = true
+            }
+        case .failure(let error):
+            exportStatusMessage = error.localizedDescription
+            exportStatusIsError = true
+        }
+    }
+
+    private func openDailyFolder() {
+        exportStatus(.success(()))
+    }
+
+    private func goNext() {
+        guard let index = flowSteps.firstIndex(of: step), index + 1 < flowSteps.count else { return }
         step = flowSteps[index + 1]
     }
 
     private func goBack() {
-        guard let index = flowSteps.firstIndex(of: step), index > 0 else {
-            return
-        }
+        guard let index = flowSteps.firstIndex(of: step), index > 0 else { return }
         step = flowSteps[index - 1]
     }
 
     private func finish() {
         appState.onboardingCompleted = true
+        TelemetryService.shared.increment("onboarding_completed")
         onClose()
         NotificationCenter.default.post(name: .chronicleRequestOpenPopover, object: nil)
     }

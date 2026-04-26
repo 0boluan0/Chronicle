@@ -74,16 +74,46 @@ final class ChronicleTests: XCTestCase {
 
     private let telemetryCounterKeys: [String] = [
         "app_launch",
+        "onboarding_started",
+        "popover_opened",
+        "dashboard_opened",
+        "preferences_opened",
+        "support_opened",
+        "onboarding_completed",
+        "onboarding_skipped",
         "menu_export_daily_success",
         "menu_export_daily_failure",
+        "menu_export_daily_clicked",
         "export_daily_success",
         "export_daily_failure",
+        "export_daily_clicked",
+        "export_daily_copy_clicked",
         "export_weekly_success",
         "export_weekly_failure",
+        "export_weekly_clicked",
+        "export_weekly_copy_clicked",
         "export_csv_success",
         "export_csv_failure",
+        "export_csv_clicked",
         "export_timesheet_success",
         "export_timesheet_failure",
+        "export_timesheet_clicked",
+        "export_folder_set_daily",
+        "export_folder_set_weekly",
+        "export_folder_set_csv",
+        "quick_marker_opened",
+        "marker_point_created",
+        "marker_span_started",
+        "marker_span_stopped",
+        "tag_created",
+        "wizard_opened",
+        "wizard_applied",
+        "rule_created_from_context",
+        "window_title_capture_enabled",
+        "accessibility_permission_prompted",
+        "accessibility_permission_granted",
+        "daily_review_reminder_shown",
+        "daily_review_notification_sent",
         "diagnostics_export_success",
         "diagnostics_export_failure",
         "feedback_bundle_success",
@@ -235,6 +265,26 @@ final class ChronicleTests: XCTestCase {
         wait(for: [expectation], timeout: 5)
         if let error {
             XCTFail("Fetch markers failed: \(error)")
+        }
+        return rows
+    }
+
+    private func fetchTags(db: DatabaseService) -> [TagRow] {
+        let expectation = XCTestExpectation(description: "fetch tags")
+        var rows: [TagRow] = []
+        var error: Error?
+        db.fetchTags { result in
+            switch result {
+            case .success(let value):
+                rows = value
+            case .failure(let err):
+                error = err
+            }
+            expectation.fulfill()
+        }
+        wait(for: [expectation], timeout: 5)
+        if let error {
+            XCTFail("Fetch tags failed: \(error)")
         }
         return rows
     }
@@ -510,6 +560,63 @@ final class ChronicleTests: XCTestCase {
         XCTAssertEqual(spans.first?.text, "Deep Focus")
         XCTAssertEqual(spans.first?.startTime, startTime)
         XCTAssertEqual(spans.first?.endTime, endTime)
+    }
+
+    func testQuickMarkerSubmitReturnsFeedbackOutcomes() {
+        let db = makeTestDatabase("quick-marker-submit-outcomes")
+        let service = QuickMarkerService.makeTestInstance(database: db)
+
+        let pointExpectation = XCTestExpectation(description: "point outcome")
+        service.submit(
+            text: "Outcome Point",
+            mode: .point,
+            intervalAction: .toggle,
+            at: Date(timeIntervalSince1970: 70_000),
+            source: .hotkey
+        ) { result in
+            switch result {
+            case .success(let outcome):
+                XCTAssertEqual(outcome, .pointCreated)
+            case .failure(let error):
+                XCTFail("Point outcome failed: \(error)")
+            }
+            pointExpectation.fulfill()
+        }
+        wait(for: [pointExpectation], timeout: 5)
+
+        let startExpectation = XCTestExpectation(description: "interval start outcome")
+        service.submit(
+            text: "Outcome Interval",
+            mode: .interval,
+            intervalAction: .start,
+            at: Date(timeIntervalSince1970: 70_100),
+            source: .hotkey
+        ) { result in
+            switch result {
+            case .success(let outcome):
+                XCTAssertEqual(outcome, .intervalStarted)
+            case .failure(let error):
+                XCTFail("Start outcome failed: \(error)")
+            }
+            startExpectation.fulfill()
+        }
+        wait(for: [startExpectation], timeout: 5)
+
+        let stopExpectation = XCTestExpectation(description: "interval stop outcome")
+        service.submitInterval(
+            text: "Outcome Interval",
+            at: Date(timeIntervalSince1970: 70_200),
+            action: .stop
+        ) { result in
+            switch result {
+            case .success(let outcome):
+                XCTAssertEqual(outcome, .intervalStopped)
+            case .failure(let error):
+                XCTFail("Stop outcome failed: \(error)")
+            }
+            stopExpectation.fulfill()
+        }
+        wait(for: [stopExpectation], timeout: 5)
     }
 
     func testQuickMarkerPersistsAndReloadsFromRepository() {
@@ -800,12 +907,59 @@ final class ChronicleTests: XCTestCase {
         XCTAssertEqual(report?.issues.filter { $0.severity == .error }.count, 0)
     }
 
+    func testInitializationIsIdempotentAndSeedsDefaults() {
+        let url = makeTempDatabaseURL("idempotent-init")
+        let first = DatabaseService.makeTestInstance(databaseURL: url)
+        let firstTags = fetchTags(db: first)
+
+        let second = DatabaseService.makeTestInstance(databaseURL: url)
+        let secondTags = fetchTags(db: second)
+
+        XCTAssertEqual(firstTags.count, DatabaseService.defaultTags.count)
+        XCTAssertEqual(secondTags.count, DatabaseService.defaultTags.count)
+        XCTAssertEqual(Set(firstTags.map(\.name)), Set(DatabaseService.defaultTags.map(\.name)))
+        XCTAssertEqual(Set(secondTags.map(\.name)), Set(DatabaseService.defaultTags.map(\.name)))
+    }
+
+    func testWipeDatabaseReopensCleanDatabase() {
+        let db = makeTestDatabase("wipe-reopen")
+        let service = QuickMarkerService.makeTestInstance(database: db)
+        let markerTimestamp: Int64 = 80_000
+
+        let createExpectation = XCTestExpectation(description: "create marker before wipe")
+        service.createPointFromMenu(
+            text: "Before Wipe",
+            at: Date(timeIntervalSince1970: TimeInterval(markerTimestamp))
+        ) { result in
+            if case .failure(let error) = result {
+                XCTFail("Create marker before wipe failed: \(error)")
+            }
+            createExpectation.fulfill()
+        }
+        wait(for: [createExpectation], timeout: 5)
+
+        XCTAssertEqual(fetchMarkers(db: db, rangeStart: markerTimestamp, rangeEnd: markerTimestamp + 1).count, 1)
+
+        let wipeExpectation = XCTestExpectation(description: "wipe database")
+        db.wipeDatabase { result in
+            if case .failure(let error) = result {
+                XCTFail("Wipe database failed: \(error)")
+            }
+            wipeExpectation.fulfill()
+        }
+        wait(for: [wipeExpectation], timeout: 5)
+
+        XCTAssertTrue(fetchMarkers(db: db, rangeStart: markerTimestamp, rangeEnd: markerTimestamp + 1).isEmpty)
+        XCTAssertEqual(fetchTags(db: db).count, DatabaseService.defaultTags.count)
+    }
+
     func testWindowTitleCaptureDefaults() {
         let suiteName = "chronicle-tests-window-title-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         let state = AppState.makeTestInstance(defaults: defaults)
         XCTAssertFalse(state.windowTitleCaptureEnabled)
+        XCTAssertEqual(state.windowTitlePrivacyMode, .hashed)
     }
 
     func testTelemetryDefaultsOffAndPersists() {
@@ -836,6 +990,45 @@ final class ChronicleTests: XCTestCase {
         let reloaded = AppState.makeTestInstance(defaults: defaults)
         XCTAssertFalse(reloaded.dailyReviewReminderEnabled)
         XCTAssertEqual(reloaded.dailyReviewReminderTimeMinutes, 9 * 60 + 30)
+    }
+
+    func testDockFallbackAndTrackingPauseDefaultsAndPersists() {
+        let suiteName = "chronicle-tests-dock-pause-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+
+        let state = AppState.makeTestInstance(defaults: defaults)
+        XCTAssertFalse(state.showDockIcon)
+        XCTAssertFalse(state.trackingPaused)
+
+        state.showDockIcon = true
+        state.trackingPaused = true
+
+        let reloaded = AppState.makeTestInstance(defaults: defaults)
+        XCTAssertTrue(reloaded.showDockIcon)
+        XCTAssertTrue(reloaded.trackingPaused)
+    }
+
+    func testNewLocalizationKeysExistInSupportedBundles() {
+        let keys = [
+            "onboarding.privacy.title",
+            "onboarding.finish.setup_title",
+            "popover.next_actions.title",
+            "quick_marker.status.interval_started",
+            "app_mapping.mode.auto",
+            "dashboard.timeline.search",
+            "overview.mode.tags",
+            "preferences.tags.subsection",
+            "rules.priority"
+        ]
+        let bundles = ["en", "zh-Hans"].compactMap { Bundle.main.path(forResource: $0, ofType: "lproj").flatMap(Bundle.init(path:)) }
+        XCTAssertEqual(bundles.count, 2)
+
+        for bundle in bundles {
+            for key in keys {
+                XCTAssertNotEqual(bundle.localizedString(forKey: key, value: nil, table: nil), key, "Missing key \(key) in \(bundle.bundlePath)")
+            }
+        }
     }
 
     func testTelemetryExportIncludesCounters() {
@@ -962,6 +1155,45 @@ final class ChronicleTests: XCTestCase {
     func testDefaultTemplatesMatchRetrospectivePreset() {
         XCTAssertEqual(ReportSettings.defaultDailyTemplate, ReportTemplatePreset.retrospective.dailyTemplate)
         XCTAssertEqual(ReportSettings.defaultWeeklyTemplate, ReportTemplatePreset.retrospective.weeklyTemplate)
+    }
+
+    func testReportSettingsPersistenceUsesExistingDefaultsKeys() {
+        let defaults = UserDefaults.standard
+        let settings = ReportSettings.shared
+
+        let previousEnableAutoDailyExport = settings.enableAutoDailyExport
+        let previousEnableAutoWeeklyExport = settings.enableAutoWeeklyExport
+        let previousOverwriteCsvExports = settings.overwriteCsvExports
+        let previousLastDailyExportAt = settings.lastDailyExportAt
+        let previousLastCsvExportAt = settings.lastCsvExportAt
+        let previousLastDailyExportMessage = settings.lastDailyExportMessage
+        let previousLastDailyExportIsError = settings.lastDailyExportIsError
+
+        defer {
+            settings.enableAutoDailyExport = previousEnableAutoDailyExport
+            settings.enableAutoWeeklyExport = previousEnableAutoWeeklyExport
+            settings.overwriteCsvExports = previousOverwriteCsvExports
+            settings.lastDailyExportAt = previousLastDailyExportAt
+            settings.lastCsvExportAt = previousLastCsvExportAt
+            settings.lastDailyExportMessage = previousLastDailyExportMessage
+            settings.lastDailyExportIsError = previousLastDailyExportIsError
+        }
+
+        settings.enableAutoDailyExport = true
+        settings.enableAutoWeeklyExport = true
+        settings.overwriteCsvExports = true
+        settings.lastDailyExportAt = 42
+        settings.lastCsvExportAt = 84
+        settings.lastDailyExportMessage = "saved"
+        settings.lastDailyExportIsError = true
+
+        XCTAssertTrue(defaults.bool(forKey: "reports.enableAutoDailyExport"))
+        XCTAssertTrue(defaults.bool(forKey: "reports.enableAutoWeeklyExport"))
+        XCTAssertTrue(defaults.bool(forKey: "reports.overwriteCsvExports"))
+        XCTAssertEqual(defaults.double(forKey: "reports.lastDailyExportAt"), 42)
+        XCTAssertEqual(defaults.double(forKey: "reports.lastCsvExportAt"), 84)
+        XCTAssertEqual(defaults.string(forKey: "reports.lastDailyExportMessage"), "saved")
+        XCTAssertTrue(defaults.bool(forKey: "reports.lastDailyExportIsError"))
     }
 
     func testBatchUserTagOverrideUpdatesAndClears() {

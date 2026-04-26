@@ -88,6 +88,7 @@ struct DashboardView: View {
                 ForEach(Section.allCases) { section in
                     Label(section.titleKey, systemImage: section.systemImage)
                         .tag(section)
+                        .accessibilityIdentifier("dashboard.section.\(section.rawValue)")
                 }
             }
             .listStyle(.sidebar)
@@ -97,10 +98,11 @@ struct DashboardView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
-                    PreferencesWindowController.shared.show()
+                    AppWindowRouter.shared.open(.settings())
                 } label: {
                     Label("preferences.title", systemImage: "gearshape")
                 }
+                .accessibilityIdentifier("dashboard.openPreferences")
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

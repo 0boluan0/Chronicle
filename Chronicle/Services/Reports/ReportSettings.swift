@@ -11,6 +11,8 @@ import Foundation
 final class ReportSettings: ObservableObject {
     static let shared = ReportSettings()
 
+    private let defaults: UserDefaults
+
     @Published var dailyDiagnostics: ReportExportDiagnostics?
     @Published var weeklyDiagnostics: ReportExportDiagnostics?
     @Published var csvDiagnostics: ReportExportDiagnostics?
@@ -25,25 +27,25 @@ final class ReportSettings: ObservableObject {
         didSet { saveData(csvFolderBookmark, key: Keys.csvFolderBookmark) }
     }
     @Published var dailyTemplateText: String {
-        didSet { UserDefaults.standard.set(dailyTemplateText, forKey: Keys.dailyTemplateText) }
+        didSet { defaults.set(dailyTemplateText, forKey: Keys.dailyTemplateText) }
     }
     @Published var weeklyTemplateText: String {
-        didSet { UserDefaults.standard.set(weeklyTemplateText, forKey: Keys.weeklyTemplateText) }
+        didSet { defaults.set(weeklyTemplateText, forKey: Keys.weeklyTemplateText) }
     }
     @Published var enableAutoDailyExport: Bool {
-        didSet { UserDefaults.standard.set(enableAutoDailyExport, forKey: Keys.enableAutoDailyExport) }
+        didSet { defaults.set(enableAutoDailyExport, forKey: Keys.enableAutoDailyExport) }
     }
     @Published var enableAutoWeeklyExport: Bool {
-        didSet { UserDefaults.standard.set(enableAutoWeeklyExport, forKey: Keys.enableAutoWeeklyExport) }
+        didSet { defaults.set(enableAutoWeeklyExport, forKey: Keys.enableAutoWeeklyExport) }
     }
     @Published var overwriteDailyExports: Bool {
-        didSet { UserDefaults.standard.set(overwriteDailyExports, forKey: Keys.overwriteDailyExports) }
+        didSet { defaults.set(overwriteDailyExports, forKey: Keys.overwriteDailyExports) }
     }
     @Published var overwriteWeeklyExports: Bool {
-        didSet { UserDefaults.standard.set(overwriteWeeklyExports, forKey: Keys.overwriteWeeklyExports) }
+        didSet { defaults.set(overwriteWeeklyExports, forKey: Keys.overwriteWeeklyExports) }
     }
     @Published var overwriteCsvExports: Bool {
-        didSet { UserDefaults.standard.set(overwriteCsvExports, forKey: Keys.overwriteCsvExports) }
+        didSet { defaults.set(overwriteCsvExports, forKey: Keys.overwriteCsvExports) }
     }
     @Published var lastExportedDay: String? {
         didSet { saveString(lastExportedDay, key: Keys.lastExportedDay) }
@@ -58,13 +60,13 @@ final class ReportSettings: ObservableObject {
         didSet { saveString(lastAutoWeeklyAttemptWeek, key: Keys.lastAutoWeeklyAttemptWeek) }
     }
     @Published var lastDailyExportAt: Double {
-        didSet { UserDefaults.standard.set(lastDailyExportAt, forKey: Keys.lastDailyExportAt) }
+        didSet { defaults.set(lastDailyExportAt, forKey: Keys.lastDailyExportAt) }
     }
     @Published var lastWeeklyExportAt: Double {
-        didSet { UserDefaults.standard.set(lastWeeklyExportAt, forKey: Keys.lastWeeklyExportAt) }
+        didSet { defaults.set(lastWeeklyExportAt, forKey: Keys.lastWeeklyExportAt) }
     }
     @Published var lastCsvExportAt: Double {
-        didSet { UserDefaults.standard.set(lastCsvExportAt, forKey: Keys.lastCsvExportAt) }
+        didSet { defaults.set(lastCsvExportAt, forKey: Keys.lastCsvExportAt) }
     }
     @Published var lastDailyExportMessage: String? {
         didSet { saveString(lastDailyExportMessage, key: Keys.lastDailyExportMessage) }
@@ -76,13 +78,13 @@ final class ReportSettings: ObservableObject {
         didSet { saveString(lastCsvExportMessage, key: Keys.lastCsvExportMessage) }
     }
     @Published var lastDailyExportIsError: Bool {
-        didSet { UserDefaults.standard.set(lastDailyExportIsError, forKey: Keys.lastDailyExportIsError) }
+        didSet { defaults.set(lastDailyExportIsError, forKey: Keys.lastDailyExportIsError) }
     }
     @Published var lastWeeklyExportIsError: Bool {
-        didSet { UserDefaults.standard.set(lastWeeklyExportIsError, forKey: Keys.lastWeeklyExportIsError) }
+        didSet { defaults.set(lastWeeklyExportIsError, forKey: Keys.lastWeeklyExportIsError) }
     }
     @Published var lastCsvExportIsError: Bool {
-        didSet { UserDefaults.standard.set(lastCsvExportIsError, forKey: Keys.lastCsvExportIsError) }
+        didSet { defaults.set(lastCsvExportIsError, forKey: Keys.lastCsvExportIsError) }
     }
 
     static let defaultDailyTemplate = ReportTemplatePreset.retrospective.dailyTemplate
@@ -114,8 +116,12 @@ final class ReportSettings: ObservableObject {
         static let lastCsvExportIsError = "reports.lastCsvExportIsError"
     }
 
-    private init() {
-        let defaults = UserDefaults.standard
+    private convenience init() {
+        self.init(defaults: AppRuntime.configuredDefaults())
+    }
+
+    private init(defaults: UserDefaults) {
+        self.defaults = defaults
         dailyFolderBookmark = defaults.data(forKey: Keys.dailyFolderBookmark)
         weeklyFolderBookmark = defaults.data(forKey: Keys.weeklyFolderBookmark)
         csvFolderBookmark = defaults.data(forKey: Keys.csvFolderBookmark)
@@ -151,6 +157,12 @@ final class ReportSettings: ObservableObject {
         lastCsvExportIsError = defaults.bool(forKey: Keys.lastCsvExportIsError)
     }
 
+#if DEBUG
+    static func makeTestInstance(defaults: UserDefaults) -> ReportSettings {
+        ReportSettings(defaults: defaults)
+    }
+#endif
+
     func resetDailyTemplate() {
         dailyTemplateText = Self.defaultDailyTemplate
     }
@@ -161,29 +173,32 @@ final class ReportSettings: ObservableObject {
 
     func updateDailyFolderBookmark(url: URL) throws {
         let data = try url.bookmarkData(
-            options: [.withSecurityScope],
+            options: bookmarkCreationOptions,
             includingResourceValuesForKeys: nil,
             relativeTo: nil
         )
         dailyFolderBookmark = data
+        TelemetryService.shared.increment("export_folder_set_daily")
     }
 
     func updateWeeklyFolderBookmark(url: URL) throws {
         let data = try url.bookmarkData(
-            options: [.withSecurityScope],
+            options: bookmarkCreationOptions,
             includingResourceValuesForKeys: nil,
             relativeTo: nil
         )
         weeklyFolderBookmark = data
+        TelemetryService.shared.increment("export_folder_set_weekly")
     }
 
     func updateCsvFolderBookmark(url: URL) throws {
         let data = try url.bookmarkData(
-            options: [.withSecurityScope],
+            options: bookmarkCreationOptions,
             includingResourceValuesForKeys: nil,
             relativeTo: nil
         )
         csvFolderBookmark = data
+        TelemetryService.shared.increment("export_folder_set_csv")
     }
 
     func resolveDailyFolderURL() throws -> URL? {
@@ -205,15 +220,15 @@ final class ReportSettings: ObservableObject {
     }
 
     var dailyFolderDisplayPath: String {
-        (try? resolveDailyFolderURL()?.path) ?? "Not set"
+        (try? resolveDailyFolderURL()?.path) ?? L("reports.folder.not_set")
     }
 
     var weeklyFolderDisplayPath: String {
-        (try? resolveWeeklyFolderURL()?.path) ?? "Not set"
+        (try? resolveWeeklyFolderURL()?.path) ?? L("reports.folder.not_set")
     }
 
     var csvFolderDisplayPath: String {
-        (try? resolveCsvFolderURL()?.path) ?? "Not set"
+        (try? resolveCsvFolderURL()?.path) ?? L("reports.folder.not_set")
     }
 
     private func resolveFolderURL(from data: Data?, refresh: (Data) -> Void) throws -> URL? {
@@ -221,13 +236,13 @@ final class ReportSettings: ObservableObject {
         var stale = false
         let url = try URL(
             resolvingBookmarkData: data,
-            options: [.withSecurityScope, .withoutUI],
+            options: bookmarkResolutionOptions,
             relativeTo: nil,
             bookmarkDataIsStale: &stale
         )
         if stale {
             let refreshed = try url.bookmarkData(
-                options: [.withSecurityScope],
+                options: bookmarkCreationOptions,
                 includingResourceValuesForKeys: nil,
                 relativeTo: nil
             )
@@ -236,19 +251,27 @@ final class ReportSettings: ObservableObject {
         return url
     }
 
+    private var bookmarkCreationOptions: URL.BookmarkCreationOptions {
+        AppRuntime.isUITestMode ? [] : [.withSecurityScope]
+    }
+
+    private var bookmarkResolutionOptions: URL.BookmarkResolutionOptions {
+        AppRuntime.isUITestMode ? [.withoutUI] : [.withSecurityScope, .withoutUI]
+    }
+
     private func saveData(_ data: Data?, key: String) {
         if let data {
-            UserDefaults.standard.set(data, forKey: key)
+            defaults.set(data, forKey: key)
         } else {
-            UserDefaults.standard.removeObject(forKey: key)
+            defaults.removeObject(forKey: key)
         }
     }
 
     private func saveString(_ value: String?, key: String) {
         if let value {
-            UserDefaults.standard.set(value, forKey: key)
+            defaults.set(value, forKey: key)
         } else {
-            UserDefaults.standard.removeObject(forKey: key)
+            defaults.removeObject(forKey: key)
         }
     }
 
@@ -264,24 +287,44 @@ final class ReportSettings: ObservableObject {
     }
 
     func setBookmarkData(_ data: Data?, for kind: ReportFolderKind) {
-        switch kind {
-        case .daily:
-            dailyFolderBookmark = data
-        case .weekly:
-            weeklyFolderBookmark = data
-        case .csv:
-            csvFolderBookmark = data
+        let update = {
+            switch kind {
+            case .daily:
+                self.dailyFolderBookmark = data
+            case .weekly:
+                self.weeklyFolderBookmark = data
+            case .csv:
+                self.csvFolderBookmark = data
+            }
+        }
+
+        if Thread.isMainThread {
+            update()
+        } else {
+            DispatchQueue.main.async {
+                update()
+            }
         }
     }
 
     func setDiagnostics(_ diagnostics: ReportExportDiagnostics?, for kind: ReportFolderKind) {
-        switch kind {
-        case .daily:
-            dailyDiagnostics = diagnostics
-        case .weekly:
-            weeklyDiagnostics = diagnostics
-        case .csv:
-            csvDiagnostics = diagnostics
+        let update = {
+            switch kind {
+            case .daily:
+                self.dailyDiagnostics = diagnostics
+            case .weekly:
+                self.weeklyDiagnostics = diagnostics
+            case .csv:
+                self.csvDiagnostics = diagnostics
+            }
+        }
+
+        if Thread.isMainThread {
+            update()
+        } else {
+            DispatchQueue.main.async {
+                update()
+            }
         }
     }
 

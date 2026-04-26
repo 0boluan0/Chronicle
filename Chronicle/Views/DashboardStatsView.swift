@@ -78,6 +78,7 @@ struct DashboardStatsView: View {
             selectedDate: $appState.selectedDate,
             isLoading: isLoading,
             isTodaySelected: isTodaySelected,
+            accessibilityPrefix: "dashboard.stats",
             onPreviousDay: { shiftDate(by: -1) },
             onNextDay: { shiftDate(by: 1) },
             onToday: { appState.selectedDate = Date() }

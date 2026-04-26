@@ -5,20 +5,20 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROJECT_PATH="${ROOT_DIR}/Chronicle.xcodeproj"
 SCHEME="Chronicle"
 CONFIGURATION="Release"
-DERIVED_DATA="${ROOT_DIR}/build"
+DERIVED_DATA="${ROOT_DIR}/build/dmg-release"
 OUTPUT_DIR="${ROOT_DIR}/dist"
 DMG_VERSION="${DMG_VERSION:-dev}"
 APP_NAME="Chronicle"
 
 echo "Building ${APP_NAME} (${CONFIGURATION})..."
+rm -rf "${DERIVED_DATA}"
 xcodebuild \
   -project "${PROJECT_PATH}" \
   -scheme "${SCHEME}" \
   -configuration "${CONFIGURATION}" \
   -destination "generic/platform=macOS" \
   -derivedDataPath "${DERIVED_DATA}" \
-  CODE_SIGNING_ALLOWED=NO \
-  build
+  clean build
 
 APP_PATH="${DERIVED_DATA}/Build/Products/${CONFIGURATION}/${APP_NAME}.app"
 if [[ ! -d "${APP_PATH}" ]]; then
@@ -51,6 +51,24 @@ hdiutil create \
   -ov \
   -format UDZO \
   "${DMG_PATH}"
+
+if [[ -n "${NOTARYTOOL_KEY_PATH:-}" && -n "${NOTARYTOOL_KEY_ID:-}" && -n "${NOTARYTOOL_ISSUER_ID:-}" ]]; then
+  echo "Submitting DMG for notarization with App Store Connect API key..."
+  xcrun notarytool submit "${DMG_PATH}" \
+    --key "${NOTARYTOOL_KEY_PATH}" \
+    --key-id "${NOTARYTOOL_KEY_ID}" \
+    --issuer "${NOTARYTOOL_ISSUER_ID}" \
+    --wait
+  xcrun stapler staple "${DMG_PATH}"
+elif [[ -n "${NOTARY_KEYCHAIN_PROFILE:-}" ]]; then
+  echo "Submitting DMG for notarization with stored keychain profile..."
+  xcrun notarytool submit "${DMG_PATH}" \
+    --keychain-profile "${NOTARY_KEYCHAIN_PROFILE}" \
+    --wait
+  xcrun stapler staple "${DMG_PATH}"
+else
+  echo "Notarization credentials not set; keeping unsigned development/notarization-free DMG path."
+fi
 
 echo "Computing SHA-256 checksum..."
 (

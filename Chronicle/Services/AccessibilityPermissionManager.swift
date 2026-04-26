@@ -20,6 +20,12 @@ final class AccessibilityPermissionManager {
 
     @discardableResult
     func requestPermission(prompt: Bool) -> Bool {
+        guard !AppRuntime.disablesSystemPrompts else {
+            return isTrusted
+        }
+        if prompt {
+            TelemetryService.shared.increment("accessibility_permission_prompted")
+        }
         let options: NSDictionary = [
             kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: prompt
         ]
@@ -27,6 +33,7 @@ final class AccessibilityPermissionManager {
     }
 
     func openSystemSettings() {
+        guard !AppRuntime.disablesSystemPrompts else { return }
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
             NSWorkspace.shared.open(url)
         }

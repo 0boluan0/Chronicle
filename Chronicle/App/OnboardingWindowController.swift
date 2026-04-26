@@ -17,6 +17,7 @@ final class OnboardingWindowController {
     private init() {}
 
     func show() {
+        TelemetryService.shared.increment("onboarding_started")
         if window == nil {
             let rootView = LocalizedRootView {
                 OnboardingView(onClose: { [weak self] in
@@ -47,6 +48,9 @@ final class OnboardingWindowController {
     }
 
     func close() {
+        if !AppState.shared.onboardingCompleted {
+            TelemetryService.shared.increment("onboarding_skipped")
+        }
         window?.performClose(nil)
     }
 
@@ -54,4 +58,3 @@ final class OnboardingWindowController {
         window?.title = L("onboarding.title")
     }
 }
-

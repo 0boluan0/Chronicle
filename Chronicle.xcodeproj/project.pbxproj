@@ -11,6 +11,7 @@
 		0BA8F5350114997C95817A15 /* ChronicleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1203C189604D52C40C167A2E /* ChronicleTests.swift */; };
 		1DB9E2F23518C6880CE09CBC /* cross_midnight.json in Resources */ = {isa = PBXBuildFile; fileRef = 0B8F4AEC54EDB2BCA1EB4DC5 /* cross_midnight.json */; };
 		2F8300482F1646EC0023E02F /* Product Requirements Document_ Offline Timeline Activity Tracker (macOS).pdf in Resources */ = {isa = PBXBuildFile; fileRef = 2F8300472F1646EC0023E02F /* Product Requirements Document_ Offline Timeline Activity Tracker (macOS).pdf */; };
+		4329AC6E31872759F4CBD4D7 /* ChronicleUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2182C5CC07BA4C12BFE3730B /* ChronicleUITests.swift */; };
 		429915FE166D04B9523EED2A /* idle_enter_exit.json in Resources */ = {isa = PBXBuildFile; fileRef = 5A593DB17CCAAB03B384A93A /* idle_enter_exit.json */; };
 		4F7369213AC3237B1203D336 /* rapid_switching.json in Resources */ = {isa = PBXBuildFile; fileRef = CB4DF8501218326A0C1CA3D0 /* rapid_switching.json */; };
 		A051CF4E0893D9D5BA0EA350 /* basic_switching.json in Resources */ = {isa = PBXBuildFile; fileRef = 1E4F79882FAFED45F764308D /* basic_switching.json */; };
@@ -24,12 +25,21 @@
 			remoteGlobalIDString = 2F8300382F1646840023E02F;
 			remoteInfo = Chronicle;
 		};
+		EDCDDE6A4939AA20718410AB /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 2F8300312F1646840023E02F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2F8300382F1646840023E02F;
+			remoteInfo = Chronicle;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		0B8F4AEC54EDB2BCA1EB4DC5 /* cross_midnight.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = cross_midnight.json; sourceTree = "<group>"; };
 		1203C189604D52C40C167A2E /* ChronicleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChronicleTests.swift; sourceTree = "<group>"; };
+		2182C5CC07BA4C12BFE3730B /* ChronicleUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChronicleUITests.swift; sourceTree = "<group>"; };
 		1E4F79882FAFED45F764308D /* basic_switching.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = basic_switching.json; sourceTree = "<group>"; };
+		23C265FE9C8E358183AFB499 /* ChronicleUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ChronicleUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		24DDCB6AE1AEE626D3A2AE46 /* ChronicleTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ChronicleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		2F8300392F1646840023E02F /* Chronicle.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Chronicle.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2F8300472F1646EC0023E02F /* Product Requirements Document_ Offline Timeline Activity Tracker (macOS).pdf */ = {isa = PBXFileReference; lastKnownFileType = image.pdf; path = "Product Requirements Document_ Offline Timeline Activity Tracker (macOS).pdf"; sourceTree = "<group>"; };
@@ -47,6 +57,13 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		3B152CBE289BB3B1CA3A7F56 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		2560370A4696EF0267CC1A22 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -73,11 +90,20 @@
 			path = ChronicleTests;
 			sourceTree = "<group>";
 		};
+		CBBD9A60A8C289E02509D211 /* ChronicleUITests */ = {
+			isa = PBXGroup;
+			children = (
+				2182C5CC07BA4C12BFE3730B /* ChronicleUITests.swift */,
+			);
+			path = ChronicleUITests;
+			sourceTree = "<group>";
+		};
 		2F8300302F1646840023E02F = {
 			isa = PBXGroup;
 			children = (
 				2F83003B2F1646840023E02F /* Chronicle */,
 				14C8DF5C8F8AED9CD4CAF7B8 /* ChronicleTests */,
+				CBBD9A60A8C289E02509D211 /* ChronicleUITests */,
 				2F83003A2F1646840023E02F /* Products */,
 				2F8300472F1646EC0023E02F /* Product Requirements Document_ Offline Timeline Activity Tracker (macOS).pdf */,
 			);
@@ -88,6 +114,7 @@
 			children = (
 				2F8300392F1646840023E02F /* Chronicle.app */,
 				24DDCB6AE1AEE626D3A2AE46 /* ChronicleTests.xctest */,
+				23C265FE9C8E358183AFB499 /* ChronicleUITests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -147,6 +174,24 @@
 			productReference = 24DDCB6AE1AEE626D3A2AE46 /* ChronicleTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		BDA69A59850A34234EF51522 /* ChronicleUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D72DD0C65EC251EF7E4664A6 /* Build configuration list for PBXNativeTarget "ChronicleUITests" */;
+			buildPhases = (
+				30D6D44F8663261EB6EB43E3 /* Sources */,
+				3B152CBE289BB3B1CA3A7F56 /* Frameworks */,
+				89165B0DDE860741F7084196 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				520B8EDEA6EC4E8741526D00 /* PBXTargetDependency */,
+			);
+			name = ChronicleUITests;
+			productName = ChronicleUITests;
+			productReference = 23C265FE9C8E358183AFB499 /* ChronicleUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -162,6 +207,10 @@
 					};
 					6403B7CDE144A5C274E39B80 = {
 						CreatedOnToolsVersion = 26.2;
+					};
+					BDA69A59850A34234EF51522 = {
+						CreatedOnToolsVersion = 26.2;
+						TestTargetID = 2F8300382F1646840023E02F;
 					};
 				};
 			};
@@ -182,11 +231,19 @@
 			targets = (
 				2F8300382F1646840023E02F /* Chronicle */,
 				6403B7CDE144A5C274E39B80 /* ChronicleTests */,
+				BDA69A59850A34234EF51522 /* ChronicleUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		89165B0DDE860741F7084196 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		1873C8A72584091AE7E7BA0A /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -215,6 +272,11 @@
 			target = 2F8300382F1646840023E02F /* Chronicle */;
 			targetProxy = 4ACF265A02A243219AC8F2E2 /* PBXContainerItemProxy */;
 		};
+		520B8EDEA6EC4E8741526D00 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 2F8300382F1646840023E02F /* Chronicle */;
+			targetProxy = EDCDDE6A4939AA20718410AB /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -230,6 +292,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				0BA8F5350114997C95817A15 /* ChronicleTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		30D6D44F8663261EB6EB43E3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4329AC6E31872759F4CBD4D7 /* ChronicleUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -361,7 +431,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-						CURRENT_PROJECT_VERSION = 6;
+						CURRENT_PROJECT_VERSION = 7;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = "read-write";
@@ -371,7 +441,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-						MARKETING_VERSION = 1.0.5;
+						MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.Chronicle.Chronicle;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -391,7 +461,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-						CURRENT_PROJECT_VERSION = 6;
+						CURRENT_PROJECT_VERSION = 7;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = "read-write";
@@ -401,7 +471,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-						MARKETING_VERSION = 1.0.5;
+						MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.Chronicle.Chronicle;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -466,6 +536,53 @@
 			};
 			name = Release;
 		};
+		5EDB44CA4C900DCB8D7F9B36 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGN_IDENTITY = "";
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = ChronicleUITests;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.Chronicle.ChronicleUITests;
+				PRODUCT_NAME = ChronicleUITests;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = Chronicle;
+			};
+			name = Debug;
+		};
+		8A0509E9AA3F618558E47B30 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGN_IDENTITY = "";
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_HARDENED_RUNTIME = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = ChronicleUITests;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.Chronicle.ChronicleUITests;
+				PRODUCT_NAME = ChronicleUITests;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "$(inherited)";
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = Chronicle;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -492,6 +609,15 @@
 			buildConfigurations = (
 				7E6BBAF5D514BD95C5D93813 /* Debug */,
 				E8CF321D0B5CAE113499943A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D72DD0C65EC251EF7E4664A6 /* Build configuration list for PBXNativeTarget "ChronicleUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5EDB44CA4C900DCB8D7F9B36 /* Debug */,
+				8A0509E9AA3F618558E47B30 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

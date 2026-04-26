@@ -591,7 +591,7 @@ struct StatsView: View {
     private func openDashboard(at epochSeconds: Int64) {
         appState.selectedDate = Date(timeIntervalSince1970: TimeInterval(epochSeconds))
         appState.dateRangeMode = .day
-        DashboardWindowController.shared.show()
+        AppWindowRouter.shared.open(.dashboard)
     }
 
     private var idleSuppressionStatusText: String {
@@ -639,7 +639,7 @@ struct StatsView: View {
             HStack {
                 Spacer()
                 Button(L("stats.idle_suppression.open_preferences")) {
-                    PreferencesWindowController.shared.show()
+                    AppWindowRouter.shared.open(.settings())
                 }
                 .buttonStyle(.bordered)
 

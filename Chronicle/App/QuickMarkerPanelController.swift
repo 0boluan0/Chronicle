@@ -63,6 +63,10 @@ final class QuickMarkerPanelController: NSWindowController, NSWindowDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
 
+    func closePanel() {
+        window?.close()
+    }
+
     func windowWillClose(_ notification: Notification) {
         window?.orderOut(nil)
     }

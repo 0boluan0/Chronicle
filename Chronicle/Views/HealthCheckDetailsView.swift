@@ -93,7 +93,7 @@ struct HealthCheckDetailsView: View {
                     .disabled(healthCheckService.isRunning)
 
                     Button(L("actions.open_preferences")) {
-                        PreferencesWindowController.shared.show()
+                        AppWindowRouter.shared.open(.settings())
                     }
                     .buttonStyle(.bordered)
 

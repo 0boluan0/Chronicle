@@ -4,9 +4,16 @@ on:
   push:
     branches: ["**"]
   pull_request:
+  workflow_dispatch:
+    inputs:
+      run_ui_smoke:
+        description: "Run self-hosted UI smoke tests"
+        required: false
+        type: boolean
+        default: false
 
 jobs:
-  build-and-test:
+  build-and-unit-tests:
     runs-on: macos-latest
     steps:
       - name: Checkout
@@ -17,7 +24,7 @@ jobs:
         with:
           xcode-version: latest-stable
 
-      - name: Build and Test
+      - name: Build Debug
         run: |
           xcodebuild \
             -project Chronicle.xcodeproj \
@@ -25,5 +32,36 @@ jobs:
             -configuration Debug \
             -destination 'platform=macOS' \
             -derivedDataPath build \
-            CODE_SIGNING_ALLOWED=NO \
-            clean test
+            clean build
+
+      - name: Run Unit Tests
+        run: |
+          xcodebuild \
+            -project Chronicle.xcodeproj \
+            -scheme Chronicle \
+            -configuration Debug \
+            -destination 'platform=macOS' \
+            -derivedDataPath build \
+            test
+
+  ui-smoke:
+    if: ${{ vars.CHRONICLE_UI_SMOKE_ENABLED == '1' || (github.event_name == 'workflow_dispatch' && inputs.run_ui_smoke) }}
+    runs-on: [self-hosted, macOS, chronicle-ui]
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [en, zh-Hans]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Run UI Smoke
+        run: |
+          chmod +x script/run_ui_smoke.sh
+          ./script/run_ui_smoke.sh "${{ matrix.language }}"

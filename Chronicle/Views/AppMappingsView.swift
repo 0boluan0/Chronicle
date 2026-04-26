@@ -32,7 +32,7 @@ struct AppMappingsView: View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
             if showHeader {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Apps")
+                    Text("preferences.app_mappings")
                         .font(DesignSystem.Typography.title)
                     Text("Assign a tag to each application. New sessions will inherit the tag automatically.")
                         .font(DesignSystem.Typography.caption)
@@ -56,7 +56,7 @@ struct AppMappingsView: View {
                         .buttonStyle(.bordered)
                     }
 
-                    statusView(lastActionMessage)
+                    StatusBannerView(status: lastActionMessage, accessibilityIdentifier: "appMappings.status")
                 }
             }
 
@@ -367,7 +367,7 @@ private struct AppMappingRowView: View {
 
                     Picker("Tagging Mode", selection: selectedModeBinding) {
                         ForEach(AppTaggingMode.allCases) { mode in
-                            Text(mode.displayName).tag(mode)
+                            Text(LocalizedStringKey(mode.titleKey)).tag(mode)
                         }
                     }
                     .frame(width: 180)
@@ -401,7 +401,7 @@ private struct AppMappingRowView: View {
             }
 
             if mapping.taggingMode == .manualOnly {
-                Text("Manual only: future sessions stay untagged unless you override a specific entry.")
+                Text("app_mapping.mode.manual_only.note")
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
@@ -460,22 +460,4 @@ private struct AppMappingRowView: View {
     AppMappingsView()
         .environmentObject(AppState.shared)
         .padding()
-}
-
-private struct StatusMessage {
-    let text: String
-    let isError: Bool
-}
-
-@ViewBuilder
-private func statusView(_ status: StatusMessage?) -> some View {
-    if let status {
-        if status.isError {
-            ErrorStateView(title: L("status.action_failed"), message: status.text)
-        } else {
-            Text(status.text)
-                .font(DesignSystem.Typography.caption)
-                .foregroundColor(DesignSystem.Colors.secondaryText)
-        }
-    }
 }

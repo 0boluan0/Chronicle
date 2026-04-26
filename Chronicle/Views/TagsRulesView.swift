@@ -15,7 +15,7 @@ struct TagsRulesView: View {
 
         var id: String { rawValue }
 
-        var title: String {
+        var titleKey: LocalizedStringKey {
             switch self {
             case .tags:
                 return "Tags"
@@ -35,13 +35,13 @@ struct TagsRulesView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
             if showHeader {
-                Text("Tags & Rules")
+                Text("preferences.tags_rules")
                     .font(DesignSystem.Typography.title)
             }
 
             Picker("Section", selection: $selection) {
                 ForEach(Section.allCases) { section in
-                    Text(section.title).tag(section)
+                    Text(section.titleKey).tag(section)
                 }
             }
             .pickerStyle(.segmented)
@@ -87,7 +87,7 @@ struct TagsManagementView: View {
                 }
             }
 
-            statusView(lastActionMessage)
+            StatusBannerView(status: lastActionMessage, accessibilityIdentifier: "tagsRules.status")
 
             SectionCard {
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
@@ -160,6 +160,7 @@ struct TagsManagementView: View {
                     self.newTagName = ""
                     self.newTagColorHex = TagColorPalette.defaultHex
                     self.lastActionMessage = StatusMessage(text: L("tags.status.added"), isError: false)
+                    TelemetryService.shared.increment("tag_created")
                     self.reloadTags()
                 case .failure(let error):
                     self.lastActionMessage = StatusMessage(
@@ -234,7 +235,7 @@ struct RulesManagementView: View {
                 }
             }
 
-            statusView(lastActionMessage)
+            StatusBannerView(status: lastActionMessage, accessibilityIdentifier: "rules.status")
 
             SectionCard {
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
@@ -638,8 +639,10 @@ private struct RuleEditorRow: View {
                     }
                 }
                 .frame(width: 160)
-                Stepper("Priority \(priority)", value: $priority, in: -10...10)
-                    .frame(width: 150)
+                Stepper(value: $priority, in: -10...10) {
+                    Text(String(format: L("rules.priority"), priority))
+                }
+                .frame(width: 150)
             }
 
             HStack(spacing: 8) {
@@ -889,24 +892,6 @@ private struct TagColorPopoverContent: View {
         hex = colorHex
         if let parsed = Color(hex: colorHex) {
             colorSelection = parsed
-        }
-    }
-}
-
-private struct StatusMessage {
-    let text: String
-    let isError: Bool
-}
-
-@ViewBuilder
-private func statusView(_ status: StatusMessage?) -> some View {
-    if let status {
-        if status.isError {
-            ErrorStateView(title: L("status.action_failed"), message: status.text)
-        } else {
-            Text(status.text)
-                .font(DesignSystem.Typography.caption)
-                .foregroundColor(DesignSystem.Colors.secondaryText)
         }
     }
 }

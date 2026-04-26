@@ -11,16 +11,23 @@ import Combine
 final class AppLanguageManager: ObservableObject {
     static let shared = AppLanguageManager()
 
+    private let defaults: UserDefaults
+
     @Published var currentLanguage: String {
         didSet {
-            UserDefaults.standard.set(currentLanguage, forKey: Self.languageKey)
+            defaults.set(currentLanguage, forKey: Self.languageKey)
         }
     }
 
     let supportedLanguages: [String] = ["en", "zh-Hans"]
 
     private init() {
-        if let stored = UserDefaults.standard.string(forKey: Self.languageKey), !stored.isEmpty {
+        defaults = AppRuntime.configuredDefaults()
+        if let forcedLanguage = AppRuntime.uiTestLanguage,
+           supportedLanguages.contains(forcedLanguage) {
+            currentLanguage = forcedLanguage
+            defaults.set(forcedLanguage, forKey: Self.languageKey)
+        } else if let stored = defaults.string(forKey: Self.languageKey), !stored.isEmpty {
             currentLanguage = stored
         } else {
             currentLanguage = "en"

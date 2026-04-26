@@ -13,10 +13,10 @@ struct DashboardOverviewView: View {
         case tags
 
         var id: String { rawValue }
-        var title: String {
+        var titleKey: LocalizedStringKey {
             switch self {
-            case .apps: return "Apps"
-            case .tags: return "Tags"
+            case .apps: return "overview.mode.apps"
+            case .tags: return "overview.mode.tags"
             }
         }
     }
@@ -35,6 +35,11 @@ struct DashboardOverviewView: View {
     @State private var topN = 8
     @State private var gridIntervalMinutes = 60
     @State private var selection: GanttSelection?
+    @State private var weeklyMarkerCount = 0
+    @State private var weeklySpanCount = 0
+    @State private var weeklyReportStatus: String?
+    @State private var weeklyReportStatusIsError = false
+    @State private var isGeneratingWeeklyReport = false
 #if DEBUG
     @State private var showCompactionDebug = false
 #endif
@@ -73,6 +78,9 @@ struct DashboardOverviewView: View {
             }
 
             legendView
+            if !isDailyView {
+                weeklySummaryCard
+            }
 
 #if DEBUG
             if showCompactionDebug {
@@ -132,6 +140,7 @@ struct DashboardOverviewView: View {
             selectedDate: $appState.selectedDate,
             isLoading: isLoading,
             isTodaySelected: isTodaySelected,
+            accessibilityPrefix: "dashboard.overview",
             onPreviousDay: { shiftDate(by: -1) },
             onNextDay: { shiftDate(by: 1) },
             onToday: { appState.selectedDate = Date() }
@@ -143,30 +152,34 @@ struct DashboardOverviewView: View {
             HStack(spacing: 12) {
                 Picker("Mode", selection: $mode) {
                     ForEach(OverviewMode.allCases) { mode in
-                        Text(mode.title).tag(mode)
+                        Text(mode.titleKey).tag(mode)
                     }
                 }
                 .pickerStyle(.segmented)
                 .frame(width: 200)
+                .accessibilityIdentifier("dashboard.overview.mode")
 
                 Picker("Range", selection: rangeModeBinding) {
-                    Text("Day").tag(DateRangeMode.day)
-                    Text("Week").tag(DateRangeMode.week)
+                    Text("range.day").tag(DateRangeMode.day)
+                    Text("range.week").tag(DateRangeMode.week)
                 }
                 .pickerStyle(.segmented)
                 .frame(width: 200)
+                .accessibilityIdentifier("dashboard.overview.range")
 
                 Stepper(value: $topN, in: 4...12) {
-                    Text("Top \(topN)")
+                    Text(String(format: L("overview.top_n"), topN))
                         .frame(width: 80, alignment: .leading)
                 }
+                .accessibilityIdentifier("dashboard.overview.topN")
 
-                Picker("Grid", selection: $gridIntervalMinutes) {
+                Picker("overview.grid", selection: $gridIntervalMinutes) {
                     Text("1h").tag(60)
                     Text("30m").tag(30)
                 }
                 .pickerStyle(.segmented)
                 .frame(width: 120)
+                .accessibilityIdentifier("dashboard.overview.grid")
 
 #if DEBUG
                 Toggle("Show compaction debug", isOn: $showCompactionDebug)
@@ -183,17 +196,17 @@ struct DashboardOverviewView: View {
             legendItem(title: "Idle") {
                 IdleLegendSwatch()
             }
-            legendItem(title: "Untagged") {
+            legendItem(title: L("popover.daily_snapshot.untagged")) {
                 RoundedRectangle(cornerRadius: 3)
                     .fill(neutralRowColor.opacity(0.55))
                     .frame(width: 16, height: 10)
             }
-            legendItem(title: "Tagged") {
+            legendItem(title: L("overview.legend.tagged")) {
                 RoundedRectangle(cornerRadius: 3)
                     .fill(Color(nsColor: .systemTeal).opacity(0.6))
                     .frame(width: 16, height: 10)
             }
-            legendItem(title: "Overlay") {
+            legendItem(title: L("overview.legend.overlay")) {
                 RoundedRectangle(cornerRadius: 3)
                     .stroke(style: StrokeStyle(lineWidth: 1, dash: [3, 2]))
                     .foregroundColor(DesignSystem.Colors.secondaryText.opacity(0.6))
@@ -209,6 +222,71 @@ struct DashboardOverviewView: View {
                 .font(.caption2)
                 .foregroundColor(.secondary)
         }
+    }
+
+    private var weeklySummaryCard: some View {
+        SectionCard(title: "overview.weekly_summary.title") {
+            VStack(alignment: .leading, spacing: 8) {
+                if let topRow = weeklyRows.max(by: { $0.totalSeconds < $1.totalSeconds }) {
+                    Text(String(format: L("overview.weekly_summary.top_focus"), topRow.title, formatDuration(topRow.totalSeconds)))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                } else {
+                    Text(L("overview.weekly_summary.empty"))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
+                HStack(spacing: 12) {
+                    summaryMetric(
+                        title: L("overview.weekly_summary.total"),
+                        value: formatDuration(weeklyRows.reduce(0) { $0 + $1.totalSeconds })
+                    )
+                    summaryMetric(
+                        title: L("overview.weekly_summary.markers"),
+                        value: "\(weeklyMarkerCount)"
+                    )
+                    summaryMetric(
+                        title: L("overview.weekly_summary.spans"),
+                        value: "\(weeklySpanCount)"
+                    )
+                }
+
+                HStack(spacing: 8) {
+                    Button(L("overview.weekly_summary.generate")) {
+                        generateWeeklyReportNow()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(isGeneratingWeeklyReport)
+                    .accessibilityIdentifier("dashboard.overview.generateWeekly")
+
+                    Button(L("overview.weekly_summary.open_export")) {
+                        AppWindowRouter.shared.open(.settings(.export))
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("dashboard.overview.openExport")
+                }
+
+                if let weeklyReportStatus, !weeklyReportStatus.isEmpty {
+                    Text(weeklyReportStatus)
+                        .font(.caption)
+                        .foregroundColor(weeklyReportStatusIsError ? .red : .secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func summaryMetric(title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title)
+                .font(.caption2)
+                .foregroundColor(.secondary)
+            Text(value)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(.primary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var detailView: some View {
@@ -648,6 +726,37 @@ struct DashboardOverviewView: View {
         Calendar.current.isDateInToday(appState.selectedDate)
     }
 
+    private func formatDuration(_ seconds: Int64) -> String {
+        TimeFormatters.durationText(start: 0, end: max(0, seconds))
+    }
+
+    private func generateWeeklyReportNow() {
+        guard !isGeneratingWeeklyReport else { return }
+        isGeneratingWeeklyReport = true
+        weeklyReportStatus = L("reports.status.generating")
+        weeklyReportStatusIsError = false
+        TelemetryService.shared.increment("export_weekly_clicked")
+        ReportService.shared.generateWeeklyReport(for: appState.selectedDate) { result in
+            DispatchQueue.main.async {
+                self.isGeneratingWeeklyReport = false
+                switch result {
+                case .success(let info):
+                    let message = String(format: L("reports.weekly.saved"), info.fileName)
+                    self.weeklyReportStatus = message
+                    self.weeklyReportStatusIsError = false
+                    ReportSettings.shared.recordExportResult(kind: .weekly, message: message, isError: false)
+                    TelemetryService.shared.increment("export_weekly_success")
+                case .failure(let error):
+                    let message = error.localizedDescription
+                    self.weeklyReportStatus = message
+                    self.weeklyReportStatusIsError = true
+                    ReportSettings.shared.recordExportResult(kind: .weekly, message: message, isError: true)
+                    TelemetryService.shared.increment("export_weekly_failure")
+                }
+            }
+        }
+    }
+
     private func refreshData(reason: String) {
         isLoading = true
         let bounds = rangeBounds
@@ -659,6 +768,8 @@ struct DashboardOverviewView: View {
         var newWeeklyRows: [WeeklyRowData] = []
         var newWeekLabels: [String] = []
         var newWeekStarts: [Int64] = []
+        var newMarkerCount = 0
+        var newSpanCount = 0
         var errorMessage: String?
 
         if isDailyView {
@@ -710,6 +821,22 @@ struct DashboardOverviewView: View {
                 }
                 group.leave()
             }
+
+            group.enter()
+            DatabaseService.shared.fetchMarkersOverlappingRange(start: bounds.start, end: bounds.end, limit: nil, offset: nil) { result in
+                if case .success(let markers) = result {
+                    newMarkerCount = markers.count
+                }
+                group.leave()
+            }
+
+            group.enter()
+            DatabaseService.shared.fetchMarkerSpansOverlappingRange(start: bounds.start, end: bounds.end, limit: nil, offset: nil) { result in
+                if case .success(let spans) = result {
+                    newSpanCount = spans.count
+                }
+                group.leave()
+            }
         }
 
         group.notify(queue: .main) {
@@ -717,6 +844,8 @@ struct DashboardOverviewView: View {
             self.weeklyRowsState = newWeeklyRows
             self.weekDayLabelsState = newWeekLabels
             self.weekDayStartsState = newWeekStarts
+            self.weeklyMarkerCount = newMarkerCount
+            self.weeklySpanCount = newSpanCount
             self.isLoading = false
             self.lastRefresh = Date()
             if let errorMessage {

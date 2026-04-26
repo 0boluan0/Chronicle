@@ -48,6 +48,7 @@ struct TaggingSetupWizardView: View {
     @State private var statusIsError = false
     @State private var isLoading = false
     @State private var isApplying = false
+    @State private var hasTrackedOpen = false
 
     private let maxSuggestions = 12
     private let unassignedTagId: Int64 = -1
@@ -82,6 +83,7 @@ struct TaggingSetupWizardView: View {
                     .buttonStyle(.borderedProminent)
                     .tint(DesignSystem.Colors.accentSkyBlue)
                     .disabled(isLoading || isApplying || !hasPendingChanges)
+                    .accessibilityIdentifier("wizard.apply")
                 }
 
                 if isLoading {
@@ -106,6 +108,10 @@ struct TaggingSetupWizardView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .onAppear {
+            if !hasTrackedOpen {
+                hasTrackedOpen = true
+                TelemetryService.shared.increment("wizard_opened")
+            }
             loadSuggestions()
         }
         .onChange(of: appState.selectedDate) { _, _ in
@@ -115,11 +121,12 @@ struct TaggingSetupWizardView: View {
 
     @ViewBuilder
     private var statusView: some View {
-        if let statusMessage, !statusMessage.isEmpty {
-            Text(statusMessage)
-                .font(DesignSystem.Typography.caption)
-                .foregroundColor(statusIsError ? .red : DesignSystem.Colors.secondaryText)
-        }
+                if let statusMessage, !statusMessage.isEmpty {
+                    Text(statusMessage)
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(statusIsError ? .red : DesignSystem.Colors.secondaryText)
+                        .accessibilityIdentifier("wizard.status")
+                }
     }
 
     @ViewBuilder
@@ -156,7 +163,7 @@ struct TaggingSetupWizardView: View {
 
             Picker("wizard.mode", selection: item.selectedMode) {
                 ForEach(AppTaggingMode.allCases) { mode in
-                    Text(mode.displayName).tag(mode)
+                    Text(LocalizedStringKey(mode.titleKey)).tag(mode)
                 }
             }
             .frame(width: 140)
@@ -274,6 +281,9 @@ struct TaggingSetupWizardView: View {
         if index >= items.count {
             isApplying = false
             statusIsError = failed > 0
+            if applied > 0 {
+                TelemetryService.shared.increment("wizard_applied")
+            }
             if failed > 0 {
                 statusMessage = String(format: L("wizard.applied_partial"), applied, failed)
             } else {

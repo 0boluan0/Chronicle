@@ -8,7 +8,7 @@
 import AppKit
 import SwiftUI
 
-struct DashboardReportsView: View {
+struct ReportsWorkspaceView: View {
     var showTitle: Bool = true
     var useScrollView: Bool = true
 
@@ -80,7 +80,7 @@ struct DashboardReportsView: View {
                 Text(String(format: L("reports.folder.label"), settings.csvFolderDisplayPath))
                     .font(.caption)
                     .foregroundColor(.secondary)
-                statusLine(folderStatusLine(for: .csv))
+                ExportStatusLine(status: folderStatusLine(for: .csv), accessibilityIdentifier: "reports.csvFolderStatus")
 
                 HStack(spacing: 8) {
                     Button(L("reports.choose_folder")) {
@@ -95,6 +95,7 @@ struct DashboardReportsView: View {
                         }
                     }
                     .buttonStyle(.bordered)
+                    .accessibilityIdentifier("reports.chooseCsvFolder")
 
                     Button(L("reports.open_folder")) {
                         csvStatus = handleOpenFolder(result: ReportService.shared.openCsvFolder())
@@ -133,11 +134,13 @@ struct DashboardReportsView: View {
                         exportCsv()
                     }
                     .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("reports.exportCsv")
 
                     Button(L("reports.timesheet.export")) {
                         exportTimesheet()
                     }
                     .buttonStyle(.bordered)
+                    .accessibilityIdentifier("reports.exportTimesheet")
                 }
 
                 DisclosureGroup(L("reports.csv.fields")) {
@@ -162,9 +165,9 @@ struct DashboardReportsView: View {
                     .padding(.top, 6)
                 }
 
-                statusLine(csvStatus)
-                statusLine(timesheetStatus)
-                statusLine(lastRunLine(for: .csv))
+                ExportStatusLine(status: csvStatus, accessibilityIdentifier: "reports.csvStatus")
+                ExportStatusLine(status: timesheetStatus, accessibilityIdentifier: "reports.timesheetStatus")
+                ExportStatusLine(status: lastRunLine(for: .csv), accessibilityIdentifier: "reports.csvLastRun")
 
                 if let diagnostics = settings.csvDiagnostics, diagnostics.errorDescription != nil {
                     diagnosticsView(
@@ -193,6 +196,21 @@ struct DashboardReportsView: View {
                 Toggle(L("reports.review_reminder.enabled"), isOn: $appState.dailyReviewReminderEnabled)
                     .toggleStyle(.switch)
 
+                Toggle(
+                    L("reports.review_reminder.system_notification"),
+                    isOn: Binding(
+                        get: { appState.dailyReviewSystemNotificationEnabled },
+                        set: { newValue in
+                            appState.dailyReviewSystemNotificationEnabled = newValue
+                            if newValue {
+                                DailyReviewReminderNotificationService.shared.requestAuthorization()
+                            }
+                        }
+                    )
+                )
+                .toggleStyle(.switch)
+                .disabled(!appState.dailyReviewReminderEnabled)
+
                 HStack(spacing: 12) {
                     Text(L("reports.review_reminder.time"))
                         .font(.caption)
@@ -212,6 +230,10 @@ struct DashboardReportsView: View {
                 Text(L("reports.review_reminder.note"))
                     .font(.caption)
                     .foregroundColor(.secondary)
+
+                Text(L("reports.review_reminder.system_notification.note"))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -223,7 +245,7 @@ struct DashboardReportsView: View {
                 Text(String(format: L("reports.folder.label"), settings.dailyFolderDisplayPath))
                     .font(.caption)
                     .foregroundColor(.secondary)
-                statusLine(folderStatusLine(for: .daily))
+                ExportStatusLine(status: folderStatusLine(for: .daily), accessibilityIdentifier: "reports.dailyFolderStatus")
 
                 HStack(spacing: 8) {
                     Button(L("reports.choose_folder")) {
@@ -238,11 +260,18 @@ struct DashboardReportsView: View {
                         }
                     }
                     .buttonStyle(.bordered)
+                    .accessibilityIdentifier("reports.chooseDailyFolder")
 
                     Button(L("reports.open_folder")) {
                         dailyStatus = handleOpenFolder(result: ReportService.shared.openDailyFolder())
                     }
                     .buttonStyle(.bordered)
+
+                    Button(L("reports.daily.generate_today")) {
+                        generateDaily(date: Date())
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("reports.generateDailyToday")
 
                     Spacer()
 
@@ -290,19 +319,26 @@ struct DashboardReportsView: View {
                     }
                     .buttonStyle(.bordered)
 
+                    Button(L("reports.daily.copy_selected")) {
+                        copyDailyToClipboard(date: appState.selectedDate)
+                    }
+                    .buttonStyle(.bordered)
+
                     Button(L("reports.daily.generate_selected")) {
                         generateDaily(date: appState.selectedDate)
                     }
                     .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("reports.generateDailySelected")
 
                     Button(L("reports.daily.generate_today")) {
                         generateDaily(date: Date())
                     }
                     .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("reports.generateDailyTodayBottom")
                 }
 
-                statusLine(dailyStatus)
-                statusLine(lastRunLine(for: .daily))
+                ExportStatusLine(status: dailyStatus, accessibilityIdentifier: "reports.dailyStatus")
+                ExportStatusLine(status: lastRunLine(for: .daily), accessibilityIdentifier: "reports.dailyLastRun")
 
                 if let diagnostics = settings.dailyDiagnostics, diagnostics.errorDescription != nil {
                     diagnosticsView(
@@ -331,7 +367,7 @@ struct DashboardReportsView: View {
                 Text(String(format: L("reports.folder.label"), settings.weeklyFolderDisplayPath))
                     .font(.caption)
                     .foregroundColor(.secondary)
-                statusLine(folderStatusLine(for: .weekly))
+                ExportStatusLine(status: folderStatusLine(for: .weekly), accessibilityIdentifier: "reports.weeklyFolderStatus")
 
                 HStack(spacing: 8) {
                     Button(L("reports.choose_folder")) {
@@ -346,6 +382,7 @@ struct DashboardReportsView: View {
                         }
                     }
                     .buttonStyle(.bordered)
+                    .accessibilityIdentifier("reports.chooseWeeklyFolder")
 
                     Button(L("reports.open_folder")) {
                         weeklyStatus = handleOpenFolder(result: ReportService.shared.openWeeklyFolder())
@@ -398,19 +435,26 @@ struct DashboardReportsView: View {
                     }
                     .buttonStyle(.bordered)
 
+                    Button(L("reports.weekly.copy_selected")) {
+                        copyWeeklyToClipboard(date: appState.selectedDate)
+                    }
+                    .buttonStyle(.bordered)
+
                     Button(L("reports.weekly.generate_selected")) {
                         generateWeekly(date: appState.selectedDate)
                     }
                     .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("reports.generateWeeklySelected")
 
                     Button(L("reports.weekly.generate_this")) {
                         generateWeekly(date: Date())
                     }
                     .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("reports.generateWeeklyCurrent")
                 }
 
-                statusLine(weeklyStatus)
-                statusLine(lastRunLine(for: .weekly))
+                ExportStatusLine(status: weeklyStatus, accessibilityIdentifier: "reports.weeklyStatus")
+                ExportStatusLine(status: lastRunLine(for: .weekly), accessibilityIdentifier: "reports.weeklyLastRun")
 
                 if let diagnostics = settings.weeklyDiagnostics, diagnostics.errorDescription != nil {
                     diagnosticsView(
@@ -599,6 +643,7 @@ struct DashboardReportsView: View {
     }
 
     private func generateDaily(date: Date) {
+        TelemetryService.shared.increment("export_daily_clicked")
         dailyStatus = StatusMessage(text: L("reports.status.generating"), isError: false)
         ReportService.shared.generateDailyReport(date: date, notes: dailyNotes) { result in
             DispatchQueue.main.async {
@@ -618,7 +663,25 @@ struct DashboardReportsView: View {
         }
     }
 
+    private func copyDailyToClipboard(date: Date) {
+        TelemetryService.shared.increment("export_daily_copy_clicked")
+        dailyStatus = StatusMessage(text: L("reports.status.generating"), isError: false)
+        ReportService.shared.previewDailyReport(date: date, notes: dailyNotes) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let markdown):
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(markdown, forType: .string)
+                    dailyStatus = StatusMessage(text: L("reports.status.copied"), isError: false)
+                case .failure(let error):
+                    dailyStatus = StatusMessage(text: errorMessageWithReselectHint(error), isError: true)
+                }
+            }
+        }
+    }
+
     private func generateWeekly(date: Date) {
+        TelemetryService.shared.increment("export_weekly_clicked")
         weeklyStatus = StatusMessage(text: L("reports.status.generating"), isError: false)
         ReportService.shared.generateWeeklyReport(for: date, notes: weeklyNotes) { result in
             DispatchQueue.main.async {
@@ -633,6 +696,23 @@ struct DashboardReportsView: View {
                     weeklyStatus = StatusMessage(text: message, isError: true)
                     settings.recordExportResult(kind: .weekly, message: message, isError: true)
                     TelemetryService.shared.increment("export_weekly_failure")
+                }
+            }
+        }
+    }
+
+    private func copyWeeklyToClipboard(date: Date) {
+        TelemetryService.shared.increment("export_weekly_copy_clicked")
+        weeklyStatus = StatusMessage(text: L("reports.status.generating"), isError: false)
+        ReportService.shared.previewWeeklyReport(for: date, notes: weeklyNotes) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let markdown):
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(markdown, forType: .string)
+                    weeklyStatus = StatusMessage(text: L("reports.status.copied"), isError: false)
+                case .failure(let error):
+                    weeklyStatus = StatusMessage(text: errorMessageWithReselectHint(error), isError: true)
                 }
             }
         }
@@ -693,6 +773,7 @@ struct DashboardReportsView: View {
     }
 
     private func exportCsv() {
+        TelemetryService.shared.increment("export_csv_clicked")
         csvStatus = StatusMessage(text: L("reports.status.exporting"), isError: false)
         let range = csvExportRange()
         let columns = selectedCSVColumns
@@ -715,6 +796,7 @@ struct DashboardReportsView: View {
     }
 
     private func exportTimesheet() {
+        TelemetryService.shared.increment("export_timesheet_clicked")
         timesheetStatus = StatusMessage(text: L("reports.status.exporting"), isError: false)
         let range = csvExportRange()
         ReportService.shared.exportTimesheet(range: range) { result in
@@ -815,6 +897,12 @@ struct DashboardReportsView: View {
     }
 
     private func chooseFolder(onSelect: @escaping (URL) -> Void) {
+        if let uiTestFolder = AppRuntime.resolvedUITestFolderURL() {
+            try? FileManager.default.createDirectory(at: uiTestFolder, withIntermediateDirectories: true)
+            onSelect(uiTestFolder)
+            return
+        }
+
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
@@ -917,14 +1005,6 @@ struct DashboardReportsView: View {
         String(format: L("reports.reselect_hint"), error.localizedDescription)
     }
 
-    @ViewBuilder
-    private func statusLine(_ status: StatusMessage?) -> some View {
-        if let status {
-            Text(status.text)
-                .font(.caption)
-                .foregroundColor(status.isError ? .red : .secondary)
-        }
-    }
 }
 
 private enum CSVRangeMode: String, CaseIterable, Identifiable {
@@ -949,17 +1029,7 @@ private enum CSVRangeMode: String, CaseIterable, Identifiable {
     }
 }
 
-#Preview {
-    DashboardReportsView()
-        .environmentObject(AppState.shared)
-}
-
-private struct StatusMessage {
-    let text: String
-    let isError: Bool
-}
-
-private extension DashboardReportsView {
+private extension ReportsWorkspaceView {
     static let statusDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateStyle = .short

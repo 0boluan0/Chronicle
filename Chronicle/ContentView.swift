@@ -11,18 +11,11 @@ import Combine
 struct ContentView: View {
     @EnvironmentObject private var appState: AppState
     @ObservedObject private var reportSettings = ReportSettings.shared
-    @ObservedObject private var healthCheckService = HealthCheckService.shared
 
-    enum Tab: String, CaseIterable {
-        case timeline
-        case stats
-    }
-
-    @AppStorage("popover.selectedTab") private var selectionRaw = Tab.timeline.rawValue
     @AppStorage("popover.dailyReviewReminderDismissedDay") private var dismissedDailyReviewDay = ""
+    @AppStorage("telemetry.dailyReviewReminderLastShownDay") private var lastDailyReviewReminderShownDay = ""
     @State private var dailySnapshot = DailySnapshot.empty
     @State private var isSnapshotLoading = false
-    @State private var showHealthDetails = false
     @State private var now = Date()
     private let reminderRefreshTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
 
@@ -36,101 +29,64 @@ struct ContentView: View {
                 Spacer()
 
                 Button {
-                    DashboardWindowController.shared.show()
+                    TelemetryService.shared.increment("dashboard_opened")
+                    AppWindowRouter.shared.open(.dashboard)
                 } label: {
                     Label(LocalizedStringKey("popover.open_dashboard"), systemImage: "rectangle.3.group")
                         .labelStyle(.titleAndIcon)
                 }
                 .buttonStyle(.bordered)
+                .accessibilityIdentifier("popover.openDashboard")
 
                 Button {
-                    PreferencesWindowController.shared.show()
+                    TelemetryService.shared.increment("preferences_opened")
+                    AppWindowRouter.shared.open(.settings())
                 } label: {
                     Label(LocalizedStringKey("popover.open_preferences"), systemImage: "gearshape")
                         .labelStyle(.titleAndIcon)
                 }
                 .buttonStyle(.bordered)
+                .accessibilityIdentifier("popover.openPreferences")
             }
 
-            healthStatusView
+            trackingStatusView
             dailySnapshotView
-            exportStatusView
-            if shouldShowDailyReviewReminder {
-                dailyReviewReminderView
-            }
-
-            Picker("", selection: selectionBinding) {
-                Text(LocalizedStringKey("dashboard.timeline")).tag(Tab.timeline)
-                Text(LocalizedStringKey("dashboard.stats")).tag(Tab.stats)
-            }
-            .pickerStyle(.segmented)
-            .tint(DesignSystem.Colors.accentSkyBlue)
-
-            Divider()
-
-            Group {
-                switch selectedTab {
-                case .timeline:
-                    TimelineView(embedInPopover: true)
-                case .stats:
-                    StatsView(embedInPopover: true)
-                }
-            }
+            nextActionsView
         }
         .padding(DesignSystem.Spacing.lg)
         .frame(width: 480, height: 640)
         .background(DesignSystem.Colors.background)
         .onAppear {
             refreshDailySnapshot(reason: "popover opened")
-            if healthCheckService.lastReport == nil && !healthCheckService.isRunning {
-                healthCheckService.runQuickChecks()
-            }
         }
         .onReceive(NotificationCenter.default.publisher(for: ActivityTracker.didRecordSessionNotification)) { _ in
             refreshDailySnapshot(reason: "activity updated")
         }
-        .onChange(of: appState.countOverlaysInTotals) { _ in
+        .onChange(of: appState.countOverlaysInTotals) { _, _ in
             refreshDailySnapshot(reason: "overlay counting changed")
         }
         .onReceive(reminderRefreshTimer) { value in
             now = value
         }
-        .sheet(isPresented: $showHealthDetails) {
-            HealthCheckDetailsView(onClose: { showHealthDetails = false })
-                .environmentObject(appState)
-        }
     }
 
-    @ViewBuilder
-    private var healthStatusView: some View {
+    private var trackingStatusView: some View {
         SectionCard {
             HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
-                Image(systemName: healthStatusIconName)
-                    .foregroundColor(healthStatusColor)
+                Image(systemName: appState.trackingPaused ? "pause.circle.fill" : "record.circle")
+                    .foregroundColor(appState.trackingPaused ? Color(nsColor: .systemOrange) : Color(nsColor: .systemGreen))
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(healthStatusText)
-                        .font(DesignSystem.Typography.caption)
-                        .foregroundColor(DesignSystem.Colors.primaryText)
-                    if let checkedAt = healthCheckService.lastReport?.checkedAt {
-                        Text(String(format: L("popover.self_check.checked_at"), Self.timeFormatter.string(from: checkedAt)))
-                            .font(DesignSystem.Typography.caption)
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
-                    }
-                }
+                Text(appState.trackingPaused ? L("popover.tracking.paused") : L("popover.tracking.running"))
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.primaryText)
 
                 Spacer()
 
-                Button(L("popover.self_check.details")) {
-                    showHealthDetails = true
+                Button(appState.trackingPaused ? L("popover.tracking.resume") : L("popover.tracking.pause")) {
+                    appState.trackingPaused.toggle()
                 }
                 .buttonStyle(.bordered)
-
-                Button(L("popover.self_check.run")) {
-                    healthCheckService.runQuickChecks()
-                }
-                .buttonStyle(.bordered)
-                .disabled(healthCheckService.isRunning)
+                .accessibilityIdentifier("popover.toggleTracking")
             }
         }
     }
@@ -187,18 +143,142 @@ struct ContentView: View {
 
                 HStack(spacing: DesignSystem.Spacing.sm) {
                     Button(L("popover.action.quick_marker")) {
-                        QuickMarkerPanelController.shared.toggle()
+                        AppWindowRouter.shared.open(.quickMarker)
                     }
                     .buttonStyle(.bordered)
+                    .accessibilityIdentifier("popover.quickMarker")
 
-                    Button(L("popover.action.export_daily")) {
-                        exportDailyNow()
+                    Button(hasDailyExportFolderConfigured ? L("popover.action.export_daily") : L("popover.action.setup_exports")) {
+                        if hasDailyExportFolderConfigured {
+                            exportDailyNow()
+                        } else {
+                            openExportPreferences()
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(DesignSystem.Colors.accentSkyBlue)
+                    .accessibilityIdentifier("popover.primaryAction")
+
+                    Button(L("popover.action.open_daily_folder")) {
+                        openDailyFolder()
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(!hasDailyExportFolderConfigured)
+                    .accessibilityIdentifier("popover.openDailyFolder")
+
+                    Spacer()
+                }
+
+                if !hasDailyExportFolderConfigured {
+                    Text(L("popover.export_status.setup_hint"))
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                }
+            }
+        }
+    }
+
+    private var nextActionsView: some View {
+        SectionCard(title: "popover.next_actions.title") {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                Text(currentExportMessage)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(currentExportIsError ? .red : DesignSystem.Colors.secondaryText)
+
+                Text(lastDailyExportLine)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+
+                if shouldShowDailyReviewReminder {
+                    Text(String(format: L("popover.daily_review.body"), dailyReviewReminderTimeText))
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                } else if shouldShowTaggingSetupPrompt {
+                    Text(L("popover.tags_prompt.body"))
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                } else {
+                    Text(L("popover.next_actions.ready"))
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                }
+
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    if shouldShowDailyReviewReminder {
+                        Button(L("popover.daily_review.export_now")) {
+                            exportDailyNow()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(DesignSystem.Colors.accentSkyBlue)
+                        .accessibilityIdentifier("popover.nextActionExport")
+
+                        Button(L("popover.daily_review.dismiss_today")) {
+                            dismissedDailyReviewDay = ReportService.dayKey(for: now)
+                        }
+                        .buttonStyle(.bordered)
+                        .accessibilityIdentifier("popover.dismissReminder")
+                    } else if shouldShowTaggingSetupPrompt {
+                        Button(L("popover.tags_prompt.open_wizard")) {
+                            openTaggingWizardPreferences()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(DesignSystem.Colors.accentSkyBlue)
+                        .accessibilityIdentifier("popover.openTagWizard")
+
+                        Button(L("popover.tags_prompt.open_preferences")) {
+                            AppWindowRouter.shared.open(.settings(.tagsRules))
+                        }
+                        .buttonStyle(.bordered)
+                        .accessibilityIdentifier("popover.openTagsPreferences")
+                    } else if !hasDailyExportFolderConfigured {
+                        Button(L("popover.action.setup_exports")) {
+                            openExportPreferences()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(DesignSystem.Colors.accentSkyBlue)
+                        .accessibilityIdentifier("popover.setupExports")
+                    } else {
+                        Button(L("popover.open_dashboard")) {
+                            AppWindowRouter.shared.open(.dashboard)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(DesignSystem.Colors.accentSkyBlue)
+                        .accessibilityIdentifier("popover.nextActionDashboard")
+
+                        Button(L("popover.open_preferences")) {
+                            AppWindowRouter.shared.open(.settings())
+                        }
+                        .buttonStyle(.bordered)
+                        .accessibilityIdentifier("popover.nextActionPreferences")
+                    }
+
+                    Spacer()
+                }
+            }
+        }
+        .onAppear {
+            if shouldShowDailyReviewReminder {
+                trackDailyReviewReminderShown(referenceDate: now)
+            }
+        }
+    }
+
+    private var tagSetupPromptView: some View {
+        SectionCard(title: "popover.tags_prompt.title") {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                Text(L("popover.tags_prompt.body"))
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    Button(L("popover.tags_prompt.open_wizard")) {
+                        openTaggingWizardPreferences()
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(DesignSystem.Colors.accentSkyBlue)
 
-                    Button(L("popover.action.open_daily_folder")) {
-                        openDailyFolder()
+                    Button(L("popover.tags_prompt.open_preferences")) {
+                        AppWindowRouter.shared.open(.settings(.tagsRules))
                     }
                     .buttonStyle(.bordered)
 
@@ -236,7 +316,7 @@ struct ContentView: View {
                     .tint(DesignSystem.Colors.accentSkyBlue)
 
                     Button(L("popover.daily_review.open_dashboard")) {
-                        DashboardWindowController.shared.show()
+                        AppWindowRouter.shared.open(.dashboard)
                     }
                     .buttonStyle(.bordered)
 
@@ -249,17 +329,9 @@ struct ContentView: View {
                 }
             }
         }
-    }
-
-    private var selectedTab: Tab {
-        Tab(rawValue: selectionRaw) ?? .timeline
-    }
-
-    private var selectionBinding: Binding<Tab> {
-        Binding(
-            get: { selectedTab },
-            set: { selectionRaw = $0.rawValue }
-        )
+        .onAppear {
+            trackDailyReviewReminderShown()
+        }
     }
 
     private var currentExportMessage: String {
@@ -307,70 +379,20 @@ struct ContentView: View {
         return !Calendar.current.isDate(lastExportDate, inSameDayAs: now)
     }
 
+    private var hasDailyExportFolderConfigured: Bool {
+        reportSettings.dailyFolderBookmark != nil
+    }
+
+    private var shouldShowTaggingSetupPrompt: Bool {
+        dailySnapshot.activeSeconds >= 2 * 60 * 60 &&
+        dailySnapshot.topTagName == L("popover.daily_snapshot.untagged")
+    }
+
     private var dailyReviewReminderTimeText: String {
         let minutes = appState.dailyReviewReminderTimeMinutes
         let hour = minutes / 60
         let minute = minutes % 60
         return String(format: "%02d:%02d", hour, minute)
-    }
-
-    private var healthStatusText: String {
-        if healthCheckService.isRunning {
-            return L("popover.self_check.running")
-        }
-        if let error = healthCheckService.lastError, !error.isEmpty {
-            return String(format: L("popover.self_check.error_detail"), error)
-        }
-        guard let report = healthCheckService.lastReport else {
-            return L("popover.self_check.not_run")
-        }
-        let errorCount = report.issues.filter { $0.severity == .error }.count
-        let warningCount = report.issues.filter { $0.severity == .warning }.count
-        if errorCount > 0 {
-            return String(format: L("popover.self_check.error_count"), errorCount)
-        }
-        if warningCount > 0 {
-            return String(format: L("popover.self_check.warning_count"), warningCount)
-        }
-        return L("popover.self_check.ok")
-    }
-
-    private var healthStatusIconName: String {
-        if healthCheckService.isRunning {
-            return "arrow.triangle.2.circlepath"
-        }
-        if healthCheckService.lastError != nil {
-            return "xmark.octagon.fill"
-        }
-        guard let report = healthCheckService.lastReport else {
-            return "questionmark.circle"
-        }
-        if report.issues.contains(where: { $0.severity == .error }) {
-            return "xmark.octagon.fill"
-        }
-        if report.issues.contains(where: { $0.severity == .warning }) {
-            return "exclamationmark.triangle.fill"
-        }
-        return "checkmark.seal.fill"
-    }
-
-    private var healthStatusColor: Color {
-        if healthCheckService.isRunning {
-            return DesignSystem.Colors.secondaryText
-        }
-        if healthCheckService.lastError != nil {
-            return Color(nsColor: .systemRed)
-        }
-        guard let report = healthCheckService.lastReport else {
-            return DesignSystem.Colors.secondaryText
-        }
-        if report.issues.contains(where: { $0.severity == .error }) {
-            return Color(nsColor: .systemRed)
-        }
-        if report.issues.contains(where: { $0.severity == .warning }) {
-            return Color(nsColor: .systemOrange)
-        }
-        return Color(nsColor: .systemGreen)
     }
 
     @ViewBuilder
@@ -498,6 +520,13 @@ struct ContentView: View {
     }
 
     private func exportDailyNow() {
+        TelemetryService.shared.increment("export_daily_clicked")
+        guard hasDailyExportFolderConfigured else {
+            appState.exportNowMessage = L("reports.folder.not_set")
+            appState.exportNowMessageIsError = true
+            openExportPreferences()
+            return
+        }
         appState.exportNowMessage = L("menu.exporting")
         appState.exportNowMessageIsError = false
         ReportService.shared.generateDailyReport(date: Date()) { result in
@@ -528,6 +557,21 @@ struct ContentView: View {
             appState.exportNowMessage = String(format: L("export.now.failed"), error.localizedDescription)
             appState.exportNowMessageIsError = true
         }
+    }
+
+    private func openExportPreferences() {
+        AppWindowRouter.shared.open(.settings(.export))
+    }
+
+    private func openTaggingWizardPreferences() {
+        AppWindowRouter.shared.open(.settings(.tagWizard))
+    }
+
+    private func trackDailyReviewReminderShown(referenceDate: Date = Date()) {
+        let dayKey = ReportService.dayKey(for: referenceDate)
+        guard lastDailyReviewReminderShownDay != dayKey else { return }
+        lastDailyReviewReminderShownDay = dayKey
+        TelemetryService.shared.increment("daily_review_reminder_shown")
     }
 
     private func formatDuration(_ seconds: Int64) -> String {

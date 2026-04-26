@@ -24,6 +24,7 @@ final class ActivityTracker {
     private var observer: NSObjectProtocol?
     private var idleDetector: IdleDetector?
     private var idleEnabledCancellable: AnyCancellable?
+    private var trackingPausedCancellable: AnyCancellable?
     private var idleSettingsCancellables: Set<AnyCancellable> = []
     private var trackingSettingsCancellables: Set<AnyCancellable> = []
     private var idleSettingsWorkItem: DispatchWorkItem?
@@ -60,6 +61,7 @@ final class ActivityTracker {
 
         configureIdleDetection()
         configureTrackingQuality()
+        configureTrackingPauseState()
         normalizer.scheduleCompactionIfNeeded()
 
         AppLogger.log("Activity tracker started", category: "tracker")
@@ -72,6 +74,8 @@ final class ActivityTracker {
         }
         idleEnabledCancellable?.cancel()
         idleEnabledCancellable = nil
+        trackingPausedCancellable?.cancel()
+        trackingPausedCancellable = nil
         trackingSettingsCancellables.removeAll()
         idleDetector?.stop()
         idleDetector = nil
@@ -79,6 +83,7 @@ final class ActivityTracker {
     }
 
     private func handleActivation(_ app: NSRunningApplication, immediate: Bool) {
+        guard !appState.trackingPaused else { return }
         let appName = app.localizedName ?? app.bundleIdentifier ?? "Unknown"
         let bundleId = app.bundleIdentifier
         let rawWindowTitle = Self.shouldCaptureWindowTitle(
@@ -225,22 +230,27 @@ final class ActivityTracker {
         suppressIdleWhileMediaPlaying = appState.suppressIdleWhileMediaPlaying
         idleResumeGraceSeconds = appState.idleResumeGraceSeconds
 
-        rebuildIdleDetector(startIfEnabled: appState.idleDetectionEnabled)
+        rebuildIdleDetector(startIfEnabled: appState.idleDetectionEnabled && !appState.trackingPaused)
+    }
+
+    private func configureTrackingPauseState() {
+        applyTrackingPausedState(appState.trackingPaused)
+        trackingPausedCancellable = appState.$trackingPaused
+            .removeDuplicates()
+            .dropFirst()
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] paused in
+                self?.applyTrackingPausedState(paused)
+            }
     }
 
     private func setIdleDetectionEnabled(_ enabled: Bool) {
         queue.async { [self] in
-            if enabled {
+            if enabled && !appState.trackingPaused {
                 idleDetector?.start()
             } else {
                 idleDetector?.stop()
-                DispatchQueue.main.async {
-                    self.appState.isIdle = false
-                    self.appState.idleSeconds = 0
-                    self.appState.idleSuppressionMediaPlaying = false
-                    self.appState.idleSuppressionFrontmostAllowed = false
-                    self.appState.idleSuppressionResumeGrace = false
-                }
+                clearIdleStatus()
             }
         }
     }
@@ -275,7 +285,7 @@ final class ActivityTracker {
     private func rebuildIdleDetector(startIfEnabled enabled: Bool) {
         idleDetector?.stop()
         idleDetector = makeIdleDetector()
-        if enabled {
+        if enabled && !appState.trackingPaused {
             idleDetector?.start()
         }
     }
@@ -304,6 +314,7 @@ final class ActivityTracker {
     }
 
     private func handleIdleStateChange(_ state: IdleDetector.State, idleSeconds: TimeInterval) {
+        guard !appState.trackingPaused else { return }
         let now = Date()
         if state == .idle {
             let payload = RawEventPayload.idle(idleSeconds: idleSeconds).toJSONString()
@@ -398,6 +409,7 @@ final class ActivityTracker {
     }
 
     private func enqueueRawEvent(_ event: RawEvent, process: @escaping () -> Void) {
+        guard !appState.trackingPaused else { return }
         eventQueue.async {
             let semaphore = DispatchSemaphore(value: 0)
             DatabaseService.shared.insertRawEvent(event) { result in
@@ -410,6 +422,36 @@ final class ActivityTracker {
                 semaphore.signal()
             }
             semaphore.wait()
+        }
+    }
+
+    private func applyTrackingPausedState(_ paused: Bool) {
+        if paused {
+            normalizer.flushCurrentSession(timestamp: Date())
+            queue.async {
+                self.idleDetector?.stop()
+            }
+            clearIdleStatus()
+            return
+        }
+
+        if appState.idleDetectionEnabled {
+            queue.async {
+                self.idleDetector?.start()
+            }
+        }
+        if let app = NSWorkspace.shared.frontmostApplication {
+            handleActivation(app, immediate: true)
+        }
+    }
+
+    private func clearIdleStatus() {
+        DispatchQueue.main.async {
+            self.appState.isIdle = false
+            self.appState.idleSeconds = 0
+            self.appState.idleSuppressionMediaPlaying = false
+            self.appState.idleSuppressionFrontmostAllowed = false
+            self.appState.idleSuppressionResumeGrace = false
         }
     }
 

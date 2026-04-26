@@ -44,4 +44,8 @@ final class DashboardWindowController {
     func updateTitle() {
         window?.title = L("dashboard.title")
     }
+
+    func close() {
+        window?.performClose(nil)
+    }
 }

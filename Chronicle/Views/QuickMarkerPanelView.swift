@@ -20,7 +20,7 @@ struct QuickMarkerPanelView: View {
                 timestampProvider: { Date() },
                 autoFocus: true,
                 triggerSource: .hotkey,
-                onSubmit: onClose,
+                onSubmit: AppRuntime.isUITestMode ? nil : onClose,
                 onCancel: onClose
             )
         }

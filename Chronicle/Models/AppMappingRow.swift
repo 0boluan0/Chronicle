@@ -14,14 +14,14 @@ enum AppTaggingMode: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    var displayName: String {
+    var titleKey: String {
         switch self {
         case .auto:
-            return "Auto"
+            return "app_mapping.mode.auto"
         case .mappingOnly:
-            return "Mapping only"
+            return "app_mapping.mode.mapping_only"
         case .manualOnly:
-            return "Manual only"
+            return "app_mapping.mode.manual_only"
         }
     }
 

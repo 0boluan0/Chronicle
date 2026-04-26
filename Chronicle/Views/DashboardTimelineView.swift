@@ -123,6 +123,7 @@ struct DashboardTimelineView: View {
             selectedDate: $appState.selectedDate,
             isLoading: isLoading,
             isTodaySelected: isTodaySelected,
+            accessibilityPrefix: "dashboard.timeline",
             onPreviousDay: { shiftDate(by: -1) },
             onNextDay: { shiftDate(by: 1) },
             onToday: { appState.selectedDate = Date() }
@@ -135,29 +136,33 @@ struct DashboardTimelineView: View {
                 HStack(spacing: DesignSystem.Spacing.sm) {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(DesignSystem.Colors.secondaryText)
-                    TextField("Search apps, window titles, or markers", text: $appState.searchQuery)
+                    TextField("dashboard.timeline.search", text: $appState.searchQuery)
                         .textFieldStyle(.roundedBorder)
+                        .accessibilityIdentifier("dashboard.timeline.search")
                 }
 
                 HStack(spacing: DesignSystem.Spacing.md) {
                     Picker("Tag", selection: $appState.selectedTagFilterId) {
-                        Text("All Tags").tag(Int64(-1))
-                        Text("Untagged").tag(untaggedFilterValue)
+                        Text("dashboard.timeline.all_tags").tag(Int64(-1))
+                        Text("popover.daily_snapshot.untagged").tag(untaggedFilterValue)
                         ForEach(tags) { tag in
                             Text(tag.name).tag(tag.id)
                         }
                     }
                     .frame(width: 200)
+                    .accessibilityIdentifier("dashboard.timeline.tagFilter")
 
-                    Picker("App", selection: $appState.selectedAppFilterName) {
+                    Picker("dashboard.timeline.app_filter", selection: $appState.selectedAppFilterName) {
                         ForEach(appFilterOptions, id: \.self) { name in
                             Text(name).tag(name)
                         }
                     }
                     .frame(width: 220)
+                    .accessibilityIdentifier("dashboard.timeline.appFilter")
 
-                    Toggle("Include Idle", isOn: $appState.includeIdleInTimeline)
+                    Toggle("dashboard.timeline.include_idle", isOn: $appState.includeIdleInTimeline)
                         .toggleStyle(.switch)
+                        .accessibilityIdentifier("dashboard.timeline.includeIdle")
 
                     Picker("Range", selection: $appState.dateRangeMode) {
                         ForEach(DateRangeMode.allCases) { range in
@@ -167,6 +172,7 @@ struct DashboardTimelineView: View {
                     .pickerStyle(.segmented)
                     .tint(DesignSystem.Colors.accentSkyBlue)
                     .frame(width: 200)
+                    .accessibilityIdentifier("dashboard.timeline.range")
 
                     Spacer()
 
@@ -174,6 +180,7 @@ struct DashboardTimelineView: View {
                         toggleBatchMode()
                     }
                     .buttonStyle(.bordered)
+                    .accessibilityIdentifier("dashboard.timeline.batch")
                 }
             }
         }
@@ -450,6 +457,25 @@ struct DashboardTimelineView: View {
                 setUserOverride(activity: activity, tagId: tag.id)
             }
         }
+        if !activity.isIdle {
+            Divider()
+            Menu(L("timeline.rule.create_for_app")) {
+                ForEach(tags) { tag in
+                    Button(tag.name) {
+                        createRuleForApp(activity: activity, tag: tag)
+                    }
+                }
+            }
+            if let title = normalizedWindowTitle(for: activity), !title.isEmpty {
+                Menu(L("timeline.rule.create_for_window")) {
+                    ForEach(tags) { tag in
+                        Button(tag.name) {
+                            createRuleForWindowTitle(activity: activity, tag: tag, windowTitle: title)
+                        }
+                    }
+                }
+            }
+        }
     }
 
     @ViewBuilder
@@ -493,6 +519,68 @@ struct DashboardTimelineView: View {
         }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(lines.joined(separator: "\n"), forType: .string)
+    }
+
+    private func createRuleForApp(activity: ActivityRow, tag: TagRow) {
+        let bundleId = activity.bundleId?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let normalizedBundleId = bundleId?.isEmpty == true ? nil : bundleId
+        let appName = activity.appName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let ruleName = String(format: L("timeline.rule.name.app"), appName, tag.name)
+
+        DatabaseService.shared.insertRule(
+            name: ruleName,
+            enabled: true,
+            matchBundleId: normalizedBundleId,
+            matchAppName: normalizedBundleId == nil ? appName : nil,
+            matchWindowTitle: nil,
+            matchMode: .equals,
+            tagId: tag.id,
+            priority: 5
+        ) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    TelemetryService.shared.increment("rule_created_from_context")
+                    self.refreshData(reason: "rule from app context", resetLimit: false)
+                case .failure(let error):
+                    AppLogger.log("Create app rule from timeline failed: \(error.localizedDescription)", category: "ui")
+                }
+            }
+        }
+    }
+
+    private func createRuleForWindowTitle(activity: ActivityRow, tag: TagRow, windowTitle: String) {
+        let appName = activity.appName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let ruleName = String(format: L("timeline.rule.name.window"), appName, tag.name)
+
+        DatabaseService.shared.insertRule(
+            name: ruleName,
+            enabled: true,
+            matchBundleId: activity.bundleId,
+            matchAppName: activity.bundleId == nil ? appName : nil,
+            matchWindowTitle: windowTitle,
+            matchMode: .contains,
+            tagId: tag.id,
+            priority: 6
+        ) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    TelemetryService.shared.increment("rule_created_from_context")
+                    self.refreshData(reason: "rule from window context", resetLimit: false)
+                case .failure(let error):
+                    AppLogger.log("Create window rule from timeline failed: \(error.localizedDescription)", category: "ui")
+                }
+            }
+        }
+    }
+
+    private func normalizedWindowTitle(for activity: ActivityRow) -> String? {
+        guard let raw = activity.windowTitle?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !raw.isEmpty else {
+            return nil
+        }
+        return raw
     }
 
     private func copyMarkerDetails(_ marker: MarkerRow) {

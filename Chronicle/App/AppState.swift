@@ -121,7 +121,12 @@ final class AppState: ObservableObject {
         didSet { defaults.set(ignoreChronicleSelf, forKey: Keys.ignoreChronicleSelf) }
     }
     @Published var windowTitleCaptureEnabled: Bool {
-        didSet { defaults.set(windowTitleCaptureEnabled, forKey: Keys.windowTitleCaptureEnabled) }
+        didSet {
+            defaults.set(windowTitleCaptureEnabled, forKey: Keys.windowTitleCaptureEnabled)
+            if windowTitleCaptureEnabled && !oldValue {
+                TelemetryService.shared.increment("window_title_capture_enabled")
+            }
+        }
     }
     @Published var windowTitlePrivacyMode: WindowTitlePrivacyMode {
         didSet { defaults.set(windowTitlePrivacyMode.rawValue, forKey: Keys.windowTitlePrivacyMode) }
@@ -130,7 +135,12 @@ final class AppState: ObservableObject {
         didSet { defaults.set(windowTitleBlockedBundleIDs, forKey: Keys.windowTitleBlockedBundleIDs) }
     }
     @Published var accessibilityAuthorized: Bool {
-        didSet { defaults.set(accessibilityAuthorized, forKey: Keys.accessibilityAuthorized) }
+        didSet {
+            defaults.set(accessibilityAuthorized, forKey: Keys.accessibilityAuthorized)
+            if accessibilityAuthorized && !oldValue {
+                TelemetryService.shared.increment("accessibility_permission_granted")
+            }
+        }
     }
     @Published var quickMarkerMode: QuickMarkerMode {
         didSet { defaults.set(quickMarkerMode.rawValue, forKey: Keys.quickMarkerMode) }
@@ -143,6 +153,9 @@ final class AppState: ObservableObject {
     }
     @Published var launchAtLoginEnabled: Bool {
         didSet { defaults.set(launchAtLoginEnabled, forKey: Keys.launchAtLoginEnabled) }
+    }
+    @Published var showDockIcon: Bool {
+        didSet { defaults.set(showDockIcon, forKey: Keys.showDockIcon) }
     }
     @Published var idleDetectionEnabled: Bool {
         didSet { defaults.set(idleDetectionEnabled, forKey: Keys.idleDetectionEnabled) }
@@ -177,6 +190,12 @@ final class AppState: ObservableObject {
     @Published var dailyReviewReminderTimeMinutes: Int {
         didSet { defaults.set(Self.clampMinutesOfDay(dailyReviewReminderTimeMinutes), forKey: Keys.dailyReviewReminderTimeMinutes) }
     }
+    @Published var dailyReviewSystemNotificationEnabled: Bool {
+        didSet { defaults.set(dailyReviewSystemNotificationEnabled, forKey: Keys.dailyReviewSystemNotificationEnabled) }
+    }
+    @Published var trackingPaused: Bool {
+        didSet { defaults.set(trackingPaused, forKey: Keys.trackingPaused) }
+    }
     @Published var isIdle = false
     @Published var idleSeconds = 0
     @Published var idleSuppressionMediaPlaying = false
@@ -207,7 +226,7 @@ final class AppState: ObservableObject {
     private let defaults: UserDefaults
 
     private convenience init() {
-        self.init(defaults: .standard)
+        self.init(defaults: AppRuntime.configuredDefaults())
     }
 
     private init(defaults: UserDefaults) {
@@ -219,11 +238,12 @@ final class AppState: ObservableObject {
            let mode = WindowTitlePrivacyMode(rawValue: raw) {
             windowTitlePrivacyMode = mode
         } else {
-            windowTitlePrivacyMode = .raw
+            windowTitlePrivacyMode = .hashed
         }
         windowTitleBlockedBundleIDs = defaults.stringArray(forKey: Keys.windowTitleBlockedBundleIDs) ?? []
         accessibilityAuthorized = defaults.object(forKey: Keys.accessibilityAuthorized) as? Bool ?? false
         launchAtLoginEnabled = defaults.object(forKey: Keys.launchAtLoginEnabled) as? Bool ?? false
+        showDockIcon = defaults.object(forKey: Keys.showDockIcon) as? Bool ?? false
         trackingAggregationEnabled = defaults.object(forKey: Keys.trackingAggregationEnabled) as? Bool ?? true
         minSessionDurationSeconds = defaults.object(forKey: Keys.minSessionDurationSeconds) as? Int ?? 5
         mergeGapSeconds = defaults.object(forKey: Keys.mergeGapSeconds) as? Int ?? 3
@@ -264,6 +284,8 @@ final class AppState: ObservableObject {
         telemetryEnabled = defaults.object(forKey: Keys.telemetryEnabled) as? Bool ?? false
         dailyReviewReminderEnabled = defaults.object(forKey: Keys.dailyReviewReminderEnabled) as? Bool ?? true
         dailyReviewReminderTimeMinutes = Self.clampMinutesOfDay(defaults.object(forKey: Keys.dailyReviewReminderTimeMinutes) as? Int ?? 18 * 60)
+        dailyReviewSystemNotificationEnabled = defaults.object(forKey: Keys.dailyReviewSystemNotificationEnabled) as? Bool ?? false
+        trackingPaused = defaults.object(forKey: Keys.trackingPaused) as? Bool ?? false
         if let storedMode = defaults.string(forKey: Keys.quickMarkerMode),
            let mode = QuickMarkerMode(rawValue: storedMode) {
             quickMarkerMode = mode
@@ -292,6 +314,7 @@ final class AppState: ObservableObject {
         static let quickMarkerAction = "settings.quickMarkerAction"
         static let quickMarkerLastText = "settings.quickMarkerLastText"
         static let launchAtLoginEnabled = "settings.launchAtLoginEnabled"
+        static let showDockIcon = "settings.showDockIcon"
         static let trackingAggregationEnabled = "settings.trackingAggregationEnabled"
         static let minSessionDurationSeconds = "settings.minSessionDurationSeconds"
         static let mergeGapSeconds = "settings.mergeGapSeconds"
@@ -319,6 +342,8 @@ final class AppState: ObservableObject {
         static let telemetryEnabled = "settings.telemetryEnabled"
         static let dailyReviewReminderEnabled = "settings.dailyReviewReminderEnabled"
         static let dailyReviewReminderTimeMinutes = "settings.dailyReviewReminderTimeMinutes"
+        static let dailyReviewSystemNotificationEnabled = "settings.dailyReviewSystemNotificationEnabled"
+        static let trackingPaused = "settings.trackingPaused"
     }
 
     static let defaultWindowTitleCaptureEnabled = false
@@ -440,16 +465,46 @@ nonisolated final class TelemetryService {
 
     private static let counterKeys: [String] = [
         "app_launch",
+        "onboarding_started",
+        "popover_opened",
+        "dashboard_opened",
+        "preferences_opened",
+        "support_opened",
+        "onboarding_completed",
+        "onboarding_skipped",
         "menu_export_daily_success",
         "menu_export_daily_failure",
+        "menu_export_daily_clicked",
         "export_daily_success",
         "export_daily_failure",
+        "export_daily_clicked",
+        "export_daily_copy_clicked",
         "export_weekly_success",
         "export_weekly_failure",
+        "export_weekly_clicked",
+        "export_weekly_copy_clicked",
         "export_csv_success",
         "export_csv_failure",
+        "export_csv_clicked",
         "export_timesheet_success",
         "export_timesheet_failure",
+        "export_timesheet_clicked",
+        "export_folder_set_daily",
+        "export_folder_set_weekly",
+        "export_folder_set_csv",
+        "quick_marker_opened",
+        "marker_point_created",
+        "marker_span_started",
+        "marker_span_stopped",
+        "tag_created",
+        "wizard_opened",
+        "wizard_applied",
+        "rule_created_from_context",
+        "window_title_capture_enabled",
+        "accessibility_permission_prompted",
+        "accessibility_permission_granted",
+        "daily_review_reminder_shown",
+        "daily_review_notification_sent",
         "diagnostics_export_success",
         "diagnostics_export_failure",
         "feedback_bundle_success",

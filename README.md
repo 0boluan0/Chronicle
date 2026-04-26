@@ -66,8 +66,20 @@
 
 - Open `Chronicle.xcodeproj` in Xcode.
 - Select the `Chronicle` scheme and Run.
-- Run tests:
-  - `xcodebuild -project Chronicle.xcodeproj -scheme Chronicle -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO test`
+- Local build/run entrypoint:
+  - `./script/build_and_run.sh`
+- Unit tests:
+  - `xcodebuild -project Chronicle.xcodeproj -scheme Chronicle -configuration Debug -destination 'platform=macOS,arch=arm64' -derivedDataPath /tmp/chronicle-deriveddata-unit CODE_SIGNING_ALLOWED=NO test`
+- UI smoke tests:
+  - `./script/run_ui_smoke.sh all`
+
+### UI Smoke Prerequisite
+
+macOS UI automation requires a one-time machine-level setup on dedicated test machines. If `./script/run_ui_smoke.sh` reports that Automation Mode still requires user authentication, run this once as an administrator:
+
+- `sudo automationmodetool enable-automationmode-without-authentication`
+
+The UI smoke flow uses isolated temporary app-support and export folders, so it does not touch your live Chronicle database.
 
 ## Custom CSV Analysis
 
@@ -90,7 +102,7 @@ See [`scripts/csv-analysis/README.md`](scripts/csv-analysis/README.md) for detai
 
 ## Current Status
 
-This project is under active development. Expect frequent changes and occasional breakage while backend refactors land.
+Chronicle is in public beta hardening. Core workflows are usable; release quality now focuses on onboarding, export reliability, localization coverage, and beta validation on dedicated macOS runners.
 
 ## Docs
 
