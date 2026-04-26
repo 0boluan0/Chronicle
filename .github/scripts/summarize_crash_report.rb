@@ -3,7 +3,13 @@
 require "json"
 
 path = ARGV.fetch(0)
-data = JSON.parse(File.read(path))
+content = File.read(path)
+data = begin
+  JSON.parse(content)
+rescue JSON::ParserError
+  _, report = content.split("\n", 2)
+  JSON.parse(report || content)
+end
 images = Array(data["usedImages"])
 
 image_name = lambda do |index|
