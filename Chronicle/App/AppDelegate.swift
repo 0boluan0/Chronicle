@@ -40,6 +40,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         _ = AppRuntime.prepareUITestDefaultsIfNeeded()
+        if AppRuntime.isRunningUnitTests && !AppRuntime.isUITestMode {
+            AppLogger.log("Unit test launch: app services skipped", category: "app")
+            return
+        }
         configureActivationPolicyUpdates()
         if !AppRuntime.isUITestMode {
             configurePopover()
@@ -88,6 +92,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        guard !AppRuntime.disablesRuntimeServices else {
+            return
+        }
         activityTracker.stop()
         MarkerSpanService.shared.endAllOpenSpans(at: Date())
         HotKeyManager.shared.unregister()

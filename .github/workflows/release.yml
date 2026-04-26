@@ -18,6 +18,8 @@ jobs:
     runs-on: macos-latest
     env:
       RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+      LANG: en_US.UTF-8
+      LC_ALL: en_US.UTF-8
       CODESIGN_IDENTITY: ${{ secrets.CODESIGN_IDENTITY }}
       MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
       MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
@@ -42,9 +44,12 @@ jobs:
             -project Chronicle.xcodeproj \
             -scheme Chronicle \
             -configuration Debug \
-            -destination 'platform=macOS' \
+            -destination 'platform=macOS,arch=arm64' \
             -derivedDataPath build/release-tests \
             CODE_SIGNING_ALLOWED=NO \
+            -parallel-testing-enabled NO \
+            -testLanguage en \
+            -testRegion US \
             test
 
       - name: Import signing certificate

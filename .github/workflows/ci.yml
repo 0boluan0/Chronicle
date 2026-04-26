@@ -15,6 +15,9 @@ on:
 jobs:
   build-and-unit-tests:
     runs-on: macos-latest
+    env:
+      LANG: en_US.UTF-8
+      LC_ALL: en_US.UTF-8
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,8 +33,9 @@ jobs:
             -project Chronicle.xcodeproj \
             -scheme Chronicle \
             -configuration Debug \
-            -destination 'platform=macOS' \
+            -destination 'platform=macOS,arch=arm64' \
             -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
             clean build
 
       - name: Run Unit Tests
@@ -40,8 +44,12 @@ jobs:
             -project Chronicle.xcodeproj \
             -scheme Chronicle \
             -configuration Debug \
-            -destination 'platform=macOS' \
+            -destination 'platform=macOS,arch=arm64' \
             -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            -parallel-testing-enabled NO \
+            -testLanguage en \
+            -testRegion US \
             test
 
   ui-smoke:
