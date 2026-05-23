@@ -2316,9 +2316,16 @@
 "reports.daily.generate_selected" = "保存所选日";
 "reports.daily.generate_today" = "保存今日";
 "reports.daily.copy_selected" = "复制所选 Markdown";
+"reports.actions.title" = "报告操作";
+"reports.daily.actions.title" = "检查并保存今日日志";
+"reports.daily.actions.detail" = "保存前可先预览或复制所选日期；“保存今日”始终写入今天。";
+"reports.daily.actions.status" = "所选日期：%@";
 "reports.weekly.generate_selected" = "保存所选周";
 "reports.weekly.generate_this" = "保存本周";
 "reports.weekly.copy_selected" = "复制所选 Markdown";
+"reports.weekly.actions.title" = "检查并保存周总结";
+"reports.weekly.actions.detail" = "保存前可先预览或复制所选周；“保存本周”始终使用当前周。";
+"reports.weekly.actions.status" = "所选周：%@";
 "reports.reselect_folder" = "重新选择文件夹";
 "reports.reselect_hint" = "%@（如需请重新选择文件夹）";
 "reports.notes.label" = "备注（可选）";

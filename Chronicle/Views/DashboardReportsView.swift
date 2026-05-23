@@ -1908,6 +1908,7 @@ struct ReportsWorkspaceView: View {
             Label(L("reports.open_folder"), systemImage: "folder")
         }
         .buttonStyle(.bordered)
+        .accessibilityIdentifier("reports.daily.preview")
     }
 
     private var csvOverwriteToggle: some View {
@@ -2432,7 +2433,14 @@ struct ReportsWorkspaceView: View {
     }
 
     private var dailyReportActionBar: some View {
-        reportActionBar {
+        reportActionBar(
+            titleKey: "reports.daily.actions.title",
+            detailKey: "reports.daily.actions.detail",
+            systemImage: "doc.badge.plus",
+            statusText: String(format: L("reports.daily.actions.status"), selectedReportDayText),
+            statusSystemImage: "calendar",
+            tone: .info
+        ) {
             LazyVGrid(
                 columns: [GridItem(.adaptive(minimum: 142), spacing: DesignSystem.Spacing.sm)],
                 alignment: .leading,
@@ -2465,6 +2473,7 @@ struct ReportsWorkspaceView: View {
             Label(L("reports.preview"), systemImage: "doc.text.magnifyingglass")
         }
         .buttonStyle(.bordered)
+        .accessibilityIdentifier("reports.daily.copy")
     }
 
     private var dailyCopyButton: some View {
@@ -2497,7 +2506,14 @@ struct ReportsWorkspaceView: View {
     }
 
     private var weeklyReportActionBar: some View {
-        reportActionBar {
+        reportActionBar(
+            titleKey: "reports.weekly.actions.title",
+            detailKey: "reports.weekly.actions.detail",
+            systemImage: "calendar.badge.clock",
+            statusText: String(format: L("reports.weekly.actions.status"), selectedWeeklyReportRangeText),
+            statusSystemImage: "calendar.badge.clock",
+            tone: .info
+        ) {
             LazyVGrid(
                 columns: [GridItem(.adaptive(minimum: 142), spacing: DesignSystem.Spacing.sm)],
                 alignment: .leading,
@@ -2571,6 +2587,7 @@ struct ReportsWorkspaceView: View {
             Label(L("reports.preview"), systemImage: "doc.text.magnifyingglass")
         }
         .buttonStyle(.bordered)
+        .accessibilityIdentifier("reports.weekly.preview")
     }
 
     private var weeklyCopyButton: some View {
@@ -2580,6 +2597,7 @@ struct ReportsWorkspaceView: View {
             Label(L("reports.weekly.copy_selected"), systemImage: "doc.on.doc")
         }
         .buttonStyle(.bordered)
+        .accessibilityIdentifier("reports.weekly.copy")
     }
 
     private var weeklyGenerateSelectedButton: some View {
@@ -2738,8 +2756,49 @@ struct ReportsWorkspaceView: View {
         }
     }
 
-    private func reportActionBar<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+    private func reportActionBar<Content: View>(
+        titleKey: LocalizedStringKey,
+        detailKey: LocalizedStringKey,
+        systemImage: String,
+        statusText: String,
+        statusSystemImage: String,
+        tone: DesignSystem.StatusTone,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 240), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                    IconWell(
+                        systemImage: systemImage,
+                        tone: tone,
+                        accessibilityLabel: L("reports.actions.title")
+                    )
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(titleKey)
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+                            .lineLimit(1)
+
+                        Text(detailKey)
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                StatusPill(statusText, systemImage: statusSystemImage, tone: tone)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            Divider()
+
             content()
         }
         .padding(.horizontal, DesignSystem.Spacing.md)
@@ -4457,6 +4516,10 @@ struct ReportsWorkspaceView: View {
 
     private var selectedReportDayText: String {
         Self.previewDateFormatter.string(from: appState.selectedDate)
+    }
+
+    private var selectedWeeklyReportRangeText: String {
+        ReportService.weekRangeText(for: appState.selectedDate)
     }
 
     private var csvRangeSummary: String {

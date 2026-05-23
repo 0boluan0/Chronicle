@@ -2317,9 +2317,16 @@
 "reports.daily.generate_selected" = "Save Selected Day";
 "reports.daily.generate_today" = "Save Today";
 "reports.daily.copy_selected" = "Copy Selected Markdown";
+"reports.actions.title" = "Report actions";
+"reports.daily.actions.title" = "Review and save the daily log";
+"reports.daily.actions.detail" = "Preview or copy the selected day before saving. Save Today always writes the current day.";
+"reports.daily.actions.status" = "Selected: %@";
 "reports.weekly.generate_selected" = "Save Selected Week";
 "reports.weekly.generate_this" = "Save This Week";
 "reports.weekly.copy_selected" = "Copy Selected Markdown";
+"reports.weekly.actions.title" = "Review and save the weekly summary";
+"reports.weekly.actions.detail" = "Preview or copy the selected week before saving. Save This Week always uses the current week.";
+"reports.weekly.actions.status" = "Week: %@";
 "reports.reselect_folder" = "Re-select Folder";
 "reports.reselect_hint" = "%@ (re-select folder if needed)";
 "reports.notes.label" = "Notes (optional)";
