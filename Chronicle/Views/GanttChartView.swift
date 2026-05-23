@@ -241,9 +241,15 @@ struct GanttRowView: View {
 
             GeometryReader { geo in
                 ZStack(alignment: .topLeading) {
-                    if isRowHovering {
+                    if isRowHovering || rowHasSelectedSegment {
                         RoundedRectangle(cornerRadius: 6)
-                            .fill(DesignSystem.Colors.separator.opacity(0.18))
+                            .fill(rowHighlightColor)
+                            .frame(width: geo.size.width, height: rowHeight)
+                    }
+
+                    if rowHasSelectedSegment {
+                        RoundedRectangle(cornerRadius: 6)
+                            .stroke(DesignSystem.Colors.accentSkyBlue.opacity(0.30), lineWidth: 1)
                             .frame(width: geo.size.width, height: rowHeight)
                     }
 
@@ -271,6 +277,7 @@ struct GanttRowView: View {
     private func segmentView(segment: GanttSegmentData, size: CGSize) -> some View {
         let frame = segmentFrame(segment: segment, size: size)
         let isHovered = hoveredId == segment.id
+        let isSelected = selection?.id == segment.selection.id
         let fillColor = segmentFillColor(segment: segment)
         return RoundedRectangle(cornerRadius: 3)
             .fill(fillColor.opacity(segment.isIdle ? 0.45 : 0.7))
@@ -278,11 +285,20 @@ struct GanttRowView: View {
             .position(x: frame.minX + frame.width / 2, y: rowHeight / 2)
             .overlay(
                 RoundedRectangle(cornerRadius: 3)
-                    .stroke(isHovered ? Color.primary.opacity(0.6) : Color.clear, lineWidth: 1)
+                    .stroke(
+                        segmentBorderColor(isHovered: isHovered, isSelected: isSelected),
+                        lineWidth: isSelected ? 2 : 1
+                    )
                     .frame(width: frame.width, height: rowHeight)
                     .position(x: frame.minX + frame.width / 2, y: rowHeight / 2)
             )
             .overlay(idleHatchOverlay(segment: segment, frame: frame))
+            .shadow(
+                color: isSelected ? DesignSystem.Colors.accentSkyBlue.opacity(0.20) : .clear,
+                radius: isSelected ? 3 : 0,
+                x: 0,
+                y: 0
+            )
             .onTapGesture {
                 selection = segment.selection
             }
@@ -297,6 +313,7 @@ struct GanttRowView: View {
     private func overlayView(segment: GanttSegmentData, size: CGSize) -> some View {
         let frame = segmentFrame(segment: segment, size: size)
         let isHovered = hoveredId == segment.id
+        let isSelected = selection?.id == segment.selection.id
         let strokeColor = segmentFillColor(segment: segment)
         return RoundedRectangle(cornerRadius: 3)
             .stroke(style: StrokeStyle(lineWidth: 1, dash: [4, 2]))
@@ -311,9 +328,18 @@ struct GanttRowView: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 3)
-                    .stroke(isHovered ? Color.primary.opacity(0.6) : Color.clear, lineWidth: 1)
+                    .stroke(
+                        segmentBorderColor(isHovered: isHovered, isSelected: isSelected),
+                        lineWidth: isSelected ? 2 : 1
+                    )
                     .frame(width: frame.width, height: rowHeight)
                     .position(x: frame.minX + frame.width / 2, y: rowHeight / 2)
+            )
+            .shadow(
+                color: isSelected ? DesignSystem.Colors.accentSkyBlue.opacity(0.20) : .clear,
+                radius: isSelected ? 3 : 0,
+                x: 0,
+                y: 0
             )
             .onTapGesture {
                 selection = segment.selection
@@ -363,6 +389,25 @@ struct GanttRowView: View {
             return color
         }
         return row.color
+    }
+
+    private var rowHasSelectedSegment: Bool {
+        guard let selection else { return false }
+        return (row.segments + row.overlaySegments).contains { $0.selection.id == selection.id }
+    }
+
+    private var rowHighlightColor: Color {
+        rowHasSelectedSegment ? DesignSystem.Colors.accentSkyBlue.opacity(0.10) : DesignSystem.Colors.separator.opacity(0.18)
+    }
+
+    private func segmentBorderColor(isHovered: Bool, isSelected: Bool) -> Color {
+        if isSelected {
+            return DesignSystem.Colors.accentSkyBlue.opacity(0.85)
+        }
+        if isHovered {
+            return Color.primary.opacity(0.6)
+        }
+        return Color.clear
     }
 
     private func tooltipText(for segment: GanttSegmentData) -> String {

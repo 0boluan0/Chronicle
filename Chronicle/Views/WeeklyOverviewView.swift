@@ -417,7 +417,8 @@ private struct WeeklyRowView: View {
                 WeeklyCellView(
                     value: value,
                     maxValue: maxDailySeconds,
-                    color: row.color
+                    color: row.color,
+                    isSelected: isSelectedDay(index: index, value: value)
                 )
                 .frame(minWidth: dayColumnMinWidth, maxWidth: .infinity)
                 .contentShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.sm))
@@ -479,6 +480,9 @@ private struct WeeklyRowView: View {
     }
 
     private var rowBackgroundColor: Color {
+        if rowHasSelectedDay {
+            return DesignSystem.Colors.accentSkyBlue.opacity(isRowHovering ? 0.12 : 0.08)
+        }
         if isRowHovering {
             return row.color.opacity(0.08)
         }
@@ -486,7 +490,10 @@ private struct WeeklyRowView: View {
     }
 
     private var rowBorderColor: Color {
-        isRowHovering ? row.color.opacity(0.32) : DesignSystem.Colors.separator.opacity(0.30)
+        if rowHasSelectedDay {
+            return DesignSystem.Colors.accentSkyBlue.opacity(0.34)
+        }
+        return isRowHovering ? row.color.opacity(0.32) : DesignSystem.Colors.separator.opacity(0.30)
     }
 
     private func value(at index: Int) -> Int64 {
@@ -495,6 +502,21 @@ private struct WeeklyRowView: View {
 
     private func dayLabel(at index: Int) -> String {
         dayLabels.indices.contains(index) ? dayLabels[index] : L("overview.weekly_chart.day_fallback")
+    }
+
+    private var rowHasSelectedDay: Bool {
+        (0..<dayColumnCount).contains(where: { index in
+            isSelectedDay(index: index, value: value(at: index))
+        })
+    }
+
+    private func isSelectedDay(index: Int, value: Int64) -> Bool {
+        guard value > 0, let selection else { return false }
+        let start = dayStarts.indices.contains(index) ? dayStarts[index] : 0
+        return selection.title == row.title
+            && selection.rangeLabel == dayLabel(at: index)
+            && selection.start == start
+            && selection.end == start + value
     }
 
     private func selectDay(at index: Int, value: Int64) {
@@ -546,13 +568,14 @@ private struct WeeklyCellView: View {
     let value: Int64
     let maxValue: Int64
     let color: Color
+    let isSelected: Bool
     @State private var isHovering = false
 
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
                 RoundedRectangle(cornerRadius: 4)
-                    .fill(DesignSystem.Colors.separator.opacity(isHovering ? 0.24 : 0.16))
+                    .fill(cellBackgroundColor)
 
                 if value > 0 {
                     RoundedRectangle(cornerRadius: 4)
@@ -562,7 +585,13 @@ private struct WeeklyCellView: View {
             }
             .overlay(
                 RoundedRectangle(cornerRadius: 4)
-                    .stroke(DesignSystem.Colors.separator.opacity(isHovering ? 0.34 : 0.18), lineWidth: 1)
+                    .stroke(cellBorderColor, lineWidth: isSelected ? 2 : 1)
+            )
+            .shadow(
+                color: isSelected ? DesignSystem.Colors.accentSkyBlue.opacity(0.18) : .clear,
+                radius: isSelected ? 3 : 0,
+                x: 0,
+                y: 0
             )
             .onHover { hovering in
                 isHovering = hovering
@@ -571,11 +600,26 @@ private struct WeeklyCellView: View {
         .frame(height: 20)
     }
 
+    private var cellBackgroundColor: Color {
+        if isSelected {
+            return DesignSystem.Colors.accentSkyBlue.opacity(0.10)
+        }
+        return DesignSystem.Colors.separator.opacity(isHovering ? 0.24 : 0.16)
+    }
+
+    private var cellBorderColor: Color {
+        if isSelected {
+            return DesignSystem.Colors.accentSkyBlue.opacity(0.72)
+        }
+        return DesignSystem.Colors.separator.opacity(isHovering ? 0.34 : 0.18)
+    }
+
     private var fillOpacity: Double {
-        guard maxValue > 0 else { return isHovering ? 0.70 : 0.58 }
+        guard maxValue > 0 else { return isHovering || isSelected ? 0.70 : 0.58 }
         let ratio = min(1, Double(value) / Double(maxValue))
-        let base = isHovering ? 0.44 : 0.32
-        return min(isHovering ? 0.86 : 0.72, base + ratio * 0.36)
+        let isActive = isHovering || isSelected
+        let base = isActive ? 0.44 : 0.32
+        return min(isActive ? 0.86 : 0.72, base + ratio * 0.36)
     }
 
     private func barWidth(in width: CGFloat) -> CGFloat {
