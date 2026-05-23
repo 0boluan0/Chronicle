@@ -47,7 +47,11 @@ struct GanttChartView: View {
 
     var body: some View {
         let maxTotal = rows.map(\.totalSeconds).max() ?? 0
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            if !rows.isEmpty {
+                dailyInsightStrip
+            }
+
             TimeGridView(rangeStart: rangeStart, rangeEnd: rangeEnd, intervalMinutes: gridIntervalMinutes)
                 .frame(height: 24)
                 .padding(.leading, labelWidth)
@@ -72,6 +76,132 @@ struct GanttChartView: View {
 
     private let labelWidth: CGFloat = 150
     private let rowSpacing: CGFloat = 10
+
+    private var dailyInsightStrip: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 190), spacing: DesignSystem.Spacing.sm, alignment: .topLeading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            dailyInsightItem(
+                titleKey: "overview.daily_chart.insight.top_lane",
+                value: topLaneTitle,
+                detail: topLaneDetail,
+                systemImage: "rectangle.3.group.fill",
+                tone: .info
+            )
+
+            dailyInsightItem(
+                titleKey: "overview.daily_chart.insight.window",
+                value: capturedWindowValue,
+                detail: capturedWindowDetail,
+                systemImage: "clock.badge.checkmark",
+                tone: capturedWindow == nil ? .neutral : .success
+            )
+
+            dailyInsightItem(
+                titleKey: "overview.daily_chart.insight.read_title",
+                value: L("overview.daily_chart.insight.read_value"),
+                detail: L("overview.daily_chart.insight.read_detail"),
+                systemImage: "cursorarrow.click",
+                tone: .neutral
+            )
+        }
+        .accessibilityIdentifier("overview.dailyChart.insights")
+    }
+
+    private func dailyInsightItem(
+        titleKey: LocalizedStringKey,
+        value: String,
+        detail: String,
+        systemImage: String,
+        tone: DesignSystem.StatusTone
+    ) -> some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(tone.color)
+                .frame(width: 18, height: 18)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(titleKey)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(1)
+
+                Text(value)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.86)
+
+                Text(detail)
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .frame(maxWidth: .infinity, minHeight: 82, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(tone.color.opacity(0.07))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(tone.color.opacity(0.18), lineWidth: 1)
+        )
+    }
+
+    private var topLane: GanttRowData? {
+        rows.max(by: { $0.totalSeconds < $1.totalSeconds })
+    }
+
+    private var topLaneTitle: String {
+        topLane?.title ?? L("overview.daily_chart.insight.none")
+    }
+
+    private var topLaneDetail: String {
+        guard let topLane else {
+            return L("overview.daily_chart.insight.top_lane_empty")
+        }
+        return String(
+            format: L("overview.daily_chart.insight.top_lane_detail"),
+            TimeFormatters.durationText(start: 0, end: topLane.totalSeconds)
+        )
+    }
+
+    private var capturedWindow: (start: Int64, end: Int64)? {
+        let visibleSegments = rows.flatMap { $0.segments + $0.overlaySegments }
+        guard
+            let start = visibleSegments.map(\.start).min(),
+            let end = visibleSegments.map(\.end).max(),
+            end > start
+        else {
+            return nil
+        }
+        return (start, end)
+    }
+
+    private var capturedWindowValue: String {
+        guard let capturedWindow else {
+            return L("overview.daily_chart.insight.window_empty")
+        }
+        return TimeFormatters.timeRange(start: capturedWindow.start, end: capturedWindow.end)
+    }
+
+    private var capturedWindowDetail: String {
+        guard let capturedWindow else {
+            return L("overview.daily_chart.insight.window_empty_detail")
+        }
+        return String(
+            format: L("overview.daily_chart.insight.window_detail"),
+            TimeFormatters.durationText(start: capturedWindow.start, end: capturedWindow.end)
+        )
+    }
 }
 
 struct GanttRowView: View {
@@ -160,6 +290,8 @@ struct GanttRowView: View {
                 hoveredId = hovering ? segment.id : nil
             }
             .help(tooltipText(for: segment))
+            .accessibilityLabel(tooltipText(for: segment))
+            .accessibilityAddTraits(.isButton)
     }
 
     private func overlayView(segment: GanttSegmentData, size: CGSize) -> some View {
@@ -190,6 +322,8 @@ struct GanttRowView: View {
                 hoveredId = hovering ? segment.id : nil
             }
             .help(tooltipText(for: segment))
+            .accessibilityLabel(tooltipText(for: segment))
+            .accessibilityAddTraits(.isButton)
     }
 
     private func segmentFrame(segment: GanttSegmentData, size: CGSize) -> CGRect {

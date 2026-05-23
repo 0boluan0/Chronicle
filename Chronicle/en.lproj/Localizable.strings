@@ -732,6 +732,17 @@
 "overview.activity_map.empty_open_timeline" = "Open Timeline";
 "overview.activity_map.empty_resume_capture" = "Resume Capture";
 "overview.activity_map.empty_check_capture" = "Check Capture";
+"overview.daily_chart.insight.top_lane" = "Main lane";
+"overview.daily_chart.insight.top_lane_detail" = "%@ captured today.";
+"overview.daily_chart.insight.top_lane_empty" = "Activity appears after Chronicle captures work.";
+"overview.daily_chart.insight.window" = "Covered window";
+"overview.daily_chart.insight.window_detail" = "%@ between the first and last visible block.";
+"overview.daily_chart.insight.window_empty" = "No window yet";
+"overview.daily_chart.insight.window_empty_detail" = "Captured blocks will define the visible span.";
+"overview.daily_chart.insight.read_title" = "How to read";
+"overview.daily_chart.insight.read_value" = "Click a block";
+"overview.daily_chart.insight.read_detail" = "Start with the largest lane, then inspect the exact segment.";
+"overview.daily_chart.insight.none" = "None yet";
 "overview.weekly_chart.title" = "Weekly rhythm";
 "overview.weekly_chart.detail" = "Compare focus lanes by day, then spot the heaviest days and quiet gaps before saving a review.";
 "overview.weekly_chart.status" = "%d lanes";

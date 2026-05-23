@@ -732,6 +732,17 @@
 "overview.activity_map.empty_open_timeline" = "查看时间线";
 "overview.activity_map.empty_resume_capture" = "恢复记录";
 "overview.activity_map.empty_check_capture" = "检查记录";
+"overview.daily_chart.insight.top_lane" = "主要主线";
+"overview.daily_chart.insight.top_lane_detail" = "今天累计 %@。";
+"overview.daily_chart.insight.top_lane_empty" = "Chronicle 记录到活动后会出现主线。";
+"overview.daily_chart.insight.window" = "覆盖时段";
+"overview.daily_chart.insight.window_detail" = "首个到最后一个可见时间块之间共 %@。";
+"overview.daily_chart.insight.window_empty" = "暂无时段";
+"overview.daily_chart.insight.window_empty_detail" = "有记录块后会显示可见范围。";
+"overview.daily_chart.insight.read_title" = "怎么读";
+"overview.daily_chart.insight.read_value" = "点击一个时间块";
+"overview.daily_chart.insight.read_detail" = "先看最大的主线，再进入具体片段。";
+"overview.daily_chart.insight.none" = "暂无";
 "overview.weekly_chart.title" = "一周节奏";
 "overview.weekly_chart.detail" = "按天比较不同投入主线，先看本周高峰和空白，再决定是否保存复盘。";
 "overview.weekly_chart.status" = "%d 条主线";
