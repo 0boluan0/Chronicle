@@ -18,6 +18,16 @@ struct OnboardingView: View {
         var id: String { rawValue }
     }
 
+    private enum SetupRailFocusState {
+        case firstDay
+        case chooseFolder
+        case folderReady
+        case privacyReady
+        case permissionChoice
+        case finishReady
+        case finishNeedsFolder
+    }
+
     @EnvironmentObject private var appState: AppState
     @ObservedObject private var reportSettings = ReportSettings.shared
 
@@ -25,40 +35,395 @@ struct OnboardingView: View {
     @State private var exportStatusMessage: String?
     @State private var exportStatusIsError = false
     @State private var launchAtLoginMessage: String?
+    @State private var hoveredRailStep: Step?
 
     let onClose: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
-            header
+        HStack(spacing: 0) {
+            setupRail
 
             Divider()
 
-            content
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
+                header
 
-            Spacer(minLength: 0)
+                ScrollView {
+                    content
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                }
+                .scrollIndicators(.automatic)
 
-            footer
+                Spacer(minLength: 0)
+
+                footer
+            }
+            .padding(DesignSystem.Spacing.xl)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .padding(DesignSystem.Spacing.xl)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(DesignSystem.Colors.background)
         .onAppear {
             AccessibilityPermissionManager.shared.syncAppState(appState)
             LaunchAtLoginManager.shared.syncAppState(appState)
         }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            AccessibilityPermissionManager.shared.syncAppState(appState)
+        }
         .onExitCommand(perform: onClose)
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-            Text(LocalizedStringKey(titleKey))
-                .font(DesignSystem.Typography.title)
-                .foregroundColor(DesignSystem.Colors.primaryText)
-            Text(stepIndicator)
+        LazyVGrid(
+            columns: adaptiveColumns(minimum: 240, spacing: DesignSystem.Spacing.md),
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            onboardingHeaderCopy
+            StatusPill(stepStatusText, systemImage: stepStatusIconName, tone: stepTone)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+        .accessibilityIdentifier("onboarding.header")
+    }
+
+    private var onboardingHeaderCopy: some View {
+        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+            IconWell(systemImage: stepIconName, tone: stepTone)
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                Text(LocalizedStringKey(titleKey))
+                    .font(DesignSystem.Typography.title)
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                Text(stepIndicator)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+
+                Text(LocalizedStringKey(stepSummaryKey))
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var setupRail: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                Text("Chronicle")
+                    .font(.title3.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                Text("onboarding.path.subtitle")
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                ForEach(flowSteps) { flowStep in
+                    stepRow(for: flowStep)
+                }
+            }
+
+            setupRailFocusCard
+
+            setupRailTrustCard
+
+            Spacer()
+
+            Text("onboarding.path.footer")
                 .font(DesignSystem.Typography.caption)
                 .foregroundColor(DesignSystem.Colors.secondaryText)
+                .lineLimit(3)
         }
+        .padding(DesignSystem.Spacing.lg)
+        .frame(width: 210, alignment: .topLeading)
+        .frame(maxHeight: .infinity, alignment: .topLeading)
+        .background(DesignSystem.Colors.cardBackground.opacity(0.55))
+    }
+
+    private var setupRailFocusCard: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            HStack(alignment: .center, spacing: 7) {
+                Image(systemName: setupRailFocusIconName)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(setupRailFocusTone.color)
+                    .frame(width: 14)
+
+                Text("onboarding.path.focus.label")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(1)
+            }
+
+            Text(LocalizedStringKey(setupRailFocusTitleKey))
+                .font(.caption.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.primaryText)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text(LocalizedStringKey(setupRailFocusDetailKey))
+                .font(.caption2)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .lineLimit(3)
+                .fixedSize(horizontal: false, vertical: true)
+
+            RatioBar(
+                filledFraction: setupRailProgressFraction,
+                filledColor: setupRailFocusTone.color,
+                remainderColor: DesignSystem.Colors.separator
+            )
+            .padding(.top, 1)
+
+            StatusPill(
+                setupRailProgressText,
+                systemImage: setupRailProgressIconName,
+                tone: setupRailFocusTone
+            )
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(setupRailFocusTone.color.opacity(0.07))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(setupRailFocusTone.color.opacity(0.20), lineWidth: 1)
+        )
+        .accessibilityIdentifier("onboarding.rail.focus")
+    }
+
+    private func stepRow(for flowStep: Step) -> some View {
+        let state = stateForStep(flowStep)
+        let isCurrent = flowStep == step
+        let isHovering = hoveredRailStep == flowStep
+
+        return Button {
+            step = flowStep
+        } label: {
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                ZStack {
+                    Circle()
+                        .fill(state.tone.color.opacity(isCurrent ? 0.16 : 0.10))
+                        .overlay(Circle().stroke(state.tone.color.opacity(0.28), lineWidth: 1))
+
+                    Image(systemName: state.systemImage)
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(state.tone.color)
+                }
+                .frame(width: 24, height: 24)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(LocalizedStringKey(railTitleKey(for: flowStep)))
+                        .font(.caption.weight(isCurrent ? .semibold : .regular))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+                        .lineLimit(1)
+
+                    Text(railStatusText(for: flowStep))
+                        .font(.caption2)
+                        .foregroundColor(state.tone.color)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 7)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                    .fill(railStepBackground(isCurrent: isCurrent, isHovering: isHovering, tone: state.tone))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                    .stroke(isCurrent ? state.tone.color.opacity(0.28) : Color.clear, lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .contentShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.sm))
+        .onHover { hovering in
+            hoveredRailStep = hovering ? flowStep : nil
+        }
+        .accessibilityIdentifier("onboarding.step.\(flowStep.rawValue)")
+    }
+
+    private var setupRailTrustCard: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            setupRailTrustRow(
+                systemImage: "internaldrive",
+                title: "privacy.status.local_only",
+                tone: .success
+            )
+            setupRailTrustRow(
+                systemImage: "arrow.up.circle",
+                title: "privacy.status.no_upload",
+                tone: .success
+            )
+            setupRailTrustRow(
+                systemImage: "hand.raised",
+                title: "onboarding.trust.optional_permissions",
+                tone: .info
+            )
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(DesignSystem.Colors.background.opacity(0.48))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(DesignSystem.Colors.separator.opacity(0.30), lineWidth: 1)
+        )
+        .accessibilityIdentifier("onboarding.rail.trust")
+    }
+
+    private func setupRailTrustRow(
+        systemImage: String,
+        title: LocalizedStringKey,
+        tone: DesignSystem.StatusTone
+    ) -> some View {
+        HStack(spacing: 7) {
+            Image(systemName: systemImage)
+                .font(.caption2.weight(.semibold))
+                .foregroundColor(tone.color)
+                .frame(width: 14)
+
+            Text(title)
+                .font(.caption.weight(.medium))
+                .foregroundColor(DesignSystem.Colors.primaryText)
+                .lineLimit(1)
+        }
+    }
+
+    private func railStatusText(for flowStep: Step) -> String {
+        switch flowStep {
+        case .value:
+            return L("onboarding.status.ready")
+        case .exports:
+            return exportStatusText
+        case .privacy:
+            return titleCaptureStatusText
+        case .finish:
+            return flowStep == step
+                ? L("onboarding.status.ready")
+                : L("onboarding.status.final_step")
+        }
+    }
+
+    private var setupRailFocusState: SetupRailFocusState {
+        switch step {
+        case .value:
+            return .firstDay
+        case .exports:
+            return hasDailyExportFolderConfigured ? .folderReady : .chooseFolder
+        case .privacy:
+            if appState.windowTitleCaptureEnabled && !appState.accessibilityAuthorized {
+                return .permissionChoice
+            }
+            return .privacyReady
+        case .finish:
+            return hasDailyExportFolderConfigured ? .finishReady : .finishNeedsFolder
+        }
+    }
+
+    private var setupRailFocusTitleKey: String {
+        switch setupRailFocusState {
+        case .firstDay:
+            return "onboarding.path.focus.first_day_title"
+        case .chooseFolder:
+            return "onboarding.path.focus.folder_title"
+        case .folderReady:
+            return "onboarding.path.focus.folder_ready_title"
+        case .privacyReady:
+            return "onboarding.path.focus.privacy_ready_title"
+        case .permissionChoice:
+            return "onboarding.path.focus.permission_title"
+        case .finishReady:
+            return "onboarding.path.focus.finish_ready_title"
+        case .finishNeedsFolder:
+            return "onboarding.path.focus.finish_folder_title"
+        }
+    }
+
+    private var setupRailFocusDetailKey: String {
+        switch setupRailFocusState {
+        case .firstDay:
+            return "onboarding.path.focus.first_day_detail"
+        case .chooseFolder:
+            return "onboarding.path.focus.folder_detail"
+        case .folderReady:
+            return "onboarding.path.focus.folder_ready_detail"
+        case .privacyReady:
+            return "onboarding.path.focus.privacy_ready_detail"
+        case .permissionChoice:
+            return "onboarding.path.focus.permission_detail"
+        case .finishReady:
+            return "onboarding.path.focus.finish_ready_detail"
+        case .finishNeedsFolder:
+            return "onboarding.path.focus.finish_folder_detail"
+        }
+    }
+
+    private var setupRailFocusIconName: String {
+        switch setupRailFocusState {
+        case .firstDay:
+            return "sparkles"
+        case .chooseFolder, .finishNeedsFolder:
+            return "folder.badge.plus"
+        case .folderReady:
+            return "folder"
+        case .privacyReady:
+            return "hand.raised"
+        case .permissionChoice:
+            return "exclamationmark.triangle.fill"
+        case .finishReady:
+            return "checkmark.seal.fill"
+        }
+    }
+
+    private var setupRailFocusTone: DesignSystem.StatusTone {
+        switch setupRailFocusState {
+        case .chooseFolder, .permissionChoice, .finishNeedsFolder:
+            return .warning
+        case .folderReady, .finishReady:
+            return .success
+        case .firstDay, .privacyReady:
+            return .info
+        }
+    }
+
+    private var setupRailProgressFraction: Double {
+        Double(setupRailReadyCount) / Double(setupRailTotalCount)
+    }
+
+    private var setupRailProgressText: String {
+        String(format: L("onboarding.path.focus.progress"), setupRailReadyCount, setupRailTotalCount)
+    }
+
+    private var setupRailProgressIconName: String {
+        setupRailReadyCount == setupRailTotalCount ? "checkmark.circle.fill" : "circle.dashed"
+    }
+
+    private var setupRailReadyCount: Int {
+        var count = 1
+        if hasDailyExportFolderConfigured {
+            count += 1
+        }
+        if !appState.windowTitleCaptureEnabled || appState.accessibilityAuthorized {
+            count += 1
+        }
+        if step == .finish {
+            count += 1
+        }
+        return count
+    }
+
+    private var setupRailTotalCount: Int {
+        4
     }
 
     @ViewBuilder
@@ -89,37 +454,75 @@ struct OnboardingView: View {
 
             switch step {
             case .value:
-                Button(L("actions.open_preferences")) {
-                    AppWindowRouter.shared.open(.settings())
+                Button(L("onboarding.skip_setup")) {
+                    useDefaults()
                 }
                 .buttonStyle(.bordered)
-                .accessibilityIdentifier("onboarding.openPreferences")
+                .accessibilityIdentifier("onboarding.skipSetup")
 
-                primaryNextButton(id: "onboarding.next.value")
+                primaryNextButton(
+                    titleKey: "onboarding.next.log_folder",
+                    systemImage: "folder.badge.plus",
+                    id: "onboarding.next.value"
+                )
 
             case .exports:
-                Button(L("actions.skip")) {
-                    goNext()
+                if !hasDailyExportFolderConfigured {
+                    Button(L("onboarding.next.skip_folder")) {
+                        goNext()
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("onboarding.skipExports")
                 }
-                .buttonStyle(.bordered)
-                .accessibilityIdentifier("onboarding.skipExports")
 
-                primaryNextButton(id: "onboarding.next.exports")
+                if hasDailyExportFolderConfigured {
+                    primaryNextButton(
+                        titleKey: "onboarding.next.privacy",
+                        systemImage: "hand.raised",
+                        id: "onboarding.next.exports",
+                        tone: .success
+                    )
+                } else {
+                    Button {
+                        chooseDailyFolder()
+                    } label: {
+                        Label(L("onboarding.next.choose_folder"), systemImage: "folder.badge.plus")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(DesignSystem.Colors.accentSkyBlue)
+                    .accessibilityIdentifier("onboarding.next.exports")
+                }
 
             case .privacy:
                 if appState.windowTitleCaptureEnabled && !appState.accessibilityAuthorized {
-                    Button(L("onboarding.privacy.open_settings")) {
-                        AccessibilityPermissionManager.shared.openSystemSettings()
+                    Button(L("onboarding.next.continue_for_now")) {
+                        goNext()
                     }
                     .buttonStyle(.bordered)
+                    .accessibilityIdentifier("onboarding.next.privacy")
+
+                    Button {
+                        AccessibilityPermissionManager.shared.openSystemSettings()
+                    } label: {
+                        Label(L("onboarding.privacy.open_settings"), systemImage: "gearshape")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(DesignSystem.Colors.accentSkyBlue)
                     .accessibilityIdentifier("onboarding.openAccessibility")
+                } else {
+                    primaryNextButton(
+                        titleKey: "onboarding.next.finish",
+                        systemImage: "checkmark.seal",
+                        id: "onboarding.next.privacy",
+                        tone: titleCaptureTone
+                    )
                 }
 
-                primaryNextButton(id: "onboarding.next.privacy")
-
             case .finish:
-                Button(L("onboarding.finish.start")) {
+                Button {
                     finish()
+                } label: {
+                    Label(L("onboarding.finish.start"), systemImage: "play.fill")
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(DesignSystem.Colors.accentSkyBlue)
@@ -128,33 +531,238 @@ struct OnboardingView: View {
         }
     }
 
-    private func primaryNextButton(id: String) -> some View {
-        Button(L("actions.next")) {
+    private func primaryNextButton(
+        titleKey: String,
+        systemImage: String,
+        id: String,
+        tone: DesignSystem.StatusTone = .info
+    ) -> some View {
+        Button {
             goNext()
+        } label: {
+            Label(L(titleKey), systemImage: systemImage)
         }
         .buttonStyle(.borderedProminent)
-        .tint(DesignSystem.Colors.accentSkyBlue)
+        .tint(tone.color)
         .accessibilityIdentifier(id)
     }
 
     private var valueContent: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            Text("privacy.offline_note")
-                .foregroundColor(DesignSystem.Colors.secondaryText)
-                .textSelection(.enabled)
+            workdayHero
 
-            Text("onboarding.welcome.body")
-                .font(DesignSystem.Typography.caption)
-                .foregroundColor(DesignSystem.Colors.secondaryText)
+            dayFlowSection
 
-            SectionCard {
+            SectionCard(title: "onboarding.value.ready_title") {
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    Label(LocalizedStringKey("onboarding.welcome.item.timeline"), systemImage: "clock")
-                    Label(LocalizedStringKey("onboarding.welcome.item.markers"), systemImage: "bookmark")
-                    Label(LocalizedStringKey("onboarding.welcome.item.reports"), systemImage: "arrow.up.doc")
+                    onboardingFeatureRow(
+                        systemImage: "clock",
+                        title: "onboarding.welcome.item.timeline",
+                        detail: "onboarding.value.timeline_detail",
+                        tone: .info
+                    )
+                    onboardingFeatureRow(
+                        systemImage: "note.text",
+                        title: "onboarding.welcome.item.markers",
+                        detail: "onboarding.value.markers_detail",
+                        tone: .success
+                    )
+                    onboardingFeatureRow(
+                        systemImage: "doc.text.magnifyingglass",
+                        title: "onboarding.welcome.item.reports",
+                        detail: "onboarding.value.reports_detail",
+                        tone: .warning
+                    )
                 }
-                .font(DesignSystem.Typography.body)
-                .foregroundColor(DesignSystem.Colors.primaryText)
+            }
+
+        }
+    }
+
+    private var workdayHero: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            LazyVGrid(
+                columns: adaptiveColumns(minimum: 260, spacing: DesignSystem.Spacing.xl),
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.lg
+            ) {
+                onboardingHeroCopy
+                onboardingHeroTimeline
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
+
+            trustStrip
+        }
+        .padding(DesignSystem.Spacing.lg)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.lg)
+                .fill(DesignSystem.Colors.cardBackground)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.lg)
+                .stroke(DesignSystem.Colors.accentSkyBlue.opacity(0.24), lineWidth: 1)
+        )
+        .overlay(alignment: .leading) {
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.lg)
+                .fill(DesignSystem.Colors.accentSkyBlue.opacity(0.72))
+                .frame(width: 4)
+        }
+        .accessibilityIdentifier("onboarding.workdayHero")
+    }
+
+    private var onboardingHeroCopy: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            IconWell(
+                systemImage: "rectangle.3.group.bubble.left",
+                tone: .info,
+                accessibilityLabel: L("onboarding.welcome.title")
+            )
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                Text("onboarding.first_day.title")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(1)
+
+                Text("onboarding.hero.title")
+                    .font(.title2.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text("onboarding.hero.detail")
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var onboardingHeroTimeline: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            onboardingHeroMoment(
+                time: "onboarding.hero.moment.capture_time",
+                title: "onboarding.hero.moment.capture_title",
+                detail: "onboarding.hero.moment.capture_detail",
+                systemImage: "record.circle",
+                tone: .info
+            )
+
+            onboardingHeroMoment(
+                time: "onboarding.hero.moment.note_time",
+                title: "onboarding.hero.moment.note_title",
+                detail: "onboarding.hero.moment.note_detail",
+                systemImage: "square.and.pencil",
+                tone: .success
+            )
+
+            onboardingHeroMoment(
+                time: "onboarding.hero.moment.focus_time",
+                title: "onboarding.hero.moment.focus_title",
+                detail: "onboarding.hero.moment.focus_detail",
+                systemImage: "timer",
+                tone: .warning
+            )
+
+            onboardingHeroMoment(
+                time: "onboarding.hero.moment.closeout_time",
+                title: "onboarding.hero.moment.closeout_title",
+                detail: "onboarding.hero.moment.closeout_detail",
+                systemImage: "doc.text.magnifyingglass",
+                tone: .success,
+                isLast: true
+            )
+        }
+        .padding(DesignSystem.Spacing.md)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(DesignSystem.Colors.background.opacity(0.46))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(DesignSystem.Colors.separator.opacity(0.36), lineWidth: 1)
+        )
+        .accessibilityIdentifier("onboarding.heroTimeline")
+    }
+
+    private func onboardingHeroMoment(
+        time: LocalizedStringKey,
+        title: LocalizedStringKey,
+        detail: LocalizedStringKey,
+        systemImage: String,
+        tone: DesignSystem.StatusTone,
+        isLast: Bool = false
+    ) -> some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+            VStack(spacing: 0) {
+                ZStack {
+                    Circle()
+                        .fill(tone.color.opacity(0.16))
+                        .overlay(Circle().stroke(tone.color.opacity(0.30), lineWidth: 1))
+
+                    Image(systemName: systemImage)
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(tone.color)
+                }
+                .frame(width: 22, height: 22)
+
+                if !isLast {
+                    Rectangle()
+                        .fill(DesignSystem.Colors.separator.opacity(0.48))
+                        .frame(width: 1, height: 22)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(time)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundColor(tone.color)
+                    .lineLimit(1)
+
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(1)
+
+                Text(detail)
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var dayFlowSection: some View {
+        SectionCard(title: "onboarding.day_flow.title") {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                onboardingDayFlowRow(
+                    systemImage: "menubar.rectangle",
+                    time: "onboarding.day_flow.start_time",
+                    title: "onboarding.day_flow.start_title",
+                    detail: "onboarding.day_flow.start_detail",
+                    tone: .info
+                )
+
+                onboardingDayFlowRow(
+                    systemImage: "square.and.pencil",
+                    time: "onboarding.day_flow.mark_time",
+                    title: "onboarding.day_flow.mark_title",
+                    detail: "onboarding.day_flow.mark_detail",
+                    tone: .success
+                )
+
+                onboardingDayFlowRow(
+                    systemImage: "doc.text.magnifyingglass",
+                    time: "onboarding.day_flow.review_time",
+                    title: "onboarding.day_flow.review_title",
+                    detail: "onboarding.day_flow.review_detail",
+                    tone: .warning
+                )
             }
         }
     }
@@ -166,56 +774,50 @@ struct OnboardingView: View {
                 .foregroundColor(DesignSystem.Colors.secondaryText)
 
             SectionCard(title: "onboarding.exports.title") {
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    HStack(alignment: .center, spacing: 8) {
-                        Image(systemName: hasDailyExportFolderConfigured ? "checkmark.circle.fill" : "exclamationmark.circle")
-                            .foregroundColor(
-                                hasDailyExportFolderConfigured
-                                ? Color(nsColor: .systemGreen)
-                                : Color(nsColor: .systemOrange)
-                            )
-                        Text(
-                            hasDailyExportFolderConfigured
-                            ? L("onboarding.exports.configured")
-                            : L("onboarding.exports.not_configured")
-                        )
-                        .font(DesignSystem.Typography.caption)
-                        .foregroundColor(DesignSystem.Colors.primaryText)
-                    }
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                    exportFolderStatusRow
+
+                    exportOutcomeStrip
+
+                    Divider()
 
                     Text(String(format: L("reports.folder.label"), reportSettings.dailyFolderDisplayPath))
                         .font(DesignSystem.Typography.caption)
                         .foregroundColor(DesignSystem.Colors.secondaryText)
                         .textSelection(.enabled)
 
-                    HStack(spacing: 8) {
-                        Button(L("onboarding.exports.setup")) {
+                    LazyVGrid(
+                        columns: adaptiveColumns(minimum: 170, spacing: DesignSystem.Spacing.sm),
+                        alignment: .leading,
+                        spacing: DesignSystem.Spacing.sm
+                    ) {
+                        Button {
                             chooseDailyFolder()
+                        } label: {
+                            Label(L("onboarding.exports.setup"), systemImage: "folder.badge.plus")
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(DesignSystem.Colors.accentSkyBlue)
                         .accessibilityIdentifier("onboarding.chooseExportFolder")
 
-                        Button(L("actions.open_preferences")) {
+                        Button {
                             AppWindowRouter.shared.open(.settings(.export))
+                        } label: {
+                            Label(L("actions.open_preferences"), systemImage: "gearshape")
                         }
                         .buttonStyle(.bordered)
                         .accessibilityIdentifier("onboarding.openExportPreferences")
 
                         if hasDailyExportFolderConfigured {
-                            Button(L("reports.open_folder")) {
+                            Button {
                                 openDailyFolder()
+                            } label: {
+                                Label(L("reports.open_folder"), systemImage: "folder")
                             }
                             .buttonStyle(.bordered)
                             .accessibilityIdentifier("onboarding.openExportFolder")
                         }
-
-                        Spacer()
                     }
-
-                    Text("onboarding.exports.hint")
-                        .font(DesignSystem.Typography.caption)
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
 
                     if let exportStatusMessage, !exportStatusMessage.isEmpty {
                         Text(exportStatusMessage)
@@ -229,6 +831,133 @@ struct OnboardingView: View {
         }
     }
 
+    private var exportOutcomeStrip: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                Image(systemName: "doc.text.magnifyingglass")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(exportTone.color)
+                    .frame(width: 18)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("onboarding.exports.outcome.title")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+
+                    Text("onboarding.exports.outcome.detail")
+                        .font(.caption2)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            LazyVGrid(
+                columns: adaptiveColumns(minimum: 150, spacing: DesignSystem.Spacing.sm),
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                exportOutcomeItem(
+                    systemImage: "calendar",
+                    title: "onboarding.exports.outcome.review_title",
+                    detail: "onboarding.exports.outcome.review_detail"
+                )
+                exportOutcomeItem(
+                    systemImage: "doc.badge.plus",
+                    title: "onboarding.exports.outcome.markdown_title",
+                    detail: "onboarding.exports.outcome.markdown_detail"
+                )
+                exportOutcomeItem(
+                    systemImage: "internaldrive",
+                    title: "onboarding.exports.outcome.local_title",
+                    detail: "onboarding.exports.outcome.local_detail"
+                )
+            }
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(exportTone.color.opacity(0.07))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(exportTone.color.opacity(0.18), lineWidth: 1)
+        )
+        .accessibilityIdentifier("onboarding.exports.outcome")
+    }
+
+    private func exportOutcomeItem(
+        systemImage: String,
+        title: LocalizedStringKey,
+        detail: LocalizedStringKey
+    ) -> some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(exportTone.color)
+                .frame(width: 16)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+
+                Text(detail)
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, DesignSystem.Spacing.sm)
+        .padding(.vertical, 7)
+        .frame(maxWidth: .infinity, minHeight: 58, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .fill(DesignSystem.Colors.cardBackground.opacity(0.70))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .stroke(DesignSystem.Colors.separator.opacity(0.28), lineWidth: 1)
+        )
+    }
+
+    private var exportFolderStatusRow: some View {
+        LazyVGrid(
+            columns: adaptiveColumns(minimum: 240, spacing: DesignSystem.Spacing.md),
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            exportFolderStatusCopy
+            StatusPill(exportStatusText, systemImage: exportStatusIconName, tone: exportTone)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+        .accessibilityIdentifier("onboarding.exports.statusRow")
+    }
+
+    private var exportFolderStatusCopy: some View {
+        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+            IconWell(systemImage: "folder", tone: exportTone)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(hasDailyExportFolderConfigured ? L("onboarding.exports.configured") : L("onboarding.exports.not_configured"))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                Text("onboarding.exports.hint")
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
     private var privacyContent: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
             Text("onboarding.privacy.body")
@@ -236,14 +965,10 @@ struct OnboardingView: View {
                 .foregroundColor(DesignSystem.Colors.secondaryText)
 
             SectionCard(title: "onboarding.privacy.capture_title") {
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    Toggle("preferences.window_titles.capture", isOn: windowTitleCaptureBinding)
-                        .toggleStyle(.switch)
-                        .accessibilityIdentifier("onboarding.windowTitleToggle")
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                    privacyCaptureStatusRow
 
-                    Text("onboarding.privacy.hint")
-                        .font(DesignSystem.Typography.caption)
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                    Divider()
 
                     Picker("preferences.window_titles.privacy_mode", selection: $appState.windowTitlePrivacyMode) {
                         ForEach(WindowTitlePrivacyMode.allCases) { mode in
@@ -256,35 +981,215 @@ struct OnboardingView: View {
                     Text("preferences.window_titles.privacy_mode.note")
                         .font(DesignSystem.Typography.caption)
                         .foregroundColor(DesignSystem.Colors.secondaryText)
+
+                    privacyOutcomeStrip
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             SectionCard(title: "onboarding.privacy.permissions_title") {
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    Label(
-                        appState.accessibilityAuthorized
-                        ? LocalizedStringKey("onboarding.permissions.authorized")
-                        : LocalizedStringKey("onboarding.permissions.degraded_mode"),
-                        systemImage: appState.accessibilityAuthorized ? "checkmark.seal.fill" : "hand.raised"
-                    )
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(appState.accessibilityAuthorized ? Color(nsColor: .systemGreen) : DesignSystem.Colors.secondaryText)
-
-                    Text("onboarding.permissions.choice_hint")
-                        .font(DesignSystem.Typography.caption)
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                    permissionStatusRow
 
                     if appState.windowTitleCaptureEnabled && !appState.accessibilityAuthorized {
-                        Button(L("onboarding.permissions.grant")) {
-                            AccessibilityPermissionManager.shared.openSystemSettings()
+                        LazyVGrid(
+                            columns: adaptiveColumns(minimum: 170, spacing: DesignSystem.Spacing.sm),
+                            alignment: .leading,
+                            spacing: DesignSystem.Spacing.sm
+                        ) {
+                            Button {
+                                AccessibilityPermissionManager.shared.openSystemSettings()
+                            } label: {
+                                Label(L("onboarding.permissions.grant"), systemImage: "gearshape")
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(DesignSystem.Colors.accentSkyBlue)
+                            .accessibilityIdentifier("onboarding.permissions.openSystemSettings")
+
+                            Button {
+                                AccessibilityPermissionManager.shared.syncAppState(appState)
+                            } label: {
+                                Label(L("onboarding.permissions.recheck"), systemImage: "arrow.clockwise")
+                            }
+                            .buttonStyle(.bordered)
+                            .accessibilityIdentifier("onboarding.permissions.recheck")
                         }
-                        .buttonStyle(.bordered)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
+    }
+
+    private var privacyOutcomeStrip: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                Image(systemName: appState.windowTitleCaptureEnabled ? "text.viewfinder" : "eye.slash")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(titleCaptureTone.color)
+                    .frame(width: 18)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("onboarding.privacy.outcome.title")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+
+                    Text("onboarding.privacy.outcome.detail")
+                        .font(.caption2)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            LazyVGrid(
+                columns: adaptiveColumns(minimum: 150, spacing: DesignSystem.Spacing.sm),
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                privacyOutcomeItem(
+                    systemImage: "app.connected.to.app.below.fill",
+                    title: "onboarding.privacy.outcome.baseline_title",
+                    detail: "onboarding.privacy.outcome.baseline_detail"
+                )
+                privacyOutcomeItem(
+                    systemImage: "text.magnifyingglass",
+                    title: "onboarding.privacy.outcome.recall_title",
+                    detail: "onboarding.privacy.outcome.recall_detail"
+                )
+                privacyOutcomeItem(
+                    systemImage: "hand.raised",
+                    title: "onboarding.privacy.outcome.permission_title",
+                    detail: "onboarding.privacy.outcome.permission_detail"
+                )
+            }
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(titleCaptureTone.color.opacity(0.07))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(titleCaptureTone.color.opacity(0.18), lineWidth: 1)
+        )
+        .accessibilityIdentifier("onboarding.privacy.outcome")
+    }
+
+    private func privacyOutcomeItem(
+        systemImage: String,
+        title: LocalizedStringKey,
+        detail: LocalizedStringKey
+    ) -> some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(titleCaptureTone.color)
+                .frame(width: 16)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+
+                Text(detail)
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, DesignSystem.Spacing.sm)
+        .padding(.vertical, 7)
+        .frame(maxWidth: .infinity, minHeight: 58, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .fill(DesignSystem.Colors.cardBackground.opacity(0.70))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .stroke(DesignSystem.Colors.separator.opacity(0.28), lineWidth: 1)
+        )
+    }
+
+    private var privacyCaptureStatusRow: some View {
+        LazyVGrid(
+            columns: adaptiveColumns(minimum: 240, spacing: DesignSystem.Spacing.md),
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            privacyCaptureStatusCopy
+            privacyCaptureControls
+                .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+        .accessibilityIdentifier("onboarding.privacy.captureRow")
+    }
+
+    private var privacyCaptureStatusCopy: some View {
+        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+            IconWell(systemImage: "text.viewfinder", tone: titleCaptureTone)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("preferences.window_titles.capture")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                Text("onboarding.privacy.hint")
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var privacyCaptureControls: some View {
+        HStack(spacing: DesignSystem.Spacing.sm) {
+            StatusPill(titleCaptureStatusText, systemImage: titleCaptureIconName, tone: titleCaptureTone)
+
+            Toggle("preferences.window_titles.capture", isOn: windowTitleCaptureBinding)
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .accessibilityIdentifier("onboarding.windowTitleToggle")
+        }
+    }
+
+    private var permissionStatusRow: some View {
+        LazyVGrid(
+            columns: adaptiveColumns(minimum: 240, spacing: DesignSystem.Spacing.md),
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            permissionStatusCopy
+            StatusPill(permissionStatusText, systemImage: permissionStatusIconName, tone: permissionTone)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+        .accessibilityIdentifier("onboarding.permissions.row")
+    }
+
+    private var permissionStatusCopy: some View {
+        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+            IconWell(systemImage: appState.accessibilityAuthorized ? "checkmark.seal.fill" : "hand.raised", tone: permissionTone)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(appState.accessibilityAuthorized ? L("onboarding.permissions.authorized") : L("onboarding.permissions.degraded_mode"))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+
+                Text("onboarding.permissions.choice_hint")
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private var finishContent: some View {
@@ -298,42 +1203,403 @@ struct OnboardingView: View {
                 .foregroundColor(DesignSystem.Colors.secondaryText)
 
             SectionCard(title: "onboarding.finish.setup_title") {
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    Toggle("Launch at Login", isOn: launchAtLoginBinding)
-                        .toggleStyle(.switch)
-                        .accessibilityIdentifier("onboarding.launchAtLogin")
-
-                    if let launchAtLoginMessage {
-                        Text(launchAtLoginMessage)
-                            .font(DesignSystem.Typography.caption)
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                    LazyVGrid(
+                        columns: adaptiveColumns(minimum: 145, spacing: DesignSystem.Spacing.md),
+                        alignment: .leading,
+                        spacing: DesignSystem.Spacing.md
+                    ) {
+                        MetricValueView(
+                            title: "onboarding.summary.exports",
+                            value: exportStatusText,
+                            systemImage: "folder",
+                            tone: exportTone
+                        )
+                        MetricValueView(
+                            title: "onboarding.summary.privacy",
+                            value: titleCaptureStatusText,
+                            systemImage: "hand.raised",
+                            tone: titleCaptureTone
+                        )
+                        MetricValueView(
+                            title: "onboarding.summary.startup",
+                            value: startupSummaryText,
+                            systemImage: "power",
+                            tone: startupTone
+                        )
                     }
 
-                    Toggle("preferences.entry_fallback.show_dock_icon", isOn: $appState.showDockIcon)
-                        .toggleStyle(.switch)
-                        .accessibilityIdentifier("onboarding.showDockIcon")
+                    Divider()
 
-                    HStack(spacing: 8) {
-                        Button(L("onboarding.convenience.try_quick_marker")) {
-                            AppWindowRouter.shared.open(.quickMarker)
-                        }
-                        .buttonStyle(.bordered)
-                        .accessibilityIdentifier("onboarding.openQuickMarker")
+                    finishAvailabilitySettings
 
-                        Button(L("popover.open_dashboard")) {
-                            AppWindowRouter.shared.open(.dashboard)
-                        }
-                        .buttonStyle(.bordered)
-                        .accessibilityIdentifier("onboarding.openDashboard")
-                    }
+                    Divider()
+
+                    finishNextActions
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
     }
 
+    private func onboardingFeatureRow(
+        systemImage: String,
+        title: LocalizedStringKey,
+        detail: LocalizedStringKey,
+        tone: DesignSystem.StatusTone
+    ) -> some View {
+        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+            IconWell(systemImage: systemImage, tone: tone)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                Text(detail)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+            }
+
+            Spacer()
+        }
+    }
+
+    private func onboardingDayFlowRow(
+        systemImage: String,
+        time: LocalizedStringKey,
+        title: LocalizedStringKey,
+        detail: LocalizedStringKey,
+        tone: DesignSystem.StatusTone
+    ) -> some View {
+        RowSurface(tone: tone) {
+            HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+                IconWell(systemImage: systemImage, tone: tone)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(time)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundColor(tone.color)
+                        .textCase(.uppercase)
+
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+
+                    Text(detail)
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: DesignSystem.Spacing.sm)
+            }
+        }
+    }
+
+    private var trustStrip: some View {
+        LazyVGrid(
+            columns: adaptiveColumns(minimum: 150, spacing: DesignSystem.Spacing.sm),
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            StatusPill(L("privacy.status.local_only"), systemImage: "checkmark.seal.fill", tone: .success)
+            StatusPill(L("privacy.status.no_upload"), systemImage: "arrow.up.circle", tone: .success)
+            StatusPill(L("onboarding.trust.optional_permissions"), systemImage: "hand.raised", tone: .info)
+        }
+    }
+
+    private var finishNextActions: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+                IconWell(systemImage: "checklist.checked", tone: .info)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("onboarding.finish.next_title")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+
+                    Text("onboarding.finish.next_detail")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer()
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                finishChecklistRow(
+                    systemImage: "menubar.rectangle",
+                    title: "onboarding.finish.checklist.running_title",
+                    detail: "onboarding.finish.checklist.running_detail",
+                    tone: startupTone
+                ) {
+                    StatusPill(startupSummaryText, systemImage: startupStatusIconName, tone: startupTone)
+                }
+
+                finishChecklistRow(
+                    systemImage: "square.and.pencil",
+                    title: "onboarding.finish.checklist.note_title",
+                    detail: "onboarding.finish.checklist.note_detail",
+                    tone: .success
+                ) {
+                    StatusPill(L("onboarding.finish.checklist.when_needed"), systemImage: "sparkle", tone: .success)
+                }
+
+                finishChecklistRow(
+                    systemImage: "doc.text.magnifyingglass",
+                    title: "onboarding.finish.checklist.closeout_title",
+                    detail: finishCloseoutDetailKey,
+                    tone: exportTone
+                ) {
+                    StatusPill(exportStatusText, systemImage: exportStatusIconName, tone: exportTone)
+                }
+            }
+            .padding(.vertical, 2)
+            .accessibilityIdentifier("onboarding.finishChecklist")
+
+            LazyVGrid(
+                columns: adaptiveColumns(minimum: 210, spacing: DesignSystem.Spacing.sm),
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                finishActionCard(
+                    id: "onboarding.openDashboard",
+                    systemImage: "rectangle.3.group",
+                    title: "onboarding.finish.open_dashboard",
+                    detail: "onboarding.finish.action.today_detail",
+                    tone: .info,
+                    isPrimary: true
+                ) {
+                    completeOnboarding(opening: .dashboard)
+                }
+
+                finishActionCard(
+                    id: "onboarding.openQuickMarker",
+                    systemImage: "square.and.pencil",
+                    title: "onboarding.convenience.try_quick_marker",
+                    detail: "onboarding.finish.action.quick_detail",
+                    tone: .success
+                ) {
+                    completeOnboarding(opening: .quickMarker)
+                }
+
+                if !hasDailyExportFolderConfigured {
+                    finishActionCard(
+                        id: "onboarding.finishSetupExports",
+                        systemImage: "folder.badge.plus",
+                        title: "onboarding.finish.setup_exports",
+                        detail: "onboarding.finish.action.folder_detail",
+                        tone: .warning
+                    ) {
+                        chooseDailyFolder()
+                    }
+                }
+            }
+            .accessibilityIdentifier("onboarding.finishPrimaryActions")
+        }
+    }
+
+    private var finishAvailabilitySettings: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            finishSettingToggleRow(
+                systemImage: "power",
+                title: "preferences.setup.launch_at_login",
+                detail: "preferences.setup.launch.detail",
+                status: startupSummaryText,
+                statusIcon: startupStatusIconName,
+                tone: startupTone,
+                isOn: launchAtLoginBinding,
+                identifier: "onboarding.launchAtLogin"
+            )
+
+            if let launchAtLoginMessage {
+                Text(launchAtLoginMessage)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .padding(.leading, 44)
+                    .textSelection(.enabled)
+            }
+
+            Divider()
+                .padding(.leading, 44)
+
+            finishSettingToggleRow(
+                systemImage: "menubar.rectangle",
+                title: "preferences.entry_fallback.show_dock_icon",
+                detail: "preferences.entry_fallback.note",
+                status: appState.showDockIcon ? L("privacy.status.enabled") : L("privacy.status.off"),
+                statusIcon: appState.showDockIcon ? "checkmark.circle.fill" : "pause.circle",
+                tone: appState.showDockIcon ? .success : .neutral,
+                isOn: $appState.showDockIcon,
+                identifier: "onboarding.showDockIcon"
+            )
+        }
+        .accessibilityIdentifier("onboarding.availabilitySettings")
+    }
+
+    private func finishActionCard(
+        id: String,
+        systemImage: String,
+        title: LocalizedStringKey,
+        detail: LocalizedStringKey,
+        tone: DesignSystem.StatusTone,
+        isPrimary: Bool = false,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                IconWell(systemImage: systemImage, tone: tone)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+                        .lineLimit(2)
+
+                    Text(detail)
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 0)
+            }
+            .padding(DesignSystem.Spacing.md)
+            .frame(maxWidth: .infinity, minHeight: 92, alignment: .topLeading)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                    .fill(isPrimary ? tone.color.opacity(0.12) : DesignSystem.Colors.background.opacity(0.55))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                    .stroke(isPrimary ? tone.color.opacity(0.34) : DesignSystem.Colors.separator.opacity(0.34), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(id)
+    }
+
+    private func finishSettingToggleRow(
+        systemImage: String,
+        title: LocalizedStringKey,
+        detail: LocalizedStringKey,
+        status: String,
+        statusIcon: String,
+        tone: DesignSystem.StatusTone,
+        isOn: Binding<Bool>,
+        identifier: String
+    ) -> some View {
+        LazyVGrid(
+            columns: adaptiveColumns(minimum: 240, spacing: DesignSystem.Spacing.md),
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            finishSettingCopy(systemImage: systemImage, title: title, detail: detail, tone: tone)
+
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                StatusPill(status, systemImage: statusIcon, tone: tone)
+                Toggle(title, isOn: isOn)
+                    .labelsHidden()
+                    .toggleStyle(.switch)
+                    .accessibilityIdentifier(identifier)
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func finishSettingCopy(
+        systemImage: String,
+        title: LocalizedStringKey,
+        detail: LocalizedStringKey,
+        tone: DesignSystem.StatusTone
+    ) -> some View {
+        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+            IconWell(systemImage: systemImage, tone: tone)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+
+                Text(detail)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private func finishChecklistRow<Trailing: View>(
+        systemImage: String,
+        title: LocalizedStringKey,
+        detail: LocalizedStringKey,
+        tone: DesignSystem.StatusTone,
+        @ViewBuilder trailing: () -> Trailing
+    ) -> some View {
+        RowSurface(tone: tone) {
+            LazyVGrid(
+                columns: adaptiveColumns(minimum: 240, spacing: DesignSystem.Spacing.md),
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                finishChecklistCopy(systemImage: systemImage, title: title, detail: detail, tone: tone)
+                trailing()
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func finishChecklistCopy(
+        systemImage: String,
+        title: LocalizedStringKey,
+        detail: LocalizedStringKey,
+        tone: DesignSystem.StatusTone
+    ) -> some View {
+        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+            IconWell(systemImage: systemImage, tone: tone)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+
+                Text(detail)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
     private var titleKey: String {
+        titleKey(for: step)
+    }
+
+    private var stepSummaryKey: String {
         switch step {
+        case .value:
+            return "onboarding.welcome.body"
+        case .exports:
+            return "onboarding.exports.body"
+        case .privacy:
+            return "onboarding.privacy.body"
+        case .finish:
+            return "onboarding.finish.hint"
+        }
+    }
+
+    private func titleKey(for flowStep: Step) -> String {
+        switch flowStep {
         case .value:
             return "onboarding.welcome.title"
         case .exports:
@@ -343,6 +1609,176 @@ struct OnboardingView: View {
         case .finish:
             return "onboarding.finish.title"
         }
+    }
+
+    private func railTitleKey(for flowStep: Step) -> String {
+        switch flowStep {
+        case .value:
+            return "onboarding.path.step.value"
+        case .exports:
+            return "onboarding.path.step.exports"
+        case .privacy:
+            return "onboarding.path.step.privacy"
+        case .finish:
+            return "onboarding.path.step.finish"
+        }
+    }
+
+    private var stepIconName: String {
+        stepIconName(for: step)
+    }
+
+    private func stepIconName(for flowStep: Step) -> String {
+        switch flowStep {
+        case .value:
+            return "sparkles"
+        case .exports:
+            return "folder"
+        case .privacy:
+            return "hand.raised"
+        case .finish:
+            return "checkmark.seal"
+        }
+    }
+
+    private func railStepBackground(isCurrent: Bool, isHovering: Bool, tone: DesignSystem.StatusTone) -> Color {
+        if isCurrent {
+            return tone.color.opacity(0.12)
+        }
+        if isHovering {
+            return DesignSystem.Colors.separator.opacity(0.20)
+        }
+        return Color.clear
+    }
+
+    private var stepTone: DesignSystem.StatusTone {
+        stateForStep(step).tone
+    }
+
+    private var stepStatusText: String {
+        if step == .exports {
+            return exportStatusText
+        }
+        if step == .privacy {
+            return titleCaptureStatusText
+        }
+        let isFinalStep = step == flowSteps.last
+        return isFinalStep ? L("onboarding.status.ready") : L("onboarding.status.in_progress")
+    }
+
+    private var stepStatusIconName: String {
+        if step == .exports {
+            return exportStatusIconName
+        }
+        if step == .privacy {
+            return titleCaptureIconName
+        }
+        return step == flowSteps.last ? "checkmark.circle.fill" : "arrow.forward.circle"
+    }
+
+    private func stateForStep(_ flowStep: Step) -> (systemImage: String, tone: DesignSystem.StatusTone) {
+        let currentIndex = flowSteps.firstIndex(of: step) ?? 0
+        let targetIndex = flowSteps.firstIndex(of: flowStep) ?? 0
+        if targetIndex <= currentIndex {
+            if flowStep == .exports && !hasDailyExportFolderConfigured {
+                return ("exclamationmark.circle", .warning)
+            }
+            if flowStep == .privacy && appState.windowTitleCaptureEnabled && !appState.accessibilityAuthorized {
+                return ("exclamationmark.circle", .warning)
+            }
+        }
+        if targetIndex < currentIndex {
+            return ("checkmark", .success)
+        }
+        if targetIndex == currentIndex {
+            return (stepIconName(for: flowStep), .info)
+        }
+        return ("circle", .neutral)
+    }
+
+    private var exportStatusText: String {
+        hasDailyExportFolderConfigured ? L("onboarding.status.ready") : L("onboarding.status.needs_folder")
+    }
+
+    private var exportStatusIconName: String {
+        hasDailyExportFolderConfigured ? "checkmark.circle.fill" : "exclamationmark.circle"
+    }
+
+    private var exportTone: DesignSystem.StatusTone {
+        hasDailyExportFolderConfigured ? .success : .warning
+    }
+
+    private var titleCaptureStatusText: String {
+        if !appState.windowTitleCaptureEnabled {
+            return L("privacy.status.off")
+        }
+        if !appState.accessibilityAuthorized {
+            return L("privacy.status.needs_permission")
+        }
+        return L("privacy.status.enabled")
+    }
+
+    private var titleCaptureIconName: String {
+        if !appState.windowTitleCaptureEnabled {
+            return "pause.circle"
+        }
+        if !appState.accessibilityAuthorized {
+            return "exclamationmark.triangle.fill"
+        }
+        return "checkmark.circle.fill"
+    }
+
+    private var titleCaptureTone: DesignSystem.StatusTone {
+        if !appState.windowTitleCaptureEnabled {
+            return .neutral
+        }
+        if !appState.accessibilityAuthorized {
+            return .warning
+        }
+        return .success
+    }
+
+    private var permissionStatusText: String {
+        if !appState.windowTitleCaptureEnabled {
+            return L("privacy.status.not_needed")
+        }
+        return appState.accessibilityAuthorized
+            ? L("privacy.status.authorized")
+            : L("privacy.status.needs_permission")
+    }
+
+    private var permissionStatusIconName: String {
+        if !appState.windowTitleCaptureEnabled {
+            return "pause.circle"
+        }
+        return appState.accessibilityAuthorized ? "checkmark.circle.fill" : "exclamationmark.triangle.fill"
+    }
+
+    private var permissionTone: DesignSystem.StatusTone {
+        if !appState.windowTitleCaptureEnabled {
+            return .neutral
+        }
+        return appState.accessibilityAuthorized ? .success : .warning
+    }
+
+    private var startupSummaryText: String {
+        appState.launchAtLoginEnabled
+            ? L("preferences.status.automatic")
+            : L("preferences.status.manual")
+    }
+
+    private var startupTone: DesignSystem.StatusTone {
+        appState.launchAtLoginEnabled ? .success : .neutral
+    }
+
+    private var startupStatusIconName: String {
+        appState.launchAtLoginEnabled ? "checkmark.circle.fill" : "power"
+    }
+
+    private var finishCloseoutDetailKey: LocalizedStringKey {
+        hasDailyExportFolderConfigured
+            ? "onboarding.finish.checklist.closeout_detail_ready"
+            : "onboarding.finish.checklist.closeout_detail_needs_folder"
     }
 
     private var stepIndicator: String {
@@ -356,6 +1792,10 @@ struct OnboardingView: View {
 
     private var hasDailyExportFolderConfigured: Bool {
         reportSettings.dailyFolderBookmark != nil
+    }
+
+    private func adaptiveColumns(minimum: CGFloat, spacing: CGFloat) -> [GridItem] {
+        [GridItem(.adaptive(minimum: minimum), spacing: spacing, alignment: .leading)]
     }
 
     private var windowTitleCaptureBinding: Binding<Bool> {
@@ -451,10 +1891,25 @@ struct OnboardingView: View {
     }
 
     private func finish() {
+        completeOnboarding(opening: .dashboard)
+    }
+
+    private func completeOnboarding(opening route: AppWindowRoute? = nil) {
         appState.onboardingCompleted = true
         TelemetryService.shared.increment("onboarding_completed")
         onClose()
-        NotificationCenter.default.post(name: .chronicleRequestOpenPopover, object: nil)
+        if let route {
+            AppWindowRouter.shared.open(route)
+        } else {
+            NotificationCenter.default.post(name: .chronicleRequestOpenPopover, object: nil)
+        }
+    }
+
+    private func useDefaults() {
+        appState.onboardingCompleted = true
+        TelemetryService.shared.increment("onboarding_skipped")
+        onClose()
+        AppWindowRouter.shared.open(.dashboard)
     }
 }
 

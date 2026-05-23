@@ -1048,7 +1048,7 @@ final class AggregationService {
         for segment in sorted {
             let snappedStart = snapStart(segment.start, bin: snapBin)
             let snappedEnd = snapEnd(segment.end, bin: snapBin)
-            var adjusted = SegmentBuilder(
+            let adjusted = SegmentBuilder(
                 start: snappedStart,
                 end: max(snappedStart, snappedEnd),
                 rawStart: segment.rawStart,
@@ -1125,7 +1125,7 @@ final class AggregationService {
     ) -> [GanttRowData] {
         var primaryMap: [String: [GanttSegmentData]] = [:]
         var overlayMap: [String: [GanttSegmentData]] = [:]
-        var totals = rawTotals
+        let totals = rawTotals
         var titles: [String: String] = [:]
         var colors: [String: Color] = [:]
 

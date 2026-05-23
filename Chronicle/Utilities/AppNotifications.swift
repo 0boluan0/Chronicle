@@ -10,6 +10,7 @@ import UserNotifications
 
 extension Notification.Name {
     static let chronicleRequestOpenPopover = Notification.Name("ChronicleRequestOpenPopover")
+    static let chronicleTaggingSetupDidChange = Notification.Name("ChronicleTaggingSetupDidChange")
 }
 
 final class DailyReviewReminderNotificationService {
@@ -58,11 +59,8 @@ final class DailyReviewReminderNotificationService {
         let nowMinutes = (current.hour ?? 0) * 60 + (current.minute ?? 0)
         guard nowMinutes >= minutes else { return }
 
-        if reportSettings.lastDailyExportAt > 0 {
-            let lastExport = Date(timeIntervalSince1970: reportSettings.lastDailyExportAt)
-            if Calendar.current.isDate(lastExport, inSameDayAs: now) {
-                return
-            }
+        if reportSettings.dailyExportSucceeded(for: now) {
+            return
         }
 
         requestAuthorization { granted in

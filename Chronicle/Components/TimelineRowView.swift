@@ -33,63 +33,112 @@ struct TimelineRowView: View {
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(nsImage: appIcon)
-                .resizable()
-                .frame(width: 28, height: 28)
-                .cornerRadius(6)
-
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Text(activity.appName)
-                        .font(.system(size: 13, weight: .semibold))
-
-                    if activity.isIdle {
-                        Text("Idle")
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(
-                                Capsule()
-                                    .fill(Color.gray.opacity(0.15))
-                            )
-                    }
+        RowSurface(tone: rowTone, isHovering: false) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                    appIconView
+                    titleBlock
+                    Spacer(minLength: DesignSystem.Spacing.sm)
+                    timeBlock
                 }
 
-                if let title = activity.windowTitle?.trimmingCharacters(in: .whitespacesAndNewlines),
-                   !title.isEmpty {
-                    Text(title)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .lineLimit(maxTitleLines)
-                }
+                metadataStrip
             }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("timeline.activityRow")
+    }
 
-            Spacer(minLength: 8)
+    private var appIconView: some View {
+        IconWell(
+            image: appIcon,
+            tone: rowTone,
+            accessibilityLabel: activity.appName
+        )
+    }
 
-            VStack(alignment: .trailing, spacing: 4) {
-                Text(TimeFormatters.timeRange(start: activity.startTime, end: activity.endTime))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+    private var titleBlock: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            rowTitle
 
-                Text(TimeFormatters.durationText(start: activity.startTime, end: activity.endTime))
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
+            if let title = activity.windowTitle?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !title.isEmpty {
+                Text(title)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(maxTitleLines)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
 
-                TagBadgeView(
+    private var timeBlock: some View {
+        VStack(alignment: .trailing, spacing: 4) {
+            Text(TimeFormatters.timeRange(start: activity.startTime, end: activity.endTime))
+                .font(.caption.weight(.medium))
+                .foregroundColor(DesignSystem.Colors.primaryText)
+                .monospacedDigit()
+                .lineLimit(1)
+
+            Text(TimeFormatters.durationText(start: activity.startTime, end: activity.endTime))
+                .font(.caption2)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .monospacedDigit()
+                .lineLimit(1)
+        }
+        .frame(minWidth: 76, alignment: .trailing)
+    }
+
+    private var metadataStrip: some View {
+        LazyVGrid(
+            columns: adaptiveColumns(minimum: 96, spacing: DesignSystem.Spacing.xs),
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.xs
+        ) {
+            if !activity.isIdle || tag != nil {
+                TagBadge(
                     tag: tag,
                     isManualOverride: showsManualIndicator,
                     popoverPresented: tagPopoverPresented,
                     popoverContent: tagPopoverContent
                 )
             }
+
+            if activity.isIdle {
+                StatusPill(L("Idle"), systemImage: "moon.zzz", tone: .warning)
+            }
+
+            if showsManualIndicator {
+                StatusPill(L("timeline.row.manual"), systemImage: "hand.point.left.fill", tone: .info)
+            }
+
+            if needsLabel {
+                StatusPill(L("tag.badge.needs_label"), systemImage: "exclamationmark.triangle.fill", tone: .warning)
+            }
         }
-        .padding(8)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(activity.isIdle ? Color.gray.opacity(0.12) : Color(nsColor: .controlBackgroundColor))
-        )
+    }
+
+    private var rowTitle: some View {
+        Text(activity.appName)
+            .font(.subheadline.weight(.semibold))
+            .foregroundColor(DesignSystem.Colors.primaryText)
+            .lineLimit(1)
+            .truncationMode(.tail)
+    }
+
+    private var needsLabel: Bool {
+        !activity.isIdle && tag == nil
+    }
+
+    private var rowTone: DesignSystem.StatusTone {
+        if activity.isIdle || needsLabel {
+            return .warning
+        }
+        if showsManualIndicator {
+            return .info
+        }
+        return .neutral
     }
 
     private var appIcon: NSImage {
@@ -111,87 +160,16 @@ struct TimelineRowView: View {
             return systemIcon
         }
 
-        let generic = NSWorkspace.shared.icon(forFileType: "app")
+        let generic = DesignSystem.Images.genericAppIcon
         IconCache.icons[activity.appName] = generic
         return generic
+    }
+
+    private func adaptiveColumns(minimum: CGFloat, spacing: CGFloat) -> [GridItem] {
+        [GridItem(.adaptive(minimum: minimum), spacing: spacing, alignment: .leading)]
     }
 }
 
 private enum IconCache {
     static var icons: [String: NSImage] = [:]
-}
-
-private struct TagBadgeView: View {
-    let tag: TagRow?
-    let isManualOverride: Bool
-    let popoverPresented: Binding<Bool>?
-    let popoverContent: AnyView?
-
-    var body: some View {
-        if let popoverPresented, let popoverContent {
-            Button {
-                popoverPresented.wrappedValue = true
-            } label: {
-                badgeContent
-            }
-            .buttonStyle(.plain)
-            .popover(isPresented: popoverPresented) {
-                popoverContent
-            }
-        } else {
-            badgeContent
-        }
-    }
-
-    private var badgeContent: some View {
-        HStack(spacing: 4) {
-            Text(label)
-            if isManualOverride {
-                Image(systemName: "hand.point.left.fill")
-                    .font(.caption2)
-            }
-        }
-        .font(.caption2)
-        .foregroundColor(textColor)
-        .padding(.horizontal, 6)
-        .padding(.vertical, 2)
-        .background(
-            RoundedRectangle(cornerRadius: 4)
-                .fill(backgroundColor)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 4)
-                .stroke(borderColor, lineWidth: 1)
-        )
-    }
-
-    private var label: String {
-        tag?.name ?? L("Untagged")
-    }
-
-    private var backgroundColor: Color {
-        if let color = tagColor {
-            return color.opacity(0.18)
-        }
-        return Color.gray.opacity(0.12)
-    }
-
-    private var borderColor: Color {
-        if let color = tagColor {
-            return color.opacity(0.5)
-        }
-        return Color.gray.opacity(0.2)
-    }
-
-    private var textColor: Color {
-        if let color = tagColor {
-            return color
-        }
-        return Color.secondary
-    }
-
-    private var tagColor: Color? {
-        guard let hex = tag?.color else { return nil }
-        return Color(hex: hex)
-    }
 }

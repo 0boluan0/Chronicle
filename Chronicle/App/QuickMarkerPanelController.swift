@@ -13,12 +13,12 @@ final class QuickMarkerPanelController: NSWindowController, NSWindowDelegate {
 
     private init() {
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 720, height: 220),
+            contentRect: NSRect(x: 0, y: 0, width: 800, height: 560),
             styleMask: [.titled, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
-        panel.minSize = NSSize(width: 640, height: 220)
+        panel.minSize = NSSize(width: 700, height: 500)
         panel.titleVisibility = .hidden
         panel.titlebarAppearsTransparent = true
         panel.isMovableByWindowBackground = true
@@ -73,8 +73,9 @@ final class QuickMarkerPanelController: NSWindowController, NSWindowDelegate {
 
     private func adjustPanelSize(for window: NSWindow) {
         guard let screen = window.screen ?? NSScreen.main ?? NSScreen.screens.first else { return }
-        let targetWidth = max(720, screen.visibleFrame.width * 0.5)
-        let targetSize = NSSize(width: targetWidth, height: 220)
+        let targetWidth = max(800, min(screen.visibleFrame.width * 0.56, 980))
+        let targetHeight = max(500, min(max(560, screen.visibleFrame.height * 0.58), screen.visibleFrame.height - 80))
+        let targetSize = NSSize(width: targetWidth, height: targetHeight)
         if window.frame.size != targetSize {
             window.setContentSize(targetSize)
         }

@@ -18,49 +18,101 @@ struct MarkerSpanRowView: View {
             ? "\(TimeFormatters.timeText(for: span.startTime, includeSeconds: false))–…"
             : TimeFormatters.timeRange(start: span.startTime, end: endTime)
         let durationText = TimeFormatters.durationText(start: span.startTime, end: endTime)
-        let ongoingLabel = L("marker.span.ongoing")
-        let statusText = span.endTime == nil
-            ? "\(durationText) · \(ongoingLabel)"
-            : durationText
+        let purposeText = span.endTime == nil
+            ? L("timeline.row.running_focus")
+            : L("timeline.row.focus_block")
 
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-            Image(systemName: "timer")
-                .foregroundColor(DesignSystem.Colors.accentSkyBlue)
-                .font(.system(size: 12, weight: .semibold))
-                .padding(.top, 2)
+        RowSurface(tone: span.endTime == nil ? .warning : .info, isHovering: isHovering) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                IconWell(
+                    systemImage: span.endTime == nil ? "timer.circle.fill" : "timer",
+                    tone: span.endTime == nil ? .warning : .info,
+                    accessibilityLabel: L("timeline.marker.interval")
+                )
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(rangeText)
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                VStack(alignment: .leading, spacing: 6) {
+                    LazyVGrid(
+                        columns: adaptiveColumns(minimum: 126, spacing: DesignSystem.Spacing.xs),
+                        alignment: .leading,
+                        spacing: DesignSystem.Spacing.xs
+                    ) {
+                        spanStatus
+                        spanRangeMetadata(rangeText)
+                    }
 
-                Text(span.text)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    Text(span.text)
+                        .font(.callout.weight(.medium))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
 
-                Text(statusText)
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    LazyVGrid(
+                        columns: adaptiveColumns(minimum: 126, spacing: DesignSystem.Spacing.xs),
+                        alignment: .leading,
+                        spacing: 3
+                    ) {
+                        spanDurationMetadata(durationText)
+                        spanPurposeMetadata(purposeText)
+                    }
+                    .accessibilityIdentifier("timeline.markerSpan.purpose")
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Spacer(minLength: DesignSystem.Spacing.sm)
             }
-
-            Spacer(minLength: DesignSystem.Spacing.sm)
         }
-        .padding(DesignSystem.Spacing.md)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(DesignSystem.Colors.cardBackground)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .stroke(DesignSystem.Colors.separator.opacity(isHovering ? 0.55 : 0.25), lineWidth: 1)
-        )
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(DesignSystem.Colors.separator.opacity(isHovering ? 0.08 : 0.0))
-        )
         .onHover { hovering in
             isHovering = hovering
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("timeline.markerSpanRow")
+    }
+
+    private var spanStatus: some View {
+        StatusPill(
+            span.endTime == nil ? L("marker.span.ongoing") : L("timeline.marker.interval"),
+            systemImage: span.endTime == nil ? "record.circle" : "timer",
+            tone: span.endTime == nil ? .warning : .info
+        )
+    }
+
+    private func spanRangeMetadata(_ rangeText: String) -> some View {
+        Text(rangeText)
+            .font(DesignSystem.Typography.caption)
+            .foregroundColor(DesignSystem.Colors.secondaryText)
+            .monospacedDigit()
+            .lineLimit(1)
+    }
+
+    private func spanDurationMetadata(_ durationText: String) -> some View {
+        HStack(spacing: 7) {
+            Image(systemName: "timer")
+                .font(.caption2.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+
+            Text(durationText)
+                .font(DesignSystem.Typography.caption)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .monospacedDigit()
+        }
+    }
+
+    private func spanPurposeMetadata(_ purposeText: String) -> some View {
+        HStack(spacing: 7) {
+            Image(systemName: span.endTime == nil ? "record.circle" : "checkmark.circle")
+                .font(.caption2.weight(.semibold))
+                .foregroundColor(span.endTime == nil ? DesignSystem.StatusTone.warning.color : DesignSystem.StatusTone.info.color)
+
+            Text(purposeText)
+                .font(DesignSystem.Typography.caption)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func adaptiveColumns(minimum: CGFloat, spacing: CGFloat) -> [GridItem] {
+        [GridItem(.adaptive(minimum: minimum), spacing: spacing, alignment: .leading)]
     }
 }
 

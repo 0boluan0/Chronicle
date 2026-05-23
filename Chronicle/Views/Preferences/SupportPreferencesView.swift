@@ -9,9 +9,18 @@ import AppKit
 import SwiftUI
 
 struct SupportPreferencesView: View {
-    @State private var statusMessage: String?
+    @EnvironmentObject private var appState: AppState
+    @ObservedObject private var healthCheck = HealthCheckService.shared
+
+    @State private var readinessStatus: StatusMessage?
+    @State private var supportPathStatus: StatusMessage?
+    @State private var identityStatus: StatusMessage?
+    @State private var actionsStatus: StatusMessage?
+    @State private var docsStatus: StatusMessage?
+    @State private var feedbackStatus: StatusMessage?
     @State private var isCreatingFeedbackBundle = false
     @State private var hasTrackedOpen = false
+    @State private var showHealthReport = false
 
     private let latestReleaseURL = URL(string: "https://github.com/0boluan0/Chronicle/releases/latest")!
     private let releasesPageURL = URL(string: "https://github.com/0boluan0/Chronicle/releases")!
@@ -20,96 +29,211 @@ struct SupportPreferencesView: View {
     private let privacyPermissionsGuideURL = URL(string: "https://github.com/0boluan0/Chronicle/blob/main/docs/privacy-and-permissions.md")!
 
     var body: some View {
-        PreferencesPageLayout(titleKey: "preferences.support") {
-            GroupBox {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("support.about.title")
-                        .font(.headline)
-                    Text(String(format: L("support.about.version"), versionString))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Text(String(format: L("support.about.bundle_id"), Bundle.main.bundleIdentifier ?? "unknown"))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Text(String(format: L("support.about.database_path"), DatabaseService.shared.databasePath))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .textSelection(.enabled)
+        PreferencesPageLayout(
+            titleKey: "preferences.support",
+            descriptionKey: "support.page.description"
+        ) {
+            SectionCard(title: "support.readiness.title") {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                    supportStatusHeader(
+                        systemImage: readinessIconName,
+                        tone: readinessTone,
+                        title: readinessHeadline,
+                        detail: readinessDetail,
+                        status: readinessText,
+                        statusIcon: readinessStatusIconName,
+                        accessibilityIdentifier: "support.readiness.header"
+                    )
+
+                    Divider()
+
+                    readinessActionGroup
+
+                    StatusBannerView(status: readinessStatus, accessibilityIdentifier: "support.readinessStatus")
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            GroupBox {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("support.actions.title")
-                        .font(.headline)
-                    HStack(spacing: 8) {
-                        Button("support.actions.check_updates") {
+            supportPathSection
+
+            SectionCard(title: "support.identity.title") {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                    supportStatusHeader(
+                        systemImage: "shippingbox",
+                        tone: .neutral,
+                        title: String(format: L("support.identity.version"), versionString),
+                        detail: L("support.identity.detail"),
+                        accessibilityIdentifier: "support.identity.header"
+                    ) {
+                        Button {
+                            openAppSupportFolder(target: .identity)
+                        } label: {
+                            Label(L("support.actions.open_app_support"), systemImage: "folder")
+                        }
+                        .buttonStyle(.bordered)
+                    }
+
+                    DisclosureGroup {
+                        VStack(alignment: .leading, spacing: 8) {
+                            supportInfoRow(systemImage: "number", text: String(format: L("support.about.bundle_id"), Bundle.main.bundleIdentifier ?? "unknown"))
+                            supportInfoRow(systemImage: "externaldrive", text: String(format: L("support.about.database_path"), DatabaseService.shared.databasePath))
+                        }
+                        .padding(.top, 4)
+                    } label: {
+                        Label(L("support.identity.technical_details"), systemImage: "wrench.and.screwdriver")
+                            .font(.caption.weight(.medium))
+                    }
+
+                    StatusBannerView(status: identityStatus, accessibilityIdentifier: "support.identityStatus")
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            SectionCard(title: "support.actions.title") {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                    supportStatusHeader(
+                        systemImage: "arrow.down.circle",
+                        tone: .info,
+                        title: L("support.actions.heading"),
+                        detail: L("support.actions.detail"),
+                        status: L("support.actions.status"),
+                        statusIcon: "safari",
+                        accessibilityIdentifier: "support.actions.header"
+                    )
+
+                    Divider()
+
+                    responsiveActionGroup {
+                        Button {
                             TelemetryService.shared.increment("check_updates_opened")
-                            open(url: latestReleaseURL)
+                            open(
+                                url: latestReleaseURL,
+                                target: .actions,
+                                successKey: "support.status.opened_latest_release",
+                                failureKey: "support.status.open_failed_url"
+                            )
+                        } label: {
+                            Label(L("support.actions.check_updates"), systemImage: "arrow.down.circle")
                         }
                         .buttonStyle(.bordered)
 
-                        Button("support.actions.open_releases") {
+                        Button {
                             TelemetryService.shared.increment("releases_page_opened")
-                            open(url: releasesPageURL)
+                            open(
+                                url: releasesPageURL,
+                                target: .actions,
+                                successKey: "support.status.opened_releases",
+                                failureKey: "support.status.open_failed_url"
+                            )
+                        } label: {
+                            Label(L("support.actions.open_releases"), systemImage: "safari")
                         }
                         .buttonStyle(.bordered)
 
-                        Button("support.actions.open_app_support") {
-                            openAppSupportFolder()
+                        Button {
+                            openAppSupportFolder(target: .actions)
+                        } label: {
+                            Label(L("support.actions.open_app_support"), systemImage: "folder")
                         }
                         .buttonStyle(.bordered)
                     }
+                    .accessibilityIdentifier("support.actions.group")
+
+                    StatusBannerView(status: actionsStatus, accessibilityIdentifier: "support.actionsStatus")
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            GroupBox {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("support.docs.title")
-                        .font(.headline)
-                    HStack(spacing: 8) {
-                        Button("privacy.open_data_safety_guide") {
-                            open(url: dataSafetyGuideURL)
+            SectionCard(title: "support.docs.title") {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                    supportStatusHeader(
+                        systemImage: "book.closed",
+                        tone: .info,
+                        title: L("support.docs.heading"),
+                        detail: L("support.docs.detail"),
+                        status: L("support.docs.status"),
+                        statusIcon: "doc.text.magnifyingglass",
+                        accessibilityIdentifier: "support.docs.header"
+                    )
+
+                    Divider()
+
+                    responsiveActionGroup {
+                        Button {
+                            open(
+                                url: dataSafetyGuideURL,
+                                target: .docs,
+                                successKey: "support.status.opened_data_safety_guide",
+                                failureKey: "support.status.open_failed_url"
+                            )
+                        } label: {
+                            Label(L("privacy.open_data_safety_guide"), systemImage: "lock.shield")
                         }
                         .buttonStyle(.bordered)
 
-                        Button("privacy.open_migration_guide") {
-                            open(url: migrationGuideURL)
+                        Button {
+                            open(
+                                url: migrationGuideURL,
+                                target: .docs,
+                                successKey: "support.status.opened_migration_guide",
+                                failureKey: "support.status.open_failed_url"
+                            )
+                        } label: {
+                            Label(L("privacy.open_migration_guide"), systemImage: "arrow.triangle.2.circlepath")
                         }
                         .buttonStyle(.bordered)
 
-                        Button("privacy.open_privacy_permissions_guide") {
-                            open(url: privacyPermissionsGuideURL)
+                        Button {
+                            open(
+                                url: privacyPermissionsGuideURL,
+                                target: .docs,
+                                successKey: "support.status.opened_privacy_guide",
+                                failureKey: "support.status.open_failed_url"
+                            )
+                        } label: {
+                            Label(L("privacy.open_privacy_permissions_guide"), systemImage: "hand.raised")
                         }
                         .buttonStyle(.bordered)
                     }
+                    .accessibilityIdentifier("support.docs.group")
+
+                    StatusBannerView(status: docsStatus, accessibilityIdentifier: "support.docsStatus")
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            GroupBox {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("support.feedback.title")
-                        .font(.headline)
-                    Text("support.feedback.note")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Button("support.feedback.create_bundle") {
-                        createFeedbackBundle()
+            SectionCard(title: "support.feedback.title") {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                    supportStatusHeader(
+                        systemImage: "shippingbox",
+                        tone: .info,
+                        title: L("support.feedback.heading"),
+                        detail: L("support.feedback.note"),
+                        status: L("support.feedback.status"),
+                        statusIcon: "lock.doc",
+                        accessibilityIdentifier: "support.feedback.header"
+                    )
+
+                    supportPackageTrustRow
+
+                    responsiveActionGroup {
+                        Button {
+                            createFeedbackBundle(target: .feedback)
+                        } label: {
+                            Label(
+                                isCreatingFeedbackBundle ? L("support.feedback.creating") : L("support.feedback.create_bundle"),
+                                systemImage: "shippingbox"
+                            )
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(DesignSystem.Colors.accentSkyBlue)
+                        .disabled(isCreatingFeedbackBundle)
+                        .accessibilityIdentifier("support.feedback.createBundle")
                     }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(isCreatingFeedbackBundle)
+
+                    StatusBannerView(status: feedbackStatus, accessibilityIdentifier: "support.feedbackStatus")
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-            }
-
-            if let statusMessage {
-                Text(statusMessage)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .textSelection(.enabled)
             }
         }
         .onAppear {
@@ -118,6 +242,330 @@ struct SupportPreferencesView: View {
                 TelemetryService.shared.increment("support_opened")
             }
         }
+        .sheet(isPresented: $showHealthReport) {
+            HealthCheckDetailsView {
+                showHealthReport = false
+            }
+            .environmentObject(appState)
+        }
+    }
+
+    private var supportPathSection: some View {
+        SectionCard(title: "support.path.title") {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                supportPathRow(
+                    systemImage: "stethoscope",
+                    tone: readinessTone,
+                    title: "support.path.health_title",
+                    detail: "support.path.health_detail",
+                    accessibilityIdentifier: "support.path.health"
+                ) {
+                    supportPathHealthAction
+                }
+
+                supportPathRow(
+                    systemImage: "folder",
+                    tone: .success,
+                    title: "support.path.data_title",
+                    detail: "support.path.data_detail",
+                    accessibilityIdentifier: "support.path.data"
+                ) {
+                    Button {
+                        openAppSupportFolder(target: .supportPath)
+                    } label: {
+                        Label(L("support.actions.open_app_support"), systemImage: "folder")
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("support.path.openAppSupport")
+                }
+
+                supportPathRow(
+                    systemImage: "shippingbox",
+                    tone: .info,
+                    title: "support.path.bundle_title",
+                    detail: "support.path.bundle_detail",
+                    accessibilityIdentifier: "support.path.bundle"
+                ) {
+                    Button {
+                        createFeedbackBundle(target: .supportPath)
+                    } label: {
+                        Label(
+                            isCreatingFeedbackBundle ? L("support.feedback.creating") : L("support.feedback.create_bundle"),
+                            systemImage: "shippingbox"
+                        )
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(isCreatingFeedbackBundle)
+                    .accessibilityIdentifier("support.path.createBundle")
+                }
+
+                StatusBannerView(status: supportPathStatus, accessibilityIdentifier: "support.pathStatus")
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityIdentifier("support.path")
+    }
+
+    private var supportPackageTrustRow: some View {
+        RowSurface(tone: .success) {
+            supportStatusHeader(
+                systemImage: "lock.doc",
+                tone: .success,
+                title: L("support.feedback.local_title"),
+                detail: L("support.feedback.local_detail"),
+                status: L("support.feedback.local_status"),
+                statusIcon: "checkmark.shield",
+                accessibilityIdentifier: "support.feedback.localPromise"
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var supportPathHealthAction: some View {
+        switch readinessState {
+        case .notRun, .failed:
+            Button {
+                healthCheck.runQuickChecks()
+            } label: {
+                Label(L("popover.self_check.run"), systemImage: "stethoscope")
+            }
+            .buttonStyle(.bordered)
+            .disabled(healthCheck.isRunning)
+            .accessibilityIdentifier("support.path.runSelfCheck")
+        case .running:
+            Button {} label: {
+                Label(L("popover.self_check.running"), systemImage: "waveform.path.ecg")
+            }
+                .buttonStyle(.bordered)
+                .disabled(true)
+        case .blocked, .attention, .ready:
+            Button {
+                showHealthReport = true
+            } label: {
+                Label(L("support.readiness.open_report"), systemImage: "doc.text.magnifyingglass")
+            }
+            .buttonStyle(.bordered)
+            .accessibilityIdentifier("support.path.openHealthReport")
+        }
+    }
+
+    private func supportPathRow<Actions: View>(
+        systemImage: String,
+        tone: DesignSystem.StatusTone,
+        title: LocalizedStringKey,
+        detail: LocalizedStringKey,
+        accessibilityIdentifier: String,
+        @ViewBuilder actions: () -> Actions
+    ) -> some View {
+        RowSurface(tone: tone) {
+            LazyVGrid(
+                columns: adaptiveColumns(minimum: 240, spacing: DesignSystem.Spacing.md),
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                supportPathText(systemImage: systemImage, tone: tone, title: title, detail: detail)
+                actions()
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+        }
+        .accessibilityIdentifier(accessibilityIdentifier)
+    }
+
+    private func supportPathText(
+        systemImage: String,
+        tone: DesignSystem.StatusTone,
+        title: LocalizedStringKey,
+        detail: LocalizedStringKey
+    ) -> some View {
+        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+            IconWell(systemImage: systemImage, tone: tone)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                Text(detail)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func supportStatusHeader(
+        systemImage: String,
+        tone: DesignSystem.StatusTone,
+        title: String,
+        detail: String,
+        status: String? = nil,
+        statusIcon: String? = nil,
+        accessibilityIdentifier: String
+    ) -> some View {
+        supportStatusHeader(
+            systemImage: systemImage,
+            tone: tone,
+            title: title,
+            detail: detail,
+            status: status,
+            statusIcon: statusIcon,
+            accessibilityIdentifier: accessibilityIdentifier
+        ) {
+            EmptyView()
+        }
+    }
+
+    private func supportStatusHeader<Trailing: View>(
+        systemImage: String,
+        tone: DesignSystem.StatusTone,
+        title: String,
+        detail: String,
+        status: String? = nil,
+        statusIcon: String? = nil,
+        accessibilityIdentifier: String,
+        @ViewBuilder trailing: () -> Trailing
+    ) -> some View {
+        LazyVGrid(
+            columns: adaptiveColumns(minimum: 240, spacing: DesignSystem.Spacing.md),
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            supportStatusLead(systemImage: systemImage, tone: tone, title: title, detail: detail)
+            supportStatusTrailing(status: status, statusIcon: statusIcon, tone: tone, trailing: trailing)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+        .accessibilityIdentifier(accessibilityIdentifier)
+    }
+
+    private func supportStatusLead(
+        systemImage: String,
+        tone: DesignSystem.StatusTone,
+        title: String,
+        detail: String
+    ) -> some View {
+        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+            IconWell(systemImage: systemImage, tone: tone)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+
+                Text(detail)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func supportStatusTrailing<Trailing: View>(
+        status: String?,
+        statusIcon: String?,
+        tone: DesignSystem.StatusTone,
+        @ViewBuilder trailing: () -> Trailing
+    ) -> some View {
+        HStack(spacing: DesignSystem.Spacing.sm) {
+            if let status, let statusIcon {
+                StatusPill(status, systemImage: statusIcon, tone: tone)
+            }
+            trailing()
+        }
+    }
+
+    @ViewBuilder
+    private var primaryReadinessAction: some View {
+        switch readinessState {
+        case .notRun, .failed:
+            Button {
+                healthCheck.runQuickChecks()
+            } label: {
+                Label(L("popover.self_check.run"), systemImage: "stethoscope")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(DesignSystem.Colors.accentSkyBlue)
+            .disabled(healthCheck.isRunning)
+            .accessibilityIdentifier("support.runSelfCheck")
+        case .running:
+            Button {} label: {
+                Label(L("popover.self_check.running"), systemImage: "waveform.path.ecg")
+            }
+                .buttonStyle(.borderedProminent)
+                .disabled(true)
+        case .blocked, .attention:
+            Button {
+                showHealthReport = true
+            } label: {
+                Label(L("support.readiness.review_fixes"), systemImage: "wrench.and.screwdriver")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(DesignSystem.Colors.accentSkyBlue)
+            .accessibilityIdentifier("support.reviewFixes")
+        case .ready:
+            Button {
+                showHealthReport = true
+            } label: {
+                Label(L("support.readiness.open_report"), systemImage: "doc.text.magnifyingglass")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(DesignSystem.Colors.accentSkyBlue)
+            .accessibilityIdentifier("support.openHealthReport")
+        }
+    }
+
+    private var readinessActionGroup: some View {
+        responsiveActionGroup {
+            primaryReadinessAction
+
+            if readinessState != .ready {
+                Button {
+                    showHealthReport = true
+                } label: {
+                    Label(L("support.readiness.open_report"), systemImage: "doc.text.magnifyingglass")
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("support.openHealthReport")
+            }
+
+            Button {
+                openAppSupportFolder(target: .readiness)
+            } label: {
+                Label(L("support.actions.open_app_support"), systemImage: "folder")
+            }
+            .buttonStyle(.bordered)
+
+            feedbackBundleButton(target: .readiness)
+        }
+    }
+
+    private func feedbackBundleButton(target: SupportStatusTarget) -> some View {
+        Button {
+            createFeedbackBundle(target: target)
+        } label: {
+            Label(
+                isCreatingFeedbackBundle ? L("support.feedback.creating") : L("support.feedback.create_bundle"),
+                systemImage: "shippingbox"
+            )
+        }
+        .buttonStyle(.bordered)
+        .disabled(isCreatingFeedbackBundle)
+    }
+
+    private func responsiveActionGroup<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        LazyVGrid(
+            columns: adaptiveColumns(minimum: 180, spacing: DesignSystem.Spacing.sm),
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            content()
+        }
+    }
+
+    private func adaptiveColumns(minimum: CGFloat, spacing: CGFloat) -> [GridItem] {
+        [GridItem(.adaptive(minimum: minimum), spacing: spacing, alignment: .leading)]
     }
 
     private var versionString: String {
@@ -126,37 +574,266 @@ struct SupportPreferencesView: View {
         return "\(shortVersion) (\(buildVersion))"
     }
 
-    private func open(url: URL) {
-        let opened = NSWorkspace.shared.open(url)
-        statusMessage = opened
-            ? String(format: L("support.status.opened"), url.absoluteString)
-            : String(format: L("support.status.open_failed"), url.absoluteString)
+    private enum ReadinessState: Equatable {
+        case notRun
+        case running
+        case failed
+        case blocked
+        case attention
+        case ready
     }
 
-    private func openAppSupportFolder() {
+    private enum SupportStatusTarget {
+        case readiness
+        case supportPath
+        case identity
+        case actions
+        case docs
+        case feedback
+    }
+
+    private var readinessState: ReadinessState {
+        if healthCheck.isRunning {
+            return .running
+        }
+        if let error = healthCheck.lastError, !error.isEmpty {
+            return .failed
+        }
+        guard let report = healthCheck.lastReport else {
+            return .notRun
+        }
+        let counts = issueCounts(for: report)
+        if counts.errors > 0 {
+            return .blocked
+        }
+        if counts.warnings > 0 {
+            return .attention
+        }
+        return .ready
+    }
+
+    private var readinessHeadline: String {
+        switch readinessState {
+        case .notRun:
+            return L("support.readiness.headline.not_run")
+        case .running:
+            return L("support.readiness.headline.running")
+        case .failed:
+            return L("support.readiness.headline.failed")
+        case .blocked:
+            return L("support.readiness.headline.blocked")
+        case .attention:
+            return L("support.readiness.headline.attention")
+        case .ready:
+            return L("support.readiness.headline.ready")
+        }
+    }
+
+    private var readinessText: String {
+        switch readinessState {
+        case .running:
+            return L("popover.self_check.running")
+        case .failed:
+            return L("self_check.details.status.failed")
+        case .notRun:
+            return L("popover.self_check.not_run")
+        case .blocked:
+            if let report = healthCheck.lastReport {
+                return String(format: L("popover.self_check.error_count"), issueCounts(for: report).errors)
+            }
+            return L("self_check.details.status.blocked")
+        case .attention:
+            if let report = healthCheck.lastReport {
+                return String(format: L("popover.self_check.warning_count"), issueCounts(for: report).warnings)
+            }
+            return L("self_check.details.status.attention")
+        case .ready:
+            return L("popover.self_check.ok")
+        }
+    }
+
+    private var readinessDetail: String {
+        switch readinessState {
+        case .notRun:
+            return L("support.readiness.not_run_detail")
+        case .running:
+            return L("support.readiness.running_detail")
+        case .failed:
+            return L("support.readiness.failed_detail")
+        case .blocked:
+            return checkedReadinessDetail(fallback: "support.readiness.blocked_detail")
+        case .attention:
+            return checkedReadinessDetail(fallback: "support.readiness.attention_detail")
+        case .ready:
+            return checkedReadinessDetail(fallback: "support.readiness.ready_detail")
+        }
+    }
+
+    private var readinessTone: DesignSystem.StatusTone {
+        switch readinessState {
+        case .running:
+            return .info
+        case .notRun:
+            return .neutral
+        case .failed, .blocked:
+            return .critical
+        case .attention:
+            return .warning
+        case .ready:
+            return .success
+        }
+    }
+
+    private var readinessIconName: String {
+        switch readinessState {
+        case .running:
+            return "waveform.path.ecg"
+        case .notRun:
+            return "stethoscope"
+        case .failed, .blocked:
+            return "xmark.octagon.fill"
+        case .attention:
+            return "exclamationmark.triangle.fill"
+        case .ready:
+            return "checkmark.seal.fill"
+        }
+    }
+
+    private var readinessStatusIconName: String {
+        switch readinessState {
+        case .notRun:
+            return "circle"
+        case .running:
+            return "waveform.path.ecg"
+        case .failed, .blocked:
+            return "xmark"
+        case .attention:
+            return "exclamationmark"
+        case .ready:
+            return "checkmark"
+        }
+    }
+
+    private func checkedReadinessDetail(fallback key: String) -> String {
+        guard let report = healthCheck.lastReport else {
+            return L(key)
+        }
+        let checkedAt = String(format: L("popover.self_check.checked_at"), Self.timeFormatter.string(from: report.checkedAt))
+        return "\(L(key)) \(checkedAt)"
+    }
+
+    private func issueCounts(for report: HealthCheckReport) -> (errors: Int, warnings: Int) {
+        report.issues.reduce(into: (errors: 0, warnings: 0)) { result, issue in
+            switch issue.severity {
+            case .error:
+                result.errors += 1
+            case .warning:
+                result.warnings += 1
+            }
+        }
+    }
+
+    private func supportInfoRow(systemImage: String, text: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: systemImage)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .frame(width: 16)
+
+            Text(text)
+                .font(DesignSystem.Typography.caption)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .textSelection(.enabled)
+        }
+    }
+
+    private func open(
+        url: URL,
+        target: SupportStatusTarget,
+        successKey: String,
+        failureKey: String
+    ) {
+        let opened = NSWorkspace.shared.open(url)
+        setStatus(
+            StatusMessage(
+                text: opened
+                    ? L(successKey)
+                    : String(format: L(failureKey), url.absoluteString),
+                isError: !opened
+            ),
+            target: target
+        )
+    }
+
+    private func openAppSupportFolder(target: SupportStatusTarget) {
         let dbURL = URL(fileURLWithPath: DatabaseService.shared.databasePath)
         let folderURL = dbURL.deletingLastPathComponent()
-        _ = NSWorkspace.shared.open(folderURL)
-        statusMessage = String(format: L("support.status.opened"), folderURL.path)
+        let opened = NSWorkspace.shared.open(folderURL)
+        setStatus(
+            StatusMessage(
+                text: opened
+                    ? L("support.status.opened_data_folder")
+                    : String(format: L("support.status.open_failed_path"), folderURL.path),
+                isError: !opened
+            ),
+            target: target
+        )
     }
 
-    private func createFeedbackBundle() {
+    private func createFeedbackBundle(target: SupportStatusTarget) {
         guard !isCreatingFeedbackBundle else { return }
         isCreatingFeedbackBundle = true
-        statusMessage = L("support.feedback.creating")
+        setStatus(StatusMessage(text: L("support.feedback.creating"), isError: false), target: target)
         FeedbackBundleService.shared.createBundle { result in
             DispatchQueue.main.async {
                 self.isCreatingFeedbackBundle = false
                 switch result {
                 case .success(let bundle):
                     _ = NSWorkspace.shared.open(bundle.folderURL)
-                    self.statusMessage = String(format: L("support.feedback.saved"), bundle.folderURL.path)
+                    self.setStatus(
+                        StatusMessage(
+                            text: String(format: L("support.feedback.saved"), bundle.folderURL.path),
+                            isError: false
+                        ),
+                        target: target
+                    )
                     TelemetryService.shared.increment("feedback_bundle_success")
                 case .failure(let error):
-                    self.statusMessage = String(format: L("support.feedback.failed"), error.localizedDescription)
+                    self.setStatus(
+                        StatusMessage(
+                            text: String(format: L("support.feedback.failed"), error.localizedDescription),
+                            isError: true
+                        ),
+                        target: target
+                    )
                     TelemetryService.shared.increment("feedback_bundle_failure")
                 }
             }
         }
     }
+
+    private func setStatus(_ status: StatusMessage, target: SupportStatusTarget) {
+        switch target {
+        case .readiness:
+            readinessStatus = status
+        case .supportPath:
+            supportPathStatus = status
+        case .identity:
+            identityStatus = status
+        case .actions:
+            actionsStatus = status
+        case .docs:
+            docsStatus = status
+        case .feedback:
+            feedbackStatus = status
+        }
+    }
+
+    private static let timeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .medium
+        formatter.locale = .current
+        formatter.timeZone = .current
+        return formatter
+    }()
 }

@@ -30,8 +30,8 @@ final class OnboardingWindowController {
             let hostingController = NSHostingController(rootView: rootView)
             let window = NSWindow(contentViewController: hostingController)
             window.title = L("onboarding.title")
-            window.setContentSize(NSSize(width: 620, height: 560))
-            window.minSize = NSSize(width: 560, height: 520)
+            window.setContentSize(NSSize(width: 780, height: 580))
+            window.minSize = NSSize(width: 720, height: 540)
             window.styleMask = [.titled, .closable, .miniaturizable]
             window.isReleasedWhenClosed = false
             window.setFrameAutosaveName("ChronicleOnboardingWindow")

@@ -12,13 +12,13 @@ struct DashboardReportsView: View {
     var useScrollView: Bool = true
 
     var body: some View {
-        ReportsWorkspaceView(showTitle: showTitle, useScrollView: useScrollView)
+        ReportsWorkspaceView(showTitle: showTitle, useScrollView: useScrollView, mode: .dashboard)
     }
 }
 
 struct ExportPreferencesView: View {
     var body: some View {
-        ReportsWorkspaceView(showTitle: true, useScrollView: false)
+        ReportsWorkspaceView(showTitle: true, useScrollView: false, mode: .preferences)
     }
 }
 

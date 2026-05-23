@@ -117,13 +117,13 @@ struct WelcomeWindowSceneRoot: View {
             OnboardingView(onClose: {
                 dismissWindow(id: AppWindowSceneID.welcome)
             })
-            .frame(minWidth: 560, minHeight: 520)
+            .frame(minWidth: 720, minHeight: 540)
             .background(
                 WindowConfigurationBridge(
                     configuration: SceneWindowConfiguration(
                         titleKey: "onboarding.title",
                         autosaveName: nil,
-                        minSize: CGSize(width: 560, height: 520),
+                        minSize: CGSize(width: 720, height: 540),
                         resizable: false,
                         restorable: false
                     )

@@ -44,7 +44,7 @@ final class HotKeyManager {
             AppLogger.log("HotKey install handler failed status=\(installStatus)", category: "ui")
         }
 
-        var hotKeyID = EventHotKeyID(signature: OSType(0x4D4B4D52), id: UInt32(1))
+        let hotKeyID = EventHotKeyID(signature: OSType(0x4D4B4D52), id: UInt32(1))
         let modifiers: UInt32 = UInt32(optionKey | cmdKey)
         let registerStatus = RegisterEventHotKey(
             UInt32(kVK_ANSI_M),

@@ -42,6 +42,7 @@ struct PreferencesPageLayout<Content: View>: View {
 
 struct PreferencesSectionScrollView<Content: View>: View {
     let content: Content
+    private let readableContentWidth: CGFloat = 920
 
     init(@ViewBuilder content: () -> Content) {
         self.content = content()
@@ -50,8 +51,9 @@ struct PreferencesSectionScrollView<Content: View>: View {
     var body: some View {
         ScrollView(.vertical) {
             content
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(maxWidth: readableContentWidth, alignment: .leading)
                 .padding(20)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
         }
     }
 }

@@ -7,6 +7,8 @@
 
 import SwiftUI
 
+private let overviewReadableContentWidth: CGFloat = 1080
+
 struct DashboardOverviewView: View {
     enum OverviewMode: String, CaseIterable, Identifiable {
         case apps
@@ -21,7 +23,24 @@ struct DashboardOverviewView: View {
         }
     }
 
+    private enum ReviewActionState {
+        case empty
+        case needsTags
+        case needsMarkers
+        case needsFolder
+        case ready
+        case saved
+    }
+
+    private enum WeeklyReviewState {
+        case noData
+        case needsFolder
+        case ready
+        case saved
+    }
+
     @EnvironmentObject private var appState: AppState
+    @ObservedObject private var reportSettings = ReportSettings.shared
 
     @State private var activities: [ActivityRow] = []
     @State private var tags: [TagRow] = []
@@ -37,19 +56,22 @@ struct DashboardOverviewView: View {
     @State private var selection: GanttSelection?
     @State private var weeklyMarkerCount = 0
     @State private var weeklySpanCount = 0
+    @State private var reviewSummary: AggregationSummary?
+    @State private var reviewTopApps: [TopItem] = []
+    @State private var reviewTopTags: [TopItem] = []
     @State private var weeklyReportStatus: String?
     @State private var weeklyReportStatusIsError = false
     @State private var isGeneratingWeeklyReport = false
-#if DEBUG
-    @State private var showCompactionDebug = false
-#endif
+    @AppStorage("dashboard.selectedSection") private var selectedDashboardSectionRaw = DashboardView.Section.defaultSelection.rawValue
 
     var body: some View {
         VSplitView {
             overviewContent
-                .frame(minHeight: 320, idealHeight: 520, maxHeight: .infinity)
+                .frame(maxWidth: overviewReadableContentWidth, alignment: .topLeading)
+                .frame(maxWidth: .infinity, minHeight: 320, idealHeight: 520, maxHeight: .infinity, alignment: .topLeading)
             markerTimelineSection
-                .frame(minHeight: 220, idealHeight: 360, maxHeight: .infinity)
+                .frame(maxWidth: overviewReadableContentWidth, alignment: .topLeading)
+                .frame(maxWidth: .infinity, minHeight: 220, idealHeight: 360, maxHeight: .infinity, alignment: .topLeading)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
@@ -58,11 +80,20 @@ struct DashboardOverviewView: View {
         .onReceive(NotificationCenter.default.publisher(for: ActivityTracker.didRecordSessionNotification)) { _ in
             refreshData(reason: "activity tracker")
         }
-        .onChange(of: appState.selectedDate) { _ in
+        .onChange(of: appState.selectedDate) { _, _ in
             refreshData(reason: "date changed")
         }
-        .onChange(of: appState.dateRangeMode) { _ in
+        .onChange(of: appState.dateRangeMode) { _, _ in
             refreshData(reason: "range changed")
+        }
+        .onChange(of: mode) { _, _ in
+            refreshData(reason: "overview mode changed")
+        }
+        .onChange(of: topN) { _, _ in
+            refreshData(reason: "top count changed")
+        }
+        .onChange(of: gridIntervalMinutes) { _, _ in
+            refreshData(reason: "grid changed")
         }
     }
 
@@ -70,59 +101,21 @@ struct DashboardOverviewView: View {
         VStack(alignment: .leading, spacing: 16) {
             headerView
 
-            controlsView
-            if appState.countOverlaysInTotals {
-                Text(L("dashboard.stats.overlays_notice"))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
+            reviewBriefCard
 
-            legendView
             if !isDailyView {
                 weeklySummaryCard
             }
 
-#if DEBUG
-            if showCompactionDebug {
-                Text(debugCompactionText)
-                    .font(.caption2)
-                    .foregroundColor(.secondary)
-            }
-#endif
-
-            Divider()
-
-            if isDailyView {
-                GanttChartView(
-                    rows: dailyRows,
-                    rangeStart: rangeBounds.start,
-                    rangeEnd: rangeBounds.end,
-                    gridIntervalMinutes: gridIntervalMinutes,
-                    selection: $selection
-                )
-            } else {
-                WeeklyOverviewView(
-                    rows: weeklyRows,
-                    dayLabels: weekDayLabels,
-                    dayStarts: weekDayStarts,
-                    daySeconds: 86400,
-                    selection: $selection
-                )
-            }
-
-            detailView
-
-            if let lastRefresh {
-                Text(String(format: L("dashboard.stats.last_refreshed"), Self.timeFormatter.string(from: lastRefresh)))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
+            activityMapSection
         }
         .padding(20)
     }
 
     private var markerTimelineSection: some View {
-        SectionCard(title: "dashboard.markers") {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            markerTimelineHeader
+
             MarkerTimelineView(
                 rangeStart: rangeBounds.start,
                 rangeEnd: rangeBounds.end,
@@ -131,12 +124,307 @@ struct DashboardOverviewView: View {
             )
         }
         .padding(20)
+        .accessibilityIdentifier("dashboard.overview.markerTimelineSection")
+    }
+
+    private var markerTimelineHeader: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 240), spacing: DesignSystem.Spacing.md, alignment: .leading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            markerTimelineHeaderCopy
+                .frame(maxWidth: .infinity, alignment: .leading)
+            StatusPill(markerTimelineStatusText, systemImage: markerTimelineStatusIconName, tone: markerTimelineTone)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityIdentifier("dashboard.overview.markerTimelineHeader")
+    }
+
+    private var markerTimelineHeaderCopy: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            IconWell(
+                systemImage: "note.text",
+                tone: markerTimelineTone,
+                accessibilityLabel: L("markers.review.title")
+            )
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("markers.review.title")
+                    .font(DesignSystem.Typography.sectionHeader)
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(1)
+
+                Text(LocalizedStringKey(markerTimelineDetailKey))
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var activityMapSection: some View {
+        SectionCard {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                activityMapHeader
+
+                if hasActivityRows {
+                    activityChart
+                        .frame(minHeight: 180)
+
+                    detailView
+
+                    Divider()
+
+                    controlsView
+                } else {
+                    activityMapEmptyState
+
+                    Divider()
+
+                    controlsView
+                }
+
+                if let lastRefresh {
+                    Text(String(format: L("dashboard.stats.last_refreshed"), Self.timeFormatter.string(from: lastRefresh)))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+        .accessibilityIdentifier("dashboard.overview.activityMap")
+    }
+
+    private var activityMapHeader: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 240), spacing: DesignSystem.Spacing.md, alignment: .leading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            activityMapHeaderCopy
+                .frame(maxWidth: .infinity, alignment: .leading)
+            StatusPill(activityMapStatusText, systemImage: activityMapStatusIconName, tone: activityMapStatusTone)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityIdentifier("dashboard.overview.activityMapHeader")
+    }
+
+    private var activityMapHeaderCopy: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            IconWell(
+                systemImage: isDailyView ? "chart.bar.xaxis" : "calendar",
+                tone: activityMapStatusTone,
+                accessibilityLabel: L("overview.activity_map.title")
+            )
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(LocalizedStringKey(isDailyView ? "overview.activity_map.daily_title" : "overview.activity_map.weekly_title"))
+                    .font(DesignSystem.Typography.sectionHeader)
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(1)
+
+                Text(LocalizedStringKey(isDailyView ? "overview.activity_map.daily_detail" : "overview.activity_map.weekly_detail"))
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private var activityChart: some View {
+        if isDailyView {
+            GanttChartView(
+                rows: dailyRows,
+                rangeStart: rangeBounds.start,
+                rangeEnd: rangeBounds.end,
+                gridIntervalMinutes: gridIntervalMinutes,
+                selection: $selection
+            )
+        } else {
+            WeeklyOverviewView(
+                rows: weeklyRows,
+                dayLabels: weekDayLabels,
+                dayStarts: weekDayStarts,
+                daySeconds: 86400,
+                selection: $selection
+            )
+        }
+    }
+
+    private var activityMapEmptyState: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.lg) {
+            IconWell(
+                systemImage: "tray",
+                tone: .neutral,
+                accessibilityLabel: L("overview.activity_map.empty_title")
+            )
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                Text("overview.activity_map.empty_title")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+
+                Text(LocalizedStringKey(activityMapEmptyDetailKey))
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                activityMapEmptyPath
+                    .padding(.top, DesignSystem.Spacing.xs)
+
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 160), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
+                    alignment: .leading,
+                    spacing: DesignSystem.Spacing.sm
+                ) {
+                    activityMapEmptyPrimaryButton
+                    activityMapEmptySecondaryButton
+                }
+                .padding(.top, DesignSystem.Spacing.xs)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(DesignSystem.Spacing.lg)
+        .frame(maxWidth: .infinity, minHeight: 160, alignment: .center)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(DesignSystem.Colors.background.opacity(0.52))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(DesignSystem.Colors.separator.opacity(0.36), lineWidth: 1)
+        )
+        .accessibilityIdentifier("dashboard.overview.activityMap.empty")
+    }
+
+    private var activityMapEmptyPath: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 170), spacing: DesignSystem.Spacing.sm, alignment: .topLeading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            activityMapEmptyPathItem(
+                titleKey: activityMapEmptyCaptureTitleKey,
+                detailKey: activityMapEmptyCaptureDetailKey,
+                systemImage: activityMapEmptyCaptureIconName,
+                tone: activityMapEmptyPrimaryTone,
+                accessibilityIdentifier: "dashboard.overview.activityMap.empty.capture"
+            )
+            activityMapEmptyPathItem(
+                titleKey: "overview.activity_map.empty_path.context_title",
+                detailKey: "overview.activity_map.empty_path.context_detail",
+                systemImage: "square.and.pencil",
+                tone: .info,
+                accessibilityIdentifier: "dashboard.overview.activityMap.empty.context"
+            )
+            activityMapEmptyPathItem(
+                titleKey: "overview.activity_map.empty_path.review_title",
+                detailKey: "overview.activity_map.empty_path.review_detail",
+                systemImage: "clock.arrow.circlepath",
+                tone: .success,
+                accessibilityIdentifier: "dashboard.overview.activityMap.empty.review"
+            )
+        }
+        .accessibilityIdentifier("dashboard.overview.activityMap.emptyPath")
+    }
+
+    private func activityMapEmptyPathItem(
+        titleKey: String,
+        detailKey: String,
+        systemImage: String,
+        tone: DesignSystem.StatusTone,
+        accessibilityIdentifier: String
+    ) -> some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(tone.color)
+                .frame(width: 22, height: 22)
+                .background(
+                    RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                        .fill(tone.color.opacity(0.11))
+                )
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(LocalizedStringKey(titleKey))
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(1)
+
+                Text(LocalizedStringKey(detailKey))
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .frame(minWidth: 168, maxWidth: .infinity, minHeight: 70, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(tone.color.opacity(0.06))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(tone.color.opacity(0.18), lineWidth: 1)
+        )
+        .accessibilityIdentifier(accessibilityIdentifier)
+    }
+
+    private var activityMapEmptyPrimaryButton: some View {
+        Button {
+            performActivityMapEmptyPrimaryAction()
+        } label: {
+            Label(L(activityMapEmptyPrimaryActionTitleKey), systemImage: activityMapEmptyPrimaryActionIconName)
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(activityMapEmptyPrimaryTone.color)
+        .accessibilityIdentifier(activityMapEmptyPrimaryActionAccessibilityIdentifier)
+    }
+
+    @ViewBuilder
+    private var activityMapEmptySecondaryButton: some View {
+        if captureNeedsAttention {
+            activityMapEmptyAddMarkerButton
+        } else {
+            activityMapEmptyOpenTimelineButton
+        }
+    }
+
+    private var activityMapEmptyAddMarkerButton: some View {
+        Button {
+            AppWindowRouter.shared.open(.quickMarker)
+        } label: {
+            Label(L("overview.activity_map.empty_add_marker"), systemImage: "square.and.pencil")
+        }
+        .buttonStyle(.bordered)
+        .accessibilityIdentifier("dashboard.overview.activityMap.empty.addMarker")
+    }
+
+    private var activityMapEmptyOpenTimelineButton: some View {
+        Button {
+            selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
+        } label: {
+            Label(L("overview.activity_map.empty_open_timeline"), systemImage: "clock")
+        }
+        .buttonStyle(.bordered)
+        .accessibilityIdentifier("dashboard.overview.activityMap.empty.openTimeline")
     }
 
     private var headerView: some View {
         DateNavigationHeader(
             title: "dashboard.overview",
             subtitle: Self.dateFormatter.string(from: appState.selectedDate),
+            dateRangeMode: overviewRangeMode,
             selectedDate: $appState.selectedDate,
             isLoading: isLoading,
             isTodaySelected: isTodaySelected,
@@ -147,53 +435,682 @@ struct DashboardOverviewView: View {
         )
     }
 
-    private var controlsView: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 12) {
-                Picker("Mode", selection: $mode) {
-                    ForEach(OverviewMode.allCases) { mode in
-                        Text(mode.titleKey).tag(mode)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 200)
-                .accessibilityIdentifier("dashboard.overview.mode")
+    private var reviewBriefCard: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                reviewHeroHeader
+                reviewSuggestedNextRow
+                reviewReadinessStrip
+                reviewActionRow
+            }
+            .padding(DesignSystem.Spacing.lg)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                    .fill(reviewTone.color.opacity(0.08))
+            )
 
-                Picker("Range", selection: rangeModeBinding) {
-                    Text("range.day").tag(DateRangeMode.day)
-                    Text("range.week").tag(DateRangeMode.week)
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 200)
-                .accessibilityIdentifier("dashboard.overview.range")
+            Divider()
+                .padding(.horizontal, DesignSystem.Spacing.lg)
 
-                Stepper(value: $topN, in: 4...12) {
-                    Text(String(format: L("overview.top_n"), topN))
-                        .frame(width: 80, alignment: .leading)
-                }
-                .accessibilityIdentifier("dashboard.overview.topN")
+            todayReviewPath
+                .padding(DesignSystem.Spacing.lg)
 
-                Picker("overview.grid", selection: $gridIntervalMinutes) {
-                    Text("1h").tag(60)
-                    Text("30m").tag(30)
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 120)
-                .accessibilityIdentifier("dashboard.overview.grid")
+            Divider()
+                .padding(.horizontal, DesignSystem.Spacing.lg)
 
-#if DEBUG
-                Toggle("Show compaction debug", isOn: $showCompactionDebug)
-                    .font(.caption)
-#endif
+            reviewMetricGrid
+                .padding(DesignSystem.Spacing.lg)
+        }
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.lg)
+                .fill(DesignSystem.Colors.cardBackground)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.lg)
+                .stroke(DesignSystem.Colors.separator.opacity(0.55), lineWidth: 1)
+        )
+        .overlay(alignment: .leading) {
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.lg)
+                .fill(reviewTone.color.opacity(0.72))
+                .frame(width: 4)
+        }
+        .accessibilityIdentifier("dashboard.overview.reviewBrief")
+    }
 
-                Spacer()
+    private var reviewHeroHeader: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.lg, alignment: .topLeading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.md
+        ) {
+            reviewHeroCopy
+            reviewActiveTimeSummary
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var reviewHeroCopy: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            IconWell(
+                systemImage: reviewIconName,
+                tone: reviewTone,
+                accessibilityLabel: L("overview.review.title")
+            )
+
+            VStack(alignment: .leading, spacing: 6) {
+                reviewHeroEyebrow
+
+                Text(LocalizedStringKey(reviewHeadlineKey))
+                    .font(.title3.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(LocalizedStringKey(reviewDetailKey))
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var reviewHeroEyebrow: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 132), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.xs
+        ) {
+            reviewHeroTitle
+            reviewStatePill
+            captureStatePill
+        }
+    }
+
+    private var reviewHeroTitle: some View {
+        Text("overview.review.title")
+            .font(.caption2.weight(.semibold))
+            .foregroundColor(DesignSystem.Colors.secondaryText)
+            .lineLimit(1)
+    }
+
+    private var reviewStatePill: some View {
+        StatusPill(reviewStatusText, systemImage: reviewStatusIconName, tone: reviewTone)
+            .accessibilityIdentifier("dashboard.overview.reviewStatus")
+    }
+
+    private var captureStatePill: some View {
+        StatusPill(todayCaptureValueText, systemImage: todayCaptureIconName, tone: todayCaptureTone)
+            .accessibilityIdentifier("dashboard.overview.captureStatus")
+    }
+
+    private var reviewActiveTimeSummary: some View {
+        VStack(alignment: .trailing, spacing: 5) {
+            Text(formatDuration(reviewActiveSeconds))
+                .font(.system(size: 32, weight: .semibold, design: .rounded))
+                .foregroundColor(DesignSystem.Colors.primaryText)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+
+            Label(L("overview.review.active_time"), systemImage: "bolt.fill")
+                .font(.caption.weight(.semibold))
+                .foregroundColor(reviewActiveSeconds == 0 ? DesignSystem.Colors.secondaryText : reviewTone.color)
+                .lineLimit(1)
+        }
+        .frame(minWidth: 128, alignment: .trailing)
+        .accessibilityIdentifier("dashboard.overview.activeTimeSummary")
+    }
+
+    private var reviewSuggestedNextRow: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 220), spacing: DesignSystem.Spacing.md, alignment: .leading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.xs
+        ) {
+            reviewSuggestedNextCopy
+                .frame(maxWidth: .infinity, alignment: .leading)
+            StatusPill(L(primaryReviewActionTitleKey), systemImage: primaryReviewActionIconName, tone: reviewTone)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityIdentifier("dashboard.overview.suggestedNext")
+    }
+
+    private var reviewSuggestedNextCopy: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: "arrow.forward.circle.fill")
+                .font(.caption.weight(.semibold))
+                .foregroundColor(reviewTone.color)
+                .frame(width: 16, height: 16)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("overview.review.suggested_next")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(1)
+
+                Text(LocalizedStringKey(reviewSuggestedNextDetailKey))
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
 
+    private var reviewReadinessStrip: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 220), spacing: DesignSystem.Spacing.md, alignment: .leading)],
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.xs
+            ) {
+                reviewReadinessCopy
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                StatusPill(reviewReadinessProgressText, systemImage: reviewReadinessStatusIconName, tone: reviewReadinessTone)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            RatioBar(
+                filledFraction: reviewReadinessProgressFraction,
+                filledColor: reviewReadinessTone.color,
+                remainderColor: DesignSystem.Colors.separator
+            )
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(DesignSystem.Colors.cardBackground.opacity(0.58))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(reviewReadinessTone.color.opacity(0.22), lineWidth: 1)
+        )
+        .accessibilityIdentifier("dashboard.overview.readiness")
+    }
+
+    private var reviewReadinessCopy: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: reviewReadinessIconName)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(reviewReadinessTone.color)
+                .frame(width: 16, height: 16)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(LocalizedStringKey(reviewReadinessTitleKey))
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(1)
+
+                Text(LocalizedStringKey(reviewReadinessDetailKey))
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private var reviewMetricGrid: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 150), spacing: DesignSystem.Spacing.md)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.md
+        ) {
+            reviewMetric(
+                title: "overview.review.main_focus",
+                value: reviewFocusValue,
+                systemImage: mode == .apps ? "app.fill" : "rectangle.split.3x1",
+                tone: primaryFocusItem == nil ? .neutral : .info
+            )
+            reviewMetric(
+                title: "overview.review.unclassified",
+                value: formatDuration(reviewUntaggedSeconds),
+                systemImage: "exclamationmark.triangle.fill",
+                tone: reviewUntaggedSeconds == 0 ? .success : .warning
+            )
+            reviewMetric(
+                title: "overview.review.markers",
+                value: "\(reviewMarkerCount)",
+                systemImage: "note.text",
+                tone: reviewMarkerCount == 0 ? .neutral : .info
+            )
+        }
+    }
+
+    private var reviewActionRow: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 160), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            primaryReviewActionButton
+            secondaryReviewActionButton
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(DesignSystem.Colors.cardBackground.opacity(0.62))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(reviewTone.color.opacity(0.22), lineWidth: 1)
+        )
+        .accessibilityIdentifier("dashboard.overview.actionRow")
+    }
+
+    private var todayReviewPath: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 176), spacing: DesignSystem.Spacing.sm)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            reviewPathStep(
+                stepNumber: 1,
+                titleKey: "overview.review.path.capture_title",
+                detailKey: reviewPathCaptureDetailKey,
+                systemImage: "record.circle",
+                tone: reviewActiveSeconds > 0 ? .success : .neutral,
+                isComplete: reviewActiveSeconds > 0,
+                isCurrent: reviewActiveSeconds == 0,
+                accessibilityIdentifier: "dashboard.overview.path.capture"
+            )
+            reviewPathStep(
+                stepNumber: 2,
+                titleKey: "overview.review.path.context_title",
+                detailKey: reviewPathContextDetailKey,
+                systemImage: "text.badge.checkmark",
+                tone: reviewContextTone,
+                isComplete: reviewContextReady,
+                isCurrent: reviewActiveSeconds > 0 && !reviewContextReady,
+                accessibilityIdentifier: "dashboard.overview.path.context"
+            )
+            reviewPathStep(
+                stepNumber: 3,
+                titleKey: "overview.review.path.closeout_title",
+                detailKey: reviewPathCloseoutDetailKey,
+                systemImage: reviewPathCloseoutIconName,
+                tone: reviewCloseoutTone,
+                isComplete: reviewActionState == .saved,
+                isCurrent: reviewActionState == .needsFolder || reviewActionState == .ready,
+                accessibilityIdentifier: "dashboard.overview.path.closeout"
+            )
+        }
+        .accessibilityIdentifier("dashboard.overview.path")
+    }
+
+    private func reviewPathStep(
+        stepNumber: Int,
+        titleKey: String,
+        detailKey: String,
+        systemImage: String,
+        tone: DesignSystem.StatusTone,
+        isComplete: Bool,
+        isCurrent: Bool,
+        accessibilityIdentifier: String
+    ) -> some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+            reviewPathStepBadge(
+                stepNumber: stepNumber,
+                systemImage: systemImage,
+                tone: tone,
+                isComplete: isComplete
+            )
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(LocalizedStringKey(titleKey))
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(1)
+
+                Text(LocalizedStringKey(detailKey))
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .frame(minWidth: 176, maxWidth: .infinity, minHeight: 72, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(tone.color.opacity(isCurrent ? 0.12 : 0.07))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(tone.color.opacity(isCurrent ? 0.36 : 0.18), lineWidth: isCurrent ? 1.2 : 1)
+        )
+        .accessibilityIdentifier(accessibilityIdentifier)
+    }
+
+    private func reviewPathStepBadge(
+        stepNumber: Int,
+        systemImage: String,
+        tone: DesignSystem.StatusTone,
+        isComplete: Bool
+    ) -> some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .fill(tone.color.opacity(isComplete ? 0.18 : 0.10))
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                        .stroke(tone.color.opacity(isComplete ? 0.35 : 0.22), lineWidth: 1)
+                )
+
+            if isComplete {
+                Image(systemName: "checkmark")
+                    .font(.caption.weight(.bold))
+                    .foregroundColor(tone.color)
+            } else {
+                Text("\(stepNumber)")
+                    .font(.caption.weight(.bold))
+                    .foregroundColor(tone.color)
+            }
+        }
+        .frame(width: 24, height: 24)
+        .overlay(alignment: .bottomTrailing) {
+            if !isComplete {
+                Image(systemName: systemImage)
+                    .font(.system(size: 7, weight: .bold))
+                    .foregroundColor(tone.color)
+                    .padding(2)
+                    .background(
+                        Circle()
+                            .fill(DesignSystem.Colors.cardBackground)
+                    )
+                    .offset(x: 4, y: 4)
+            }
+        }
+        .accessibilityLabel(isComplete ? L("overview.review.path.step_complete") : String(format: L("overview.review.path.step_number"), stepNumber))
+    }
+
+    @ViewBuilder
+    private var primaryReviewActionButton: some View {
+        Button {
+            performPrimaryReviewAction()
+        } label: {
+            Label(L(primaryReviewActionTitleKey), systemImage: primaryReviewActionIconName)
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(DesignSystem.Colors.accentSkyBlue)
+        .accessibilityIdentifier(primaryReviewActionAccessibilityIdentifier)
+    }
+
+    private var primaryReviewActionTitleKey: String {
+        switch reviewActionState {
+        case .empty:
+            if appState.trackingPaused {
+                return "overview.review.resume_capture"
+            }
+            return captureHasError ? "overview.review.check_capture" : "overview.review.add_marker"
+        case .needsTags:
+            return "overview.review.review_categories"
+        case .needsMarkers:
+            return "overview.review.add_marker"
+        case .needsFolder:
+            return "overview.review.setup_log_folder"
+        case .ready:
+            return "overview.review.closeout_today"
+        case .saved:
+            return "overview.review.open_saved_log"
+        }
+    }
+
+    private var primaryReviewActionIconName: String {
+        switch reviewActionState {
+        case .empty:
+            if appState.trackingPaused {
+                return "play.fill"
+            }
+            return captureHasError ? "stethoscope" : "square.and.pencil"
+        case .needsTags:
+            return "rectangle.split.3x1"
+        case .needsMarkers:
+            return "square.and.pencil"
+        case .needsFolder:
+            return "folder.badge.plus"
+        case .ready:
+            return "checkmark.seal"
+        case .saved:
+            return "doc.text.magnifyingglass"
+        }
+    }
+
+    private var primaryReviewActionAccessibilityIdentifier: String {
+        switch reviewActionState {
+        case .empty:
+            if appState.trackingPaused {
+                return "dashboard.overview.resumeCapture"
+            }
+            return captureHasError ? "dashboard.overview.checkCapture" : "dashboard.overview.addMarker"
+        case .needsTags:
+            return "dashboard.overview.reviewCategories"
+        case .needsMarkers:
+            return "dashboard.overview.addMarker"
+        case .needsFolder:
+            return "dashboard.overview.setupLogFolder"
+        case .ready:
+            return "dashboard.overview.closeoutToday"
+        case .saved:
+            return "dashboard.overview.openSavedLog"
+        }
+    }
+
+    private func performPrimaryReviewAction() {
+        switch reviewActionState {
+        case .empty:
+            if appState.trackingPaused {
+                appState.trackingPaused = false
+            } else if captureHasError {
+                AppWindowRouter.shared.open(.settings(.support))
+            } else {
+                AppWindowRouter.shared.open(.quickMarker)
+            }
+        case .needsTags:
+            AppWindowRouter.shared.open(.settings(.tagWizard))
+        case .needsMarkers:
+            AppWindowRouter.shared.open(.quickMarker)
+        case .needsFolder:
+            AppWindowRouter.shared.open(.settings(.export))
+        case .ready, .saved:
+            selectedDashboardSectionRaw = DashboardView.Section.reports.rawValue
+        }
+    }
+
+    private var secondaryReviewActionButton: some View {
+        Button {
+            performSecondaryReviewAction()
+        } label: {
+            Label(L(secondaryReviewActionTitleKey), systemImage: secondaryReviewActionIconName)
+        }
+        .buttonStyle(.bordered)
+        .accessibilityIdentifier(secondaryReviewActionAccessibilityIdentifier)
+    }
+
+    private var secondaryReviewActionTitleKey: String {
+        guard reviewActionState == .empty else {
+            return "overview.review.open_timeline"
+        }
+        return captureNeedsAttention ? "overview.review.add_marker" : "overview.review.open_timeline"
+    }
+
+    private var secondaryReviewActionIconName: String {
+        guard reviewActionState == .empty else {
+            return "clock"
+        }
+        return captureNeedsAttention ? "square.and.pencil" : "clock"
+    }
+
+    private var secondaryReviewActionAccessibilityIdentifier: String {
+        guard reviewActionState == .empty else {
+            return "dashboard.overview.openTimeline"
+        }
+        return captureNeedsAttention ? "dashboard.overview.addMarker" : "dashboard.overview.openTimeline"
+    }
+
+    private func performSecondaryReviewAction() {
+        guard reviewActionState == .empty else {
+            selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
+            return
+        }
+        if captureNeedsAttention {
+            AppWindowRouter.shared.open(.quickMarker)
+        } else {
+            selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
+        }
+    }
+
+    private func reviewMetric(
+        title: LocalizedStringKey,
+        value: String,
+        systemImage: String,
+        tone: DesignSystem.StatusTone
+    ) -> some View {
+        HStack(spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(tone.color)
+                .frame(width: 16)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(1)
+                Text(value)
+                    .font(.headline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+        }
+    }
+
+    private var controlsView: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            Label {
+                Text("overview.controls.title")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+            } icon: {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+            }
+            .labelStyle(.titleAndIcon)
+
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 190), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.md
+            ) {
+                overviewModeControl
+                overviewRangeControl
+                overviewTopCountControl
+                overviewGridControl
+            }
+
+            Divider()
+
+            legendView
+
+            if appState.countOverlaysInTotals {
+                Text(L("dashboard.stats.overlays_notice"))
+                    .font(.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+            }
+        }
+    }
+
+    private var overviewModeControl: some View {
+        overviewControlItem(
+            title: "overview.controls.group",
+            systemImage: "square.grid.2x2",
+            width: 180
+        ) {
+            Picker("overview.controls.group", selection: $mode) {
+                ForEach(OverviewMode.allCases) { mode in
+                    Text(mode.titleKey).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .accessibilityIdentifier("dashboard.overview.mode")
+        }
+    }
+
+    private var overviewRangeControl: some View {
+        overviewControlItem(
+            title: "overview.controls.period",
+            systemImage: "calendar",
+            width: 180
+        ) {
+            Picker("overview.controls.period", selection: rangeModeBinding) {
+                Text("range.day").tag(DateRangeMode.day)
+                Text("range.week").tag(DateRangeMode.week)
+            }
+            .pickerStyle(.segmented)
+            .accessibilityIdentifier("dashboard.overview.range")
+        }
+    }
+
+    private var overviewTopCountControl: some View {
+        overviewControlItem(
+            title: "overview.controls.rows",
+            systemImage: "list.number",
+            width: 126
+        ) {
+            Stepper(value: $topN, in: 4...12) {
+                Text(String(format: L("overview.top_n"), topN))
+                    .frame(width: 80, alignment: .leading)
+            }
+            .accessibilityIdentifier("dashboard.overview.topN")
+        }
+    }
+
+    private var overviewGridControl: some View {
+        overviewControlItem(
+            title: "overview.controls.scale",
+            systemImage: "ruler",
+            width: 124
+        ) {
+            Picker("overview.controls.scale", selection: $gridIntervalMinutes) {
+                Text("1h").tag(60)
+                Text("30m").tag(30)
+            }
+            .pickerStyle(.segmented)
+            .accessibilityIdentifier("dashboard.overview.grid")
+        }
+    }
+
+    private func overviewControlItem<Content: View>(
+        title: LocalizedStringKey,
+        systemImage: String,
+        width: CGFloat,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label {
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+            } icon: {
+                Image(systemName: systemImage)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+            }
+            .labelStyle(.titleAndIcon)
+
+            content()
+        }
+        .frame(width: width, alignment: .leading)
+    }
+
     private var legendView: some View {
         HStack(spacing: 16) {
-            legendItem(title: "Idle") {
+            legendItem(title: L("Idle")) {
                 IdleLegendSwatch()
             }
             legendItem(title: L("popover.daily_snapshot.untagged")) {
@@ -226,118 +1143,1172 @@ struct DashboardOverviewView: View {
 
     private var weeklySummaryCard: some View {
         SectionCard(title: "overview.weekly_summary.title") {
-            VStack(alignment: .leading, spacing: 8) {
-                if let topRow = weeklyRows.max(by: { $0.totalSeconds < $1.totalSeconds }) {
-                    Text(String(format: L("overview.weekly_summary.top_focus"), topRow.title, formatDuration(topRow.totalSeconds)))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                } else {
-                    Text(L("overview.weekly_summary.empty"))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                weeklySummaryHeader
 
-                HStack(spacing: 12) {
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 140), spacing: DesignSystem.Spacing.md)],
+                    alignment: .leading,
+                    spacing: DesignSystem.Spacing.md
+                ) {
                     summaryMetric(
                         title: L("overview.weekly_summary.total"),
-                        value: formatDuration(weeklyRows.reduce(0) { $0 + $1.totalSeconds })
+                        value: formatDuration(weeklyTotalSeconds),
+                        systemImage: "sum",
+                        tone: weeklyTotalSeconds == 0 ? .neutral : .success
                     )
                     summaryMetric(
-                        title: L("overview.weekly_summary.markers"),
-                        value: "\(weeklyMarkerCount)"
+                        title: L("overview.weekly_summary.focus"),
+                        value: weeklyTopFocusValue,
+                        systemImage: "scope",
+                        tone: weeklyRows.isEmpty ? .neutral : .info
                     )
                     summaryMetric(
-                        title: L("overview.weekly_summary.spans"),
-                        value: "\(weeklySpanCount)"
+                        title: L("overview.weekly_summary.cues"),
+                        value: "\(weeklyCueCount)",
+                        systemImage: "note.text",
+                        tone: weeklyCueCount == 0 ? .warning : .success
                     )
                 }
 
-                HStack(spacing: 8) {
-                    Button(L("overview.weekly_summary.generate")) {
-                        generateWeeklyReportNow()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(isGeneratingWeeklyReport)
-                    .accessibilityIdentifier("dashboard.overview.generateWeekly")
+                weeklySummaryActionRow
 
-                    Button(L("overview.weekly_summary.open_export")) {
-                        AppWindowRouter.shared.open(.settings(.export))
-                    }
-                    .buttonStyle(.bordered)
-                    .accessibilityIdentifier("dashboard.overview.openExport")
-                }
-
-                if let weeklyReportStatus, !weeklyReportStatus.isEmpty {
-                    Text(weeklyReportStatus)
-                        .font(.caption)
-                        .foregroundColor(weeklyReportStatusIsError ? .red : .secondary)
-                }
+                weeklySummaryStatusMessage
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .accessibilityIdentifier("dashboard.overview.weeklySummary")
     }
 
-    private func summaryMetric(title: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(title)
-                .font(.caption2)
-                .foregroundColor(.secondary)
-            Text(value)
+    private var weeklySummaryHeader: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 240), spacing: DesignSystem.Spacing.md, alignment: .leading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            weeklySummaryHeaderCopy
+                .frame(maxWidth: .infinity, alignment: .leading)
+            StatusPill(weeklySummaryStatusText, systemImage: weeklySummaryStatusIconName, tone: weeklySummaryTone)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityIdentifier("dashboard.overview.weeklySummaryHeader")
+    }
+
+    private var weeklySummaryHeaderCopy: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            IconWell(
+                systemImage: weeklySummaryIconName,
+                tone: weeklySummaryTone,
+                accessibilityLabel: L("overview.weekly_summary.title")
+            )
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(LocalizedStringKey(weeklySummaryHeadlineKey))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(LocalizedStringKey(weeklySummaryDetailKey))
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var weeklySummaryActionRow: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 160), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            weeklySummaryPrimaryAction
+            weeklySummarySecondaryActions
+        }
+    }
+
+    @ViewBuilder
+    private var weeklySummaryPrimaryAction: some View {
+        switch weeklyReviewState {
+        case .noData:
+            Button {
+                selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
+            } label: {
+                Label(L("overview.weekly_summary.review_timeline"), systemImage: "clock")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(DesignSystem.Colors.accentSkyBlue)
+            .accessibilityIdentifier("dashboard.overview.weeklyReviewTimeline")
+        case .needsFolder:
+            Button {
+                AppWindowRouter.shared.open(.settings(.export))
+            } label: {
+                Label(L("overview.weekly_summary.setup_folder"), systemImage: "folder.badge.plus")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(DesignSystem.Colors.accentSkyBlue)
+            .accessibilityIdentifier("dashboard.overview.weeklySetupFolder")
+        case .ready:
+            Button {
+                generateWeeklyReportNow()
+            } label: {
+                Label(L("overview.weekly_summary.generate"), systemImage: "doc.badge.plus")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(DesignSystem.Colors.accentSkyBlue)
+            .disabled(isGeneratingWeeklyReport)
+            .accessibilityIdentifier("dashboard.overview.generateWeekly")
+        case .saved:
+            Button {
+                openWeeklyFolder()
+            } label: {
+                Label(L("overview.weekly_summary.open_folder"), systemImage: "folder")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(DesignSystem.Colors.accentSkyBlue)
+            .accessibilityIdentifier("dashboard.overview.openWeeklyFolder")
+        }
+    }
+
+    private var weeklySummarySecondaryActions: some View {
+        HStack(spacing: DesignSystem.Spacing.sm) {
+            if weeklyReviewState != .needsFolder {
+                Button {
+                    AppWindowRouter.shared.open(.settings(.export))
+                } label: {
+                    Label(L("overview.weekly_summary.open_export"), systemImage: "gearshape")
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("dashboard.overview.openExport")
+            }
+
+            if weeklyReviewState == .saved {
+                Button {
+                    generateWeeklyReportNow()
+                } label: {
+                    Label(L("overview.weekly_summary.regenerate"), systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(.bordered)
+                .disabled(isGeneratingWeeklyReport)
+                .accessibilityIdentifier("dashboard.overview.generateWeekly")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var weeklySummaryStatusMessage: some View {
+        if let weeklyReportStatus, !weeklyReportStatus.isEmpty {
+            RowSurface(tone: weeklySummaryFeedbackTone, isHovering: false) {
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 220), spacing: DesignSystem.Spacing.md, alignment: .leading)],
+                    alignment: .leading,
+                    spacing: DesignSystem.Spacing.sm
+                ) {
+                    weeklySummaryStatusCopy(weeklyReportStatus)
+                    weeklySummaryStatusActions
+                }
+            }
+            .accessibilityIdentifier("dashboard.overview.weeklyStatus")
+        }
+    }
+
+    private func weeklySummaryStatusCopy(_ message: String) -> some View {
+        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+            IconWell(
+                systemImage: weeklySummaryFeedbackIconName,
+                tone: weeklySummaryFeedbackTone,
+                accessibilityLabel: L(weeklySummaryFeedbackTitleKey)
+            )
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(LocalizedStringKey(weeklySummaryFeedbackTitleKey))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(1)
+
+                Text(message)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .textSelection(.enabled)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder
+    private var weeklySummaryStatusActions: some View {
+        if weeklyReportStatusIsError {
+            Button {
+                AppWindowRouter.shared.open(.settings(.export))
+            } label: {
+                Label(L("overview.weekly_summary.open_export"), systemImage: "gearshape")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .accessibilityIdentifier("dashboard.overview.weeklyStatus.openExport")
+        } else if !isGeneratingWeeklyReport && weeklyFolderReady {
+            Button {
+                openWeeklyFolder()
+            } label: {
+                Label(L("overview.weekly_summary.open_folder"), systemImage: "folder")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .accessibilityIdentifier("dashboard.overview.weeklyStatus.openFolder")
+        }
+    }
+
+    private var weeklySummaryFeedbackTitleKey: String {
+        if weeklyReportStatusIsError {
+            return "overview.weekly_summary.feedback.error_title"
+        }
+        if isGeneratingWeeklyReport {
+            return "overview.weekly_summary.feedback.running_title"
+        }
+        return "overview.weekly_summary.feedback.saved_title"
+    }
+
+    private var weeklySummaryFeedbackIconName: String {
+        if weeklyReportStatusIsError {
+            return "exclamationmark.triangle.fill"
+        }
+        if isGeneratingWeeklyReport {
+            return "arrow.triangle.2.circlepath"
+        }
+        return "checkmark.circle.fill"
+    }
+
+    private var weeklySummaryFeedbackTone: DesignSystem.StatusTone {
+        if weeklyReportStatusIsError {
+            return .critical
+        }
+        if isGeneratingWeeklyReport {
+            return .info
+        }
+        return .success
+    }
+
+    private func summaryMetric(
+        title: String,
+        value: String,
+        systemImage: String,
+        tone: DesignSystem.StatusTone
+    ) -> some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: systemImage)
                 .font(.caption.weight(.semibold))
-                .foregroundColor(.primary)
+                .foregroundColor(tone.color)
+                .frame(width: 16)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(1)
+                Text(value)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var detailView: some View {
-        GroupBox {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            Text("overview.selection.title")
+                .font(.caption.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+
             if let selection {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(selection.title)
-                        .font(.headline)
-                    if let subtitle = selection.subtitle {
-                        Text(subtitle)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(selection.title)
+                                .font(.headline)
+                                .foregroundColor(DesignSystem.Colors.primaryText)
+                                .lineLimit(1)
+
+                            if let subtitle = selection.subtitle {
+                                Text(subtitle)
+                                    .font(DesignSystem.Typography.caption)
+                                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                                    .lineLimit(1)
+                            }
+                        }
+
+                        Spacer()
+
+                        if selection.isIdle {
+                            StatusPill(L("overview.selection.idle"), systemImage: "moon", tone: .warning)
+                        }
+                        if selection.isOverlay {
+                            StatusPill(L("overview.selection.overlay"), systemImage: "arrow.triangle.2.circlepath", tone: .info)
+                        }
                     }
-                    if let rangeLabel = selection.rangeLabel {
-                        Text("Range: \(rangeLabel)")
-                            .font(.caption)
-                    } else {
-                        Text("Time: \(TimeFormatters.timeRange(start: selection.start, end: selection.end))")
-                            .font(.caption)
+
+                    HStack(spacing: DesignSystem.Spacing.lg) {
+                        selectionInfoItem(
+                            title: L(selection.rangeLabel == nil ? "overview.selection.time" : "overview.selection.range"),
+                            value: selection.rangeLabel ?? TimeFormatters.timeRange(start: selection.start, end: selection.end),
+                            systemImage: "clock"
+                        )
+                        selectionInfoItem(
+                            title: L("overview.selection.duration"),
+                            value: selection.durationText,
+                            systemImage: "timer"
+                        )
                     }
-                    Text("Duration: \(selection.durationText)")
-                        .font(.caption)
-                    if selection.isIdle {
-                        Text("Idle session")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    if selection.isOverlay {
-                        Text("Rapid switch overlay")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
+
+                    selectionActionRow
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                Text("Click a block to see details.")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                selectionEmptyState
             }
         }
+        .padding(DesignSystem.Spacing.md)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(DesignSystem.Colors.background.opacity(0.52))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(DesignSystem.Colors.separator.opacity(0.36), lineWidth: 1)
+        )
+        .accessibilityIdentifier("dashboard.overview.selection")
+    }
+
+    private var selectionEmptyState: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                Image(systemName: "cursorarrow.click")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .frame(width: 22, height: 22)
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                            .fill(DesignSystem.Colors.separator.opacity(0.22))
+                    )
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("overview.selection.empty")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+
+                    Text("overview.selection.empty_detail")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            selectionEmptyPath
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityIdentifier("dashboard.overview.selection.emptyState")
+    }
+
+    private var selectionEmptyPath: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 170), spacing: DesignSystem.Spacing.sm, alignment: .topLeading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            selectionEmptyPathItems
+        }
+        .accessibilityIdentifier("dashboard.overview.selection.emptyPath")
+    }
+
+    @ViewBuilder
+    private var selectionEmptyPathItems: some View {
+        activityMapEmptyPathItem(
+            titleKey: "overview.selection.empty.path.inspect_title",
+            detailKey: "overview.selection.empty.path.inspect_detail",
+            systemImage: "cursorarrow.click",
+            tone: .info,
+            accessibilityIdentifier: "dashboard.overview.selection.emptyPath.inspect"
+        )
+        activityMapEmptyPathItem(
+            titleKey: "overview.selection.empty.path.timeline_title",
+            detailKey: "overview.selection.empty.path.timeline_detail",
+            systemImage: "clock",
+            tone: .success,
+            accessibilityIdentifier: "dashboard.overview.selection.emptyPath.timeline"
+        )
+        activityMapEmptyPathItem(
+            titleKey: "overview.selection.empty.path.note_title",
+            detailKey: "overview.selection.empty.path.note_detail",
+            systemImage: "square.and.pencil",
+            tone: .neutral,
+            accessibilityIdentifier: "dashboard.overview.selection.emptyPath.note"
+        )
+    }
+
+    private var selectionActionRow: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 160), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            selectionOpenTimelineButton
+            selectionAddNoteButton
+        }
+        .padding(.top, DesignSystem.Spacing.xs)
+    }
+
+    private var selectionOpenTimelineButton: some View {
+        Button {
+            selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
+        } label: {
+            Label(L("overview.selection.open_timeline"), systemImage: "clock")
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(DesignSystem.Colors.accentSkyBlue)
+        .controlSize(.small)
+        .accessibilityIdentifier("dashboard.overview.selection.openTimeline")
+    }
+
+    private var selectionAddNoteButton: some View {
+        Button {
+            AppWindowRouter.shared.open(.quickMarker)
+        } label: {
+            Label(L("overview.selection.add_note"), systemImage: "square.and.pencil")
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+        .accessibilityIdentifier("dashboard.overview.selection.addNote")
+    }
+
+    private func selectionInfoItem(title: String, value: String, systemImage: String) -> some View {
+        HStack(alignment: .center, spacing: 8) {
+            Image(systemName: systemImage)
+                .font(.caption)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .frame(width: 14)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                Text(value)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .monospacedDigit()
+                    .lineLimit(1)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var todayCaptureValueText: String {
+        if appState.trackingPaused {
+            return L("overview.command.capture.paused_value")
+        }
+        if captureHasError {
+            return L("overview.command.capture.error_value")
+        }
+        if hasCurrentCaptureSignal {
+            return dashboardCurrentAppName
+        }
+        return L("overview.command.capture.ready_value")
+    }
+
+    private var todayCaptureIconName: String {
+        if appState.trackingPaused {
+            return "pause.circle.fill"
+        }
+        if captureHasError {
+            return "exclamationmark.triangle.fill"
+        }
+        if hasCurrentCaptureSignal {
+            return "record.circle"
+        }
+        return "checkmark.circle"
+    }
+
+    private var todayCaptureTone: DesignSystem.StatusTone {
+        if appState.trackingPaused {
+            return .warning
+        }
+        if captureHasError {
+            return .critical
+        }
+        if hasCurrentCaptureSignal {
+            return .success
+        }
+        return .info
+    }
+
+    private var hasCurrentCaptureSignal: Bool {
+        appState.lastRecordedAppChange != nil || !isCurrentAppUnknown
+    }
+
+    private var captureNeedsAttention: Bool {
+        appState.trackingPaused || captureHasError
+    }
+
+    private var captureHasError: Bool {
+        guard let message = appState.lastDbErrorMessage?.trimmingCharacters(in: .whitespacesAndNewlines) else {
+            return false
+        }
+        return !message.isEmpty
+    }
+
+    private var dashboardCurrentAppName: String {
+        isCurrentAppUnknown
+            ? L("dashboard.sidebar.today_status.current_app_unknown")
+            : appState.currentActiveAppName
+    }
+
+    private var isCurrentAppUnknown: Bool {
+        appState.currentActiveAppName.isEmpty || appState.currentActiveAppName == "Unknown"
     }
 
     private var isDailyView: Bool {
         appState.dateRangeMode == .day
     }
 
+    private var hasActivityRows: Bool {
+        activityRowCount > 0
+    }
+
+    private var activityRowCount: Int {
+        isDailyView ? dailyRows.count : weeklyRows.count
+    }
+
+    private var activityMapStatusText: String {
+        guard hasActivityRows else {
+            if appState.trackingPaused {
+                return L("overview.activity_map.status.paused")
+            }
+            if captureHasError {
+                return L("overview.activity_map.status.check")
+            }
+            return L("overview.activity_map.status.waiting")
+        }
+        return String(format: L("overview.activity_map.status.rows"), activityRowCount)
+    }
+
+    private var activityMapStatusIconName: String {
+        guard hasActivityRows else {
+            if appState.trackingPaused {
+                return "pause.circle.fill"
+            }
+            if captureHasError {
+                return "exclamationmark.triangle.fill"
+            }
+            return "clock"
+        }
+        return "rectangle.stack"
+    }
+
+    private var activityMapStatusTone: DesignSystem.StatusTone {
+        guard hasActivityRows else {
+            if appState.trackingPaused {
+                return .warning
+            }
+            if captureHasError {
+                return .critical
+            }
+            return .neutral
+        }
+        return .info
+    }
+
+    private var activityMapEmptyDetailKey: String {
+        if appState.trackingPaused {
+            return "overview.activity_map.empty_detail.paused"
+        }
+        if captureHasError {
+            return "overview.activity_map.empty_detail.check"
+        }
+        return "overview.activity_map.empty_detail"
+    }
+
+    private var activityMapEmptyCaptureTitleKey: String {
+        if appState.trackingPaused {
+            return "overview.activity_map.empty_path.resume_title"
+        }
+        if captureHasError {
+            return "overview.activity_map.empty_path.check_title"
+        }
+        return "overview.activity_map.empty_path.capture_title"
+    }
+
+    private var activityMapEmptyCaptureDetailKey: String {
+        if appState.trackingPaused {
+            return "overview.activity_map.empty_path.resume_detail"
+        }
+        if captureHasError {
+            return "overview.activity_map.empty_path.check_detail"
+        }
+        return "overview.activity_map.empty_path.capture_detail"
+    }
+
+    private var activityMapEmptyCaptureIconName: String {
+        if appState.trackingPaused {
+            return "play.fill"
+        }
+        if captureHasError {
+            return "stethoscope"
+        }
+        return "record.circle"
+    }
+
+    private var activityMapEmptyPrimaryActionTitleKey: String {
+        if appState.trackingPaused {
+            return "overview.activity_map.empty_resume_capture"
+        }
+        if captureHasError {
+            return "overview.activity_map.empty_check_capture"
+        }
+        return "overview.activity_map.empty_add_marker"
+    }
+
+    private var activityMapEmptyPrimaryActionIconName: String {
+        if appState.trackingPaused {
+            return "play.fill"
+        }
+        if captureHasError {
+            return "stethoscope"
+        }
+        return "square.and.pencil"
+    }
+
+    private var activityMapEmptyPrimaryActionAccessibilityIdentifier: String {
+        if appState.trackingPaused {
+            return "dashboard.overview.activityMap.empty.resumeCapture"
+        }
+        if captureHasError {
+            return "dashboard.overview.activityMap.empty.checkCapture"
+        }
+        return "dashboard.overview.activityMap.empty.addMarker"
+    }
+
+    private var activityMapEmptyPrimaryTone: DesignSystem.StatusTone {
+        if appState.trackingPaused {
+            return .warning
+        }
+        if captureHasError {
+            return .critical
+        }
+        return .info
+    }
+
+    private func performActivityMapEmptyPrimaryAction() {
+        if appState.trackingPaused {
+            appState.trackingPaused = false
+        } else if captureHasError {
+            AppWindowRouter.shared.open(.settings(.support))
+        } else {
+            AppWindowRouter.shared.open(.quickMarker)
+        }
+    }
+
+    private var markerTimelineCueCount: Int {
+        isDailyView ? reviewMarkerCount : weeklyCueCount
+    }
+
+    private var markerTimelineStatusText: String {
+        markerTimelineCueCount == 0 ? L("markers.review.status.empty") : L("markers.review.status.ready")
+    }
+
+    private var markerTimelineDetailKey: String {
+        markerTimelineCueCount == 0 ? "markers.review.empty_detail" : "markers.review.ready_detail"
+    }
+
+    private var markerTimelineStatusIconName: String {
+        markerTimelineCueCount == 0 ? "note.text" : "checkmark.circle"
+    }
+
+    private var markerTimelineTone: DesignSystem.StatusTone {
+        markerTimelineCueCount == 0 ? .neutral : .info
+    }
+
+    private var weeklyReviewState: WeeklyReviewState {
+        if weeklyTotalSeconds == 0 {
+            return .noData
+        }
+        if !weeklyFolderReady {
+            return .needsFolder
+        }
+        if weeklyReportSavedForSelectedWeek {
+            return .saved
+        }
+        return .ready
+    }
+
+    private var weeklyTotalSeconds: Int64 {
+        weeklyRows.reduce(0) { $0 + $1.totalSeconds }
+    }
+
+    private var weeklyCueCount: Int {
+        weeklyMarkerCount + weeklySpanCount
+    }
+
+    private var weeklyFolderReady: Bool {
+        reportSettings.weeklyFolderBookmark != nil
+    }
+
+    private var weeklyReportSavedForSelectedWeek: Bool {
+        reportSettings.weeklyExportSucceeded(for: appState.selectedDate)
+    }
+
+    private var dailyLogSavedForSelectedDay: Bool {
+        reportSettings.dailyExportSucceeded(for: appState.selectedDate)
+    }
+
+    private var weeklyTopFocusValue: String {
+        guard let topRow = weeklyRows.max(by: { $0.totalSeconds < $1.totalSeconds }) else {
+            return L("overview.weekly_summary.none")
+        }
+        return String(format: L("overview.weekly_summary.focus_value"), topRow.title, formatDuration(topRow.totalSeconds))
+    }
+
+    private var weeklySummaryHeadlineKey: String {
+        switch weeklyReviewState {
+        case .noData:
+            return "overview.weekly_summary.empty_title"
+        case .needsFolder:
+            return "overview.weekly_summary.needs_folder_title"
+        case .ready:
+            return "overview.weekly_summary.ready_title"
+        case .saved:
+            return "overview.weekly_summary.saved_title"
+        }
+    }
+
+    private var weeklySummaryDetailKey: String {
+        switch weeklyReviewState {
+        case .noData:
+            return "overview.weekly_summary.empty_detail"
+        case .needsFolder:
+            return "overview.weekly_summary.needs_folder_detail"
+        case .ready:
+            return "overview.weekly_summary.ready_detail"
+        case .saved:
+            return "overview.weekly_summary.saved_detail"
+        }
+    }
+
+    private var weeklySummaryStatusText: String {
+        switch weeklyReviewState {
+        case .noData:
+            return L("overview.weekly_summary.status.no_data")
+        case .needsFolder:
+            return L("overview.weekly_summary.status.needs_folder")
+        case .ready:
+            return L("overview.weekly_summary.status.ready")
+        case .saved:
+            return L("overview.weekly_summary.status.saved")
+        }
+    }
+
+    private var weeklySummaryStatusIconName: String {
+        switch weeklyReviewState {
+        case .noData:
+            return "clock"
+        case .needsFolder:
+            return "folder"
+        case .ready:
+            return "doc.badge.plus"
+        case .saved:
+            return "checkmark"
+        }
+    }
+
+    private var weeklySummaryIconName: String {
+        switch weeklyReviewState {
+        case .noData:
+            return "calendar"
+        case .needsFolder:
+            return "folder.badge.plus"
+        case .ready:
+            return "doc.text.magnifyingglass"
+        case .saved:
+            return "checkmark.seal.fill"
+        }
+    }
+
+    private var weeklySummaryTone: DesignSystem.StatusTone {
+        switch weeklyReviewState {
+        case .noData:
+            return .neutral
+        case .needsFolder:
+            return .warning
+        case .ready:
+            return .info
+        case .saved:
+            return .success
+        }
+    }
+
+    private var reviewActiveSeconds: Int64 {
+        reviewSummary?.activeSeconds ?? 0
+    }
+
+    private var reviewMarkerCount: Int {
+        guard let reviewSummary else { return 0 }
+        return reviewSummary.markerNotesCount + reviewSummary.markerSessionsCount
+    }
+
+    private var primaryFocusItem: TopItem? {
+        let source = mode == .apps ? reviewTopApps : reviewTopTags
+        return source.first
+    }
+
+    private var reviewFocusValue: String {
+        guard let item = primaryFocusItem else {
+            return L("overview.review.none")
+        }
+        return String(format: L("overview.review.focus_value"), item.name, formatDuration(item.durationSeconds))
+    }
+
+    private var reviewUntaggedSeconds: Int64 {
+        reviewTopTags
+            .filter { $0.tagId == nil }
+            .reduce(Int64(0)) { $0 + $1.durationSeconds }
+    }
+
+    private var reviewActionState: ReviewActionState {
+        if reviewActiveSeconds == 0 {
+            return .empty
+        }
+        if dailyLogSavedForSelectedDay {
+            return .saved
+        }
+        if reviewUntaggedSeconds > max(900, reviewActiveSeconds / 4) {
+            return .needsTags
+        }
+        if reviewMarkerCount == 0 {
+            return .needsMarkers
+        }
+        if reportSettings.dailyFolderBookmark == nil {
+            return .needsFolder
+        }
+        return .ready
+    }
+
+    private var reviewContextReady: Bool {
+        reviewActionState == .needsFolder || reviewActionState == .ready || reviewActionState == .saved
+    }
+
+    private var reviewReadinessReadyCount: Int {
+        var count = 0
+        if reviewActiveSeconds > 0 {
+            count += 1
+        }
+        if reviewContextReady {
+            count += 1
+        }
+        if reviewActionState == .saved {
+            count += 1
+        }
+        return count
+    }
+
+    private var reviewReadinessTotalCount: Int {
+        3
+    }
+
+    private var reviewReadinessProgressFraction: Double {
+        Double(reviewReadinessReadyCount) / Double(reviewReadinessTotalCount)
+    }
+
+    private var reviewReadinessProgressText: String {
+        String(
+            format: L("overview.review.readiness.value"),
+            reviewReadinessReadyCount,
+            reviewReadinessTotalCount
+        )
+    }
+
+    private var reviewReadinessStatusIconName: String {
+        reviewReadinessReadyCount == reviewReadinessTotalCount ? "checkmark.circle.fill" : "circle.dashed"
+    }
+
+    private var reviewReadinessTitleKey: String {
+        if appState.trackingPaused {
+            return "overview.review.readiness.paused_title"
+        }
+        if captureHasError && reviewActionState == .empty {
+            return "overview.review.readiness.check_title"
+        }
+        switch reviewActionState {
+        case .empty:
+            return "overview.review.readiness.empty_title"
+        case .needsTags:
+            return "overview.review.readiness.tags_title"
+        case .needsMarkers:
+            return "overview.review.readiness.markers_title"
+        case .needsFolder:
+            return "overview.review.readiness.folder_title"
+        case .ready:
+            return "overview.review.readiness.ready_title"
+        case .saved:
+            return "overview.review.readiness.saved_title"
+        }
+    }
+
+    private var reviewReadinessDetailKey: String {
+        if appState.trackingPaused {
+            return "overview.review.readiness.paused_detail"
+        }
+        switch reviewActionState {
+        case .empty:
+            return captureHasError ? "overview.review.readiness.check_detail" : "overview.review.readiness.empty_detail"
+        case .needsTags:
+            return "overview.review.readiness.tags_detail"
+        case .needsMarkers:
+            return "overview.review.readiness.markers_detail"
+        case .needsFolder:
+            return "overview.review.readiness.folder_detail"
+        case .ready:
+            return "overview.review.readiness.ready_detail"
+        case .saved:
+            return "overview.review.readiness.saved_detail"
+        }
+    }
+
+    private var reviewReadinessIconName: String {
+        if appState.trackingPaused {
+            return "pause.circle.fill"
+        }
+        switch reviewActionState {
+        case .empty:
+            return captureHasError ? "stethoscope" : "record.circle"
+        case .needsTags:
+            return "rectangle.split.3x1"
+        case .needsMarkers:
+            return "note.text.badge.plus"
+        case .needsFolder:
+            return "folder.badge.plus"
+        case .ready:
+            return "doc.badge.plus"
+        case .saved:
+            return "checkmark.seal.fill"
+        }
+    }
+
+    private var reviewReadinessTone: DesignSystem.StatusTone {
+        if appState.trackingPaused {
+            return .warning
+        }
+        if captureHasError && reviewActionState == .empty {
+            return .critical
+        }
+        return reviewTone
+    }
+
+    private var reviewContextTone: DesignSystem.StatusTone {
+        switch reviewActionState {
+        case .empty:
+            return .neutral
+        case .needsTags:
+            return .warning
+        case .needsMarkers:
+            return .info
+        case .needsFolder:
+            return .success
+        case .ready:
+            return .success
+        case .saved:
+            return .success
+        }
+    }
+
+    private var reviewCloseoutTone: DesignSystem.StatusTone {
+        switch reviewActionState {
+        case .saved:
+            return .success
+        case .needsFolder:
+            return .warning
+        case .ready:
+            return .info
+        default:
+            return .neutral
+        }
+    }
+
+    private var reviewPathCaptureDetailKey: String {
+        if reviewActiveSeconds > 0 {
+            return "overview.review.path.capture_done"
+        }
+        return captureNeedsAttention ? "overview.review.path.capture_attention" : "overview.review.path.capture_ready"
+    }
+
+    private var reviewPathContextDetailKey: String {
+        switch reviewActionState {
+        case .empty:
+            return "overview.review.path.context_waiting"
+        case .needsTags:
+            return "overview.review.path.context_tags"
+        case .needsMarkers:
+            return "overview.review.path.context_markers"
+        case .needsFolder:
+            return "overview.review.path.context_done"
+        case .ready:
+            return "overview.review.path.context_done"
+        case .saved:
+            return "overview.review.path.context_done"
+        }
+    }
+
+    private var reviewPathCloseoutDetailKey: String {
+        switch reviewActionState {
+        case .saved:
+            return "overview.review.path.closeout_done"
+        case .needsFolder:
+            return "overview.review.path.closeout_needs_folder"
+        case .ready:
+            return "overview.review.path.closeout_ready"
+        default:
+            return "overview.review.path.closeout_waiting"
+        }
+    }
+
+    private var reviewPathCloseoutIconName: String {
+        switch reviewActionState {
+        case .needsFolder:
+            return "folder.badge.plus"
+        case .saved:
+            return "checkmark.seal.fill"
+        default:
+            return "doc.text.magnifyingglass"
+        }
+    }
+
+    private var reviewHeadlineKey: String {
+        switch reviewActionState {
+        case .empty:
+            return "overview.review.empty_title"
+        case .needsTags:
+            return "overview.review.classify_title"
+        case .needsMarkers:
+            return "overview.review.marker_title"
+        case .needsFolder:
+            return "overview.review.folder_title"
+        case .ready:
+            return "overview.review.ready_title"
+        case .saved:
+            return "overview.review.saved_title"
+        }
+    }
+
+    private var reviewDetailKey: String {
+        switch reviewActionState {
+        case .empty:
+            return captureNeedsAttention ? "overview.review.empty_attention_detail" : "overview.review.empty_detail"
+        case .needsTags:
+            return "overview.review.classify_detail"
+        case .needsMarkers:
+            return "overview.review.marker_detail"
+        case .needsFolder:
+            return "overview.review.folder_detail"
+        case .ready:
+            return "overview.review.ready_detail"
+        case .saved:
+            return "overview.review.saved_detail"
+        }
+    }
+
+    private var reviewSuggestedNextDetailKey: String {
+        switch reviewActionState {
+        case .empty:
+            return captureNeedsAttention ? "overview.review.suggested.empty_attention_detail" : "overview.review.suggested.empty_detail"
+        case .needsTags:
+            return "overview.review.suggested.tags_detail"
+        case .needsMarkers:
+            return "overview.review.suggested.markers_detail"
+        case .needsFolder:
+            return "overview.review.suggested.folder_detail"
+        case .ready:
+            return "overview.review.suggested.ready_detail"
+        case .saved:
+            return "overview.review.suggested.saved_detail"
+        }
+    }
+
+    private var reviewTone: DesignSystem.StatusTone {
+        switch reviewActionState {
+        case .empty:
+            return .neutral
+        case .needsTags:
+            return .warning
+        case .needsMarkers:
+            return .info
+        case .needsFolder:
+            return .warning
+        case .ready:
+            return .success
+        case .saved:
+            return .success
+        }
+    }
+
+    private var reviewIconName: String {
+        switch reviewActionState {
+        case .empty:
+            return "questionmark.circle"
+        case .needsTags:
+            return "exclamationmark.triangle.fill"
+        case .needsMarkers:
+            return "note.text"
+        case .needsFolder:
+            return "folder.badge.questionmark"
+        case .ready:
+            return "checkmark.seal.fill"
+        case .saved:
+            return "checkmark.seal.fill"
+        }
+    }
+
+    private var reviewStatusIconName: String {
+        switch reviewActionState {
+        case .empty:
+            return "clock"
+        case .needsTags:
+            return "exclamationmark.triangle.fill"
+        case .needsMarkers:
+            return "note.text"
+        case .needsFolder:
+            return "folder"
+        case .ready:
+            return "checkmark.circle"
+        case .saved:
+            return "checkmark.circle"
+        }
+    }
+
+    private var reviewStatusText: String {
+        switch reviewActionState {
+        case .empty:
+            return L("overview.review.status.empty")
+        case .needsTags:
+            return L("overview.review.status.needs_tags")
+        case .needsMarkers:
+            return L("overview.review.status.needs_markers")
+        case .needsFolder:
+            return L("overview.review.status.needs_folder")
+        case .ready:
+            return L("overview.review.status.ready")
+        case .saved:
+            return L("overview.review.status.saved")
+        }
+    }
+
     private var rangeModeBinding: Binding<DateRangeMode> {
         Binding(
             get: {
-                appState.dateRangeMode == .day ? .day : .week
+                overviewRangeMode
             },
             set: { newValue in
                 appState.dateRangeMode = newValue
@@ -345,9 +2316,12 @@ struct DashboardOverviewView: View {
         )
     }
 
+    private var overviewRangeMode: DateRangeMode {
+        appState.dateRangeMode == .day ? .day : .week
+    }
+
     private var rangeBounds: (start: Int64, end: Int64) {
-        let mode: DateRangeMode = appState.dateRangeMode == .day ? .day : .week
-        return mode.bounds(for: appState.selectedDate)
+        overviewRangeMode.bounds(for: appState.selectedDate)
     }
 
     private var dailyRows: [GanttRowData] {
@@ -705,21 +2679,12 @@ struct DashboardOverviewView: View {
         return ((value + bin - 1) / bin) * bin
     }
 
-#if DEBUG
-    private var debugCompactionText: String {
-        let totalSegments = dailyRowsState.reduce(0) { $0 + $1.segments.count }
-        return "segments rendered: \(totalSegments)"
-    }
-#endif
-
     private func colorForApp(_ appName: String) -> Color {
         return neutralRowColor
     }
 
     private func shiftDate(by days: Int) {
-        if let newDate = Calendar.current.date(byAdding: .day, value: days, to: appState.selectedDate) {
-            appState.selectedDate = newDate
-        }
+        appState.selectedDate = overviewRangeMode.date(byShifting: appState.selectedDate, value: days)
     }
 
     private var isTodaySelected: Bool {
@@ -728,6 +2693,17 @@ struct DashboardOverviewView: View {
 
     private func formatDuration(_ seconds: Int64) -> String {
         TimeFormatters.durationText(start: 0, end: max(0, seconds))
+    }
+
+    private func openWeeklyFolder() {
+        switch ReportService.shared.openWeeklyFolder() {
+        case .success:
+            weeklyReportStatus = L("reports.opened_folder")
+            weeklyReportStatusIsError = false
+        case .failure(let error):
+            weeklyReportStatus = error.localizedDescription
+            weeklyReportStatusIsError = true
+        }
     }
 
     private func generateWeeklyReportNow() {
@@ -770,7 +2746,68 @@ struct DashboardOverviewView: View {
         var newWeekStarts: [Int64] = []
         var newMarkerCount = 0
         var newSpanCount = 0
+        var newReviewSummary: AggregationSummary?
+        var newReviewTopApps: [TopItem] = []
+        var newReviewTopTags: [TopItem] = []
         var errorMessage: String?
+
+        let reviewFilters = AggregationFilters(
+            includeIdle: appState.includeIdleInTimeline,
+            countOverlaysInTotals: appState.countOverlaysInTotals,
+            tagId: nil,
+            appName: nil,
+            bundleId: nil,
+            searchQuery: nil
+        )
+
+        group.enter()
+        AggregationService.shared.computeSummary(
+            rangeStart: bounds.start,
+            rangeEnd: bounds.end,
+            filters: reviewFilters
+        ) { result in
+            switch result {
+            case .success(let summary):
+                newReviewSummary = summary
+            case .failure(let error):
+                errorMessage = error.localizedDescription
+            }
+            group.leave()
+        }
+
+        group.enter()
+        AggregationService.shared.computeTopApps(
+            rangeStart: bounds.start,
+            rangeEnd: bounds.end,
+            filters: reviewFilters,
+            limit: 12,
+            includeIdle: false
+        ) { result in
+            switch result {
+            case .success(let items):
+                newReviewTopApps = items
+            case .failure(let error):
+                errorMessage = error.localizedDescription
+            }
+            group.leave()
+        }
+
+        group.enter()
+        AggregationService.shared.computeTopTags(
+            rangeStart: bounds.start,
+            rangeEnd: bounds.end,
+            filters: reviewFilters,
+            limit: 50,
+            includeIdle: false
+        ) { result in
+            switch result {
+            case .success(let items):
+                newReviewTopTags = items
+            case .failure(let error):
+                errorMessage = error.localizedDescription
+            }
+            group.leave()
+        }
 
         if isDailyView {
             group.enter()
@@ -846,6 +2883,9 @@ struct DashboardOverviewView: View {
             self.weekDayStartsState = newWeekStarts
             self.weeklyMarkerCount = newMarkerCount
             self.weeklySpanCount = newSpanCount
+            self.reviewSummary = newReviewSummary
+            self.reviewTopApps = newReviewTopApps
+            self.reviewTopTags = newReviewTopTags
             self.isLoading = false
             self.lastRefresh = Date()
             if let errorMessage {

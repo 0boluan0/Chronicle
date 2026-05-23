@@ -8,43 +8,30 @@
 import AppKit
 import SwiftUI
 
+private let statsReadableContentWidth: CGFloat = 1040
+
 struct DashboardStatsView: View {
     @EnvironmentObject private var appState: AppState
+    @ObservedObject private var reportSettings = ReportSettings.shared
 
+    @AppStorage("dashboard.selectedSection") private var selectedDashboardSectionRaw = DashboardView.Section.defaultSelection.rawValue
     @State private var rangeStats = RangeStats.empty
     @State private var isLoading = false
     @State private var lastRefresh: Date?
+    @State private var showStatsIssueDetails = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
             headerView
 
-            if let lastDbError = appState.lastDbErrorMessage, !lastDbError.isEmpty {
-                ErrorStateView(title: "Unable to load stats", message: lastDbError)
-            }
-
-            Divider()
-
-            Picker("Range", selection: $appState.dateRangeMode) {
-                ForEach(DateRangeMode.allCases) { range in
-                    Text(range.titleKey).tag(range)
-                }
-            }
-            .pickerStyle(.segmented)
-            .tint(DesignSystem.Colors.accentSkyBlue)
-            .frame(width: 240)
-
-            Toggle("Include idle in charts", isOn: $appState.includeIdleInCharts)
-                .toggleStyle(.switch)
-                .font(DesignSystem.Typography.caption)
-            if appState.countOverlaysInTotals {
-                Text(L("dashboard.stats.overlays_notice"))
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
+            if let lastDbError = statsCaptureErrorMessage {
+                statsIssueCard(message: lastDbError)
             }
 
             ScrollView {
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
+                    statsReviewCard
+                    statsScopeCard
                     rangeSection(title: rangeTitle, stats: rangeStats)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -57,16 +44,18 @@ struct DashboardStatsView: View {
             }
         }
         .padding(DesignSystem.Spacing.xl)
+        .frame(maxWidth: statsReadableContentWidth, alignment: .topLeading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .onAppear {
             refreshStats(reason: "dashboard opened")
         }
         .onReceive(NotificationCenter.default.publisher(for: ActivityTracker.didRecordSessionNotification)) { _ in
             refreshStats(reason: "activity tracker")
         }
-        .onChange(of: appState.selectedDate) { _ in
+        .onChange(of: appState.selectedDate) { _, _ in
             refreshStats(reason: "date changed")
         }
-        .onChange(of: appState.dateRangeMode) { _ in
+        .onChange(of: appState.dateRangeMode) { _, _ in
             refreshStats(reason: "range changed")
         }
     }
@@ -75,6 +64,7 @@ struct DashboardStatsView: View {
         DateNavigationHeader(
             title: "dashboard.stats",
             subtitle: Self.dateFormatter.string(from: appState.selectedDate),
+            dateRangeMode: appState.dateRangeMode,
             selectedDate: $appState.selectedDate,
             isLoading: isLoading,
             isTodaySelected: isTodaySelected,
@@ -85,47 +75,1185 @@ struct DashboardStatsView: View {
         )
     }
 
-    private func rangeSection(title: String, stats: RangeStats) -> some View {
+    private func statsIssueCard(message: String) -> some View {
         SectionCard {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                Text(title)
-                    .font(DesignSystem.Typography.sectionHeader)
+                HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                    IconWell(
+                        systemImage: "chart.bar.xaxis",
+                        tone: .warning,
+                        accessibilityLabel: L("dashboard.stats.load_failed")
+                    )
 
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: DesignSystem.Spacing.sm), count: 3), spacing: DesignSystem.Spacing.sm) {
-                    SummaryCard(title: "Total", value: formatDuration(stats.summary.totalSeconds))
-                    SummaryCard(title: "Active", value: formatDuration(stats.summary.activeSeconds))
-                    SummaryCard(title: "Idle", value: formatDuration(stats.summary.idleSeconds))
-                    SummaryCard(title: "Sessions", value: "\(stats.summary.sessions)")
-                    SummaryCard(title: "Notes", value: "\(stats.markerNotesCount)")
-                    SummaryCard(title: "Marker Sessions", value: "\(stats.markerSessionsCount)")
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("dashboard.stats.load_failed")
+                            .font(.headline.weight(.semibold))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+
+                        Text("dashboard.stats.error.detail")
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Spacer(minLength: DesignSystem.Spacing.md)
+
+                    StatusPill(
+                        L("dashboard.stats.error.status"),
+                        systemImage: "stethoscope",
+                        tone: .warning
+                    )
                 }
 
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    Text("Top Apps")
-                        .font(.subheadline.weight(.medium))
-                    if stats.topApps.isEmpty {
-                        EmptyStateView(title: "No tracked activity yet.")
-                    } else {
-                        ForEach(stats.topApps) { app in
-                            TopAppRow(app: app, chartTotal: chartTotal)
-                        }
-                    }
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 150), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
+                    alignment: .leading,
+                    spacing: DesignSystem.Spacing.sm
+                ) {
+                    statsIssueActions
                 }
 
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    Text("Top Tags")
-                        .font(.subheadline.weight(.medium))
-                    if stats.topTags.isEmpty {
-                        EmptyStateView(title: "No tags yet.")
-                    } else {
-                        ForEach(stats.topTags) { tag in
-                            TopTagRow(tag: tag, chartTotal: chartTotal)
-                        }
+                DisclosureGroup(isExpanded: $showStatsIssueDetails) {
+                    Text(message)
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, DesignSystem.Spacing.xs)
+                } label: {
+                    Text("dashboard.stats.error.support_details")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                }
+            }
+        }
+        .accessibilityIdentifier("dashboard.stats.issueCard")
+    }
+
+    private var statsIssueActions: some View {
+        Group {
+            Button {
+                refreshStats(reason: "stats issue retry")
+            } label: {
+                Label(L("dashboard.stats.error.retry"), systemImage: "arrow.clockwise")
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+            .tint(DesignSystem.Colors.accentSkyBlue)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("dashboard.stats.retryLoad")
+
+            Button {
+                AppWindowRouter.shared.open(.settings(.support))
+            } label: {
+                Label(L("dashboard.stats.error.open_health"), systemImage: "stethoscope")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("dashboard.stats.openHealth")
+        }
+    }
+
+    private var statsScopeCard: some View {
+        SectionCard(title: "dashboard.stats.scope.title") {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                statsScopeHeader
+
+                Divider()
+
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 220), spacing: DesignSystem.Spacing.md, alignment: .leading)],
+                    alignment: .leading,
+                    spacing: DesignSystem.Spacing.sm
+                ) {
+                    statsRangePicker
+                    statsIdleToggle
+                }
+
+                if appState.countOverlaysInTotals {
+                    Label {
+                        Text("dashboard.stats.scope.overlays_detail")
+                    } icon: {
+                        Image(systemName: "plus.rectangle.on.rectangle")
                     }
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("dashboard.stats.scope")
         }
+    }
+
+    private var statsScopeHeader: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            statsScopeCopy
+            StatusPill(chartBasisText, systemImage: statsScopeStatusIconName, tone: statsScopeTone)
+        }
+        .accessibilityIdentifier("dashboard.stats.scopeHeader")
+    }
+
+    private var statsScopeCopy: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            IconWell(
+                systemImage: statsScopeIconName,
+                tone: statsScopeTone,
+                accessibilityLabel: L("dashboard.stats.scope.title")
+            )
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(LocalizedStringKey(statsScopeHeadlineKey))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+
+                Text(LocalizedStringKey(statsScopeDetailKey))
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private var statsRangePicker: some View {
+        Picker("dashboard.stats.range_control", selection: $appState.dateRangeMode) {
+            ForEach(DateRangeMode.allCases) { range in
+                Text(range.titleKey).tag(range)
+            }
+        }
+        .pickerStyle(.segmented)
+        .tint(DesignSystem.Colors.accentSkyBlue)
+        .frame(minWidth: 220, maxWidth: 280, alignment: .leading)
+        .accessibilityIdentifier("dashboard.stats.range_control")
+    }
+
+    private var statsIdleToggle: some View {
+        Toggle("dashboard.stats.include_idle", isOn: $appState.includeIdleInCharts)
+            .toggleStyle(.switch)
+            .font(DesignSystem.Typography.caption)
+            .accessibilityIdentifier("dashboard.stats.includeIdle")
+    }
+
+    private var statsReviewCard: some View {
+        SectionCard(title: "dashboard.stats.review.title") {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                statsReviewHeader
+
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 180), spacing: DesignSystem.Spacing.md)],
+                    alignment: .leading,
+                    spacing: DesignSystem.Spacing.md
+                ) {
+                    statsReviewBlock(
+                        title: "dashboard.stats.review.capture_title",
+                        value: capturedTimeValue,
+                        detail: capturedTimeDetail,
+                        systemImage: "recordingtape",
+                        tone: rangeStats.summary.totalSeconds == 0 ? .neutral : .success
+                    )
+                    statsReviewBlock(
+                        title: "dashboard.stats.review.focus_title",
+                        value: focusValue,
+                        detail: focusDetail,
+                        systemImage: rangeStats.topTags.isEmpty ? "app" : "rectangle.split.3x1",
+                        tone: focusValue == L("dashboard.stats.review.no_focus") ? .neutral : .info
+                    )
+                    statsReviewBlock(
+                        title: "dashboard.stats.review.cues_title",
+                        value: reviewCuesValue,
+                        detail: reviewCuesDetail,
+                        systemImage: "note.text",
+                        tone: reviewCueCount == 0 ? .warning : .success
+                    )
+                }
+
+                statsInterpretationPath
+
+                statsReviewNextStepCard
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var statsReviewHeader: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            statsReviewCopy
+            StatusPill(statsReviewStatusText, systemImage: statsReviewStatusIconName, tone: statsReviewTone)
+        }
+        .accessibilityIdentifier("dashboard.stats.reviewHeader")
+    }
+
+    private var statsReviewCopy: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            IconWell(
+                systemImage: statsReviewIconName,
+                tone: statsReviewTone,
+                accessibilityLabel: L("dashboard.stats.review.title")
+            )
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(LocalizedStringKey(statsReviewHeadlineKey))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+
+                Text(LocalizedStringKey(statsReviewDetailKey))
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func statsReviewBlock(
+        title: LocalizedStringKey,
+        value: String,
+        detail: String,
+        systemImage: String,
+        tone: DesignSystem.StatusTone
+    ) -> some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(tone.color)
+                .frame(width: 16, height: 18)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(1)
+
+                Text(value)
+                    .font(.headline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+
+                Text(detail)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var statsInterpretationPath: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 184), spacing: DesignSystem.Spacing.sm, alignment: .topLeading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            statsPathItem(
+                titleKey: "dashboard.stats.review.path.mix_title",
+                detailKey: "dashboard.stats.review.path.mix_detail",
+                systemImage: "chart.pie",
+                tone: rangeStats.summary.totalSeconds == 0 ? .neutral : .info,
+                accessibilityIdentifier: "dashboard.stats.path.mix"
+            )
+            statsPathItem(
+                titleKey: "dashboard.stats.review.path.focus_title",
+                detailKey: "dashboard.stats.review.path.focus_detail",
+                systemImage: "scope",
+                tone: focusValue == L("dashboard.stats.review.no_focus") ? .neutral : .info,
+                accessibilityIdentifier: "dashboard.stats.path.focus"
+            )
+            statsPathItem(
+                titleKey: "dashboard.stats.review.path.action_title",
+                detailKey: "dashboard.stats.review.path.action_detail",
+                systemImage: statsReviewState == .ready ? statsPrepareReportIconName : "arrow.triangle.branch",
+                tone: statsReviewState == .ready ? statsReviewNextStepTone : .warning,
+                accessibilityIdentifier: "dashboard.stats.path.action"
+            )
+        }
+        .accessibilityIdentifier("dashboard.stats.path")
+    }
+
+    private func statsPathItem(
+        titleKey: LocalizedStringKey,
+        detailKey: LocalizedStringKey,
+        systemImage: String,
+        tone: DesignSystem.StatusTone,
+        accessibilityIdentifier: String
+    ) -> some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(tone.color)
+                .frame(width: 16)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(titleKey)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(1)
+
+                Text(detailKey)
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .frame(minWidth: 166, maxWidth: .infinity, minHeight: 68, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(tone.color.opacity(0.07))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(tone.color.opacity(0.18), lineWidth: 1)
+        )
+        .accessibilityIdentifier(accessibilityIdentifier)
+    }
+
+    private var statsReviewNextStepCard: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 280), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.md
+        ) {
+            statsReviewNextStepCopy
+            statsReviewActionsGrid
+        }
+        .padding(DesignSystem.Spacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(statsReviewNextStepTone.color.opacity(0.08))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(statsReviewNextStepTone.color.opacity(0.24), lineWidth: 1)
+        )
+        .accessibilityIdentifier("dashboard.stats.nextStep")
+    }
+
+    private var statsReviewNextStepCopy: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            IconWell(
+                systemImage: statsReviewNextStepIconName,
+                tone: statsReviewNextStepTone,
+                accessibilityLabel: L("dashboard.stats.review.next_step")
+            )
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("dashboard.stats.review.next_step")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(1)
+
+                Text(LocalizedStringKey(statsReviewNextStepTitleKey))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(LocalizedStringKey(statsReviewNextStepDetailKey))
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var statsReviewActionsGrid: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 142), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            primaryStatsReviewActionButton
+            secondaryStatsReviewButtons
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private var primaryStatsReviewActionButton: some View {
+        switch statsReviewState {
+        case .empty:
+            if appState.trackingPaused {
+                statsResumeCaptureButton(isPrimary: true)
+            } else if statsCaptureHasError {
+                statsCheckCaptureButton(isPrimary: true)
+            } else {
+                statsOpenTodayButton(isPrimary: true)
+            }
+        case .needsLabels:
+            Button {
+                showUnlabeledTimeline()
+            } label: {
+                Label(L("dashboard.stats.review.review_labels"), systemImage: "rectangle.split.3x1")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(DesignSystem.Colors.accentSkyBlue)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("dashboard.stats.reviewLabels")
+        case .needsCues:
+            Button {
+                AppWindowRouter.shared.open(.quickMarker)
+            } label: {
+                Label(L("dashboard.stats.review.add_cue"), systemImage: "square.and.pencil")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(DesignSystem.Colors.accentSkyBlue)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("dashboard.stats.addCue")
+        case .ready:
+            prepareReportPrimaryButton
+        }
+    }
+
+    @ViewBuilder
+    private var secondaryStatsReviewButtons: some View {
+        if statsReviewState == .empty {
+            statsAddCueButton
+
+            if statsCaptureNeedsAttention {
+                statsOpenTodayButton(isPrimary: false)
+            }
+        } else {
+            if statsReviewState != .needsLabels {
+                openTimelineButton
+            }
+
+            if statsReviewState != .needsCues {
+                openMarkersButton
+            }
+
+            if statsReviewState != .ready && rangeStats.summary.totalSeconds > 0 {
+                prepareReportButton
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func statsOpenTodayButton(isPrimary: Bool) -> some View {
+        if isPrimary {
+            Button {
+                selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
+            } label: {
+                Label(L("dashboard.stats.review.open_today"), systemImage: "sun.max")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(DesignSystem.Colors.accentSkyBlue)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("dashboard.stats.openToday")
+        } else {
+            Button {
+                selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
+            } label: {
+                Label(L("dashboard.stats.review.open_today"), systemImage: "sun.max")
+            }
+            .buttonStyle(.bordered)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("dashboard.stats.openToday")
+        }
+    }
+
+    @ViewBuilder
+    private func statsCheckCaptureButton(isPrimary: Bool) -> some View {
+        if isPrimary {
+            Button {
+                AppWindowRouter.shared.open(.settings(.support))
+            } label: {
+                Label(L("dashboard.stats.review.check_capture"), systemImage: "stethoscope")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(DesignSystem.Colors.accentSkyBlue)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("dashboard.stats.checkCapture")
+        } else {
+            Button {
+                AppWindowRouter.shared.open(.settings(.support))
+            } label: {
+                Label(L("dashboard.stats.review.check_capture"), systemImage: "stethoscope")
+            }
+            .buttonStyle(.bordered)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("dashboard.stats.checkCapture")
+        }
+    }
+
+    @ViewBuilder
+    private func statsResumeCaptureButton(isPrimary: Bool) -> some View {
+        if isPrimary {
+            Button {
+                appState.trackingPaused = false
+                selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
+            } label: {
+                Label(L("dashboard.stats.review.resume_capture"), systemImage: "play.fill")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(DesignSystem.Colors.accentSkyBlue)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("dashboard.stats.resumeCapture")
+        } else {
+            Button {
+                appState.trackingPaused = false
+                selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
+            } label: {
+                Label(L("dashboard.stats.review.resume_capture"), systemImage: "play.fill")
+            }
+            .buttonStyle(.bordered)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("dashboard.stats.resumeCapture")
+        }
+    }
+
+    private var statsAddCueButton: some View {
+        Button {
+            AppWindowRouter.shared.open(.quickMarker)
+        } label: {
+            Label(L("dashboard.stats.review.add_cue"), systemImage: "square.and.pencil")
+        }
+        .buttonStyle(.bordered)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityIdentifier("dashboard.stats.addCue")
+    }
+
+    private var openTimelineButton: some View {
+        Button {
+            selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
+        } label: {
+            Label(L("dashboard.stats.review.open_timeline"), systemImage: "clock")
+        }
+        .buttonStyle(.bordered)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityIdentifier("dashboard.stats.openTimeline")
+    }
+
+    private var openMarkersButton: some View {
+        Button {
+            selectedDashboardSectionRaw = DashboardView.Section.markers.rawValue
+        } label: {
+            Label(L("dashboard.stats.review.open_markers"), systemImage: "note.text")
+        }
+        .buttonStyle(.bordered)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityIdentifier("dashboard.stats.openMarkers")
+    }
+
+    private var prepareReportButton: some View {
+        Button {
+            performStatsPrepareReportAction()
+        } label: {
+            Label(statsPrepareReportTitle, systemImage: statsPrepareReportIconName)
+        }
+        .buttonStyle(.bordered)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityIdentifier("dashboard.stats.prepareReport")
+    }
+
+    private var prepareReportPrimaryButton: some View {
+        Button {
+            performStatsPrepareReportAction()
+        } label: {
+            Label(statsPrepareReportTitle, systemImage: statsPrepareReportIconName)
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(DesignSystem.Colors.accentSkyBlue)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityIdentifier("dashboard.stats.prepareReport")
+    }
+
+    private func performStatsPrepareReportAction() {
+        if statsDailyLogSavedForRange {
+            if case .success = ReportService.shared.openDailyFolder() {
+                return
+            }
+        }
+        selectedDashboardSectionRaw = DashboardView.Section.reports.rawValue
+    }
+
+    private func showUnlabeledTimeline() {
+        appState.searchQuery = ""
+        appState.selectedTagFilterId = -2
+        appState.selectedAppFilterName = "All Apps"
+        appState.includeIdleInTimeline = false
+        selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
+    }
+
+    private func openTimeline(filteredByApp appName: String) {
+        appState.searchQuery = ""
+        appState.selectedTagFilterId = -1
+        appState.selectedAppFilterName = appName
+        appState.includeIdleInTimeline = true
+        selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
+    }
+
+    private func openTimeline(filteredByTag tag: TagDuration) {
+        appState.searchQuery = ""
+        appState.selectedTagFilterId = tag.tagId ?? -2
+        appState.selectedAppFilterName = "All Apps"
+        appState.includeIdleInTimeline = false
+        selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
+    }
+
+    private func rangeSection(title: String, stats: RangeStats) -> some View {
+        SectionCard {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                statsRangeHeader(title: title, stats: stats)
+
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 148), spacing: DesignSystem.Spacing.md)],
+                    alignment: .leading,
+                    spacing: DesignSystem.Spacing.sm
+                ) {
+                    MetricValueView(title: "dashboard.stats.total", value: formatDuration(stats.summary.totalSeconds), systemImage: "sum", tone: .neutral)
+                    MetricValueView(title: "dashboard.stats.active", value: formatDuration(stats.summary.activeSeconds), systemImage: "figure.walk", tone: .success)
+                    MetricValueView(title: "dashboard.stats.idle", value: formatDuration(stats.summary.idleSeconds), systemImage: "moon", tone: .warning)
+                    MetricValueView(title: "dashboard.stats.sessions", value: "\(stats.summary.sessions)", systemImage: "list.bullet.rectangle", tone: .info)
+                    MetricValueView(title: "dashboard.stats.notes", value: "\(stats.markerNotesCount)", systemImage: "note.text", tone: .neutral)
+                    MetricValueView(title: "dashboard.stats.marker_sessions", value: "\(stats.markerSessionsCount)", systemImage: "timer", tone: .neutral)
+                }
+                .accessibilityIdentifier("dashboard.stats.metricGrid")
+
+                activityMixView(summary: stats.summary)
+
+                dataQualityView(stats: stats)
+
+                statsFocusPanels(stats: stats)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityIdentifier("dashboard.stats.rangeSummary")
+    }
+
+    private func statsRangeHeader(title: String, stats: RangeStats) -> some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            statsRangeCopy(title: title, stats: stats)
+            StatusPill(statsRangeStatusText(stats), systemImage: statsRangeStatusIconName(stats), tone: statsRangeTone(stats))
+        }
+        .accessibilityIdentifier("dashboard.stats.rangeHeader")
+    }
+
+    private func statsRangeCopy(title: String, stats: RangeStats) -> some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            IconWell(
+                systemImage: statsRangeIconName(stats),
+                tone: statsRangeTone(stats),
+                accessibilityLabel: title
+            )
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(DesignSystem.Typography.sectionHeader)
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+
+                Text(LocalizedStringKey(statsRangeDetailKey(stats)))
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func activityMixView(summary: SummaryMetrics) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 180), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.xs
+            ) {
+                Text("dashboard.stats.activity_mix")
+                    .font(.subheadline.weight(.medium))
+                activityMixLegend(summary: summary)
+            }
+
+            RatioBar(
+                filledFraction: summary.activeShare,
+                filledColor: Color(nsColor: .systemGreen),
+                remainderColor: Color(nsColor: .systemOrange)
+            )
+        }
+        .accessibilityIdentifier("dashboard.stats.activityMix")
+    }
+
+    private func activityMixLegend(summary: SummaryMetrics) -> some View {
+        HStack(spacing: DesignSystem.Spacing.sm) {
+            Text(String(format: L("dashboard.stats.active_share"), Int((summary.activeShare * 100).rounded())))
+                .font(DesignSystem.Typography.caption)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .lineLimit(1)
+            Text(String(format: L("dashboard.stats.idle_share"), Int((summary.idleShare * 100).rounded())))
+                .font(DesignSystem.Typography.caption)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .lineLimit(1)
+        }
+    }
+
+    private func dataQualityView(stats: RangeStats) -> some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            Divider()
+
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                    IconWell(
+                        systemImage: dataQualityStatusIconName(stats),
+                        tone: dataQualityTone(stats),
+                        accessibilityLabel: L("dashboard.stats.data_quality.title")
+                    )
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("dashboard.stats.data_quality.title")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+
+                        Text("dashboard.stats.data_quality.detail")
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+
+                StatusPill(
+                    dataQualityStatusText(stats),
+                    systemImage: dataQualityStatusIconName(stats),
+                    tone: dataQualityTone(stats)
+                )
+            }
+
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 132), spacing: DesignSystem.Spacing.md)],
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                MetricValueView(
+                    title: "dashboard.stats.data_quality.sessions",
+                    value: "\(stats.summary.sessions)",
+                    systemImage: "list.bullet.rectangle",
+                    tone: stats.summary.sessions == 0 ? .neutral : .success
+                )
+                MetricValueView(
+                    title: "dashboard.stats.data_quality.categories",
+                    value: "\(stats.topTags.count)",
+                    systemImage: "rectangle.split.3x1",
+                    tone: stats.topTags.isEmpty ? .warning : .success
+                )
+                MetricValueView(
+                    title: "dashboard.stats.data_quality.context",
+                    value: "\(dataQualityContextCount(stats))",
+                    systemImage: "note.text",
+                    tone: dataQualityContextCount(stats) == 0 ? .neutral : .info
+                )
+            }
+        }
+        .accessibilityIdentifier("dashboard.stats.dataQuality")
+    }
+
+    private func statsFocusPanels(stats: RangeStats) -> some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 320), spacing: DesignSystem.Spacing.lg, alignment: .topLeading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.lg
+        ) {
+            statsAppFocusColumn(stats: stats)
+            statsTagFocusColumn(stats: stats)
+        }
+        .accessibilityIdentifier("dashboard.stats.focusPanels")
+    }
+
+    private func statsAppFocusColumn(stats: RangeStats) -> some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            statsFocusColumnHeader(
+                titleKey: "dashboard.stats.top_apps",
+                detailKey: "dashboard.stats.top_apps_detail",
+                systemImage: "app",
+                tone: stats.topApps.isEmpty ? .neutral : .info
+            )
+
+            if stats.topApps.isEmpty {
+                EmptyStateView(
+                    title: L("dashboard.stats.empty_activity"),
+                    subtitle: L("dashboard.stats.empty_activity_detail"),
+                    systemImage: "app",
+                    tone: .neutral
+                )
+                .padding(.vertical, DesignSystem.Spacing.xs)
+
+                appFocusEmptyPath
+            } else {
+                statsFocusDrilldownHint(accessibilityIdentifier: "dashboard.stats.appFocus.drilldownHint")
+
+                ForEach(Array(stats.topApps.enumerated()), id: \.element.id) { index, app in
+                    TopAppRow(rank: index + 1, app: app, chartTotal: chartTotal) {
+                        openTimeline(filteredByApp: app.appName)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .accessibilityIdentifier("dashboard.stats.appFocus")
+    }
+
+    private func statsTagFocusColumn(stats: RangeStats) -> some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            statsFocusColumnHeader(
+                titleKey: "dashboard.stats.top_tags",
+                detailKey: "dashboard.stats.top_tags_detail",
+                systemImage: "rectangle.split.3x1",
+                tone: stats.topTags.isEmpty ? .warning : .success
+            )
+
+            if stats.topTags.isEmpty {
+                EmptyStateView(
+                    title: L("dashboard.stats.empty_tags"),
+                    subtitle: L("dashboard.stats.empty_tags_detail"),
+                    systemImage: "exclamationmark.triangle.fill",
+                    tone: .warning
+                )
+                .padding(.vertical, DesignSystem.Spacing.xs)
+
+                tagFocusEmptyPath
+            } else {
+                statsFocusDrilldownHint(accessibilityIdentifier: "dashboard.stats.tagFocus.drilldownHint")
+
+                ForEach(Array(stats.topTags.enumerated()), id: \.element.id) { index, tag in
+                    TopTagRow(rank: index + 1, tag: tag, chartTotal: chartTotal) {
+                        openTimeline(filteredByTag: tag)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .accessibilityIdentifier("dashboard.stats.tagFocus")
+    }
+
+    private var appFocusEmptyPath: some View {
+        statsFocusEmptyPath(accessibilityIdentifier: "dashboard.stats.appFocus.emptyPath") {
+            statsFocusEmptyPathItem(
+                titleKey: "dashboard.stats.empty_activity.path.run_title",
+                detailKey: "dashboard.stats.empty_activity.path.run_detail",
+                systemImage: "play.circle",
+                tone: .info,
+                accessibilityIdentifier: "dashboard.stats.appFocus.emptyPath.run",
+                action: {
+                    if appState.trackingPaused {
+                        appState.trackingPaused = false
+                    }
+                    selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
+                }
+            )
+            statsFocusEmptyPathItem(
+                titleKey: "dashboard.stats.empty_activity.path.today_title",
+                detailKey: "dashboard.stats.empty_activity.path.today_detail",
+                systemImage: "sun.max",
+                tone: .neutral,
+                accessibilityIdentifier: "dashboard.stats.appFocus.emptyPath.today",
+                action: {
+                    selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
+                }
+            )
+            statsFocusEmptyPathItem(
+                titleKey: "dashboard.stats.empty_activity.path.note_title",
+                detailKey: "dashboard.stats.empty_activity.path.note_detail",
+                systemImage: "note.text",
+                tone: .success,
+                accessibilityIdentifier: "dashboard.stats.appFocus.emptyPath.note",
+                action: {
+                    AppWindowRouter.shared.open(.quickMarker)
+                }
+            )
+        }
+    }
+
+    private var tagFocusEmptyPath: some View {
+        statsFocusEmptyPath(accessibilityIdentifier: "dashboard.stats.tagFocus.emptyPath") {
+            statsFocusEmptyPathItem(
+                titleKey: "dashboard.stats.empty_tags.path.timeline_title",
+                detailKey: "dashboard.stats.empty_tags.path.timeline_detail",
+                systemImage: "clock.badge.checkmark",
+                tone: .info,
+                accessibilityIdentifier: "dashboard.stats.tagFocus.emptyPath.timeline",
+                action: {
+                    showUnlabeledTimeline()
+                }
+            )
+            statsFocusEmptyPathItem(
+                titleKey: "dashboard.stats.empty_tags.path.categories_title",
+                detailKey: "dashboard.stats.empty_tags.path.categories_detail",
+                systemImage: "rectangle.split.3x1",
+                tone: .warning,
+                accessibilityIdentifier: "dashboard.stats.tagFocus.emptyPath.categories",
+                action: {
+                    AppWindowRouter.shared.open(.settings(.tagsRules))
+                }
+            )
+            statsFocusEmptyPathItem(
+                titleKey: "dashboard.stats.empty_tags.path.return_title",
+                detailKey: "dashboard.stats.empty_tags.path.return_detail",
+                systemImage: "chart.bar",
+                tone: .success,
+                accessibilityIdentifier: "dashboard.stats.tagFocus.emptyPath.return",
+                action: {
+                    refreshStats(reason: "stats empty category path")
+                }
+            )
+        }
+    }
+
+    private func statsFocusDrilldownHint(accessibilityIdentifier: String) -> some View {
+        Label {
+            Text("dashboard.stats.drilldown.visible_help")
+                .font(DesignSystem.Typography.caption)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: "arrow.right.circle")
+                .font(.caption.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.accentSkyBlue)
+        }
+        .padding(.horizontal, DesignSystem.Spacing.sm)
+        .padding(.vertical, DesignSystem.Spacing.xs)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .fill(DesignSystem.Colors.accentSkyBlue.opacity(0.07))
+        )
+        .accessibilityIdentifier(accessibilityIdentifier)
+    }
+
+    private func statsFocusEmptyPath<Content: View>(
+        accessibilityIdentifier: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 168), spacing: DesignSystem.Spacing.sm, alignment: .topLeading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            content()
+        }
+        .accessibilityIdentifier(accessibilityIdentifier)
+    }
+
+    private func statsFocusEmptyPathItem(
+        titleKey: LocalizedStringKey,
+        detailKey: LocalizedStringKey,
+        systemImage: String,
+        tone: DesignSystem.StatusTone,
+        accessibilityIdentifier: String,
+        action: (() -> Void)? = nil
+    ) -> some View {
+        Group {
+            if let action {
+                Button(action: action) {
+                    statsFocusEmptyPathItemContent(
+                        titleKey: titleKey,
+                        detailKey: detailKey,
+                        systemImage: systemImage,
+                        tone: tone,
+                        showsActionIndicator: true
+                    )
+                }
+                .buttonStyle(.plain)
+                .help(L("dashboard.stats.empty_path.open_hint"))
+                .accessibilityHint(L("dashboard.stats.empty_path.open_hint"))
+                .accessibilityIdentifier(accessibilityIdentifier)
+            } else {
+                statsFocusEmptyPathItemContent(
+                    titleKey: titleKey,
+                    detailKey: detailKey,
+                    systemImage: systemImage,
+                    tone: tone,
+                    showsActionIndicator: false
+                )
+                .accessibilityIdentifier(accessibilityIdentifier)
+            }
+        }
+    }
+
+    private func statsFocusEmptyPathItemContent(
+        titleKey: LocalizedStringKey,
+        detailKey: LocalizedStringKey,
+        systemImage: String,
+        tone: DesignSystem.StatusTone,
+        showsActionIndicator: Bool
+    ) -> some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(tone.color)
+                .frame(width: 18, height: 18)
+                .background(
+                    RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                        .fill(tone.color.opacity(0.10))
+                )
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(titleKey)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(1)
+
+                Text(detailKey)
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+
+            if showsActionIndicator {
+                Image(systemName: "arrow.right.circle")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.secondaryText.opacity(0.65))
+                    .padding(.top, 1)
+                    .accessibilityHidden(true)
+            }
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .frame(minWidth: 156, maxWidth: .infinity, minHeight: 70, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(tone.color.opacity(0.06))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(tone.color.opacity(0.16), lineWidth: 1)
+        )
+    }
+
+    private func statsFocusColumnHeader(
+        titleKey: String,
+        detailKey: String,
+        systemImage: String,
+        tone: DesignSystem.StatusTone
+    ) -> some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+            IconWell(systemImage: systemImage, tone: tone, accessibilityLabel: L(titleKey))
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(LocalizedStringKey(titleKey))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+
+                Text(LocalizedStringKey(detailKey))
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func statsRangeDetailKey(_ stats: RangeStats) -> String {
+        if stats.summary.totalSeconds == 0 {
+            return "dashboard.stats.range.empty_detail"
+        }
+        if stats.topTags.isEmpty {
+            return "dashboard.stats.range.needs_labels_detail"
+        }
+        return "dashboard.stats.range.ready_detail"
+    }
+
+    private func statsRangeStatusText(_ stats: RangeStats) -> String {
+        if stats.summary.totalSeconds == 0 {
+            return L("dashboard.stats.range.status.empty")
+        }
+        if stats.topTags.isEmpty {
+            return L("dashboard.stats.range.status.needs_labels")
+        }
+        return L("dashboard.stats.range.status.ready")
+    }
+
+    private func statsRangeStatusIconName(_ stats: RangeStats) -> String {
+        if stats.summary.totalSeconds == 0 {
+            return "circle"
+        }
+        if stats.topTags.isEmpty {
+            return "exclamationmark.triangle.fill"
+        }
+        return "chart.pie"
+    }
+
+    private func statsRangeIconName(_ stats: RangeStats) -> String {
+        if stats.summary.totalSeconds == 0 {
+            return "chart.bar"
+        }
+        if stats.topTags.isEmpty {
+            return "exclamationmark.triangle.fill"
+        }
+        return "chart.pie.fill"
+    }
+
+    private func statsRangeTone(_ stats: RangeStats) -> DesignSystem.StatusTone {
+        if stats.summary.totalSeconds == 0 {
+            return .neutral
+        }
+        if stats.topTags.isEmpty {
+            return .warning
+        }
+        return .success
+    }
+
+    private func dataQualityStatusText(_ stats: RangeStats) -> String {
+        if stats.summary.totalSeconds == 0 {
+            return L("dashboard.stats.data_quality.status.waiting")
+        }
+        if stats.topTags.isEmpty {
+            return L("dashboard.stats.data_quality.status.needs_categories")
+        }
+        if dataQualityContextCount(stats) == 0 {
+            return L("dashboard.stats.data_quality.status.needs_context")
+        }
+        return L("dashboard.stats.data_quality.status.ready")
+    }
+
+    private func dataQualityStatusIconName(_ stats: RangeStats) -> String {
+        if stats.summary.totalSeconds == 0 {
+            return "circle"
+        }
+        if stats.topTags.isEmpty {
+            return "rectangle.split.3x1"
+        }
+        if dataQualityContextCount(stats) == 0 {
+            return "note.text"
+        }
+        return "checkmark.seal.fill"
+    }
+
+    private func dataQualityTone(_ stats: RangeStats) -> DesignSystem.StatusTone {
+        if stats.summary.totalSeconds == 0 {
+            return .neutral
+        }
+        if stats.topTags.isEmpty {
+            return .warning
+        }
+        if dataQualityContextCount(stats) == 0 {
+            return .info
+        }
+        return .success
+    }
+
+    private func dataQualityContextCount(_ stats: RangeStats) -> Int {
+        stats.markerNotesCount + stats.markerSessionsCount
     }
 
     private var rangeTitle: String {
@@ -241,6 +1369,8 @@ struct DashboardStatsView: View {
             self.isLoading = false
             if let errorMessage {
                 self.appState.lastDbErrorMessage = errorMessage
+            } else {
+                self.appState.lastDbErrorMessage = nil
             }
             AppLogger.log("Dashboard stats refresh: \(reason)", category: "ui")
         }
@@ -252,9 +1382,7 @@ struct DashboardStatsView: View {
     }
 
     private func shiftDate(by days: Int) {
-        if let newDate = Calendar.current.date(byAdding: .day, value: days, to: appState.selectedDate) {
-            appState.selectedDate = newDate
-        }
+        appState.selectedDate = appState.dateRangeMode.date(byShifting: appState.selectedDate, value: days)
     }
 
     private var rangeBounds: (start: Int64, end: Int64) {
@@ -295,6 +1423,289 @@ struct DashboardStatsView: View {
     private var chartTotal: Int64 {
         appState.includeIdleInCharts ? rangeStats.summary.totalSeconds : rangeStats.summary.activeSeconds
     }
+
+    private var chartBasisText: String {
+        L(appState.includeIdleInCharts ? "dashboard.stats.chart_basis_total" : "dashboard.stats.chart_basis_active")
+    }
+
+    private var statsScopeHeadlineKey: String {
+        appState.includeIdleInCharts ? "dashboard.stats.scope.total_title" : "dashboard.stats.scope.active_title"
+    }
+
+    private var statsScopeDetailKey: String {
+        appState.includeIdleInCharts ? "dashboard.stats.scope.total_detail" : "dashboard.stats.scope.active_detail"
+    }
+
+    private var statsScopeIconName: String {
+        appState.includeIdleInCharts ? "calendar.badge.clock" : "figure.walk"
+    }
+
+    private var statsScopeStatusIconName: String {
+        appState.includeIdleInCharts ? "chart.bar.fill" : "figure.walk"
+    }
+
+    private var statsScopeTone: DesignSystem.StatusTone {
+        appState.includeIdleInCharts ? .info : .success
+    }
+
+    private enum StatsReviewState: Equatable {
+        case empty
+        case needsLabels
+        case needsCues
+        case ready
+    }
+
+    private var statsReviewState: StatsReviewState {
+        if rangeStats.summary.totalSeconds == 0 {
+            return .empty
+        }
+        if rangeStats.topTags.isEmpty {
+            return .needsLabels
+        }
+        if reviewCueCount == 0 {
+            return .needsCues
+        }
+        return .ready
+    }
+
+    private var statsReviewHeadlineKey: String {
+        switch statsReviewState {
+        case .empty:
+            return "dashboard.stats.review.empty_headline"
+        case .needsLabels:
+            return "dashboard.stats.review.labels_headline"
+        case .needsCues:
+            return "dashboard.stats.review.cues_headline"
+        case .ready:
+            return "dashboard.stats.review.ready_headline"
+        }
+    }
+
+    private var statsReviewDetailKey: String {
+        switch statsReviewState {
+        case .empty:
+            return "dashboard.stats.review.empty_detail"
+        case .needsLabels:
+            return "dashboard.stats.review.labels_detail"
+        case .needsCues:
+            return "dashboard.stats.review.cues_detail"
+        case .ready:
+            return "dashboard.stats.review.ready_detail"
+        }
+    }
+
+    private var statsReviewStatusText: String {
+        switch statsReviewState {
+        case .empty:
+            return L("dashboard.stats.review.status.empty")
+        case .needsLabels:
+            return L("dashboard.stats.review.status.labels")
+        case .needsCues:
+            return L("dashboard.stats.review.status.cues")
+        case .ready:
+            return L("dashboard.stats.review.status.ready")
+        }
+    }
+
+    private var statsReviewStatusIconName: String {
+        switch statsReviewState {
+        case .empty:
+            return "circle"
+        case .needsLabels:
+            return "rectangle.split.3x1"
+        case .needsCues:
+            return "note.text"
+        case .ready:
+            return "checkmark"
+        }
+    }
+
+    private var statsReviewIconName: String {
+        switch statsReviewState {
+        case .empty:
+            return "chart.bar"
+        case .needsLabels:
+            return "exclamationmark.triangle.fill"
+        case .needsCues:
+            return "square.and.pencil"
+        case .ready:
+            return "sparkles"
+        }
+    }
+
+    private var statsReviewNextStepIconName: String {
+        switch statsReviewState {
+        case .empty:
+            if appState.trackingPaused {
+                return "pause.circle"
+            }
+            if statsCaptureHasError {
+                return "stethoscope"
+            }
+            return "sun.max"
+        case .needsLabels:
+            return "rectangle.split.3x1"
+        case .needsCues:
+            return "square.and.pencil"
+        case .ready:
+            return statsPrepareReportIconName
+        }
+    }
+
+    private var statsReviewNextStepTitleKey: String {
+        switch statsReviewState {
+        case .empty:
+            return statsCaptureNeedsAttention
+                ? "dashboard.stats.review.next.empty_attention_title"
+                : "dashboard.stats.review.next.empty_ready_title"
+        case .needsLabels:
+            return "dashboard.stats.review.next.labels_title"
+        case .needsCues:
+            return "dashboard.stats.review.next.cues_title"
+        case .ready:
+            if statsDailyLogSavedForRange {
+                return "dashboard.stats.review.next.saved_title"
+            }
+            if statsNeedsDailyLogFolder {
+                return "dashboard.stats.review.next.folder_title"
+            }
+            return "dashboard.stats.review.next.ready_title"
+        }
+    }
+
+    private var statsReviewNextStepDetailKey: String {
+        switch statsReviewState {
+        case .empty:
+            return statsCaptureNeedsAttention
+                ? "dashboard.stats.review.next.empty_attention_detail"
+                : "dashboard.stats.review.next.empty_ready_detail"
+        case .needsLabels:
+            return "dashboard.stats.review.next.labels_detail"
+        case .needsCues:
+            return "dashboard.stats.review.next.cues_detail"
+        case .ready:
+            if statsDailyLogSavedForRange {
+                return "dashboard.stats.review.next.saved_detail"
+            }
+            if statsNeedsDailyLogFolder {
+                return "dashboard.stats.review.next.folder_detail"
+            }
+            return "dashboard.stats.review.next.ready_detail"
+        }
+    }
+
+    private var statsReviewNextStepTone: DesignSystem.StatusTone {
+        if statsReviewState == .ready, statsNeedsDailyLogFolder {
+            return .warning
+        }
+        return statsReviewTone
+    }
+
+    private var statsDailyLogSavedForRange: Bool {
+        appState.dateRangeMode == .day
+            && reportSettings.dailyExportSucceeded(for: appState.selectedDate)
+    }
+
+    private var statsNeedsDailyLogFolder: Bool {
+        appState.dateRangeMode == .day && reportSettings.dailyFolderBookmark == nil
+    }
+
+    private var statsPrepareReportTitle: String {
+        if statsDailyLogSavedForRange {
+            return L("dashboard.stats.review.open_log_folder")
+        }
+        if statsNeedsDailyLogFolder {
+            return L("dashboard.stats.review.set_log_folder")
+        }
+        return L("dashboard.stats.review.prepare_report")
+    }
+
+    private var statsPrepareReportIconName: String {
+        if statsDailyLogSavedForRange {
+            return "folder"
+        }
+        if statsNeedsDailyLogFolder {
+            return "folder.badge.plus"
+        }
+        return "doc.badge.plus"
+    }
+
+    private var statsCaptureNeedsAttention: Bool {
+        appState.trackingPaused || statsCaptureHasError
+    }
+
+    private var statsCaptureHasError: Bool {
+        statsCaptureErrorMessage != nil
+    }
+
+    private var statsCaptureErrorMessage: String? {
+        guard let message = appState.lastDbErrorMessage?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !message.isEmpty else {
+            return nil
+        }
+        return message
+    }
+
+    private var statsReviewTone: DesignSystem.StatusTone {
+        switch statsReviewState {
+        case .empty:
+            return .neutral
+        case .needsLabels, .needsCues:
+            return .warning
+        case .ready:
+            return .success
+        }
+    }
+
+    private var capturedTimeValue: String {
+        guard rangeStats.summary.totalSeconds > 0 else {
+            return L("dashboard.stats.review.no_time")
+        }
+        return formatDuration(rangeStats.summary.activeSeconds)
+    }
+
+    private var capturedTimeDetail: String {
+        guard rangeStats.summary.totalSeconds > 0 else {
+            return L("dashboard.stats.review.capture_empty")
+        }
+        let activePercent = Int((rangeStats.summary.activeShare * 100).rounded())
+        return String(format: L("dashboard.stats.review.capture_detail"), rangeStats.summary.sessions, activePercent)
+    }
+
+    private var focusValue: String {
+        if let topTag = rangeStats.topTags.first {
+            return topTag.name
+        }
+        if let topApp = rangeStats.topApps.first {
+            return topApp.appName
+        }
+        return L("dashboard.stats.review.no_focus")
+    }
+
+    private var focusDetail: String {
+        if let topTag = rangeStats.topTags.first {
+            return String(format: L("dashboard.stats.review.focus_tag_detail"), formatDuration(topTag.seconds))
+        }
+        if let topApp = rangeStats.topApps.first {
+            return String(format: L("dashboard.stats.review.focus_app_detail"), formatDuration(topApp.seconds))
+        }
+        return L("dashboard.stats.review.focus_empty")
+    }
+
+    private var reviewCueCount: Int {
+        rangeStats.markerNotesCount + rangeStats.markerSessionsCount
+    }
+
+    private var reviewCuesValue: String {
+        String(format: L("dashboard.stats.review.cues_value"), rangeStats.markerNotesCount, rangeStats.markerSessionsCount)
+    }
+
+    private var reviewCuesDetail: String {
+        if reviewCueCount == 0 {
+            return L("dashboard.stats.review.cues_empty")
+        }
+        return L("dashboard.stats.review.cues_ready")
+    }
 }
 
 private struct RangeStats {
@@ -318,6 +1729,16 @@ private struct SummaryMetrics {
     let activeSeconds: Int64
     let idleSeconds: Int64
     let sessions: Int
+
+    var activeShare: Double {
+        guard totalSeconds > 0 else { return 0 }
+        return Double(activeSeconds) / Double(totalSeconds)
+    }
+
+    var idleShare: Double {
+        guard totalSeconds > 0 else { return 0 }
+        return Double(idleSeconds) / Double(totalSeconds)
+    }
 }
 
 private struct AppDuration: Identifiable {
@@ -334,73 +1755,80 @@ private struct TagDuration: Identifiable {
     let seconds: Int64
 }
 
-private struct SummaryCard: View {
-    let title: LocalizedStringKey
-    let value: String
-    @State private var isHovering = false
+private struct RankBadge: View {
+    let rank: Int
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(title)
-                .font(DesignSystem.Typography.caption)
-                .foregroundColor(DesignSystem.Colors.secondaryText)
-            Text(value)
-                .font(.title3.weight(.semibold))
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(DesignSystem.Spacing.sm)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(DesignSystem.Colors.cardBackground)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(DesignSystem.Colors.separator.opacity(isHovering ? 0.6 : 0.25), lineWidth: 1)
-        )
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(DesignSystem.Colors.separator.opacity(isHovering ? 0.06 : 0.0))
-        )
-        .onHover { hovering in
-            isHovering = hovering
-        }
+        Text("\(rank)")
+            .font(.caption2.weight(.bold))
+            .foregroundColor(DesignSystem.Colors.secondaryText)
+            .frame(width: 22, height: 22)
+            .background(
+                Circle()
+                    .fill(DesignSystem.Colors.separator.opacity(0.55))
+            )
+            .accessibilityHidden(true)
     }
 }
 
 private struct TopAppRow: View {
+    let rank: Int
     let app: AppDuration
     let chartTotal: Int64
+    let onOpenTimeline: () -> Void
     @State private var isHovering = false
 
     var body: some View {
-        HStack(alignment: .center, spacing: 10) {
-            Image(nsImage: appIcon)
-                .resizable()
-                .frame(width: 22, height: 22)
-                .cornerRadius(5)
+        Button(action: onOpenTimeline) {
+            HStack(alignment: .top, spacing: 10) {
+                RankBadge(rank: rank)
+                    .padding(.top, 1)
 
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(app.appName)
-                        .font(.subheadline.weight(.medium))
-                    Spacer()
-                    Text(durationText)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Text(percentText)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                Image(nsImage: appIcon)
+                    .resizable()
+                    .frame(width: 22, height: 22)
+                    .cornerRadius(5)
+                    .padding(.top, 1)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.sm) {
+                        Text(app.appName)
+                            .font(.subheadline.weight(.medium))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Spacer(minLength: DesignSystem.Spacing.sm)
+                        Text(rowMetaText)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                        Image(systemName: "arrow.right.circle")
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(DesignSystem.Colors.secondaryText.opacity(isHovering ? 0.95 : 0.55))
+                            .accessibilityHidden(true)
+                    }
+
+                    RatioBar(
+                        filledFraction: percent,
+                        filledColor: DesignSystem.Colors.accentSkyBlue,
+                        remainderColor: DesignSystem.Colors.separator
+                    )
                 }
-
-                ProgressView(value: percent)
-                    .progressViewStyle(.linear)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(DesignSystem.Spacing.sm)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                    .fill(DesignSystem.Colors.separator.opacity(isHovering ? 0.12 : 0.0))
+            )
         }
-        .padding(DesignSystem.Spacing.sm)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .fill(DesignSystem.Colors.separator.opacity(isHovering ? 0.12 : 0.0))
-        )
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .help(L("dashboard.stats.drilldown.help"))
+        .accessibilityLabel("\(app.appName), \(rowMetaText)")
+        .accessibilityHint(L("dashboard.stats.drilldown.help"))
+        .accessibilityIdentifier("dashboard.stats.topAppRow.\(accessibilitySuffix)")
+        .accessibilityElement(children: .combine)
         .onHover { hovering in
             isHovering = hovering
         }
@@ -413,6 +1841,14 @@ private struct TopAppRow: View {
 
     private var percentText: String {
         String(format: "%.0f%%", percent * 100)
+    }
+
+    private var rowMetaText: String {
+        "\(durationText) · \(percentText)"
+    }
+
+    private var accessibilitySuffix: String {
+        app.appName.accessibilityIdentifierSuffix
     }
 
     private var durationText: String {
@@ -432,47 +1868,67 @@ private struct TopAppRow: View {
            let icon = running.icon {
             return icon
         }
-        if let systemIcon = NSImage(systemSymbolName: "app.fill", accessibilityDescription: nil) {
-            return systemIcon
-        }
-        return NSWorkspace.shared.icon(forFileType: "app")
+        return DesignSystem.Images.genericAppIcon
     }
 }
 
 private struct TopTagRow: View {
+    let rank: Int
     let tag: TagDuration
     let chartTotal: Int64
+    let onOpenTimeline: () -> Void
     @State private var isHovering = false
 
     var body: some View {
-        HStack(alignment: .center, spacing: 10) {
-            Circle()
-                .fill(chipColor)
-                .frame(width: 10, height: 10)
+        Button(action: onOpenTimeline) {
+            HStack(alignment: .top, spacing: 10) {
+                RankBadge(rank: rank)
+                    .padding(.top, 1)
 
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text(tag.name)
-                        .font(.subheadline.weight(.medium))
-                    Spacer()
-                    Text(durationText)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Text(percentText)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(chipColor)
+                    .frame(width: 12, height: 12)
+                    .padding(.top, 4)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.sm) {
+                        Text(tag.name)
+                            .font(.subheadline.weight(.medium))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Spacer(minLength: DesignSystem.Spacing.sm)
+                        Text(rowMetaText)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                        Image(systemName: "arrow.right.circle")
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(DesignSystem.Colors.secondaryText.opacity(isHovering ? 0.95 : 0.55))
+                            .accessibilityHidden(true)
+                    }
+
+                    RatioBar(
+                        filledFraction: percent,
+                        filledColor: chipColor,
+                        remainderColor: DesignSystem.Colors.separator
+                    )
                 }
-
-                ProgressView(value: percent)
-                    .progressViewStyle(.linear)
-                    .accentColor(chipColor)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(DesignSystem.Spacing.sm)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                    .fill(DesignSystem.Colors.separator.opacity(isHovering ? 0.12 : 0.0))
+            )
         }
-        .padding(DesignSystem.Spacing.sm)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .fill(DesignSystem.Colors.separator.opacity(isHovering ? 0.12 : 0.0))
-        )
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .help(L("dashboard.stats.drilldown.help"))
+        .accessibilityLabel("\(tag.name), \(rowMetaText)")
+        .accessibilityHint(L("dashboard.stats.drilldown.help"))
+        .accessibilityIdentifier("dashboard.stats.topTagRow.\(accessibilitySuffix)")
+        .accessibilityElement(children: .combine)
         .onHover { hovering in
             isHovering = hovering
         }
@@ -485,6 +1941,14 @@ private struct TopTagRow: View {
 
     private var percentText: String {
         String(format: "%.0f%%", percent * 100)
+    }
+
+    private var rowMetaText: String {
+        "\(durationText) · \(percentText)"
+    }
+
+    private var accessibilitySuffix: String {
+        tag.name.accessibilityIdentifierSuffix
     }
 
     private var durationText: String {
@@ -504,6 +1968,20 @@ private struct TopTagRow: View {
             return parsed
         }
         return Color.gray.opacity(0.6)
+    }
+}
+
+private extension String {
+    var accessibilityIdentifierSuffix: String {
+        let scalars = unicodeScalars.map { scalar in
+            CharacterSet.alphanumerics.contains(scalar)
+                ? String(scalar).lowercased()
+                : "-"
+        }
+        let collapsed = scalars.joined()
+            .split(separator: "-", omittingEmptySubsequences: true)
+            .joined(separator: "-")
+        return collapsed.isEmpty ? "item" : collapsed
     }
 }
 

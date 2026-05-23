@@ -13,6 +13,9 @@ struct MarkerTimelineGroupData: Identifiable {
     let lanes: [MarkerTimelineLaneData]
     let summaryDuration: Int64
     let eventCount: Int
+    let pointCount: Int
+    let spanCount: Int
+    let ongoingCount: Int
     let firstTimestamp: Int64
 }
 
@@ -34,11 +37,13 @@ struct MarkerTimelineSegment: Identifiable {
     let placementEnd: Int64
     let isClippedLeft: Bool
     let isClippedRight: Bool
+    let isOngoing: Bool
     let tooltip: String
 }
 
 struct MarkerTimelineView: View {
     @EnvironmentObject private var appState: AppState
+    @AppStorage("dashboard.selectedSection") private var selectedDashboardSectionRaw = DashboardView.Section.defaultSelection.rawValue
 
     let rangeStart: Int64
     let rangeEnd: Int64
@@ -51,70 +56,20 @@ struct MarkerTimelineView: View {
     @State private var expandedGroupIds: Set<String> = []
     @State private var hoverX: CGFloat?
 
-    private let labelWidth: CGFloat = 190
-    private let laneHeight: CGFloat = 14
+    private let labelWidth: CGFloat = 260
+    private let laneHeight: CGFloat = 16
     private let laneSpacing: CGFloat = 4
-    private let barHeight: CGFloat = 8
-    private let pointSize: CGFloat = 6
+    private let barHeight: CGFloat = 9
+    private let pointSize: CGFloat = 7
     private let clipIndicatorSize = CGSize(width: 6, height: 8)
     private let pointCollisionSeconds: Int64 = 120
 
     var body: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            HStack(spacing: DesignSystem.Spacing.sm) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                TextField(L("markers.search"), text: $searchText)
-                    .textFieldStyle(.roundedBorder)
-
-                Spacer()
-
-                Picker("Grid", selection: $gridIntervalMinutes) {
-                    Text("1h").tag(60)
-                    Text("30m").tag(30)
-                    Text("15m").tag(15)
-                }
-                .pickerStyle(.segmented)
-                .frame(width: 180)
-            }
-
-            ZStack(alignment: .topLeading) {
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    timeGrid
-                        .frame(height: 26)
-                        .padding(.leading, labelWidth + 12)
-
-                    ScrollView(.vertical) {
-                        LazyVStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                            ForEach(filteredGroups) { group in
-                                MarkerTimelineGroupRowView(
-                                    group: group,
-                                    rangeStart: rangeStart,
-                                    rangeEnd: rangeEnd,
-                                    labelWidth: labelWidth,
-                                    laneHeight: laneHeight,
-                                    laneSpacing: laneSpacing,
-                                    barHeight: barHeight,
-                                    pointSize: pointSize,
-                                    clipIndicatorSize: clipIndicatorSize,
-                                    isExpanded: expandedGroupIds.contains(group.id),
-                                    onToggleExpanded: {
-                                        toggleExpanded(group.id)
-                                    }
-                                )
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                }
-
-                GeometryReader { geo in
-                    MouseXTrackingView(xPosition: $hoverX)
-                        .frame(width: geo.size.width, height: geo.size.height)
-                    crosshairOverlay(in: geo.size)
-                }
-                .allowsHitTesting(true)
-            }
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
+            markerReviewGuide
+            markerSummaryStrip
+            markerControls
+            markerTimelineCanvas
 
             if let lastRefresh {
                 Text(String(format: L("dashboard.stats.last_refreshed"), Self.timeFormatter.string(from: lastRefresh)))
@@ -139,6 +94,527 @@ struct MarkerTimelineView: View {
         }
     }
 
+    private var markerReviewGuide: some View {
+        SectionCard {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 280), spacing: DesignSystem.Spacing.md)],
+                    alignment: .leading,
+                    spacing: DesignSystem.Spacing.md
+                ) {
+                    markerReviewLead
+                    markerReviewActions
+                }
+
+                if shouldShowMarkerReviewPath {
+                    Divider()
+
+                    markerReviewPath
+                }
+            }
+            .accessibilityIdentifier("markers.review.compactStrip")
+        }
+    }
+
+    private var markerReviewLead: some View {
+        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+            IconWell(
+                systemImage: markerReviewIconName,
+                tone: markerReviewTone,
+                accessibilityLabel: L("markers.review.title")
+            )
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(markerReviewHeadlineKey)
+                    .font(.callout.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
+
+                Text(markerReviewDetailKey)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: DesignSystem.Spacing.sm)
+
+            StatusPill(markerReviewStatusText, systemImage: markerReviewStatusIconName, tone: markerReviewTone)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var markerReviewActions: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 152), spacing: DesignSystem.Spacing.sm)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            markerReviewActionButtons
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var markerReviewPath: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 156), spacing: DesignSystem.Spacing.sm)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            markerReviewPathItem(
+                titleKey: "markers.review.path.read_title",
+                detailKey: "markers.review.path.read_detail",
+                systemImage: "text.magnifyingglass",
+                tone: .success,
+                accessibilityIdentifier: "markers.review.path.read"
+            )
+            markerReviewPathItem(
+                titleKey: "markers.review.path.blocks_title",
+                detailKey: "markers.review.path.blocks_detail",
+                systemImage: totalOngoingCount > 0 ? "record.circle" : "timer",
+                tone: totalOngoingCount > 0 ? .warning : .info,
+                accessibilityIdentifier: "markers.review.path.blocks"
+            )
+            markerReviewPathItem(
+                titleKey: "markers.review.path.closeout_title",
+                detailKey: "markers.review.path.closeout_detail",
+                systemImage: "doc.text.magnifyingglass",
+                tone: .info,
+                accessibilityIdentifier: "markers.review.path.closeout"
+            )
+        }
+        .accessibilityIdentifier("markers.review.path")
+    }
+
+    private func markerReviewPathItem(
+        titleKey: LocalizedStringKey,
+        detailKey: LocalizedStringKey,
+        systemImage: String,
+        tone: DesignSystem.StatusTone,
+        accessibilityIdentifier: String
+    ) -> some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(tone.color)
+                .frame(width: 16)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(titleKey)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(1)
+
+                Text(detailKey)
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .frame(minWidth: 150, maxWidth: .infinity, alignment: .topLeading)
+        .accessibilityIdentifier(accessibilityIdentifier)
+    }
+
+    @ViewBuilder
+    private var markerReviewActionButtons: some View {
+        Button {
+            AppWindowRouter.shared.open(.quickMarker)
+        } label: {
+            Label(L("markers.capture.add_cue"), systemImage: "square.and.pencil")
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+        .tint(DesignSystem.Colors.accentSkyBlue)
+        .accessibilityIdentifier("markers.review.addCue")
+
+        if !groups.isEmpty {
+            Button {
+                selectedDashboardSectionRaw = DashboardView.Section.reports.rawValue
+            } label: {
+                Label(L("markers.review.open_closeout"), systemImage: "doc.text.magnifyingglass")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .accessibilityIdentifier("markers.review.closeout")
+        }
+
+        if searchIsActive {
+            Button {
+                clearMarkerSearch()
+            } label: {
+                Label(L("markers.review.clear_search"), systemImage: "xmark.circle")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .accessibilityIdentifier("markers.review.clearSearch")
+        }
+
+        if totalOngoingCount > 0 {
+            Button {
+                expandOngoingGroups()
+            } label: {
+                Label(L("markers.review.expand_ongoing"), systemImage: "record.circle")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .accessibilityIdentifier("markers.review.expandOngoing")
+        }
+
+        if crowdedGroupCount > 0 {
+            Button {
+                toggleCrowdedGroups()
+            } label: {
+                Label(crowdedActionTitleKey, systemImage: crowdedGroupsAreExpanded ? "rectangle.compress.vertical" : "rectangle.expand.vertical")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .accessibilityIdentifier("markers.review.toggleCrowded")
+        }
+    }
+
+    private var markerSummaryStrip: some View {
+        SectionCard {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 150), spacing: DesignSystem.Spacing.lg)],
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.md
+            ) {
+                MetricValueView(
+                    title: "markers.summary.groups",
+                    value: "\(groups.count)",
+                    systemImage: "rectangle.stack",
+                    tone: .neutral
+                )
+                MetricValueView(
+                    title: "markers.summary.notes_metric",
+                    value: "\(totalPointCount)",
+                    systemImage: "bookmark.fill",
+                    tone: .success
+                )
+                MetricValueView(
+                    title: "markers.summary.sessions_metric",
+                    value: "\(totalSpanCount)",
+                    systemImage: "timer",
+                    tone: .info
+                )
+                MetricValueView(
+                    title: "markers.summary.duration_metric",
+                    value: TimeFormatters.durationText(start: 0, end: totalDurationSeconds),
+                    systemImage: "clock.fill",
+                    tone: .info
+                )
+                MetricValueView(
+                    title: "markers.summary.ongoing_metric",
+                    value: "\(totalOngoingCount)",
+                    systemImage: "record.circle",
+                    tone: totalOngoingCount > 0 ? .warning : .neutral
+                )
+            }
+        }
+    }
+
+    private var markerControls: some View {
+        SectionCard {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 220), spacing: DesignSystem.Spacing.md)],
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                markerSearchField
+                markerVisibleGroupsPill
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                markerGridPicker
+            }
+            .accessibilityIdentifier("markers.timeline.controls")
+        }
+    }
+
+    private var markerSearchField: some View {
+        HStack(spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: "magnifyingglass")
+                .font(.caption.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+
+            TextField(L("markers.search"), text: $searchText)
+                .textFieldStyle(.plain)
+                .accessibilityIdentifier("markers.timeline.search")
+
+            if searchIsActive {
+                Button {
+                    clearMarkerSearch()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                }
+                .buttonStyle(.plain)
+                .help(L("actions.clear_search"))
+                .accessibilityLabel(L("actions.clear_search"))
+                .accessibilityIdentifier("markers.timeline.clearSearchInput")
+            }
+        }
+        .padding(.horizontal, DesignSystem.Spacing.md)
+        .padding(.vertical, 7)
+        .frame(minWidth: 220, maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(Color(nsColor: .textBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(DesignSystem.Colors.separator.opacity(0.45), lineWidth: 1)
+        )
+    }
+
+    private var markerVisibleGroupsPill: some View {
+        StatusPill(
+            String(format: L("markers.visible_groups"), filteredGroups.count, groups.count),
+            systemImage: "line.3.horizontal.decrease.circle",
+            tone: searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? .neutral : .info
+        )
+    }
+
+    private var markerGridPicker: some View {
+        Picker("markers.grid", selection: $gridIntervalMinutes) {
+            Text("1h").tag(60)
+            Text("30m").tag(30)
+            Text("15m").tag(15)
+        }
+        .pickerStyle(.segmented)
+        .frame(width: 180)
+        .accessibilityIdentifier("markers.timeline.grid")
+    }
+
+    private var markerTimelineCanvas: some View {
+        SectionCard {
+            if filteredGroups.isEmpty {
+                markerTimelineEmptyState
+            } else {
+                ZStack(alignment: .topLeading) {
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                        HStack(alignment: .center, spacing: 12) {
+                            Text("markers.timeline.name_column")
+                                .font(.caption.weight(.medium))
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
+                                .frame(width: labelWidth, alignment: .leading)
+
+                            timeGrid
+                                .frame(height: 28)
+                        }
+
+                        ScrollView(.vertical) {
+                            LazyVStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                                ForEach(filteredGroups) { group in
+                                    MarkerTimelineGroupRowView(
+                                        group: group,
+                                        rangeStart: rangeStart,
+                                        rangeEnd: rangeEnd,
+                                        labelWidth: labelWidth,
+                                        laneHeight: laneHeight,
+                                        laneSpacing: laneSpacing,
+                                        barHeight: barHeight,
+                                        pointSize: pointSize,
+                                        clipIndicatorSize: clipIndicatorSize,
+                                        isExpanded: expandedGroupIds.contains(group.id),
+                                        onToggleExpanded: {
+                                            toggleExpanded(group.id)
+                                        }
+                                    )
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+
+                    GeometryReader { geo in
+                        MouseXTrackingView(xPosition: $hoverX)
+                            .frame(width: geo.size.width, height: geo.size.height)
+                        crosshairOverlay(in: geo.size)
+                    }
+                    .allowsHitTesting(true)
+                }
+            }
+        }
+    }
+
+    private var markerTimelineEmptyState: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            EmptyStateView(
+                title: groups.isEmpty ? L("markers.timeline.empty") : L("markers.timeline.empty_filtered"),
+                subtitle: groups.isEmpty ? L("markers.timeline.empty_detail") : L("markers.timeline.empty_filtered_detail"),
+                systemImage: "bookmark.slash",
+                tone: groups.isEmpty ? .neutral : .warning
+            )
+
+            if groups.isEmpty {
+                markerTimelineEmptyPrompts
+            }
+
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 160), spacing: DesignSystem.Spacing.sm)],
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                markerTimelineEmptyActions
+            }
+        }
+        .accessibilityIdentifier("markers.timeline.emptyState")
+    }
+
+    private var markerTimelineEmptyPrompts: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 160), spacing: DesignSystem.Spacing.sm)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            markerTimelineEmptyPromptItem(
+                titleKey: "markers.capture.path.note_title",
+                detailKey: "markers.capture.path.note_detail",
+                systemImage: "note.text",
+                tone: .info,
+                accessibilityIdentifier: "markers.timeline.emptyPrompt.note"
+            )
+            markerTimelineEmptyPromptItem(
+                titleKey: "markers.capture.path.session_title",
+                detailKey: "markers.capture.path.session_detail",
+                systemImage: "timer",
+                tone: .warning,
+                accessibilityIdentifier: "markers.timeline.emptyPrompt.session"
+            )
+            markerTimelineEmptyPromptItem(
+                titleKey: "markers.capture.path.closeout_title",
+                detailKey: "markers.capture.path.closeout_detail",
+                systemImage: "doc.text.magnifyingglass",
+                tone: .success,
+                accessibilityIdentifier: "markers.timeline.emptyPrompt.closeout"
+            )
+        }
+        .accessibilityIdentifier("markers.timeline.emptyPrompts")
+    }
+
+    private func markerTimelineEmptyPromptItem(
+        titleKey: LocalizedStringKey,
+        detailKey: LocalizedStringKey,
+        systemImage: String,
+        tone: DesignSystem.StatusTone,
+        accessibilityIdentifier: String
+    ) -> some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(tone.color)
+                .frame(width: 20, height: 20)
+                .background(
+                    RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                        .fill(tone.color.opacity(0.11))
+                )
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(titleKey)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(1)
+
+                Text(detailKey)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .frame(minWidth: 160, maxWidth: .infinity, minHeight: 68, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(tone.color.opacity(0.06))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(tone.color.opacity(0.18), lineWidth: 1)
+        )
+        .accessibilityIdentifier(accessibilityIdentifier)
+    }
+
+    @ViewBuilder
+    private var markerTimelineEmptyActions: some View {
+        if groups.isEmpty {
+            Button {
+                AppWindowRouter.shared.open(.quickMarker)
+            } label: {
+                Label(L("markers.capture.add_cue"), systemImage: "bookmark")
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+            .tint(DesignSystem.Colors.accentSkyBlue)
+            .accessibilityIdentifier("markers.timeline.emptyAddCue")
+
+            if appState.trackingPaused {
+                markerTimelineEmptyResumeButton
+            } else if markerTimelineEmptyCaptureHasError {
+                markerTimelineEmptyCheckCaptureButton
+            } else {
+                markerTimelineEmptyOpenTodayButton
+            }
+        } else {
+            Button {
+                clearMarkerSearch()
+            } label: {
+                Label(L("markers.review.clear_search"), systemImage: "line.3.horizontal.decrease.circle")
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+            .tint(DesignSystem.Colors.accentSkyBlue)
+            .accessibilityIdentifier("markers.timeline.emptyClearSearch")
+        }
+    }
+
+    private var markerTimelineEmptyOpenTodayButton: some View {
+        Button {
+            selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
+        } label: {
+            Label(L("markers.timeline.empty_open_today"), systemImage: "sun.max")
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+        .accessibilityIdentifier("markers.timeline.emptyOpenToday")
+    }
+
+    private var markerTimelineEmptyResumeButton: some View {
+        Button {
+            appState.trackingPaused = false
+            selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
+        } label: {
+            Label(L("markers.timeline.empty_resume_capture"), systemImage: "play.fill")
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+        .accessibilityIdentifier("markers.timeline.emptyResumeCapture")
+    }
+
+    private var markerTimelineEmptyCheckCaptureButton: some View {
+        Button {
+            AppWindowRouter.shared.open(.settings(.support))
+        } label: {
+            Label(L("markers.timeline.empty_check_capture"), systemImage: "checkmark.shield")
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+        .accessibilityIdentifier("markers.timeline.emptyCheckCapture")
+    }
+
+    private var markerTimelineEmptyCaptureHasError: Bool {
+        guard let message = appState.lastDbErrorMessage?.trimmingCharacters(in: .whitespacesAndNewlines) else {
+            return false
+        }
+        return !message.isEmpty
+    }
+
     private var timeGrid: some View {
         Group {
             if dateRangeMode == .day {
@@ -155,6 +631,133 @@ struct MarkerTimelineView: View {
             return groups
         }
         return groups.filter { $0.text.lowercased().contains(needle) }
+    }
+
+    private var searchIsActive: Bool {
+        !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var shouldShowMarkerReviewPath: Bool {
+        !groups.isEmpty && !filteredGroups.isEmpty
+    }
+
+    private var totalPointCount: Int {
+        groups.reduce(0) { $0 + $1.pointCount }
+    }
+
+    private var totalSpanCount: Int {
+        groups.reduce(0) { $0 + $1.spanCount }
+    }
+
+    private var totalOngoingCount: Int {
+        groups.reduce(0) { $0 + $1.ongoingCount }
+    }
+
+    private var totalDurationSeconds: Int64 {
+        groups.reduce(Int64(0)) { $0 + $1.summaryDuration }
+    }
+
+    private var crowdedGroups: [MarkerTimelineGroupData] {
+        filteredGroups.filter { $0.lanes.count > 3 }
+    }
+
+    private var crowdedGroupCount: Int {
+        crowdedGroups.count
+    }
+
+    private var crowdedGroupsAreExpanded: Bool {
+        !crowdedGroups.isEmpty && crowdedGroups.allSatisfy { expandedGroupIds.contains($0.id) }
+    }
+
+    private var crowdedActionTitleKey: LocalizedStringKey {
+        crowdedGroupsAreExpanded ? "markers.review.collapse_crowded" : "markers.review.expand_crowded"
+    }
+
+    private var markerReviewHeadlineKey: LocalizedStringKey {
+        if groups.isEmpty {
+            return "markers.review.empty_title"
+        }
+        if filteredGroups.isEmpty {
+            return "markers.review.filtered_title"
+        }
+        if totalOngoingCount > 0 {
+            return "markers.review.live_headline"
+        }
+        if crowdedGroupCount > 0 {
+            return "markers.review.crowded_headline"
+        }
+        return "markers.review.ready_title"
+    }
+
+    private var markerReviewDetailKey: LocalizedStringKey {
+        if groups.isEmpty {
+            return "markers.review.empty_detail"
+        }
+        if filteredGroups.isEmpty {
+            return "markers.review.filtered_detail"
+        }
+        if totalOngoingCount > 0 {
+            return "markers.review.live_headline_detail"
+        }
+        if crowdedGroupCount > 0 {
+            return "markers.review.crowded_headline_detail"
+        }
+        return "markers.review.ready_detail"
+    }
+
+    private var markerReviewStatusText: String {
+        if groups.isEmpty {
+            return L("markers.review.status.empty")
+        }
+        if filteredGroups.isEmpty {
+            return L("markers.review.status.filtered")
+        }
+        if totalOngoingCount > 0 {
+            return L("markers.review.status.live")
+        }
+        if crowdedGroupCount > 0 {
+            return L("markers.review.status.dense")
+        }
+        return L("markers.review.status.ready")
+    }
+
+    private var markerReviewStatusIconName: String {
+        if groups.isEmpty {
+            return "bookmark.slash"
+        }
+        if filteredGroups.isEmpty {
+            return "line.3.horizontal.decrease.circle"
+        }
+        if totalOngoingCount > 0 {
+            return "record.circle"
+        }
+        if crowdedGroupCount > 0 {
+            return "rectangle.3.group"
+        }
+        return "checkmark.circle.fill"
+    }
+
+    private var markerReviewIconName: String {
+        if totalOngoingCount > 0 {
+            return "record.circle"
+        }
+        if crowdedGroupCount > 0 {
+            return "rectangle.3.group"
+        }
+        return "bookmark.fill"
+    }
+
+    private var markerReviewTone: DesignSystem.StatusTone {
+        if groups.isEmpty {
+            return .neutral
+        }
+        if filteredGroups.isEmpty || totalOngoingCount > 0 {
+            return .warning
+        }
+        if crowdedGroupCount > 0 {
+            return .info
+        }
+        return .success
     }
 
     private func refreshMarkers(reason: String) {
@@ -236,6 +839,7 @@ struct MarkerTimelineView: View {
             let lanes = assignLanes(segments: segments)
             let summaryDuration = totalDuration(spans: bucket.spans, now: now)
             let eventCount = bucket.points.count + bucket.spans.count
+            let ongoingCount = bucket.spans.filter { $0.endTime == nil }.count
 
             return MarkerTimelineGroupData(
                 id: bucket.text.lowercased(),
@@ -243,6 +847,9 @@ struct MarkerTimelineView: View {
                 lanes: lanes,
                 summaryDuration: summaryDuration,
                 eventCount: eventCount,
+                pointCount: bucket.points.count,
+                spanCount: bucket.spans.count,
+                ongoingCount: ongoingCount,
                 firstTimestamp: bucket.firstTimestamp == Int64.max ? rangeStart : bucket.firstTimestamp
             )
         }
@@ -274,6 +881,7 @@ struct MarkerTimelineView: View {
                     placementEnd: displayEnd,
                     isClippedLeft: clippedLeft,
                     isClippedRight: clippedRight,
+                    isOngoing: span.endTime == nil,
                     tooltip: tooltip
                 )
             )
@@ -296,6 +904,7 @@ struct MarkerTimelineView: View {
                     placementEnd: placementEnd,
                     isClippedLeft: false,
                     isClippedRight: false,
+                    isOngoing: false,
                     tooltip: tooltip
                 )
             )
@@ -353,6 +962,27 @@ struct MarkerTimelineView: View {
             expandedGroupIds.remove(id)
         } else {
             expandedGroupIds.insert(id)
+        }
+    }
+
+    private func clearMarkerSearch() {
+        searchText = ""
+    }
+
+    private func expandOngoingGroups() {
+        searchText = ""
+        let ids = groups
+            .filter { $0.ongoingCount > 0 }
+            .map(\.id)
+        expandedGroupIds.formUnion(ids)
+    }
+
+    private func toggleCrowdedGroups() {
+        let ids = Set(crowdedGroups.map(\.id))
+        if crowdedGroupsAreExpanded {
+            expandedGroupIds.subtract(ids)
+        } else {
+            expandedGroupIds.formUnion(ids)
         }
     }
 
@@ -442,6 +1072,7 @@ struct MarkerTimelineGroupRowView: View {
     let clipIndicatorSize: CGSize
     let isExpanded: Bool
     let onToggleExpanded: () -> Void
+    @State private var isHovering = false
 
     var body: some View {
         let shouldCollapse = group.lanes.count > 3
@@ -450,53 +1081,140 @@ struct MarkerTimelineGroupRowView: View {
         let laneCount = max(1, visibleLanes.count)
         let lanesHeight = CGFloat(laneCount) * laneHeight + CGFloat(max(0, laneCount - 1)) * laneSpacing
 
-        HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(group.text)
-                    .font(.subheadline.weight(.medium))
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+        RowSurface(tone: rowTone, isHovering: isHovering) {
+            HStack(alignment: .top, spacing: 12) {
+                HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                    IconWell(
+                        systemImage: group.ongoingCount > 0 ? "record.circle" : "bookmark.fill",
+                        tone: rowTone,
+                        accessibilityLabel: group.text
+                    )
 
-                HStack(spacing: 8) {
-                    Text(summaryText)
-                        .font(.caption2)
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                    if shouldCollapse {
-                        Button(isExpanded ? L("markers.collapse_lanes") : String(format: L("markers.expand_lanes"), group.lanes.count - visibleLanes.count)) {
-                            onToggleExpanded()
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(group.text)
+                            .font(.callout.weight(.semibold))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+                            .lineLimit(2)
+                            .truncationMode(.tail)
+
+                        markerGroupMetadata
+
+                        if shouldCollapse {
+                            Button(isExpanded ? L("markers.collapse_lanes") : String(format: L("markers.expand_lanes"), group.lanes.count - visibleLanes.count)) {
+                                onToggleExpanded()
+                            }
+                            .buttonStyle(.plain)
+                            .font(.caption.weight(.medium))
+                            .foregroundColor(DesignSystem.Colors.accentSkyBlue)
                         }
-                        .buttonStyle(.plain)
-                        .font(.caption2)
-                        .foregroundColor(DesignSystem.Colors.accentSkyBlue)
                     }
                 }
-            }
-            .frame(width: labelWidth, alignment: .leading)
-            .padding(.top, 2)
+                .frame(width: labelWidth, alignment: .leading)
 
-            VStack(alignment: .leading, spacing: laneSpacing) {
-                ForEach(visibleLanes.indices, id: \.self) { index in
-                    MarkerTimelineLaneView(
-                        segments: visibleLanes[index].segments,
-                        rangeStart: rangeStart,
-                        rangeEnd: rangeEnd,
-                        laneHeight: laneHeight,
-                        barHeight: barHeight,
-                        pointSize: pointSize,
-                        clipIndicatorSize: clipIndicatorSize
-                    )
+                VStack(alignment: .leading, spacing: laneSpacing) {
+                    ForEach(visibleLanes.indices, id: \.self) { index in
+                        MarkerTimelineLaneView(
+                            segments: visibleLanes[index].segments,
+                            rangeStart: rangeStart,
+                            rangeEnd: rangeEnd,
+                            laneHeight: laneHeight,
+                            barHeight: barHeight,
+                            pointSize: pointSize,
+                            clipIndicatorSize: clipIndicatorSize
+                        )
+                    }
                 }
+                .frame(height: lanesHeight)
+                .padding(.top, 12)
             }
-            .frame(height: lanesHeight)
+        }
+        .onHover { hovering in
+            isHovering = hovering
+        }
+    }
+
+    private var markerGroupMetadata: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 88), spacing: DesignSystem.Spacing.xs)],
+            alignment: .leading,
+            spacing: 4
+        ) {
+            groupPurposePill
+            markerGroupStats
+        }
+        .accessibilityIdentifier("markers.group.purpose")
+    }
+
+    private var groupPurposePill: some View {
+        StatusPill(groupPurposeText, systemImage: groupPurposeIconName, tone: groupPurposeTone)
+    }
+
+    private var markerGroupStats: some View {
+        HStack(spacing: DesignSystem.Spacing.xs) {
+            StatusPill(summaryText, systemImage: "number", tone: .neutral)
+
+            if group.summaryDuration > 0 {
+                StatusPill(durationText, systemImage: "timer", tone: .info)
+            }
+
+            if group.ongoingCount > 0 {
+                StatusPill(String(format: L("markers.ongoing_count"), group.ongoingCount), systemImage: "record.circle", tone: .warning)
+            }
         }
     }
 
     private var summaryText: String {
-        if group.summaryDuration > 0 {
-            let durationText = TimeFormatters.durationText(start: 0, end: group.summaryDuration)
-            return String(format: L("markers.summary.duration_events"), durationText, group.eventCount)
+        String(format: L("markers.group.mix"), group.pointCount, group.spanCount)
+    }
+
+    private var durationText: String {
+        TimeFormatters.durationText(start: 0, end: group.summaryDuration)
+    }
+
+    private var groupPurposeText: String {
+        if group.ongoingCount > 0 {
+            return L("markers.group.purpose.finish")
         }
-        return String(format: L("markers.summary.events"), group.eventCount)
+        if group.pointCount > 0, group.spanCount > 0 {
+            return L("markers.group.purpose.mixed")
+        }
+        if group.spanCount > 0 {
+            return L("markers.group.purpose.focus")
+        }
+        return L("markers.group.purpose.closeout")
+    }
+
+    private var groupPurposeIconName: String {
+        if group.ongoingCount > 0 {
+            return "record.circle"
+        }
+        if group.pointCount > 0, group.spanCount > 0 {
+            return "arrow.triangle.branch"
+        }
+        if group.spanCount > 0 {
+            return "timer"
+        }
+        return "arrow.up.doc"
+    }
+
+    private var groupPurposeTone: DesignSystem.StatusTone {
+        if group.ongoingCount > 0 {
+            return .warning
+        }
+        if group.spanCount > 0 {
+            return .info
+        }
+        return .success
+    }
+
+    private var rowTone: DesignSystem.StatusTone {
+        if group.ongoingCount > 0 {
+            return .warning
+        }
+        if group.spanCount > 0 {
+            return .info
+        }
+        return .success
     }
 }
 
@@ -512,8 +1230,8 @@ struct MarkerTimelineLaneView: View {
     var body: some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
-                Rectangle()
-                    .fill(DesignSystem.Colors.separator.opacity(0.15))
+                Capsule()
+                    .fill(DesignSystem.Colors.separator.opacity(0.2))
                     .frame(height: 1)
                     .offset(y: laneHeight - 1)
 
@@ -535,23 +1253,24 @@ struct MarkerTimelineLaneView: View {
         let startX = positionX(for: segment.start, width: width)
         let endX = positionX(for: segment.end, width: width)
         let barWidth = max(4, endX - startX)
+        let color = segment.isOngoing ? DesignSystem.StatusTone.warning.color : DesignSystem.StatusTone.info.color
 
         return ZStack {
-            RoundedRectangle(cornerRadius: 3)
-                .fill(DesignSystem.Colors.accentSkyBlue.opacity(0.5))
+            Capsule()
+                .fill(color.opacity(segment.isOngoing ? 0.68 : 0.58))
                 .frame(width: barWidth, height: barHeight)
                 .position(x: startX + barWidth / 2, y: laneHeight / 2)
 
             if segment.isClippedLeft {
                 MarkerClipIndicator(direction: .left)
-                    .fill(DesignSystem.Colors.accentSkyBlue.opacity(0.8))
+                    .fill(color.opacity(0.82))
                     .frame(width: clipIndicatorSize.width, height: clipIndicatorSize.height)
                     .position(x: startX, y: laneHeight / 2)
             }
 
             if segment.isClippedRight {
                 MarkerClipIndicator(direction: .right)
-                    .fill(DesignSystem.Colors.accentSkyBlue.opacity(0.8))
+                    .fill(color.opacity(0.82))
                     .frame(width: clipIndicatorSize.width, height: clipIndicatorSize.height)
                     .position(x: startX + barWidth, y: laneHeight / 2)
             }
@@ -563,8 +1282,12 @@ struct MarkerTimelineLaneView: View {
         let x = positionX(for: segment.start, width: width)
 
         return Circle()
-            .fill(DesignSystem.Colors.accentSkyBlue)
+            .fill(DesignSystem.StatusTone.success.color)
             .frame(width: pointSize, height: pointSize)
+            .overlay(
+                Circle()
+                    .stroke(Color(nsColor: .controlBackgroundColor), lineWidth: 1.5)
+            )
             .position(x: x, y: laneHeight / 2)
             .help(segment.tooltip)
     }
@@ -734,14 +1457,12 @@ struct MouseXTrackingView: NSViewRepresentable {
     let now = Date()
     let start = Calendar.current.startOfDay(for: now).timeIntervalSince1970
     let end = start + 86400
-    return SectionCard(title: "dashboard.markers") {
-        MarkerTimelineView(
-            rangeStart: Int64(start),
-            rangeEnd: Int64(end),
-            gridIntervalMinutes: .constant(60),
-            dateRangeMode: .day
-        )
-    }
+    return MarkerTimelineView(
+        rangeStart: Int64(start),
+        rangeEnd: Int64(end),
+        gridIntervalMinutes: .constant(60),
+        dateRangeMode: .day
+    )
     .padding()
     .environmentObject(AppState.shared)
 }

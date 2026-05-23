@@ -8,10 +8,21 @@
 import SwiftUI
 
 struct DashboardView: View {
+    private enum SidebarNextStepState {
+        case startToday
+        case paused
+        case captureIssue
+        case addContext
+        case needsLogFolder
+        case reviewDailyLog
+        case savedToday
+    }
+
     enum Section: String, Identifiable {
         case timeline
         case overview
         case markers
+        case reports
         case stats
 #if DEBUG
         case debug
@@ -27,6 +38,8 @@ struct DashboardView: View {
                 return "dashboard.overview"
             case .markers:
                 return "dashboard.markers"
+            case .reports:
+                return "dashboard.reports"
             case .stats:
                 return "dashboard.stats"
 #if DEBUG
@@ -41,9 +54,11 @@ struct DashboardView: View {
             case .timeline:
                 return "clock"
             case .overview:
-                return "rectangle.3.group"
+                return "sun.max"
             case .markers:
-                return "bookmark"
+                return "note.text"
+            case .reports:
+                return "doc.badge.plus"
             case .stats:
                 return "chart.bar"
 #if DEBUG
@@ -53,45 +68,145 @@ struct DashboardView: View {
             }
         }
 
-        static var allCases: [Section] {
-            var sections: [Section] = [.timeline, .overview, .markers, .stats]
+        var subtitleKey: LocalizedStringKey {
+            switch self {
+            case .timeline:
+                return "dashboard.sidebar.timeline"
+            case .overview:
+                return "dashboard.sidebar.overview"
+            case .markers:
+                return "dashboard.sidebar.markers"
+            case .reports:
+                return "dashboard.sidebar.reports"
+            case .stats:
+                return "dashboard.sidebar.stats"
 #if DEBUG
-            sections.append(.debug)
+            case .debug:
+                return "dashboard.sidebar.debug"
+#endif
+            }
+        }
+
+        static var allCases: [Section] {
+            var sections: [Section] = [.overview, .timeline, .markers, .reports, .stats]
+#if DEBUG
+            if DeveloperDiagnostics.showNavigationItems {
+                sections.append(.debug)
+            }
 #endif
             return sections
         }
+
+        static let defaultSelection: Section = .overview
     }
 
-    @AppStorage("dashboard.selectedSection") private var selectedSectionRaw = Section.timeline.rawValue
+    private enum SidebarFlowStep: String, CaseIterable, Identifiable {
+        case today
+        case context
+        case log
+
+        var id: String { rawValue }
+
+        var titleKey: LocalizedStringKey {
+            LocalizedStringKey(titleStringKey)
+        }
+
+        var titleStringKey: String {
+            switch self {
+            case .today:
+                return "dashboard.sidebar.flow.step.today"
+            case .context:
+                return "dashboard.sidebar.flow.step.context"
+            case .log:
+                return "dashboard.sidebar.flow.step.log"
+            }
+        }
+
+        var systemImage: String {
+            switch self {
+            case .today:
+                return "sun.max"
+            case .context:
+                return "note.text"
+            case .log:
+                return "doc.badge.plus"
+            }
+        }
+
+        var stepNumber: Int {
+            switch self {
+            case .today:
+                return 1
+            case .context:
+                return 2
+            case .log:
+                return 3
+            }
+        }
+
+        var destination: Section {
+            switch self {
+            case .today:
+                return .overview
+            case .context:
+                return .markers
+            case .log:
+                return .reports
+            }
+        }
+    }
+
+    @EnvironmentObject private var appState: AppState
+    @ObservedObject private var reportSettings = ReportSettings.shared
+    @AppStorage("dashboard.selectedSection") private var selectedSectionRaw = Section.defaultSelection.rawValue
+    @State private var sidebarTodaySummary = AggregationSummary(
+        totalSeconds: 0,
+        activeSeconds: 0,
+        idleSeconds: 0,
+        sessionsCount: 0,
+        markerNotesCount: 0,
+        markerSessionsCount: 0
+    )
+    @State private var isSidebarTodaySummaryLoading = false
 
     private var selectedSection: Section {
         get {
-            let candidate = Section(rawValue: selectedSectionRaw) ?? .timeline
+            let candidate = Section(rawValue: selectedSectionRaw) ?? Section.defaultSelection
             if Section.allCases.contains(candidate) {
                 return candidate
             }
-            return .timeline
+            return Section.defaultSelection
         }
         set { selectedSectionRaw = newValue.rawValue }
     }
 
     var body: some View {
         NavigationSplitView {
-            List(selection: Binding<Section?>(
-                get: { selectedSection },
-                set: { newValue in
-                    if let newValue {
-                        selectedSectionRaw = newValue.rawValue
+            VStack(alignment: .leading, spacing: 0) {
+                sidebarHeader
+
+                Divider()
+                    .padding(.horizontal, DesignSystem.Spacing.md)
+
+                List(selection: Binding<Section?>(
+                    get: { selectedSection },
+                    set: { newValue in
+                        if let newValue {
+                            selectedSectionRaw = newValue.rawValue
+                        }
+                    }
+                )) {
+                    ForEach(Section.allCases) { section in
+                        sidebarRow(for: section)
+                            .tag(section)
+                            .accessibilityIdentifier("dashboard.section.\(section.rawValue)")
                     }
                 }
-            )) {
-                ForEach(Section.allCases) { section in
-                    Label(section.titleKey, systemImage: section.systemImage)
-                        .tag(section)
-                        .accessibilityIdentifier("dashboard.section.\(section.rawValue)")
-                }
+                .listStyle(.sidebar)
+
+                sidebarQuickActions
             }
-            .listStyle(.sidebar)
+            .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 320)
         } detail: {
             contentView
         }
@@ -105,7 +220,943 @@ struct DashboardView: View {
                 .accessibilityIdentifier("dashboard.openPreferences")
             }
         }
+        .onAppear {
+            refreshSidebarTodaySummary(reason: "dashboard opened")
+        }
+        .onReceive(NotificationCenter.default.publisher(for: ActivityTracker.didRecordSessionNotification)) { _ in
+            refreshSidebarTodaySummary(reason: "activity tracker")
+        }
+        .onChange(of: appState.countOverlaysInTotals) { _, _ in
+            refreshSidebarTodaySummary(reason: "overlay counting changed")
+        }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var sidebarHeader: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            VStack(alignment: .leading, spacing: 4) {
+                Label {
+                    Text("dashboard.sidebar.flow_title")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.primary)
+                } icon: {
+                    Image(systemName: "checklist")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(DesignSystem.Colors.accentSkyBlue)
+                }
+                .labelStyle(.titleAndIcon)
+
+                Text("dashboard.sidebar.flow_detail")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .accessibilityElement(children: .combine)
+
+            sidebarFlowPath
+        }
+        .padding(.horizontal, DesignSystem.Spacing.lg)
+        .padding(.top, DesignSystem.Spacing.lg)
+        .padding(.bottom, DesignSystem.Spacing.sm)
+        .accessibilityIdentifier("dashboard.sidebar.flowHeader")
+    }
+
+    private var sidebarFlowPath: some View {
+        HStack(spacing: DesignSystem.Spacing.xs) {
+            ForEach(SidebarFlowStep.allCases) { step in
+                sidebarFlowStepButton(step)
+            }
+        }
+        .accessibilityIdentifier("dashboard.sidebar.flowPath")
+    }
+
+    private func sidebarFlowStepButton(_ step: SidebarFlowStep) -> some View {
+        let isSelected = sidebarFlowStepIsSelected(step)
+        let isComplete = sidebarFlowStepIsComplete(step)
+        let isCurrent = sidebarCurrentFlowStep == step && !isComplete
+        let color = sidebarFlowStepColor(isSelected: isSelected, isComplete: isComplete, isCurrent: isCurrent)
+
+        return Button {
+            selectedSectionRaw = step.destination.rawValue
+        } label: {
+            VStack(spacing: 4) {
+                HStack(spacing: 4) {
+                    ZStack {
+                        Circle()
+                            .fill(isComplete || isCurrent ? color : color.opacity(0.12))
+
+                        if isComplete {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundStyle(.white)
+                        } else {
+                            Text("\(step.stepNumber)")
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(isCurrent ? .white : color)
+                                .monospacedDigit()
+                        }
+                    }
+                    .frame(width: 15, height: 15)
+
+                    Image(systemName: step.systemImage)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(color)
+                        .frame(height: 14)
+                }
+
+                Text(step.titleKey)
+                    .font(.caption2.weight(isSelected || isCurrent || isComplete ? .semibold : .regular))
+                    .foregroundStyle(isSelected || isCurrent || isComplete ? .primary : .secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
+            }
+            .frame(maxWidth: .infinity, minHeight: 42)
+            .padding(.horizontal, 4)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                    .fill(color.opacity(isSelected || isCurrent || isComplete ? 0.12 : 0.05))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                    .stroke(color.opacity(isSelected || isCurrent ? 0.34 : 0.16), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .help(L(step.titleStringKey))
+        .accessibilityLabel("\(L(step.titleStringKey)) \(sidebarFlowStepStatusText(step))")
+        .accessibilityIdentifier("dashboard.sidebar.flow.\(step.rawValue)")
+    }
+
+    private func sidebarFlowStepIsSelected(_ step: SidebarFlowStep) -> Bool {
+        switch (step, selectedSection) {
+        case (.today, .overview), (.today, .timeline):
+            return true
+        case (.context, .markers):
+            return true
+        case (.log, .reports):
+            return true
+        default:
+            return false
+        }
+    }
+
+    private func sidebarFlowStepIsComplete(_ step: SidebarFlowStep) -> Bool {
+        switch step {
+        case .today:
+            return sidebarHasTodayData || sidebarDailyExportedToday
+        case .context:
+            return sidebarTodayContextCount > 0 || sidebarDailyExportedToday
+        case .log:
+            return sidebarDailyExportedToday
+        }
+    }
+
+    private var sidebarCurrentFlowStep: SidebarFlowStep {
+        switch sidebarNextStepState {
+        case .paused, .captureIssue, .startToday:
+            return .today
+        case .addContext:
+            return .context
+        case .needsLogFolder, .reviewDailyLog, .savedToday:
+            return .log
+        }
+    }
+
+    private func sidebarFlowStepColor(isSelected: Bool, isComplete: Bool, isCurrent: Bool) -> Color {
+        if isComplete {
+            return DesignSystem.StatusTone.success.color
+        }
+        if isCurrent || isSelected {
+            return DesignSystem.Colors.accentSkyBlue
+        }
+        return DesignSystem.Colors.secondaryText
+    }
+
+    private func sidebarFlowStepStatusText(_ step: SidebarFlowStep) -> String {
+        if sidebarFlowStepIsComplete(step) {
+            return L("dashboard.sidebar.flow.step.status.complete")
+        }
+        if sidebarCurrentFlowStep == step {
+            return L("dashboard.sidebar.flow.step.status.current")
+        }
+        return L("dashboard.sidebar.flow.step.status.open")
+    }
+
+    private func sidebarRow(for section: Section) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: section.systemImage)
+                .foregroundStyle(.secondary)
+                .frame(width: 18)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(section.titleKey)
+                    .lineLimit(1)
+                Text(section.subtitleKey)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(.vertical, 2)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var sidebarQuickActions: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            Divider()
+
+            sidebarTodayControlPanel
+        }
+        .padding(.horizontal, DesignSystem.Spacing.lg)
+        .padding(.bottom, DesignSystem.Spacing.lg)
+        .accessibilityIdentifier("dashboard.sidebar.quickActions")
+    }
+
+    private var sidebarTodayControlPanel: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+                Text("dashboard.sidebar.control_title")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+
+                Spacer(minLength: 0)
+
+                StatusPill(sidebarTodayStatusText, systemImage: sidebarTodayStatusIconName, tone: sidebarTodayStatusTone)
+                    .layoutPriority(1)
+            }
+
+            sidebarTodayStatus
+
+            sidebarReadinessMeter
+
+            sidebarTodayEvidenceStrip
+
+            Divider()
+
+            sidebarNextStepCard
+
+            sidebarQuickActionGrid
+        }
+        .padding(DesignSystem.Spacing.md)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(DesignSystem.Colors.cardBackground.opacity(0.96))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(DesignSystem.Colors.separator.opacity(0.42), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
+        .accessibilityIdentifier("dashboard.sidebar.todayControl")
+    }
+
+    private var sidebarQuickActionGrid: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            Label {
+                Text("dashboard.sidebar.quick_actions")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            } icon: {
+                Image(systemName: "bolt.fill")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(DesignSystem.Colors.secondaryText)
+            }
+            .labelStyle(.titleAndIcon)
+
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 76), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                sidebarQuickTimelineButton
+                sidebarQuickAddNoteButton
+                sidebarQuickLogButton
+            }
+        }
+        .accessibilityIdentifier("dashboard.sidebar.utilityActions")
+    }
+
+    private var sidebarQuickAddNoteButton: some View {
+        sidebarUtilityButton(
+            titleKey: "dashboard.sidebar.quick_add_note",
+            value: sidebarContextValueText,
+            systemImage: "square.and.pencil",
+            tone: sidebarTodayContextCount > 0 ? .success : .info,
+            helpKey: "dashboard.sidebar.today_evidence.context_help",
+            accessibilityIdentifier: "dashboard.sidebar.quickAddNote"
+        ) {
+            AppWindowRouter.shared.open(.quickMarker)
+        }
+    }
+
+    private var sidebarQuickTimelineButton: some View {
+        sidebarUtilityButton(
+            titleKey: "dashboard.timeline",
+            value: sidebarCapturedValueText,
+            systemImage: "clock",
+            tone: sidebarHasTodayActivity ? .success : .neutral,
+            helpKey: "dashboard.sidebar.today_evidence.captured_help",
+            accessibilityIdentifier: "dashboard.sidebar.quickTimeline"
+        ) {
+            selectedSectionRaw = Section.timeline.rawValue
+        }
+    }
+
+    private var sidebarQuickLogButton: some View {
+        sidebarUtilityButton(
+            titleKey: "dashboard.sidebar.today_evidence.log_title",
+            value: sidebarLogValueText,
+            systemImage: sidebarLogIconName,
+            tone: sidebarLogTone,
+            helpKey: "dashboard.sidebar.today_evidence.log_help",
+            accessibilityIdentifier: "dashboard.sidebar.quickLog"
+        ) {
+            openSidebarLogEvidence()
+        }
+    }
+
+    private func sidebarUtilityButton(
+        titleKey: String,
+        value: String,
+        systemImage: String,
+        tone: DesignSystem.StatusTone,
+        helpKey: String,
+        accessibilityIdentifier: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 6) {
+                    Image(systemName: systemImage)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(tone.color)
+                        .frame(width: 14)
+
+                    Text(LocalizedStringKey(titleKey))
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
+                }
+
+                Text(value)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+                    .monospacedDigit()
+            }
+            .padding(.horizontal, DesignSystem.Spacing.sm)
+            .padding(.vertical, 7)
+            .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                    .fill(tone.color.opacity(0.07))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                    .stroke(tone.color.opacity(0.16), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .help(L(helpKey))
+        .accessibilityLabel("\(L(titleKey)) \(value)")
+        .accessibilityHint(L(helpKey))
+        .accessibilityIdentifier(accessibilityIdentifier)
+    }
+
+    private var sidebarNextStepState: SidebarNextStepState {
+        if sidebarCaptureHasError {
+            return .captureIssue
+        }
+        if appState.trackingPaused {
+            return .paused
+        }
+        if sidebarDailyExportedToday {
+            return .savedToday
+        }
+        if hasRecentCaptureSignal && sidebarTodayContextCount == 0 {
+            return .addContext
+        }
+        if hasRecentCaptureSignal && !sidebarDailyFolderReady {
+            return .needsLogFolder
+        }
+        if hasRecentCaptureSignal {
+            return .reviewDailyLog
+        }
+        return .startToday
+    }
+
+    private func performSidebarNextStep() {
+        switch sidebarNextStepState {
+        case .paused:
+            appState.trackingPaused = false
+            selectedSectionRaw = Section.overview.rawValue
+        case .captureIssue:
+            AppWindowRouter.shared.open(.settings(.support))
+        case .addContext:
+            AppWindowRouter.shared.open(.quickMarker)
+        case .needsLogFolder, .reviewDailyLog:
+            selectedSectionRaw = Section.reports.rawValue
+        case .savedToday:
+            if case .failure = ReportService.shared.openDailyFolder() {
+                selectedSectionRaw = Section.reports.rawValue
+            }
+        case .startToday:
+            selectedSectionRaw = Section.overview.rawValue
+        }
+    }
+
+    private var sidebarNextStepCard: some View {
+        RowSurface(tone: sidebarNextStepTone, isHovering: false) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                    IconWell(
+                        systemImage: sidebarNextStepIconName,
+                        tone: sidebarNextStepTone,
+                        accessibilityLabel: L(sidebarNextStepHeadlineStringKey)
+                    )
+                    .frame(width: 32, height: 32)
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("dashboard.sidebar.next_step.title")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+
+                        Text(sidebarNextStepHeadlineKey)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.primary)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        Text(sidebarNextStepDetailKey)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(3)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Spacer(minLength: 0)
+                }
+
+                Button {
+                    performSidebarNextStep()
+                } label: {
+                    Label(sidebarNextStepButtonTitleKey, systemImage: sidebarNextStepButtonIconName)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .accessibilityIdentifier("dashboard.sidebar.nextStep.primary")
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("dashboard.sidebar.nextStep")
+    }
+
+    private var sidebarTodayStatus: some View {
+        HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+            IconWell(
+                systemImage: sidebarTodayStatusIconName,
+                tone: sidebarTodayStatusTone,
+                accessibilityLabel: sidebarTodayStatusText
+            )
+            .frame(width: 32, height: 32)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(sidebarTodayStatusTitleKey)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+
+                Text(sidebarTodayStatusDetailText)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("dashboard.sidebar.todayStatus")
+    }
+
+    private var sidebarReadinessMeter: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+            HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.sm) {
+                Text("dashboard.sidebar.progress.label")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+
+                Spacer(minLength: 0)
+
+                Text(String(format: L("dashboard.sidebar.progress.value"), sidebarReadyStepCount, sidebarTotalStepCount))
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(sidebarReadinessTone.color)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
+                    .monospacedDigit()
+            }
+
+            RatioBar(
+                filledFraction: sidebarReadinessFraction,
+                filledColor: sidebarReadinessTone.color,
+                remainderColor: DesignSystem.Colors.separator
+            )
+        }
+        .padding(.horizontal, 2)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(String(format: L("dashboard.sidebar.progress.value"), sidebarReadyStepCount, sidebarTotalStepCount))
+        .accessibilityIdentifier("dashboard.sidebar.progress")
+    }
+
+    private var sidebarTodayEvidenceStrip: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 70), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            sidebarTodayEvidenceButton(
+                titleKey: "dashboard.sidebar.today_evidence.captured_title",
+                value: sidebarCapturedValueText,
+                systemImage: "clock",
+                tone: sidebarHasTodayActivity ? .success : .neutral,
+                helpKey: "dashboard.sidebar.today_evidence.captured_help",
+                accessibilityIdentifier: "dashboard.sidebar.todayEvidence.captured"
+            ) {
+                selectedSectionRaw = Section.timeline.rawValue
+            }
+
+            sidebarTodayEvidenceButton(
+                titleKey: "dashboard.sidebar.today_evidence.context_title",
+                value: sidebarContextValueText,
+                systemImage: "note.text",
+                tone: sidebarTodayContextCount > 0 ? .success : (sidebarHasTodayActivity ? .warning : .neutral),
+                helpKey: "dashboard.sidebar.today_evidence.context_help",
+                accessibilityIdentifier: "dashboard.sidebar.todayEvidence.context"
+            ) {
+                selectedSectionRaw = Section.markers.rawValue
+            }
+
+            sidebarTodayEvidenceButton(
+                titleKey: "dashboard.sidebar.today_evidence.log_title",
+                value: sidebarLogValueText,
+                systemImage: sidebarLogIconName,
+                tone: sidebarLogTone,
+                helpKey: "dashboard.sidebar.today_evidence.log_help",
+                accessibilityIdentifier: "dashboard.sidebar.todayEvidence.log"
+            ) {
+                openSidebarLogEvidence()
+            }
+        }
+        .accessibilityIdentifier("dashboard.sidebar.todayEvidence")
+    }
+
+    private func sidebarTodayEvidenceButton(
+        titleKey: String,
+        value: String,
+        systemImage: String,
+        tone: DesignSystem.StatusTone,
+        helpKey: String,
+        accessibilityIdentifier: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(alignment: .top, spacing: 7) {
+                Image(systemName: systemImage)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(tone.color)
+                    .frame(width: 14)
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(LocalizedStringKey(titleKey))
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+
+                    Text(value)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
+
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, DesignSystem.Spacing.sm)
+            .padding(.vertical, 7)
+            .frame(maxWidth: .infinity, minHeight: 38, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                    .fill(tone.color.opacity(0.07))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                    .stroke(tone.color.opacity(0.16), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .help(L(helpKey))
+        .accessibilityLabel("\(L(titleKey)) \(value)")
+        .accessibilityHint(L(helpKey))
+        .accessibilityIdentifier(accessibilityIdentifier)
+    }
+
+    private var sidebarNextStepHeadlineKey: LocalizedStringKey {
+        LocalizedStringKey(sidebarNextStepHeadlineStringKey)
+    }
+
+    private var sidebarNextStepHeadlineStringKey: String {
+        switch sidebarNextStepState {
+        case .paused:
+            return "dashboard.sidebar.next_step.paused_title"
+        case .captureIssue:
+            return "dashboard.sidebar.next_step.error_title"
+        case .addContext:
+            return "dashboard.sidebar.next_step.add_context_title"
+        case .needsLogFolder:
+            return "dashboard.sidebar.next_step.needs_folder_title"
+        case .reviewDailyLog:
+            return "dashboard.sidebar.next_step.review_title"
+        case .savedToday:
+            return "dashboard.sidebar.next_step.saved_title"
+        case .startToday:
+            return "dashboard.sidebar.next_step.ready_title"
+        }
+    }
+
+    private var sidebarNextStepDetailKey: LocalizedStringKey {
+        switch sidebarNextStepState {
+        case .paused:
+            return "dashboard.sidebar.next_step.paused_detail"
+        case .captureIssue:
+            return "dashboard.sidebar.next_step.error_detail"
+        case .addContext:
+            return "dashboard.sidebar.next_step.add_context_detail"
+        case .needsLogFolder:
+            return "dashboard.sidebar.next_step.needs_folder_detail"
+        case .reviewDailyLog:
+            return "dashboard.sidebar.next_step.review_detail"
+        case .savedToday:
+            return "dashboard.sidebar.next_step.saved_detail"
+        case .startToday:
+            return "dashboard.sidebar.next_step.ready_detail"
+        }
+    }
+
+    private var sidebarNextStepButtonTitleKey: LocalizedStringKey {
+        switch sidebarNextStepState {
+        case .paused:
+            return "dashboard.sidebar.next_step.resume_capture"
+        case .captureIssue:
+            return "dashboard.sidebar.next_step.open_support"
+        case .addContext:
+            return "dashboard.sidebar.next_step.add_context"
+        case .needsLogFolder:
+            return "dashboard.sidebar.next_step.set_log_folder"
+        case .reviewDailyLog:
+            return "dashboard.sidebar.next_step.review_daily_log"
+        case .savedToday:
+            return "dashboard.sidebar.next_step.open_log_folder"
+        case .startToday:
+            return "dashboard.sidebar.next_step.open_today"
+        }
+    }
+
+    private var sidebarNextStepIconName: String {
+        switch sidebarNextStepState {
+        case .paused:
+            return "pause.circle.fill"
+        case .captureIssue:
+            return "exclamationmark.triangle.fill"
+        case .addContext:
+            return "note.text.badge.plus"
+        case .needsLogFolder:
+            return "folder.badge.plus"
+        case .reviewDailyLog:
+            return "doc.badge.plus"
+        case .savedToday:
+            return "checkmark.seal.fill"
+        case .startToday:
+            return "sun.max.fill"
+        }
+    }
+
+    private var sidebarNextStepButtonIconName: String {
+        switch sidebarNextStepState {
+        case .paused:
+            return "play.fill"
+        case .captureIssue:
+            return "wrench.and.screwdriver"
+        case .addContext:
+            return "square.and.pencil"
+        case .needsLogFolder:
+            return "folder.badge.plus"
+        case .reviewDailyLog:
+            return "doc.badge.plus"
+        case .savedToday:
+            return "folder"
+        case .startToday:
+            return "sun.max"
+        }
+    }
+
+    private var sidebarNextStepTone: DesignSystem.StatusTone {
+        switch sidebarNextStepState {
+        case .paused:
+            return .warning
+        case .captureIssue:
+            return .critical
+        case .addContext:
+            return .warning
+        case .needsLogFolder:
+            return .warning
+        case .reviewDailyLog, .savedToday:
+            return .success
+        case .startToday:
+            return .info
+        }
+    }
+
+    private var sidebarTodayStatusTitleKey: LocalizedStringKey {
+        if appState.trackingPaused {
+            return "dashboard.sidebar.today_status.paused_title"
+        }
+        if sidebarCaptureHasError {
+            return "dashboard.sidebar.today_status.error_title"
+        }
+        if hasRecentCaptureSignal {
+            return "dashboard.sidebar.today_status.capturing_title"
+        }
+        return "dashboard.sidebar.today_status.ready_title"
+    }
+
+    private var sidebarTodayStatusDetailText: String {
+        if appState.trackingPaused {
+            return L("dashboard.sidebar.today_status.paused_detail")
+        }
+        if sidebarCaptureHasError {
+            return L("dashboard.sidebar.today_status.error_detail")
+        }
+        if hasRecentCaptureSignal {
+            return String(format: L("dashboard.sidebar.today_status.capturing_detail"), sidebarCurrentAppName)
+        }
+        return L("dashboard.sidebar.today_status.ready_detail")
+    }
+
+    private var sidebarTodayStatusText: String {
+        if appState.trackingPaused {
+            return L("dashboard.sidebar.today_status.status.paused")
+        }
+        if sidebarCaptureHasError {
+            return L("dashboard.sidebar.today_status.status.needs_check")
+        }
+        if hasRecentCaptureSignal {
+            return L("dashboard.sidebar.today_status.status.recording")
+        }
+        return L("dashboard.sidebar.today_status.status.ready")
+    }
+
+    private var sidebarTodayStatusIconName: String {
+        if appState.trackingPaused {
+            return "pause.circle"
+        }
+        if sidebarCaptureHasError {
+            return "exclamationmark.triangle"
+        }
+        if hasRecentCaptureSignal {
+            return "record.circle"
+        }
+        return "checkmark.circle"
+    }
+
+    private var sidebarTodayStatusTone: DesignSystem.StatusTone {
+        if appState.trackingPaused {
+            return .warning
+        }
+        if sidebarCaptureHasError {
+            return .critical
+        }
+        if hasRecentCaptureSignal {
+            return .success
+        }
+        return .info
+    }
+
+    private var sidebarHasTodayActivity: Bool {
+        sidebarTodaySummary.activeSeconds > 0
+    }
+
+    private var sidebarTodayContextCount: Int {
+        sidebarTodaySummary.markerNotesCount + sidebarTodaySummary.markerSessionsCount
+    }
+
+    private var sidebarHasTodayData: Bool {
+        sidebarHasTodayActivity || sidebarTodayContextCount > 0
+    }
+
+    private var sidebarReadyStepCount: Int {
+        SidebarFlowStep.allCases.filter { sidebarFlowStepIsComplete($0) }.count
+    }
+
+    private var sidebarTotalStepCount: Int {
+        SidebarFlowStep.allCases.count
+    }
+
+    private var sidebarReadinessFraction: Double {
+        guard sidebarTotalStepCount > 0 else {
+            return 0
+        }
+        return Double(sidebarReadyStepCount) / Double(sidebarTotalStepCount)
+    }
+
+    private var sidebarReadinessTone: DesignSystem.StatusTone {
+        switch sidebarNextStepState {
+        case .captureIssue:
+            return .critical
+        case .paused, .addContext, .needsLogFolder:
+            return .warning
+        case .reviewDailyLog:
+            return .info
+        case .savedToday:
+            return .success
+        case .startToday:
+            return sidebarReadyStepCount > 0 ? .info : .neutral
+        }
+    }
+
+    private var sidebarCapturedValueText: String {
+        if isSidebarTodaySummaryLoading {
+            return L("dashboard.sidebar.today_evidence.refreshing")
+        }
+        return formatDuration(sidebarTodaySummary.activeSeconds)
+    }
+
+    private var sidebarContextValueText: String {
+        String(format: L("dashboard.sidebar.today_evidence.context_value"), sidebarTodayContextCount)
+    }
+
+    private var sidebarLogValueText: String {
+        if sidebarDailyExportedToday {
+            return L("dashboard.sidebar.today_evidence.log_value.saved")
+        }
+        if !sidebarDailyFolderReady {
+            return L("dashboard.sidebar.today_evidence.log_value.not_set")
+        }
+        if hasRecentCaptureSignal {
+            return L("dashboard.sidebar.today_evidence.log_value.ready")
+        }
+        return L("dashboard.sidebar.today_evidence.log_value.waiting")
+    }
+
+    private var sidebarLogIconName: String {
+        if sidebarDailyExportedToday {
+            return "checkmark.seal"
+        }
+        if !sidebarDailyFolderReady {
+            return "folder.badge.plus"
+        }
+        if hasRecentCaptureSignal {
+            return "doc.badge.plus"
+        }
+        return "doc.text"
+    }
+
+    private var sidebarLogTone: DesignSystem.StatusTone {
+        if sidebarDailyExportedToday {
+            return .success
+        }
+        if !sidebarDailyFolderReady && hasRecentCaptureSignal {
+            return .warning
+        }
+        if hasRecentCaptureSignal {
+            return .info
+        }
+        return .neutral
+    }
+
+    private func openSidebarLogEvidence() {
+        if sidebarDailyExportedToday {
+            if case .failure = ReportService.shared.openDailyFolder() {
+                selectedSectionRaw = Section.reports.rawValue
+            }
+            return
+        }
+
+        selectedSectionRaw = Section.reports.rawValue
+    }
+
+    private var hasRecentCaptureSignal: Bool {
+        sidebarHasTodayData || appState.lastRecordedAppChange != nil
+    }
+
+    private var sidebarDailyFolderReady: Bool {
+        reportSettings.dailyFolderBookmark != nil
+    }
+
+    private var sidebarDailyExportedToday: Bool {
+        reportSettings.dailyExportSucceeded(for: Date())
+    }
+
+    private var sidebarCaptureHasError: Bool {
+        guard let message = appState.lastDbErrorMessage?.trimmingCharacters(in: .whitespacesAndNewlines) else {
+            return false
+        }
+        return !message.isEmpty
+    }
+
+    private var sidebarCurrentAppName: String {
+        sidebarCurrentAppIsUnknown
+            ? L("dashboard.sidebar.today_status.current_app_unknown")
+            : appState.currentActiveAppName
+    }
+
+    private var sidebarCurrentAppIsUnknown: Bool {
+        appState.currentActiveAppName.isEmpty || appState.currentActiveAppName == "Unknown"
+    }
+
+    private func refreshSidebarTodaySummary(reason: String) {
+        isSidebarTodaySummaryLoading = true
+        AppLogger.log("Refresh dashboard sidebar summary reason=\(reason)", category: "ui")
+
+        let bounds = DateRangeMode.day.bounds(for: Date())
+        let filters = AggregationFilters(
+            includeIdle: true,
+            countOverlaysInTotals: appState.countOverlaysInTotals,
+            tagId: nil,
+            appName: nil,
+            bundleId: nil,
+            searchQuery: nil
+        )
+
+        AggregationService.shared.computeSummary(
+            rangeStart: bounds.start,
+            rangeEnd: bounds.end,
+            filters: filters
+        ) { result in
+            DispatchQueue.main.async {
+                if case .success(let summary) = result {
+                    self.sidebarTodaySummary = summary
+                }
+                self.isSidebarTodaySummaryLoading = false
+            }
+        }
+    }
+
+    private func formatDuration(_ seconds: Int64) -> String {
+        if seconds < 60 {
+            return "\(max(0, seconds))s"
+        }
+        if seconds < 3600 {
+            return "\(seconds / 60)m"
+        }
+        return String(format: "%dh %02dm", seconds / 3600, (seconds % 3600) / 60)
     }
 
     @ViewBuilder
@@ -117,6 +1168,8 @@ struct DashboardView: View {
             DashboardOverviewView()
         case .markers:
             DashboardMarkersView()
+        case .reports:
+            DashboardReportsView(showTitle: false, useScrollView: true)
         case .stats:
             DashboardStatsView()
 #if DEBUG

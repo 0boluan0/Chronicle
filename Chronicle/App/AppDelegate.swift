@@ -15,12 +15,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private let languageManager = AppLanguageManager.shared
     private let popover = NSPopover()
     private var statusItem: NSStatusItem?
+    private var uiTestPopoverWindow: NSWindow?
     private let statusMenu = NSMenu()
     private var dayChangeObserver: NSObjectProtocol?
     private var appActiveObserver: NSObjectProtocol?
     private var openPopoverObserver: NSObjectProtocol?
     private var languageCancellable: AnyCancellable?
+    private var trackingStatusMenuItem: NSMenuItem?
     private var dashboardItem: NSMenuItem?
+    private var quickMarkerItem: NSMenuItem?
+    private var closeoutItem: NSMenuItem?
     private var preferencesItem: NSMenuItem?
     private var welcomeItem: NSMenuItem?
     private var exportItem: NSMenuItem?
@@ -113,6 +117,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             NotificationCenter.default.removeObserver(appActiveObserver)
             self.appActiveObserver = nil
         }
+        uiTestPopoverWindow?.close()
+        uiTestPopoverWindow = nil
         trackingPausedCancellable?.cancel()
         trackingPausedCancellable = nil
         dockIconCancellable?.cancel()
@@ -134,19 +140,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private func configureStatusItem() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         guard let button = statusItem?.button else { return }
-        if let image = NSImage(named: "StatusBarIcon") {
-            image.isTemplate = true
-            button.image = image
-        } else {
-            button.image = NSImage(systemSymbolName: "clock", accessibilityDescription: L("app.name"))
-            button.image?.isTemplate = true
-        }
         button.action = #selector(statusItemClicked)
         button.target = self
         button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        updateStatusItemAppearance()
 
+        let trackingStatusMenuItem = NSMenuItem(title: trackingStatusMenuTitle, action: nil, keyEquivalent: "")
+        trackingStatusMenuItem.isEnabled = false
+        trackingStatusMenuItem.image = trackingStatusMenuImage
         let dashboardItem = NSMenuItem(title: L("menu.open_dashboard"), action: #selector(openDashboard), keyEquivalent: "d")
         dashboardItem.target = self
+        let quickMarkerItem = NSMenuItem(title: L("menu.quick_marker"), action: #selector(openQuickMarker), keyEquivalent: "m")
+        quickMarkerItem.target = self
+        let closeoutItem = NSMenuItem(title: L("menu.closeout_today"), action: #selector(openTodayCloseout), keyEquivalent: "r")
+        closeoutItem.target = self
         let preferencesItem = NSMenuItem(title: L("menu.preferences"), action: #selector(openPreferences), keyEquivalent: ",")
         preferencesItem.target = self
         let welcomeItem = NSMenuItem(title: L("menu.welcome"), action: #selector(openWelcome), keyEquivalent: "w")
@@ -166,7 +173,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         let quitItem = NSMenuItem(title: L("menu.quit"), action: #selector(quitApp), keyEquivalent: "q")
         quitItem.target = self
 
+        self.trackingStatusMenuItem = trackingStatusMenuItem
         self.dashboardItem = dashboardItem
+        self.quickMarkerItem = quickMarkerItem
+        self.closeoutItem = closeoutItem
         self.preferencesItem = preferencesItem
         self.welcomeItem = welcomeItem
         self.exportItem = exportItem
@@ -174,12 +184,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         self.checkUpdatesItem = checkUpdatesItem
         self.openReleasesItem = openReleasesItem
         self.quitItem = quitItem
+        updateStatusMenuItemImages()
 
+        statusMenu.addItem(trackingStatusMenuItem)
+        statusMenu.addItem(.separator())
+        statusMenu.addItem(quickMarkerItem)
         statusMenu.addItem(dashboardItem)
+        statusMenu.addItem(closeoutItem)
+        statusMenu.addItem(exportItem)
+        statusMenu.addItem(.separator())
+        statusMenu.addItem(pauseTrackingItem)
         statusMenu.addItem(preferencesItem)
         statusMenu.addItem(welcomeItem)
-        statusMenu.addItem(exportItem)
-        statusMenu.addItem(pauseTrackingItem)
+        statusMenu.addItem(.separator())
         statusMenu.addItem(checkUpdatesItem)
         statusMenu.addItem(openReleasesItem)
         statusMenu.addItem(.separator())
@@ -239,7 +256,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     private func updateLocalizedStrings() {
+        updateTrackingStatusMenuItem()
         dashboardItem?.title = L("menu.open_dashboard")
+        quickMarkerItem?.title = L("menu.quick_marker")
+        closeoutItem?.title = L("menu.closeout_today")
         preferencesItem?.title = L("menu.preferences")
         welcomeItem?.title = L("menu.welcome")
         exportItem?.title = L("menu.export_now")
@@ -247,7 +267,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         checkUpdatesItem?.title = L("menu.check_updates")
         openReleasesItem?.title = L("menu.open_releases")
         quitItem?.title = L("menu.quit")
-        statusItem?.button?.image?.accessibilityDescription = L("app.name")
+        updateStatusMenuItemImages()
+        updateStatusItemAppearance()
         DashboardWindowController.shared.updateTitle()
         PreferencesWindowController.shared.updateTitle()
         OnboardingWindowController.shared.updateTitle()
@@ -255,16 +276,80 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     private func updateTrackingPauseMenuTitle() {
         pauseTrackingItem?.title = appState.trackingPaused ? L("menu.resume_tracking") : L("menu.pause_tracking")
+        updateTrackingStatusMenuItem()
+        updateStatusMenuItemImages()
+        updateStatusItemAppearance()
+    }
+
+    private var trackingStatusMenuTitle: String {
+        L(appState.trackingPaused ? "menu.status.paused" : "menu.status.recording")
+    }
+
+    private var trackingStatusMenuImage: NSImage? {
+        let symbolName = appState.trackingPaused ? "pause.circle.fill" : "record.circle"
+        let image = NSImage(systemSymbolName: symbolName, accessibilityDescription: trackingStatusMenuTitle)
+        image?.isTemplate = true
+        return image
+    }
+
+    private func updateTrackingStatusMenuItem() {
+        trackingStatusMenuItem?.title = trackingStatusMenuTitle
+        trackingStatusMenuItem?.image = trackingStatusMenuImage
+    }
+
+    private func updateStatusMenuItemImages() {
+        dashboardItem?.image = menuImage(systemSymbolName: "rectangle.3.group", accessibilityKey: "menu.open_dashboard")
+        quickMarkerItem?.image = menuImage(systemSymbolName: "square.and.pencil", accessibilityKey: "menu.quick_marker")
+        closeoutItem?.image = menuImage(systemSymbolName: "doc.text.magnifyingglass", accessibilityKey: "menu.closeout_today")
+        exportItem?.image = menuImage(systemSymbolName: "doc.badge.plus", accessibilityKey: "menu.export_now")
+        pauseTrackingItem?.image = menuImage(
+            systemSymbolName: appState.trackingPaused ? "play.fill" : "pause.fill",
+            accessibilityKey: appState.trackingPaused ? "menu.resume_tracking" : "menu.pause_tracking"
+        )
+        preferencesItem?.image = menuImage(systemSymbolName: "gearshape", accessibilityKey: "menu.preferences")
+        welcomeItem?.image = menuImage(systemSymbolName: "sparkles", accessibilityKey: "menu.welcome")
+        checkUpdatesItem?.image = menuImage(systemSymbolName: "arrow.down.circle", accessibilityKey: "menu.check_updates")
+        openReleasesItem?.image = menuImage(systemSymbolName: "safari", accessibilityKey: "menu.open_releases")
+        quitItem?.image = menuImage(systemSymbolName: "power", accessibilityKey: "menu.quit")
+    }
+
+    private func menuImage(systemSymbolName: String, accessibilityKey: String) -> NSImage? {
+        let image = NSImage(systemSymbolName: systemSymbolName, accessibilityDescription: L(accessibilityKey))
+        image?.isTemplate = true
+        return image
+    }
+
+    private func updateStatusItemAppearance() {
+        guard let button = statusItem?.button else { return }
+        let statusText = appState.trackingPaused ? L("popover.tracking.paused") : L("popover.tracking.running")
+        button.image = statusBarImage(statusText: statusText)
+        button.image?.isTemplate = true
+        button.image?.accessibilityDescription = statusText
+        button.toolTip = "\(L("app.name")) - \(statusText)"
+    }
+
+    private func statusBarImage(statusText: String) -> NSImage? {
+        if appState.trackingPaused {
+            return NSImage(systemSymbolName: "pause.circle.fill", accessibilityDescription: statusText)
+                ?? NSImage(systemSymbolName: "pause.circle", accessibilityDescription: statusText)
+        }
+        if let image = NSImage(named: "StatusBarIcon") {
+            image.isTemplate = true
+            return image
+        }
+        return NSImage(systemSymbolName: "record.circle", accessibilityDescription: statusText)
+            ?? NSImage(systemSymbolName: "clock", accessibilityDescription: statusText)
     }
 
     @objc private func statusItemClicked(_ sender: Any?) {
+        guard let button = statusItem?.button else { return }
         guard let event = NSApp.currentEvent else {
             togglePopover()
             return
         }
 
         if event.type == .rightMouseUp || event.type == .rightMouseDown || event.modifierFlags.contains(.control) {
-            statusItem?.popUpMenu(statusMenu)
+            statusMenu.popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.height + 4), in: button)
         } else {
             togglePopover()
         }
@@ -320,6 +405,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         AppWindowRouter.shared.open(.dashboard)
     }
 
+    @objc private func openQuickMarker() {
+        AppWindowRouter.shared.open(.quickMarker)
+    }
+
+    @objc private func openTodayCloseout() {
+        UserDefaults.standard.set(DashboardView.Section.reports.rawValue, forKey: "dashboard.selectedSection")
+        TelemetryService.shared.increment("dashboard_opened")
+        AppWindowRouter.shared.open(.dashboard)
+    }
+
     @objc private func openWelcome() {
         AppWindowRouter.shared.open(.welcome)
     }
@@ -353,7 +448,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     @objc private func toggleTrackingPaused() {
-        appState.trackingPaused.toggle()
+        if appState.trackingPaused {
+            setTrackingPaused(false)
+            return
+        }
+
+        confirmPauseTrackingFromMenu()
+    }
+
+    private func confirmPauseTrackingFromMenu() {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = L("popover.tracking.pause_confirm.title")
+        alert.informativeText = L("popover.tracking.pause_confirm.message")
+        alert.addButton(withTitle: L("popover.tracking.pause_confirm.action"))
+        alert.addButton(withTitle: L("actions.cancel"))
+        NSApp.activate(ignoringOtherApps: true)
+
+        guard alert.runModal() == .alertFirstButtonReturn else {
+            AppLogger.log("Tracking pause cancelled from menu", category: "tracker")
+            return
+        }
+
+        setTrackingPaused(true)
+    }
+
+    private func setTrackingPaused(_ isPaused: Bool) {
+        appState.trackingPaused = isPaused
         let state = appState.trackingPaused ? "paused" : "running"
         AppLogger.log("Tracking state changed from menu: \(state)", category: "tracker")
     }
@@ -399,6 +520,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     private func openInitialRouteIfNeeded() {
+        if AppRuntime.uiTestLaunchRoute == "popover" {
+            openPopoverPreviewWindow()
+            return
+        }
+
         if let route = AppRuntime.uiTestLaunchRoute.flatMap(Self.uiTestRoute(from:)) {
             AppWindowRouter.shared.open(route)
             return
@@ -409,6 +535,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
     }
 
+    private func openPopoverPreviewWindow() {
+        if let window = uiTestPopoverWindow {
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
+        let rootView = LocalizedRootView {
+            ContentView()
+        }
+        .environmentObject(appState)
+        .environmentObject(languageManager)
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 480, height: 640),
+            styleMask: [.titled, .closable, .fullSizeContentView],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = L("app.name")
+        window.contentViewController = NSHostingController(rootView: rootView)
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        uiTestPopoverWindow = window
+    }
+
     private nonisolated static func uiTestRoute(from rawValue: String) -> AppWindowRoute? {
         switch rawValue {
         case "dashboard":
@@ -417,8 +570,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             return .settings()
         case "settingsExport":
             return .settings(.export)
+        case "settingsSupport":
+            return .settings(.support)
         case "settingsTags":
             return .settings(.tagsRules)
+        case "settingsPrivacy":
+            return .settings(.privacy)
         case "tagWizard":
             return .settings(.tagWizard)
         case "welcome":

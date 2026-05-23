@@ -5,7 +5,9 @@
 //  Created by Chronicle on 2026/02/03.
 //
 
+import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 enum DesignSystem {
     enum Colors {
@@ -37,6 +39,147 @@ enum DesignSystem {
         static let md: CGFloat = 8
         static let lg: CGFloat = 12
     }
+
+    enum Images {
+        static var genericAppIcon: NSImage {
+            if let systemIcon = NSImage(systemSymbolName: "app.fill", accessibilityDescription: nil) {
+                return systemIcon
+            }
+            return NSWorkspace.shared.icon(for: .applicationBundle)
+        }
+    }
+
+    enum StatusTone {
+        case neutral
+        case info
+        case success
+        case warning
+        case critical
+
+        var color: Color {
+            switch self {
+            case .neutral:
+                return Color.secondary
+            case .info:
+                return Color(nsColor: .systemBlue)
+            case .success:
+                return Color(nsColor: .systemGreen)
+            case .warning:
+                return Color(nsColor: .systemOrange)
+            case .critical:
+                return Color(nsColor: .systemRed)
+            }
+        }
+    }
+}
+
+struct IconWell: View {
+    let systemImage: String?
+    let image: NSImage?
+    let tone: DesignSystem.StatusTone
+    let accessibilityLabel: String?
+
+    init(systemImage: String, tone: DesignSystem.StatusTone = .neutral, accessibilityLabel: String? = nil) {
+        self.systemImage = systemImage
+        self.image = nil
+        self.tone = tone
+        self.accessibilityLabel = accessibilityLabel
+    }
+
+    init(image: NSImage, tone: DesignSystem.StatusTone = .neutral, accessibilityLabel: String? = nil) {
+        self.systemImage = nil
+        self.image = image
+        self.tone = tone
+        self.accessibilityLabel = accessibilityLabel
+    }
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(tone.color.opacity(0.12))
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                        .stroke(tone.color.opacity(0.22), lineWidth: 1)
+                )
+
+            if let image {
+                Image(nsImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 24, height: 24)
+                    .cornerRadius(5)
+            } else if let systemImage {
+                Image(systemName: systemImage)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(tone.color)
+            }
+        }
+        .frame(width: 38, height: 38)
+        .shadow(color: tone.color.opacity(0.08), radius: 3, x: 0, y: 1)
+        .accessibilityLabel(accessibilityLabel ?? "")
+        .accessibilityHidden(accessibilityLabel == nil)
+    }
+}
+
+struct RowSurface<Content: View>: View {
+    let tone: DesignSystem.StatusTone
+    let isHovering: Bool
+    let isSelected: Bool
+    let content: Content
+
+    init(
+        tone: DesignSystem.StatusTone = .neutral,
+        isHovering: Bool = false,
+        isSelected: Bool = false,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.tone = tone
+        self.isHovering = isHovering
+        self.isSelected = isSelected
+        self.content = content()
+    }
+
+    var body: some View {
+        content
+            .padding(DesignSystem.Spacing.md)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.lg)
+                    .fill(backgroundColor)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.lg)
+                    .stroke(borderColor, lineWidth: 1)
+            )
+            .shadow(color: shadowColor, radius: 4, x: 0, y: 1)
+            .contentShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.lg))
+    }
+
+    private var backgroundColor: Color {
+        if isSelected {
+            return tone.color.opacity(0.09)
+        }
+        if isHovering {
+            return tone.color.opacity(0.07)
+        }
+        return DesignSystem.Colors.cardBackground
+    }
+
+    private var borderColor: Color {
+        if isSelected {
+            return tone.color.opacity(0.42)
+        }
+        if isHovering {
+            return tone.color.opacity(0.36)
+        }
+        return DesignSystem.Colors.separator.opacity(0.28)
+    }
+
+    private var shadowColor: Color {
+        if isSelected || isHovering {
+            return tone.color.opacity(0.10)
+        }
+        return Color.black.opacity(0.035)
+    }
 }
 
 struct SectionCard<Content: View>: View {
@@ -52,21 +195,24 @@ struct SectionCard<Content: View>: View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
             if let title {
                 Text(title)
-                    .font(DesignSystem.Typography.sectionHeader)
+                    .font(DesignSystem.Typography.sectionHeader.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             content
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(DesignSystem.Spacing.md)
+        .padding(DesignSystem.Spacing.lg)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(DesignSystem.Colors.cardBackground)
+                .fill(DesignSystem.Colors.cardBackground.opacity(0.96))
         )
         .overlay(
             RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .stroke(DesignSystem.Colors.separator.opacity(0.6), lineWidth: 1)
+                .stroke(DesignSystem.Colors.separator.opacity(0.42), lineWidth: 1)
         )
+        .shadow(color: Color.black.opacity(0.045), radius: 7, x: 0, y: 2)
     }
 }
 
@@ -74,29 +220,51 @@ struct EmptyStateView: View {
     let title: String
     let subtitle: String?
     let systemImage: String?
+    let tone: DesignSystem.StatusTone
 
-    init(title: String, subtitle: String? = nil, systemImage: String? = "tray") {
+    init(
+        title: String,
+        subtitle: String? = nil,
+        systemImage: String? = "tray",
+        tone: DesignSystem.StatusTone = .neutral
+    ) {
         self.title = title
         self.subtitle = subtitle
         self.systemImage = systemImage
+        self.tone = tone
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
             if let systemImage {
-                Image(systemName: systemImage)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                IconWell(
+                    systemImage: systemImage,
+                    tone: tone,
+                    accessibilityLabel: title
+                )
+                .frame(width: 36, height: 36)
             }
-            Text(title)
-                .font(DesignSystem.Typography.body)
-                .foregroundColor(DesignSystem.Colors.secondaryText)
-            if let subtitle {
-                Text(subtitle)
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if let subtitle {
+                    Text(subtitle)
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
+
+            Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -148,6 +316,102 @@ struct ErrorStateView: View {
     }
 }
 
+struct StatusPill: View {
+    let text: String
+    let systemImage: String?
+    let tone: DesignSystem.StatusTone
+
+    init(_ text: String, systemImage: String? = nil, tone: DesignSystem.StatusTone = .neutral) {
+        self.text = text
+        self.systemImage = systemImage
+        self.tone = tone
+    }
+
+    var body: some View {
+        HStack(spacing: 5) {
+            if let systemImage {
+                Image(systemName: systemImage)
+                    .font(.caption2.weight(.semibold))
+            }
+
+            Text(text)
+                .font(.caption.weight(.medium))
+                .lineLimit(1)
+                .minimumScaleFactor(0.82)
+        }
+        .foregroundColor(tone.color)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(
+            Capsule()
+                .fill(tone.color.opacity(0.12))
+        )
+        .overlay(
+            Capsule()
+                .stroke(tone.color.opacity(0.28), lineWidth: 1)
+        )
+        .fixedSize(horizontal: false, vertical: true)
+        .help(text)
+    }
+}
+
+struct MetricValueView: View {
+    let title: LocalizedStringKey
+    let value: String
+    let systemImage: String
+    let tone: DesignSystem.StatusTone
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 5) {
+                Image(systemName: systemImage)
+                    .font(.caption)
+                    .foregroundColor(tone.color)
+                    .frame(width: 14)
+
+                Text(title)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(1)
+            }
+
+            Text(value)
+                .font(.title3.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.primaryText)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+struct RatioBar: View {
+    let filledFraction: Double
+    let filledColor: Color
+    let remainderColor: Color
+
+    var body: some View {
+        GeometryReader { proxy in
+            let width = proxy.size.width
+            let clampedFraction = min(max(filledFraction, 0), 1)
+            let filledWidth = max(width * clampedFraction, clampedFraction > 0 ? 3 : 0)
+
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(remainderColor.opacity(0.18))
+
+                Capsule()
+                    .fill(filledColor.opacity(0.72))
+                    .frame(width: filledWidth)
+            }
+        }
+        .frame(height: 7)
+        .accessibilityHidden(true)
+    }
+}
+
 struct TagBadge: View {
     let tag: TagRow?
     let isManualOverride: Bool
@@ -184,6 +448,10 @@ struct TagBadge: View {
 
     private var badgeContent: some View {
         HStack(spacing: 4) {
+            if tag == nil {
+                Image(systemName: "tag.slash")
+                    .font(.caption2)
+            }
             Text(label)
             if isManualOverride {
                 Image(systemName: "hand.point.left.fill")
@@ -205,12 +473,15 @@ struct TagBadge: View {
     }
 
     private var label: String {
-        tag?.name ?? L("Untagged")
+        tag?.name ?? L("tag.badge.needs_label")
     }
 
     private var backgroundColor: Color {
         if let color = tagColor {
             return color.opacity(0.12)
+        }
+        if tag == nil {
+            return DesignSystem.StatusTone.warning.color.opacity(0.12)
         }
         return DesignSystem.Colors.separator.opacity(0.35)
     }
@@ -219,12 +490,18 @@ struct TagBadge: View {
         if let color = tagColor {
             return color.opacity(0.35)
         }
+        if tag == nil {
+            return DesignSystem.StatusTone.warning.color.opacity(0.35)
+        }
         return DesignSystem.Colors.separator.opacity(0.6)
     }
 
     private var textColor: Color {
         if let color = tagColor {
             return color
+        }
+        if tag == nil {
+            return DesignSystem.StatusTone.warning.color
         }
         return DesignSystem.Colors.secondaryText
     }

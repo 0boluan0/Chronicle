@@ -68,8 +68,8 @@ final class SessionNormalizer {
         var droppedCount = 0
 
         func writeSegment(_ segment: ReplaySegment) throws {
-            var start = max(segment.start, rangeStart)
-            var end = min(segment.end, rangeEnd)
+            let start = max(segment.start, rangeStart)
+            let end = min(segment.end, rangeEnd)
             if end < start {
                 return
             }

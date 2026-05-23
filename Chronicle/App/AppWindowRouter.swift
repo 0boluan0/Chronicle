@@ -13,10 +13,35 @@ enum PreferencesNavigationDestination {
     case tagsRules
     case tagWizard
     case export
+    case support
     case privacy
 #if DEBUG
     case debug
 #endif
+
+    func apply(to defaults: UserDefaults = .standard) {
+        switch self {
+        case .general:
+            defaults.set("general", forKey: "preferences.selectedSection")
+        case .tagsRules:
+            defaults.set("tags", forKey: "preferences.selectedSection")
+            defaults.set("tagsRules", forKey: "preferences.tags.selectedSubsection")
+            defaults.set("tags", forKey: "preferences.tagsRules.selectedSection")
+        case .tagWizard:
+            defaults.set("tags", forKey: "preferences.selectedSection")
+            defaults.set("appMappings", forKey: "preferences.tags.selectedSubsection")
+        case .export:
+            defaults.set("export", forKey: "preferences.selectedSection")
+        case .support:
+            defaults.set("support", forKey: "preferences.selectedSection")
+        case .privacy:
+            defaults.set("privacy", forKey: "preferences.selectedSection")
+#if DEBUG
+        case .debug:
+            defaults.set("debug", forKey: "preferences.selectedSection")
+#endif
+        }
+    }
 }
 
 enum AppWindowRoute {
@@ -92,25 +117,7 @@ final class AppWindowRouter {
     }
 
     private func applySettingsDestination(_ destination: PreferencesNavigationDestination) {
-        let defaults = UserDefaults.standard
-        switch destination {
-        case .general:
-            defaults.set("general", forKey: "preferences.selectedSection")
-        case .tagsRules:
-            defaults.set("tags", forKey: "preferences.selectedSection")
-            defaults.set("tagsRules", forKey: "preferences.tags.selectedSubsection")
-        case .tagWizard:
-            defaults.set("tags", forKey: "preferences.selectedSection")
-            defaults.set("appMappings", forKey: "preferences.tags.selectedSubsection")
-        case .export:
-            defaults.set("export", forKey: "preferences.selectedSection")
-        case .privacy:
-            defaults.set("privacy", forKey: "preferences.selectedSection")
-#if DEBUG
-        case .debug:
-            defaults.set("debug", forKey: "preferences.selectedSection")
-#endif
-        }
+        destination.apply()
     }
 
     private func openScene(id: String, fallback: () -> Void) {

@@ -8,6 +8,23 @@
 import Combine
 import Foundation
 
+enum DeveloperDiagnostics {
+#if DEBUG
+    static var showNavigationItems: Bool {
+        showNavigationItems(
+            environment: ProcessInfo.processInfo.environment,
+            arguments: ProcessInfo.processInfo.arguments
+        )
+    }
+
+    static func showNavigationItems(environment: [String: String], arguments: [String]) -> Bool {
+        environment["CHRONICLE_SHOW_DEBUG"] == "1" || arguments.contains("--chronicle-show-debug")
+    }
+#else
+    static let showNavigationItems = false
+#endif
+}
+
 enum QuickMarkerMode: String, CaseIterable, Identifiable {
     case point
     case interval
@@ -244,14 +261,14 @@ final class AppState: ObservableObject {
         accessibilityAuthorized = defaults.object(forKey: Keys.accessibilityAuthorized) as? Bool ?? false
         launchAtLoginEnabled = defaults.object(forKey: Keys.launchAtLoginEnabled) as? Bool ?? false
         showDockIcon = defaults.object(forKey: Keys.showDockIcon) as? Bool ?? false
-        trackingAggregationEnabled = defaults.object(forKey: Keys.trackingAggregationEnabled) as? Bool ?? true
-        minSessionDurationSeconds = defaults.object(forKey: Keys.minSessionDurationSeconds) as? Int ?? 5
-        mergeGapSeconds = defaults.object(forKey: Keys.mergeGapSeconds) as? Int ?? 3
-        switchDebounceSeconds = defaults.object(forKey: Keys.switchDebounceSeconds) as? Int ?? 1
-        rapidSwitchWindowSeconds = defaults.object(forKey: Keys.rapidSwitchWindowSeconds) as? Int ?? 4
-        rapidSwitchMinHops = defaults.object(forKey: Keys.rapidSwitchMinHops) as? Int ?? 3
-        compactionEnabled = defaults.object(forKey: Keys.compactionEnabled) as? Bool ?? true
-        compactionLookbackDays = defaults.object(forKey: Keys.compactionLookbackDays) as? Int ?? 7
+        trackingAggregationEnabled = defaults.object(forKey: Keys.trackingAggregationEnabled) as? Bool ?? Self.defaultTrackingAggregationEnabled
+        minSessionDurationSeconds = defaults.object(forKey: Keys.minSessionDurationSeconds) as? Int ?? Self.defaultMinSessionDurationSeconds
+        mergeGapSeconds = defaults.object(forKey: Keys.mergeGapSeconds) as? Int ?? Self.defaultMergeGapSeconds
+        switchDebounceSeconds = defaults.object(forKey: Keys.switchDebounceSeconds) as? Int ?? Self.defaultSwitchDebounceSeconds
+        rapidSwitchWindowSeconds = defaults.object(forKey: Keys.rapidSwitchWindowSeconds) as? Int ?? Self.defaultRapidSwitchWindowSeconds
+        rapidSwitchMinHops = defaults.object(forKey: Keys.rapidSwitchMinHops) as? Int ?? Self.defaultRapidSwitchMinHops
+        compactionEnabled = defaults.object(forKey: Keys.compactionEnabled) as? Bool ?? Self.defaultCompactionEnabled
+        compactionLookbackDays = defaults.object(forKey: Keys.compactionLookbackDays) as? Int ?? Self.defaultCompactionLookbackDays
         lastCompactionDayKey = defaults.string(forKey: Keys.lastCompactionDayKey)
         if let timestamp = defaults.object(forKey: Keys.lastCompactionAt) as? Double {
             lastCompactionAt = Date(timeIntervalSince1970: timestamp)
@@ -260,16 +277,16 @@ final class AppState: ObservableObject {
         }
         lastCompactionMergedCount = defaults.object(forKey: Keys.lastCompactionMergedCount) as? Int ?? 0
         lastCompactionDroppedCount = defaults.object(forKey: Keys.lastCompactionDroppedCount) as? Int ?? 0
-        idleDetectionEnabled = defaults.object(forKey: Keys.idleDetectionEnabled) as? Bool ?? true
-        suppressIdleWhileMediaPlaying = defaults.object(forKey: Keys.suppressIdleWhileMediaPlaying) as? Bool ?? true
-        idleThresholdSeconds = defaults.object(forKey: Keys.idleThresholdSeconds) as? Int ?? 300
-        idleCheckIntervalSeconds = defaults.object(forKey: Keys.idleCheckIntervalSeconds) as? Int ?? 3
-        idleHysteresisCount = defaults.object(forKey: Keys.idleHysteresisCount) as? Int ?? 2
-        idleResumeGraceSeconds = defaults.object(forKey: Keys.idleResumeGraceSeconds) as? Int ?? 3
+        idleDetectionEnabled = defaults.object(forKey: Keys.idleDetectionEnabled) as? Bool ?? Self.defaultIdleDetectionEnabled
+        suppressIdleWhileMediaPlaying = defaults.object(forKey: Keys.suppressIdleWhileMediaPlaying) as? Bool ?? Self.defaultSuppressIdleWhileMediaPlaying
+        idleThresholdSeconds = defaults.object(forKey: Keys.idleThresholdSeconds) as? Int ?? Self.defaultIdleThresholdSeconds
+        idleCheckIntervalSeconds = defaults.object(forKey: Keys.idleCheckIntervalSeconds) as? Int ?? Self.defaultIdleCheckIntervalSeconds
+        idleHysteresisCount = defaults.object(forKey: Keys.idleHysteresisCount) as? Int ?? Self.defaultIdleHysteresisCount
+        idleResumeGraceSeconds = defaults.object(forKey: Keys.idleResumeGraceSeconds) as? Int ?? Self.defaultIdleResumeGraceSeconds
         idleSuppressedBundleIDs = defaults.stringArray(forKey: Keys.idleSuppressedBundleIDs) ?? Self.defaultIdleSuppressedBundleIDs
         includeIdleInTimeline = defaults.object(forKey: Keys.includeIdleInTimeline) as? Bool ?? true
         includeIdleInCharts = defaults.object(forKey: Keys.includeIdleInCharts) as? Bool ?? false
-        countOverlaysInTotals = defaults.object(forKey: Keys.countOverlaysInTotals) as? Bool ?? false
+        countOverlaysInTotals = defaults.object(forKey: Keys.countOverlaysInTotals) as? Bool ?? Self.defaultCountOverlaysInTotals
         if let raw = defaults.string(forKey: Keys.dateRangeMode),
            let mode = DateRangeMode(rawValue: raw) {
             dateRangeMode = mode
@@ -282,7 +299,8 @@ final class AppState: ObservableObject {
             debugLoggingEnabled = Self.defaultDebugLoggingEnabled
         }
         telemetryEnabled = defaults.object(forKey: Keys.telemetryEnabled) as? Bool ?? false
-        dailyReviewReminderEnabled = defaults.object(forKey: Keys.dailyReviewReminderEnabled) as? Bool ?? true
+        let storedDailyReviewReminderEnabled = defaults.object(forKey: Keys.dailyReviewReminderEnabled) as? Bool ?? true
+        dailyReviewReminderEnabled = AppRuntime.uiTestDailyReviewReminderEnabled ?? storedDailyReviewReminderEnabled
         dailyReviewReminderTimeMinutes = Self.clampMinutesOfDay(defaults.object(forKey: Keys.dailyReviewReminderTimeMinutes) as? Int ?? 18 * 60)
         dailyReviewSystemNotificationEnabled = defaults.object(forKey: Keys.dailyReviewSystemNotificationEnabled) as? Bool ?? false
         trackingPaused = defaults.object(forKey: Keys.trackingPaused) as? Bool ?? false
@@ -347,6 +365,57 @@ final class AppState: ObservableObject {
     }
 
     static let defaultWindowTitleCaptureEnabled = false
+    static let defaultTrackingAggregationEnabled = true
+    static let defaultMinSessionDurationSeconds = 5
+    static let defaultMergeGapSeconds = 3
+    static let defaultSwitchDebounceSeconds = 1
+    static let defaultRapidSwitchWindowSeconds = 4
+    static let defaultRapidSwitchMinHops = 3
+    static let defaultCompactionEnabled = true
+    static let defaultCompactionLookbackDays = 7
+    static let defaultIdleDetectionEnabled = true
+    static let defaultSuppressIdleWhileMediaPlaying = true
+    static let defaultIdleThresholdSeconds = 300
+    static let defaultIdleCheckIntervalSeconds = 3
+    static let defaultIdleHysteresisCount = 2
+    static let defaultIdleResumeGraceSeconds = 3
+    static let defaultCountOverlaysInTotals = false
+
+    var usesRecommendedTrackingSettings: Bool {
+        trackingAggregationEnabled == Self.defaultTrackingAggregationEnabled &&
+        minSessionDurationSeconds == Self.defaultMinSessionDurationSeconds &&
+        mergeGapSeconds == Self.defaultMergeGapSeconds &&
+        switchDebounceSeconds == Self.defaultSwitchDebounceSeconds &&
+        rapidSwitchWindowSeconds == Self.defaultRapidSwitchWindowSeconds &&
+        rapidSwitchMinHops == Self.defaultRapidSwitchMinHops &&
+        compactionEnabled == Self.defaultCompactionEnabled &&
+        compactionLookbackDays == Self.defaultCompactionLookbackDays &&
+        idleDetectionEnabled == Self.defaultIdleDetectionEnabled &&
+        suppressIdleWhileMediaPlaying == Self.defaultSuppressIdleWhileMediaPlaying &&
+        idleThresholdSeconds == Self.defaultIdleThresholdSeconds &&
+        idleCheckIntervalSeconds == Self.defaultIdleCheckIntervalSeconds &&
+        idleHysteresisCount == Self.defaultIdleHysteresisCount &&
+        idleResumeGraceSeconds == Self.defaultIdleResumeGraceSeconds &&
+        countOverlaysInTotals == Self.defaultCountOverlaysInTotals
+    }
+
+    func restoreRecommendedTrackingSettings() {
+        trackingAggregationEnabled = Self.defaultTrackingAggregationEnabled
+        minSessionDurationSeconds = Self.defaultMinSessionDurationSeconds
+        mergeGapSeconds = Self.defaultMergeGapSeconds
+        switchDebounceSeconds = Self.defaultSwitchDebounceSeconds
+        rapidSwitchWindowSeconds = Self.defaultRapidSwitchWindowSeconds
+        rapidSwitchMinHops = Self.defaultRapidSwitchMinHops
+        compactionEnabled = Self.defaultCompactionEnabled
+        compactionLookbackDays = Self.defaultCompactionLookbackDays
+        idleDetectionEnabled = Self.defaultIdleDetectionEnabled
+        suppressIdleWhileMediaPlaying = Self.defaultSuppressIdleWhileMediaPlaying
+        idleThresholdSeconds = Self.defaultIdleThresholdSeconds
+        idleCheckIntervalSeconds = Self.defaultIdleCheckIntervalSeconds
+        idleHysteresisCount = Self.defaultIdleHysteresisCount
+        idleResumeGraceSeconds = Self.defaultIdleResumeGraceSeconds
+        countOverlaysInTotals = Self.defaultCountOverlaysInTotals
+    }
 
     private static var defaultDebugLoggingEnabled: Bool {
 #if DEBUG
@@ -391,7 +460,7 @@ private nonisolated struct TelemetryPayload: Codable {
     let counters: [String: Int]
 }
 
-nonisolated final class TelemetryService {
+nonisolated final class TelemetryService: @unchecked Sendable {
     static let shared = TelemetryService()
 
     private let queue = DispatchQueue(label: "com.chronicle.telemetry", qos: .utility)

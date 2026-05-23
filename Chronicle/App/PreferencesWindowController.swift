@@ -73,25 +73,7 @@ final class PreferencesWindowController {
     }
 
     private func applyDestination(_ destination: Destination) {
-        let defaults = UserDefaults.standard
-        switch destination {
-        case .general:
-            defaults.set("general", forKey: "preferences.selectedSection")
-        case .tagsRules:
-            defaults.set("tags", forKey: "preferences.selectedSection")
-            defaults.set("tagsRules", forKey: "preferences.tags.selectedSubsection")
-        case .tagWizard:
-            defaults.set("tags", forKey: "preferences.selectedSection")
-            defaults.set("appMappings", forKey: "preferences.tags.selectedSubsection")
-        case .export:
-            defaults.set("export", forKey: "preferences.selectedSection")
-        case .privacy:
-            defaults.set("privacy", forKey: "preferences.selectedSection")
-#if DEBUG
-        case .debug:
-            defaults.set("debug", forKey: "preferences.selectedSection")
-#endif
-        }
+        destination.apply()
     }
 
     private static func nativeSettingsWindow() -> NSWindow? {

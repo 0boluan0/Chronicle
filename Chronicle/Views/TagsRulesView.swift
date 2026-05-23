@@ -18,14 +18,41 @@ struct TagsRulesView: View {
         var titleKey: LocalizedStringKey {
             switch self {
             case .tags:
-                return "Tags"
+                return "tags_rules.tab.tags"
             case .rules:
-                return "Rules"
+                return "tags_rules.tab.rules"
+            }
+        }
+
+        var detailKey: LocalizedStringKey {
+            switch self {
+            case .tags:
+                return "tags_rules.mode.categories_detail"
+            case .rules:
+                return "tags_rules.mode.automation_detail"
+            }
+        }
+
+        var systemImage: String {
+            switch self {
+            case .tags:
+                return "rectangle.split.3x1"
+            case .rules:
+                return "bolt.circle"
+            }
+        }
+
+        var tone: DesignSystem.StatusTone {
+            switch self {
+            case .tags:
+                return .info
+            case .rules:
+                return .success
             }
         }
     }
 
-    @State private var selection: Section = .tags
+    @AppStorage("preferences.tagsRules.selectedSection") private var selectedSectionRaw = Section.tags.rawValue
     let showHeader: Bool
 
     init(showHeader: Bool = true) {
@@ -35,19 +62,11 @@ struct TagsRulesView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
             if showHeader {
-                Text("preferences.tags_rules")
-                    .font(DesignSystem.Typography.title)
+                classificationHeader
             }
 
-            Picker("Section", selection: $selection) {
-                ForEach(Section.allCases) { section in
-                    Text(section.titleKey).tag(section)
-                }
-            }
-            .pickerStyle(.segmented)
-            .tint(DesignSystem.Colors.accentSkyBlue)
-
-            Divider()
+            sectionPicker
+            classificationOutcomeStrip
 
             Group {
                 switch selection {
@@ -59,6 +78,306 @@ struct TagsRulesView: View {
             }
         }
     }
+
+    private var classificationOutcomeStrip: some View {
+        SectionCard {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
+                    alignment: .leading,
+                    spacing: DesignSystem.Spacing.sm
+                ) {
+                    classificationOutcomeSummary
+                    StatusPill(
+                        L(classificationOutcomeStatusKey),
+                        systemImage: classificationOutcomeStatusIcon,
+                        tone: classificationOutcomeTone
+                    )
+                }
+
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 150), spacing: DesignSystem.Spacing.sm)],
+                    alignment: .leading,
+                    spacing: DesignSystem.Spacing.sm
+                ) {
+                    ForEach(classificationOutcomeItems) { item in
+                        classificationOutcomeItemView(item)
+                    }
+                }
+            }
+        }
+        .accessibilityIdentifier("tagsRules.outcomeStrip")
+    }
+
+    private var classificationOutcomeSummary: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            IconWell(
+                systemImage: classificationOutcomeIcon,
+                tone: classificationOutcomeTone,
+                accessibilityLabel: L(classificationOutcomeTitleKey)
+            )
+            .frame(width: 34, height: 34)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(LocalizedStringKey(classificationOutcomeTitleKey))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+
+                Text(LocalizedStringKey(classificationOutcomeDetailKey))
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func classificationOutcomeItemView(_ item: ClassificationOutcomeItem) -> some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: item.systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(classificationOutcomeTone.color)
+                .frame(width: 16)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(LocalizedStringKey(item.titleKey))
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(1)
+
+                Text(LocalizedStringKey(item.detailKey))
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, DesignSystem.Spacing.sm)
+        .padding(.vertical, 7)
+        .frame(maxWidth: .infinity, minHeight: 54, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .fill(classificationOutcomeTone.color.opacity(0.06))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .stroke(classificationOutcomeTone.color.opacity(0.14), lineWidth: 1)
+        )
+    }
+
+    private var classificationOutcomeTitleKey: String {
+        switch selection {
+        case .tags:
+            return "tags_rules.outcome.categories_title"
+        case .rules:
+            return "tags_rules.outcome.automation_title"
+        }
+    }
+
+    private var classificationOutcomeDetailKey: String {
+        switch selection {
+        case .tags:
+            return "tags_rules.outcome.categories_detail"
+        case .rules:
+            return "tags_rules.outcome.automation_detail"
+        }
+    }
+
+    private var classificationOutcomeStatusKey: String {
+        switch selection {
+        case .tags:
+            return "tags_rules.outcome.categories_status"
+        case .rules:
+            return "tags_rules.outcome.automation_status"
+        }
+    }
+
+    private var classificationOutcomeStatusIcon: String {
+        switch selection {
+        case .tags:
+            return "doc.text"
+        case .rules:
+            return "bolt.fill"
+        }
+    }
+
+    private var classificationOutcomeIcon: String {
+        switch selection {
+        case .tags:
+            return "rectangle.split.3x1"
+        case .rules:
+            return "bolt.circle.fill"
+        }
+    }
+
+    private var classificationOutcomeTone: DesignSystem.StatusTone {
+        switch selection {
+        case .tags:
+            return .info
+        case .rules:
+            return .success
+        }
+    }
+
+    private var classificationOutcomeItems: [ClassificationOutcomeItem] {
+        switch selection {
+        case .tags:
+            return [
+                .init(id: "dailyLog", titleKey: "tags_rules.outcome.categories_log_title", detailKey: "tags_rules.outcome.categories_log_detail", systemImage: "doc.text"),
+                .init(id: "timeline", titleKey: "tags_rules.outcome.categories_timeline_title", detailKey: "tags_rules.outcome.categories_timeline_detail", systemImage: "clock"),
+                .init(id: "apps", titleKey: "tags_rules.outcome.categories_apps_title", detailKey: "tags_rules.outcome.categories_apps_detail", systemImage: "app.badge")
+            ]
+        case .rules:
+            return [
+                .init(id: "priority", titleKey: "tags_rules.outcome.automation_priority_title", detailKey: "tags_rules.outcome.automation_priority_detail", systemImage: "arrow.up.left.and.arrow.down.right"),
+                .init(id: "manual", titleKey: "tags_rules.outcome.automation_manual_title", detailKey: "tags_rules.outcome.automation_manual_detail", systemImage: "hand.raised"),
+                .init(id: "range", titleKey: "tags_rules.outcome.automation_range_title", detailKey: "tags_rules.outcome.automation_range_detail", systemImage: "arrow.triangle.2.circlepath")
+            ]
+        }
+    }
+
+    private var selection: Section {
+        Section(rawValue: selectedSectionRaw) ?? .tags
+    }
+
+    private var classificationHeader: some View {
+        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+            IconWell(systemImage: "rectangle.split.3x1", tone: .info, accessibilityLabel: L("preferences.tags_rules"))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("preferences.tags_rules")
+                    .font(DesignSystem.Typography.title)
+                Text("tags_rules.page.subtitle")
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+            }
+
+            Spacer()
+
+            StatusPill(
+                L("tags_rules.page.badge"),
+                systemImage: "checklist",
+                tone: .info
+            )
+        }
+    }
+
+    private var sectionPicker: some View {
+        SectionCard {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.md
+            ) {
+                sectionModePicker
+                sectionPickerSummary
+            }
+        }
+        .accessibilityIdentifier("tagsRules.sectionPicker")
+    }
+
+    private var sectionModePicker: some View {
+        Picker("Section", selection: $selectedSectionRaw) {
+            ForEach(Section.allCases) { section in
+                Text(section.titleKey).tag(section.rawValue)
+            }
+        }
+        .pickerStyle(.segmented)
+        .tint(DesignSystem.Colors.accentSkyBlue)
+        .frame(maxWidth: 340, alignment: .leading)
+        .accessibilityIdentifier("tagsRules.modePicker")
+    }
+
+    private var sectionPickerSummary: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: selection.systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(selection.tone.color)
+                .frame(width: 18)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(selection.titleKey)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(1)
+
+                Text(selection.detailKey)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(.horizontal, DesignSystem.Spacing.sm)
+        .padding(.vertical, 7)
+        .frame(idealWidth: 280, maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .fill(selection.tone.color.opacity(0.06))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .stroke(selection.tone.color.opacity(0.16), lineWidth: 1)
+        )
+    }
+}
+
+private struct ClassificationOutcomeItem: Identifiable {
+    let id: String
+    let titleKey: String
+    let detailKey: String
+    let systemImage: String
+}
+
+private func notifyTaggingSetupDidChange() {
+    NotificationCenter.default.post(name: .chronicleTaggingSetupDidChange, object: nil)
+}
+
+private func setupLibraryPathItem(
+    titleKey: LocalizedStringKey,
+    detailKey: LocalizedStringKey,
+    systemImage: String,
+    tone: DesignSystem.StatusTone,
+    accessibilityIdentifier: String
+) -> some View {
+    HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+        Image(systemName: systemImage)
+            .font(.caption.weight(.semibold))
+            .foregroundColor(tone.color)
+            .frame(width: 20, height: 20)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                    .fill(tone.color.opacity(0.11))
+            )
+
+        VStack(alignment: .leading, spacing: 2) {
+            Text(titleKey)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.primaryText)
+                .lineLimit(1)
+
+            Text(detailKey)
+                .font(DesignSystem.Typography.caption)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+
+        Spacer(minLength: 0)
+    }
+    .padding(DesignSystem.Spacing.sm)
+    .frame(minWidth: 160, maxWidth: .infinity, minHeight: 68, alignment: .topLeading)
+    .background(
+        RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+            .fill(tone.color.opacity(0.06))
+    )
+    .overlay(
+        RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+            .stroke(tone.color.opacity(0.18), lineWidth: 1)
+    )
+    .accessibilityIdentifier(accessibilityIdentifier)
 }
 
 struct TagsManagementView: View {
@@ -68,6 +387,7 @@ struct TagsManagementView: View {
     @State private var lastActionMessage: StatusMessage?
     @State private var activeColorPopoverId: UUID?
     @State private var newTagPopoverId = UUID()
+    @FocusState private var isTagNameFocused: Bool
 
     let showHeader: Bool
 
@@ -79,9 +399,9 @@ struct TagsManagementView: View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
             if showHeader {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Tags")
+                    Text("tags.page.title")
                         .font(DesignSystem.Typography.title)
-                    Text("Create and edit tags used to classify your timeline.")
+                    Text("tags.page.subtitle")
                         .font(DesignSystem.Typography.caption)
                         .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
@@ -89,49 +409,468 @@ struct TagsManagementView: View {
 
             StatusBannerView(status: lastActionMessage, accessibilityIdentifier: "tagsRules.status")
 
-            SectionCard {
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    HStack(spacing: 8) {
-                        TextField("Tag name", text: $newTagName)
-                            .textFieldStyle(.roundedBorder)
-                        Button("Add") {
-                            addTag()
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(DesignSystem.Colors.accentSkyBlue)
-                        .disabled(newTagName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    }
-
-                    TagColorSwatchButton(
-                        hex: $newTagColorHex,
-                        activePopoverId: $activeColorPopoverId,
-                        popoverId: newTagPopoverId,
-                        showChooseButton: true,
-                        allowClear: true
-                    )
-
-                    if tags.isEmpty {
-                        EmptyStateView(title: "No tags yet.")
-                    } else {
-                        VStack(alignment: .leading, spacing: 8) {
-                            ForEach(tags) { tag in
-                                TagEditorRow(
-                                    tag: tag,
-                                    activePopoverId: $activeColorPopoverId,
-                                    onSave: updateTag,
-                                    onDelete: { deleteTag(id: tag.id) }
-                                )
-                            }
-                        }
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
+            tagReviewCard
+            tagSummaryStrip
+            tagComposer
+            tagLibrary
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .onAppear {
             reloadTags()
         }
+    }
+
+    private var tagReviewCard: some View {
+        SectionCard(title: "tags.review.title") {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+                    IconWell(
+                        systemImage: tagReviewIconName,
+                        tone: tagReviewTone,
+                        accessibilityLabel: L("tags.review.title")
+                    )
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(LocalizedStringKey(tagReviewHeadlineKey))
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+
+                        Text(LocalizedStringKey(tagReviewDetailKey))
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Spacer()
+
+                    StatusPill(tagReviewStatusText, systemImage: tagReviewStatusIconName, tone: tagReviewTone)
+                }
+
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 150), spacing: DesignSystem.Spacing.md)],
+                    alignment: .leading,
+                    spacing: DesignSystem.Spacing.md
+                ) {
+                    MetricValueView(
+                        title: "tags.review.total",
+                        value: "\(tags.count)",
+                        systemImage: "rectangle.split.3x1",
+                        tone: tags.isEmpty ? .warning : .info
+                    )
+                    MetricValueView(
+                        title: "tags.review.starters",
+                        value: "\(starterCategoryCount)",
+                        systemImage: "checklist",
+                        tone: missingStarterTags.isEmpty ? .success : .warning
+                    )
+                    MetricValueView(
+                        title: "tags.review.custom",
+                        value: "\(customCategoryCount)",
+                        systemImage: "paintbrush.pointed",
+                        tone: customCategoryCount == 0 ? .neutral : .info
+                    )
+                }
+
+                tagReviewActions
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var tagReviewActions: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 150), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            primaryTagReviewAction
+            secondaryTagReviewActions
+        }
+    }
+
+    @ViewBuilder
+    private var primaryTagReviewAction: some View {
+        switch tagReviewState {
+        case .empty, .missingStarters:
+            Button {
+                restoreStarterCategories()
+            } label: {
+                Label(L("tags.review.restore_starters"), systemImage: "arrow.clockwise")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(DesignSystem.Colors.accentSkyBlue)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("tags.review.restoreStarters")
+        case .ready:
+            Button {
+                AppWindowRouter.shared.open(.settings(.tagWizard))
+            } label: {
+                Label(L("tags.review.review_apps"), systemImage: "rectangle.grid.1x2")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(DesignSystem.Colors.accentSkyBlue)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("tags.review.reviewApps")
+        }
+    }
+
+    private var secondaryTagReviewActions: some View {
+        Button {
+            focusTagComposer()
+        } label: {
+            Label(L("tags.review.add_custom"), systemImage: "plus")
+        }
+        .buttonStyle(.bordered)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityIdentifier("tags.review.addCustom")
+    }
+
+    private var tagSummaryStrip: some View {
+        SectionCard {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 150), spacing: DesignSystem.Spacing.md, alignment: .leading)],
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.md
+            ) {
+                MetricValueView(
+                    title: "tags.summary.total",
+                    value: "\(tags.count)",
+                    systemImage: "rectangle.split.3x1",
+                    tone: tags.isEmpty ? .warning : .info
+                )
+                MetricValueView(
+                    title: "tags.summary.colored",
+                    value: "\(customColorCount)",
+                    systemImage: "paintpalette",
+                    tone: customColorCount == 0 ? .neutral : .success
+                )
+                MetricValueView(
+                    title: "tags.summary.default_color",
+                    value: "\(tags.count - customColorCount)",
+                    systemImage: "circle.dotted",
+                    tone: tags.isEmpty ? .neutral : .warning
+                )
+            }
+        }
+    }
+
+    private var tagComposer: some View {
+        SectionCard {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                tagComposerHeader
+                tagComposerControls
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityIdentifier("tags.create.card")
+    }
+
+    private var tagComposerHeader: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            tagComposerLead
+            StatusPill(tagComposerStatusText, systemImage: tagComposerStatusIconName, tone: tagComposerTone)
+        }
+    }
+
+    private var tagComposerLead: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            IconWell(systemImage: "plus.circle.fill", tone: tagComposerTone, accessibilityLabel: L("tags.create.title"))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("tags.create.title")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                Text("tags.create.hint")
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private var tagComposerControls: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            tagNameInput
+
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 130), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                tagColorButton
+                tagCreateButton
+            }
+        }
+    }
+
+    private var tagNameInput: some View {
+        HStack(spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: "rectangle.split.3x1")
+                .font(.caption.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .frame(width: 18)
+
+            TextField("tags.create.placeholder", text: $newTagName)
+                .textFieldStyle(.plain)
+                .focused($isTagNameFocused)
+                .onSubmit {
+                    addTag()
+                }
+                .accessibilityIdentifier("tags.create.name")
+
+            if tagComposerHasText {
+                Button {
+                    newTagName = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                }
+                .buttonStyle(.plain)
+                .help(L("actions.clear_input"))
+                .accessibilityLabel(L("actions.clear_input"))
+                .accessibilityIdentifier("tags.create.clearName")
+            }
+        }
+        .padding(.horizontal, DesignSystem.Spacing.md)
+        .padding(.vertical, 7)
+        .frame(minWidth: 240, maxWidth: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(Color(nsColor: .textBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(DesignSystem.Colors.separator.opacity(0.45), lineWidth: 1)
+        )
+    }
+
+    private var tagColorButton: some View {
+        TagColorSwatchButton(
+            hex: $newTagColorHex,
+            activePopoverId: $activeColorPopoverId,
+            popoverId: newTagPopoverId,
+            showChooseButton: true,
+            allowClear: true
+        )
+    }
+
+    private var tagCreateButton: some View {
+        Button {
+            addTag()
+        } label: {
+            Label(L("tags.create.add"), systemImage: "plus")
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(DesignSystem.Colors.accentSkyBlue)
+        .disabled(!tagComposerHasText)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityIdentifier("tags.create.add")
+    }
+
+    private var tagComposerHasText: Bool {
+        !newTagName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var tagComposerStatusText: String {
+        tagComposerHasText ? L("tags.create.status.ready") : L("tags.create.status.name_needed")
+    }
+
+    private var tagComposerStatusIconName: String {
+        tagComposerHasText ? "checkmark" : "text.cursor"
+    }
+
+    private var tagComposerTone: DesignSystem.StatusTone {
+        tagComposerHasText ? .success : .neutral
+    }
+
+    private var tagLibrary: some View {
+        SectionCard(title: "tags.library.title") {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                Text("tags.library.hint")
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+
+                if tags.isEmpty {
+                    EmptyStateView(
+                        title: L("tags.empty.title"),
+                        subtitle: L("tags.empty.subtitle"),
+                        systemImage: "rectangle.split.3x1",
+                        tone: .info
+                    )
+
+                    tagLibraryEmptyPath
+                } else {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(tags) { tag in
+                            TagEditorRow(
+                                tag: tag,
+                                activePopoverId: $activeColorPopoverId,
+                                onSave: updateTag,
+                                onDelete: { deleteTag(id: tag.id) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var tagLibraryEmptyPath: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 172), spacing: DesignSystem.Spacing.sm)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            tagLibraryEmptyPathItems
+        }
+        .accessibilityIdentifier("tags.empty.path")
+    }
+
+    @ViewBuilder
+    private var tagLibraryEmptyPathItems: some View {
+        setupLibraryPathItem(
+            titleKey: "tags.empty.path.starters_title",
+            detailKey: "tags.empty.path.starters_detail",
+            systemImage: "checklist",
+            tone: .info,
+            accessibilityIdentifier: "tags.empty.path.starters"
+        )
+        setupLibraryPathItem(
+            titleKey: "tags.empty.path.custom_title",
+            detailKey: "tags.empty.path.custom_detail",
+            systemImage: "plus.circle",
+            tone: .neutral,
+            accessibilityIdentifier: "tags.empty.path.custom"
+        )
+        setupLibraryPathItem(
+            titleKey: "tags.empty.path.apps_title",
+            detailKey: "tags.empty.path.apps_detail",
+            systemImage: "rectangle.grid.1x2",
+            tone: .success,
+            accessibilityIdentifier: "tags.empty.path.apps"
+        )
+    }
+
+    private var customColorCount: Int {
+        tags.filter { tag in
+            guard let color = tag.color?.trimmingCharacters(in: .whitespacesAndNewlines) else {
+                return false
+            }
+            return !color.isEmpty
+        }.count
+    }
+
+    private var starterCategoryCount: Int {
+        tags.filter { tag in
+            starterTagNameKeys.contains(normalizedTagName(tag.name))
+        }.count
+    }
+
+    private var customCategoryCount: Int {
+        max(0, tags.count - starterCategoryCount)
+    }
+
+    private var starterTagNameKeys: Set<String> {
+        Set(DatabaseService.defaultTags.map { normalizedTagName($0.name) })
+    }
+
+    private var existingTagNameKeys: Set<String> {
+        Set(tags.map { normalizedTagName($0.name) })
+    }
+
+    private var missingStarterTags: [(name: String, color: String)] {
+        DatabaseService.defaultTags.filter { tag in
+            !existingTagNameKeys.contains(normalizedTagName(tag.name))
+        }
+    }
+
+    private enum TagsReviewState: Equatable {
+        case empty
+        case missingStarters
+        case ready
+    }
+
+    private var tagReviewState: TagsReviewState {
+        if tags.isEmpty {
+            return .empty
+        }
+        if !missingStarterTags.isEmpty {
+            return .missingStarters
+        }
+        return .ready
+    }
+
+    private var tagReviewHeadlineKey: String {
+        switch tagReviewState {
+        case .empty:
+            return "tags.review.empty_headline"
+        case .missingStarters:
+            return "tags.review.missing_headline"
+        case .ready:
+            return "tags.review.ready_headline"
+        }
+    }
+
+    private var tagReviewDetailKey: String {
+        switch tagReviewState {
+        case .empty:
+            return "tags.review.empty_copy"
+        case .missingStarters:
+            return "tags.review.missing_copy"
+        case .ready:
+            return "tags.review.ready_copy"
+        }
+    }
+
+    private var tagReviewStatusText: String {
+        switch tagReviewState {
+        case .empty:
+            return L("tags.review.status.empty")
+        case .missingStarters:
+            return L("tags.review.status.missing")
+        case .ready:
+            return L("tags.review.status.ready")
+        }
+    }
+
+    private var tagReviewStatusIconName: String {
+        switch tagReviewState {
+        case .empty:
+            return "circle"
+        case .missingStarters:
+            return "exclamationmark.triangle"
+        case .ready:
+            return "checkmark"
+        }
+    }
+
+    private var tagReviewIconName: String {
+        switch tagReviewState {
+        case .empty:
+            return "rectangle.split.3x1"
+        case .missingStarters:
+            return "exclamationmark.triangle.fill"
+        case .ready:
+            return "rectangle.split.3x1"
+        }
+    }
+
+    private var tagReviewTone: DesignSystem.StatusTone {
+        switch tagReviewState {
+        case .empty, .missingStarters:
+            return .warning
+        case .ready:
+            return .success
+        }
+    }
+
+    private func normalizedTagName(_ name: String) -> String {
+        name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
     private func reloadTags() {
@@ -150,6 +889,53 @@ struct TagsManagementView: View {
         }
     }
 
+    private func focusTagComposer() {
+        if newTagName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            newTagName = L("tags.review.default_custom_name")
+        }
+        isTagNameFocused = true
+    }
+
+    private func restoreStarterCategories() {
+        let tagsToRestore = missingStarterTags
+        guard !tagsToRestore.isEmpty else { return }
+
+        let group = DispatchGroup()
+        var restoredCount = 0
+        var firstError: Error?
+
+        for tag in tagsToRestore {
+            group.enter()
+            DatabaseService.shared.insertTag(name: tag.name, color: tag.color) { result in
+                switch result {
+                case .success:
+                    restoredCount += 1
+                case .failure(let error):
+                    if firstError == nil {
+                        firstError = error
+                    }
+                }
+                group.leave()
+            }
+        }
+
+        group.notify(queue: .main) {
+            if let firstError {
+                self.lastActionMessage = StatusMessage(
+                    text: String(format: L("tags.status.restore_failed"), firstError.localizedDescription),
+                    isError: true
+                )
+            } else {
+                self.lastActionMessage = StatusMessage(
+                    text: String(format: L("tags.status.restored_starters"), restoredCount),
+                    isError: false
+                )
+                notifyTaggingSetupDidChange()
+            }
+            self.reloadTags()
+        }
+    }
+
     private func addTag() {
         let name = newTagName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { return }
@@ -161,6 +947,7 @@ struct TagsManagementView: View {
                     self.newTagColorHex = TagColorPalette.defaultHex
                     self.lastActionMessage = StatusMessage(text: L("tags.status.added"), isError: false)
                     TelemetryService.shared.increment("tag_created")
+                    notifyTaggingSetupDidChange()
                     self.reloadTags()
                 case .failure(let error):
                     self.lastActionMessage = StatusMessage(
@@ -178,6 +965,7 @@ struct TagsManagementView: View {
                 switch result {
                 case .success:
                     self.lastActionMessage = StatusMessage(text: L("tags.status.updated"), isError: false)
+                    notifyTaggingSetupDidChange()
                     self.reloadTags()
                 case .failure(let error):
                     self.lastActionMessage = StatusMessage(
@@ -195,6 +983,7 @@ struct TagsManagementView: View {
                 switch result {
                 case .success:
                     self.lastActionMessage = StatusMessage(text: L("tags.status.deleted"), isError: false)
+                    notifyTaggingSetupDidChange()
                     self.reloadTags()
                 case .failure(let error):
                     self.lastActionMessage = StatusMessage(
@@ -216,6 +1005,7 @@ struct RulesManagementView: View {
     @State private var isLoadingSuggestions = false
     @State private var lastActionMessage: StatusMessage?
     @State private var newRuleName = ""
+    @FocusState private var isRuleNameFocused: Bool
 
     let showHeader: Bool
 
@@ -227,9 +1017,9 @@ struct RulesManagementView: View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
             if showHeader {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Rules")
+                    Text("rules.page.title")
                         .font(DesignSystem.Typography.title)
-                    Text("Rules auto-tag activities based on app or window title.")
+                    Text("rules.page.subtitle")
                         .font(DesignSystem.Typography.caption)
                         .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
@@ -237,48 +1027,642 @@ struct RulesManagementView: View {
 
             StatusBannerView(status: lastActionMessage, accessibilityIdentifier: "rules.status")
 
-            SectionCard {
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    HStack(spacing: 8) {
-                        TextField("Rule name", text: $newRuleName)
-                            .textFieldStyle(.roundedBorder)
-                        Button("Add") {
-                            addRule()
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(DesignSystem.Colors.accentSkyBlue)
-                        .disabled(newRuleName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    }
-
-                    suggestedRulesSection
-
-                    if rules.isEmpty {
-                        EmptyStateView(title: "No rules yet.")
-                    } else {
-                        VStack(alignment: .leading, spacing: 10) {
-                            ForEach(rules) { rule in
-                                RuleEditorRow(
-                                    rule: rule,
-                                    tags: tags,
-                                    appMappings: appMappings,
-                                    onSave: updateRule,
-                                    onDelete: { deleteRule(id: rule.id) }
-                                )
-                            }
-                        }
-                    }
-
-                    Button(L("rules.recompute_range")) {
-                        recomputeForCurrentRange()
-                    }
-                    .buttonStyle(.bordered)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
+            rulesReviewCard
+            if rulesReviewState == .suggestions {
+                suggestedRulesSection
+                rulesSummaryStrip
+            } else {
+                rulesSummaryStrip
+                suggestedRulesSection
             }
+            ruleComposer
+            rulesList
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .onAppear {
             reloadData()
+        }
+    }
+
+    private var rulesReviewCard: some View {
+        SectionCard(title: "rules.review.title") {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+                    IconWell(
+                        systemImage: rulesReviewIconName,
+                        tone: rulesReviewTone,
+                        accessibilityLabel: L("rules.review.title")
+                    )
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(LocalizedStringKey(rulesReviewHeadlineKey))
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+
+                        Text(LocalizedStringKey(rulesReviewDetailKey))
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Spacer()
+
+                    StatusPill(rulesReviewStatusText, systemImage: rulesReviewStatusIconName, tone: rulesReviewTone)
+                }
+
+                Divider()
+
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 156), spacing: DesignSystem.Spacing.sm)],
+                    alignment: .leading,
+                    spacing: DesignSystem.Spacing.sm
+                ) {
+                    rulesReviewMetric(
+                        title: "rules.review.suggestions",
+                        value: "\(ruleSuggestions.count)",
+                        detail: "rules.review.suggestions_detail",
+                        systemImage: "sparkles",
+                        tone: ruleSuggestions.isEmpty ? .neutral : .info
+                    )
+
+                    rulesReviewMetric(
+                        title: "rules.review.enabled",
+                        value: "\(enabledRuleCount)",
+                        detail: "rules.review.enabled_detail",
+                        systemImage: "bolt.fill",
+                        tone: enabledRuleCount == 0 ? .warning : .success
+                    )
+
+                    rulesReviewMetric(
+                        title: "rules.review.paused",
+                        value: "\(disabledRuleCount)",
+                        detail: "rules.review.paused_detail",
+                        systemImage: "pause.circle",
+                        tone: disabledRuleCount == 0 ? .neutral : .warning
+                    )
+                }
+
+                rulesAutomationPath
+
+                rulesReviewActions
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func rulesReviewMetric(
+        title: LocalizedStringKey,
+        value: String,
+        detail: LocalizedStringKey,
+        systemImage: String,
+        tone: DesignSystem.StatusTone
+    ) -> some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(tone.color)
+                .frame(width: 16, height: 18)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(1)
+
+                Text(value)
+                    .font(.headline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .monospacedDigit()
+
+                Text(detail)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .frame(minWidth: 150, maxWidth: .infinity, minHeight: 84, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .fill(tone.color.opacity(0.06))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .stroke(tone.color.opacity(0.16), lineWidth: 1)
+        )
+    }
+
+    private var rulesAutomationPath: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 168), spacing: DesignSystem.Spacing.sm)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            rulesAutomationPathItem(
+                titleKey: "rules.review.path.observe_title",
+                detailKey: "rules.review.path.observe_detail",
+                systemImage: "magnifyingglass",
+                tone: ruleSuggestions.isEmpty ? .neutral : .info,
+                accessibilityIdentifier: "rules.review.path.observe"
+            )
+            rulesAutomationPathItem(
+                titleKey: "rules.review.path.draft_title",
+                detailKey: "rules.review.path.draft_detail",
+                systemImage: "pencil",
+                tone: .info,
+                accessibilityIdentifier: "rules.review.path.draft"
+            )
+            rulesAutomationPathItem(
+                titleKey: "rules.review.path.trust_title",
+                detailKey: "rules.review.path.trust_detail",
+                systemImage: "checkmark.seal",
+                tone: enabledRuleCount == 0 ? .warning : .success,
+                accessibilityIdentifier: "rules.review.path.trust"
+            )
+        }
+        .accessibilityIdentifier("rules.review.path")
+    }
+
+    private func rulesAutomationPathItem(
+        titleKey: LocalizedStringKey,
+        detailKey: LocalizedStringKey,
+        systemImage: String,
+        tone: DesignSystem.StatusTone,
+        accessibilityIdentifier: String
+    ) -> some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(tone.color)
+                .frame(width: 18, height: 18)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(titleKey)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(1)
+
+                Text(detailKey)
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .frame(minWidth: 150, maxWidth: .infinity, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .fill(tone.color.opacity(0.07))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .stroke(tone.color.opacity(0.18), lineWidth: 1)
+        )
+        .accessibilityIdentifier(accessibilityIdentifier)
+    }
+
+    private var rulesReviewActions: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 150), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            primaryRulesReviewAction
+            secondaryRulesReviewActions
+        }
+    }
+
+    @ViewBuilder
+    private var primaryRulesReviewAction: some View {
+        switch rulesReviewState {
+        case .suggestions:
+            if let suggestion = topRuleSuggestion {
+                Button {
+                    createRuleFromSuggestion(suggestion)
+                } label: {
+                    Label(L("rules.review.accept_top_suggestion"), systemImage: "checkmark")
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(DesignSystem.Colors.accentSkyBlue)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityIdentifier("rules.review.acceptTopSuggestion")
+            }
+        case .empty:
+            Button {
+                focusRuleComposer()
+            } label: {
+                Label(L("rules.review.create_first"), systemImage: "plus")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(DesignSystem.Colors.accentSkyBlue)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("rules.review.createFirst")
+        case .paused:
+            Button {
+                recomputeForCurrentRange()
+            } label: {
+                Label(L("rules.recompute_range"), systemImage: "arrow.triangle.2.circlepath")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(DesignSystem.Colors.accentSkyBlue)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("rules.review.recompute")
+        case .ready:
+            Button {
+                recomputeForCurrentRange()
+            } label: {
+                Label(L("rules.review.apply_now"), systemImage: "arrow.triangle.2.circlepath")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(DesignSystem.Colors.accentSkyBlue)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("rules.review.applyNow")
+        }
+    }
+
+    @ViewBuilder
+    private var secondaryRulesReviewActions: some View {
+        if rulesReviewState != .empty {
+            Button {
+                focusRuleComposer()
+            } label: {
+                Label(L("rules.review.create_custom"), systemImage: "plus")
+            }
+            .buttonStyle(.bordered)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("rules.review.createCustom")
+        }
+
+        if rulesReviewState != .suggestions {
+            Button {
+                reloadData()
+            } label: {
+                Label(L("wizard.refresh"), systemImage: "arrow.clockwise")
+            }
+            .buttonStyle(.bordered)
+            .disabled(isLoadingSuggestions)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("rules.review.refresh")
+        }
+    }
+
+    private var rulesSummaryStrip: some View {
+        SectionCard {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 150), spacing: DesignSystem.Spacing.md, alignment: .leading)],
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.md
+            ) {
+                MetricValueView(
+                    title: "rules.summary.active",
+                    value: "\(enabledRuleCount)",
+                    systemImage: "bolt.fill",
+                    tone: enabledRuleCount == 0 ? .warning : .success
+                )
+                MetricValueView(
+                    title: "rules.summary.paused",
+                    value: "\(disabledRuleCount)",
+                    systemImage: "pause.circle",
+                    tone: disabledRuleCount == 0 ? .neutral : .warning
+                )
+                MetricValueView(
+                    title: "rules.summary.suggestions",
+                    value: "\(ruleSuggestions.count)",
+                    systemImage: "sparkles",
+                    tone: ruleSuggestions.isEmpty ? .neutral : .info
+                )
+                MetricValueView(
+                    title: "rules.summary.scoped",
+                    value: "\(scopedRuleCount)",
+                    systemImage: "app.connected.to.app.below.fill",
+                    tone: scopedRuleCount == 0 ? .neutral : .info
+                )
+            }
+        }
+    }
+
+    private var ruleComposer: some View {
+        SectionCard {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                ruleComposerHeader
+                ruleComposerControls
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityIdentifier("rules.create.card")
+    }
+
+    private var ruleComposerHeader: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            ruleComposerLead
+            StatusPill(ruleComposerStatusText, systemImage: ruleComposerStatusIconName, tone: ruleComposerTone)
+        }
+    }
+
+    private var ruleComposerLead: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            IconWell(systemImage: "wand.and.stars", tone: ruleComposerTone, accessibilityLabel: L("rules.create.title"))
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("rules.create.title")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                Text("rules.create.hint")
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private var ruleComposerControls: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 180), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            ruleNameInput
+            ruleCreateButton
+        }
+    }
+
+    private var ruleNameInput: some View {
+        HStack(spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: "bolt.circle")
+                .font(.caption.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .frame(width: 18)
+
+            TextField("rules.create.placeholder", text: $newRuleName)
+                .textFieldStyle(.plain)
+                .focused($isRuleNameFocused)
+                .onSubmit {
+                    addRule()
+                }
+                .accessibilityIdentifier("rules.create.name")
+
+            if ruleComposerHasText {
+                Button {
+                    newRuleName = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                }
+                .buttonStyle(.plain)
+                .help(L("actions.clear_input"))
+                .accessibilityLabel(L("actions.clear_input"))
+                .accessibilityIdentifier("rules.create.clearName")
+            }
+        }
+        .padding(.horizontal, DesignSystem.Spacing.md)
+        .padding(.vertical, 7)
+        .frame(minWidth: 240, maxWidth: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(Color(nsColor: .textBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(DesignSystem.Colors.separator.opacity(0.45), lineWidth: 1)
+        )
+    }
+
+    private var ruleCreateButton: some View {
+        Button {
+            addRule()
+        } label: {
+            Label(L("rules.create.add"), systemImage: "plus")
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(DesignSystem.Colors.accentSkyBlue)
+        .disabled(!ruleComposerHasText)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityIdentifier("rules.create.add")
+    }
+
+    private var ruleComposerHasText: Bool {
+        !newRuleName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var ruleComposerStatusText: String {
+        ruleComposerHasText ? L("rules.create.status.ready") : L("rules.create.status.name_needed")
+    }
+
+    private var ruleComposerStatusIconName: String {
+        ruleComposerHasText ? "checkmark" : "text.cursor"
+    }
+
+    private var ruleComposerTone: DesignSystem.StatusTone {
+        ruleComposerHasText ? .success : .neutral
+    }
+
+    private var rulesList: some View {
+        SectionCard(title: "rules.library.title") {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("rules.library.hint")
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                        Text("rules.library.note")
+                            .font(.caption2)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                    }
+
+                    Spacer()
+
+                    Button {
+                        recomputeForCurrentRange()
+                    } label: {
+                        Label(L("rules.recompute_range"), systemImage: "arrow.triangle.2.circlepath")
+                    }
+                    .buttonStyle(.bordered)
+                }
+
+                if rules.isEmpty {
+                    EmptyStateView(
+                        title: L("rules.empty.title"),
+                        subtitle: L("rules.empty.subtitle"),
+                        systemImage: "wand.and.stars",
+                        tone: .info
+                    )
+
+                    rulesLibraryEmptyPath
+                } else {
+                    VStack(alignment: .leading, spacing: 10) {
+                        ForEach(rules) { rule in
+                            RuleEditorRow(
+                                rule: rule,
+                                tags: tags,
+                                appMappings: appMappings,
+                                onSave: updateRule,
+                                onDelete: { deleteRule(id: rule.id) }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var rulesLibraryEmptyPath: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 172), spacing: DesignSystem.Spacing.sm)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            rulesLibraryEmptyPathItems
+        }
+        .accessibilityIdentifier("rules.empty.path")
+    }
+
+    @ViewBuilder
+    private var rulesLibraryEmptyPathItems: some View {
+        setupLibraryPathItem(
+            titleKey: "rules.empty.path.repeat_title",
+            detailKey: "rules.empty.path.repeat_detail",
+            systemImage: "repeat",
+            tone: .neutral,
+            accessibilityIdentifier: "rules.empty.path.repeat"
+        )
+        setupLibraryPathItem(
+            titleKey: "rules.empty.path.narrow_title",
+            detailKey: "rules.empty.path.narrow_detail",
+            systemImage: "scope",
+            tone: .info,
+            accessibilityIdentifier: "rules.empty.path.narrow"
+        )
+        setupLibraryPathItem(
+            titleKey: "rules.empty.path.recompute_title",
+            detailKey: "rules.empty.path.recompute_detail",
+            systemImage: "arrow.triangle.2.circlepath",
+            tone: .success,
+            accessibilityIdentifier: "rules.empty.path.recompute"
+        )
+    }
+
+    private var enabledRuleCount: Int {
+        rules.filter(\.enabled).count
+    }
+
+    private var disabledRuleCount: Int {
+        rules.count - enabledRuleCount
+    }
+
+    private var scopedRuleCount: Int {
+        rules.filter { rule in
+            (rule.matchBundleId?.isEmpty == false) || (rule.matchAppName?.isEmpty == false)
+        }.count
+    }
+
+    private var topRuleSuggestion: RuleSuggestionRow? {
+        ruleSuggestions.first
+    }
+
+    private enum RulesReviewState: Equatable {
+        case suggestions
+        case empty
+        case paused
+        case ready
+    }
+
+    private var rulesReviewState: RulesReviewState {
+        if !ruleSuggestions.isEmpty {
+            return .suggestions
+        }
+        if rules.isEmpty {
+            return .empty
+        }
+        if enabledRuleCount == 0 || disabledRuleCount > 0 {
+            return .paused
+        }
+        return .ready
+    }
+
+    private var rulesReviewHeadlineKey: String {
+        switch rulesReviewState {
+        case .suggestions:
+            return "rules.review.suggestions_headline"
+        case .empty:
+            return "rules.review.empty_headline"
+        case .paused:
+            return "rules.review.paused_headline"
+        case .ready:
+            return "rules.review.ready_headline"
+        }
+    }
+
+    private var rulesReviewDetailKey: String {
+        switch rulesReviewState {
+        case .suggestions:
+            return "rules.review.suggestions_copy"
+        case .empty:
+            return "rules.review.empty_copy"
+        case .paused:
+            return "rules.review.paused_copy"
+        case .ready:
+            return "rules.review.ready_copy"
+        }
+    }
+
+    private var rulesReviewStatusText: String {
+        switch rulesReviewState {
+        case .suggestions:
+            return L("rules.review.status.suggestions")
+        case .empty:
+            return L("rules.review.status.empty")
+        case .paused:
+            return L("rules.review.status.paused")
+        case .ready:
+            return L("rules.review.status.ready")
+        }
+    }
+
+    private var rulesReviewStatusIconName: String {
+        switch rulesReviewState {
+        case .suggestions:
+            return "sparkles"
+        case .empty:
+            return "circle"
+        case .paused:
+            return "pause.circle"
+        case .ready:
+            return "checkmark"
+        }
+    }
+
+    private var rulesReviewIconName: String {
+        switch rulesReviewState {
+        case .suggestions:
+            return "sparkles"
+        case .empty:
+            return "wand.and.stars"
+        case .paused:
+            return "pause.circle"
+        case .ready:
+            return "bolt.fill"
+        }
+    }
+
+    private var rulesReviewTone: DesignSystem.StatusTone {
+        switch rulesReviewState {
+        case .suggestions:
+            return .info
+        case .empty:
+            return .warning
+        case .paused:
+            return .warning
+        case .ready:
+            return .success
         }
     }
 
@@ -331,6 +1715,13 @@ struct RulesManagementView: View {
         }
     }
 
+    private func focusRuleComposer() {
+        if newRuleName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            newRuleName = L("rules.review.default_rule_name")
+        }
+        isRuleNameFocused = true
+    }
+
     private func addRule() {
         let name = newRuleName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { return }
@@ -348,6 +1739,7 @@ struct RulesManagementView: View {
                 case .success:
                     self.newRuleName = ""
                     self.lastActionMessage = StatusMessage(text: L("rules.status.added"), isError: false)
+                    notifyTaggingSetupDidChange()
                     self.reloadData()
                 case .failure(let error):
                     self.lastActionMessage = StatusMessage(
@@ -365,6 +1757,7 @@ struct RulesManagementView: View {
                 switch result {
                 case .success:
                     self.lastActionMessage = StatusMessage(text: L("rules.status.updated"), isError: false)
+                    notifyTaggingSetupDidChange()
                     self.reloadData()
                 case .failure(let error):
                     self.lastActionMessage = StatusMessage(
@@ -382,6 +1775,7 @@ struct RulesManagementView: View {
                 switch result {
                 case .success:
                     self.lastActionMessage = StatusMessage(text: L("rules.status.deleted"), isError: false)
+                    notifyTaggingSetupDidChange()
                     self.reloadData()
                 case .failure(let error):
                     self.lastActionMessage = StatusMessage(
@@ -414,73 +1808,203 @@ struct RulesManagementView: View {
     }
 
     private var suggestedRulesSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Text(L("rules.suggestions.title"))
-                    .font(.subheadline.weight(.semibold))
-                if isLoadingSuggestions {
-                    ProgressView()
-                        .controlSize(.small)
-                }
-                Spacer()
-                Button(L("wizard.refresh")) {
-                    reloadData()
-                }
-                .buttonStyle(.bordered)
-            }
+        SectionCard(title: "rules.suggestions.title") {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                suggestedRulesHeader
 
-            if ruleSuggestions.isEmpty {
-                Text(L("rules.suggestions.empty"))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            } else {
-                ForEach(ruleSuggestions) { suggestion in
-                    HStack(alignment: .center, spacing: 10) {
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(
-                                String(
-                                    format: L("rules.suggestions.summary"),
-                                    suggestion.appName,
-                                    tagName(for: suggestion.tagId)
-                                )
-                            )
-                            .font(.subheadline.weight(.medium))
-                            Text(suggestionDetail(suggestion))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        Spacer()
-                        Button(L("rules.suggestions.create")) {
-                            createRuleFromSuggestion(suggestion)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(DesignSystem.Colors.accentSkyBlue)
+                if isLoadingSuggestions {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("rules.suggestions.loading")
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
                     }
-                    .padding(8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(DesignSystem.Colors.cardBackground)
-                    )
+                } else if ruleSuggestions.isEmpty {
+                    ruleSuggestionsEmptyState
+                } else {
+                    ForEach(ruleSuggestions) { suggestion in
+                        suggestedRuleCard(suggestion)
+                    }
                 }
             }
         }
-        .padding(.vertical, 4)
+    }
+
+    private var suggestedRulesHeader: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 240), spacing: DesignSystem.Spacing.sm)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            Text("rules.suggestions.hint")
+                .font(DesignSystem.Typography.caption)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                Button {
+                    reloadData()
+                } label: {
+                    Label(L("rules.review.refresh_suggestions"), systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(.bordered)
+                .disabled(isLoadingSuggestions)
+
+                StatusPill(
+                    String(format: L("rules.suggestions.count"), ruleSuggestions.count),
+                    systemImage: "sparkles",
+                    tone: ruleSuggestions.isEmpty ? .neutral : .info
+                )
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+        .accessibilityIdentifier("rules.suggestions.header")
+    }
+
+    private func suggestedRuleCard(_ suggestion: RuleSuggestionRow) -> some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 220), spacing: DesignSystem.Spacing.md)],
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                suggestedRuleIdentity(suggestion)
+                suggestedRuleCreateButton(suggestion)
+            }
+
+            suggestedRuleEvidence(suggestion)
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(DesignSystem.StatusTone.info.color.opacity(0.07))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(DesignSystem.StatusTone.info.color.opacity(0.18), lineWidth: 1)
+        )
+        .accessibilityIdentifier("rules.suggestions.card")
+    }
+
+    private func suggestedRuleIdentity(_ suggestion: RuleSuggestionRow) -> some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            IconWell(systemImage: "sparkles", tone: .info, accessibilityLabel: L("rules.suggestions.title"))
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(
+                    String(
+                        format: L("rules.suggestions.preview"),
+                        suggestion.appName,
+                        tagName(for: suggestion.tagId)
+                    )
+                )
+                .font(.subheadline.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.primaryText)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+
+                Text("rules.suggestions.reason")
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func suggestedRuleCreateButton(_ suggestion: RuleSuggestionRow) -> some View {
+        Button {
+            createRuleFromSuggestion(suggestion)
+        } label: {
+            Label(L("rules.suggestions.create"), systemImage: "plus")
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(DesignSystem.Colors.accentSkyBlue)
+        .frame(maxWidth: .infinity, minHeight: 34, alignment: .trailing)
+    }
+
+    private func suggestedRuleEvidence(_ suggestion: RuleSuggestionRow) -> some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 118), spacing: DesignSystem.Spacing.xs)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.xs
+        ) {
+            StatusPill(
+                String(format: L("rules.suggestions.corrections"), suggestion.overrideCount),
+                systemImage: "hand.point.left.fill",
+                tone: .info
+            )
+            StatusPill(
+                suggestionConfidenceText(suggestion),
+                systemImage: "chart.bar.fill",
+                tone: suggestion.confidence >= 0.85 ? .success : .info
+            )
+            StatusPill(
+                suggestion.bundleId == nil ? L("rules.suggestions.scope_all") : L("rules.suggestions.scope_app"),
+                systemImage: suggestion.bundleId == nil ? "scope" : "app.fill",
+                tone: .neutral
+            )
+        }
+        .accessibilityIdentifier("rules.suggestions.evidence")
+    }
+
+    private var ruleSuggestionsEmptyState: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            EmptyStateView(
+                title: L("rules.suggestions.empty"),
+                subtitle: L("rules.suggestions.empty_hint"),
+                systemImage: "sparkles",
+                tone: .info
+            )
+
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 180), spacing: DesignSystem.Spacing.sm)],
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                setupLibraryPathItem(
+                    titleKey: "rules.suggestions.empty.path.correct_title",
+                    detailKey: "rules.suggestions.empty.path.correct_detail",
+                    systemImage: "hand.point.left.fill",
+                    tone: .info,
+                    accessibilityIdentifier: "rules.suggestions.emptyPath.correct"
+                )
+                setupLibraryPathItem(
+                    titleKey: "rules.suggestions.empty.path.repeat_title",
+                    detailKey: "rules.suggestions.empty.path.repeat_detail",
+                    systemImage: "repeat",
+                    tone: .neutral,
+                    accessibilityIdentifier: "rules.suggestions.emptyPath.repeat"
+                )
+                setupLibraryPathItem(
+                    titleKey: "rules.suggestions.empty.path.narrow_title",
+                    detailKey: "rules.suggestions.empty.path.narrow_detail",
+                    systemImage: "scope",
+                    tone: .success,
+                    accessibilityIdentifier: "rules.suggestions.emptyPath.narrow"
+                )
+            }
+            .accessibilityIdentifier("rules.suggestions.emptyPath")
+        }
+        .padding(DesignSystem.Spacing.md)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(DesignSystem.StatusTone.info.color.opacity(0.05))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(DesignSystem.StatusTone.info.color.opacity(0.12), lineWidth: 1)
+        )
+        .accessibilityIdentifier("rules.suggestions.emptyState")
     }
 
     private func tagName(for tagId: Int64) -> String {
         tags.first(where: { $0.id == tagId })?.name ?? L("Untagged")
     }
 
-    private func suggestionDetail(_ suggestion: RuleSuggestionRow) -> String {
-        let confidenceText = String(format: "%.0f%%", suggestion.confidence * 100)
-        let bundleText = suggestion.bundleId ?? L("rules.any_app")
-        return String(
-            format: L("rules.suggestions.detail"),
-            suggestion.overrideCount,
-            suggestion.totalOverrides,
-            confidenceText,
-            bundleText
-        )
+    private func suggestionConfidenceText(_ suggestion: RuleSuggestionRow) -> String {
+        String(format: L("rules.suggestions.confidence"), suggestion.confidence * 100)
     }
 
     private func createRuleFromSuggestion(_ suggestion: RuleSuggestionRow) {
@@ -507,6 +2031,7 @@ struct RulesManagementView: View {
                         text: String(format: L("rules.suggestions.created"), suggestion.appName, tagNameText),
                         isError: false
                     )
+                    notifyTaggingSetupDidChange()
                     self.reloadData()
                 case .failure(let error):
                     self.lastActionMessage = StatusMessage(
@@ -529,6 +2054,7 @@ private struct TagEditorRow: View {
     @State private var name: String
     @State private var colorHex: String?
     @State private var popoverId = UUID()
+    @State private var isConfirmingDelete = false
 
     init(
         tag: TagRow,
@@ -545,7 +2071,36 @@ private struct TagEditorRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 8) {
+        RowSurface(tone: rowTone, isHovering: isHovering) {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 220), spacing: DesignSystem.Spacing.md)],
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                tagIdentityEditor
+                tagRowActions
+            }
+        }
+        .onHover { hovering in
+            isHovering = hovering
+        }
+        .confirmationDialog(
+            L("tags.delete.confirm.title"),
+            isPresented: $isConfirmingDelete,
+            titleVisibility: .visible
+        ) {
+            Button(L("tags.delete.confirm.action"), role: .destructive) {
+                onDelete()
+            }
+
+            Button(L("actions.cancel"), role: .cancel) {}
+        } message: {
+            Text(String(format: L("tags.delete.confirm.message"), tag.name))
+        }
+    }
+
+    private var tagIdentityEditor: some View {
+        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
             TagColorSwatchButton(
                 hex: $colorHex,
                 activePopoverId: $activePopoverId,
@@ -554,38 +2109,78 @@ private struct TagEditorRow: View {
                 allowClear: true
             )
 
-            TextField("Name", text: $name)
-                .textFieldStyle(.roundedBorder)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("tags.row.name_label")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
 
-            Button("Save") {
-                let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !trimmedName.isEmpty else { return }
-                onSave(TagRow(id: tag.id, name: trimmedName, color: colorHex))
+                TextField(L("tags.row.name_placeholder"), text: $name)
+                    .textFieldStyle(.roundedBorder)
+                    .accessibilityIdentifier("tags.row.name")
+
+                HStack(spacing: 6) {
+                    StatusPill(colorStatusText, systemImage: colorStatusIcon, tone: rowTone)
+                    Text(String(format: L("tags.row.id"), tag.id))
+                        .font(.caption2)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                }
             }
-            .buttonStyle(.bordered)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
 
-            Button("Delete") {
-                onDelete()
+    private var tagRowActions: some View {
+        HStack(spacing: DesignSystem.Spacing.sm) {
+            Spacer(minLength: 0)
+
+            Button {
+                saveTag()
+            } label: {
+                Label(L("tags.row.save_category"), systemImage: "checkmark")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(DesignSystem.Colors.accentSkyBlue)
+            .disabled(trimmedName.isEmpty)
+            .accessibilityIdentifier("tags.row.save")
+
+            Button {
+                isConfirmingDelete = true
+            } label: {
+                Label(L("tags.row.delete_category"), systemImage: "trash")
             }
             .buttonStyle(.bordered)
             .tint(.red)
+            .accessibilityIdentifier("tags.row.delete")
         }
-        .padding(DesignSystem.Spacing.sm)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .fill(DesignSystem.Colors.cardBackground)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .stroke(DesignSystem.Colors.separator.opacity(isHovering ? 0.6 : 0.25), lineWidth: 1)
-        )
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .fill(DesignSystem.Colors.separator.opacity(isHovering ? 0.06 : 0.0))
-        )
-        .onHover { hovering in
-            isHovering = hovering
+        .frame(maxWidth: .infinity, minHeight: 34, alignment: .trailing)
+    }
+
+    private func saveTag() {
+        guard !trimmedName.isEmpty else { return }
+        onSave(TagRow(id: tag.id, name: trimmedName, color: colorHex))
+    }
+
+    private var trimmedName: String {
+        name.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var rowTone: DesignSystem.StatusTone {
+        hasColor ? .info : .neutral
+    }
+
+    private var hasColor: Bool {
+        guard let color = colorHex?.trimmingCharacters(in: .whitespacesAndNewlines) else {
+            return false
         }
+        return !color.isEmpty
+    }
+
+    private var colorStatusText: String {
+        hasColor ? L("tags.row.colored") : L("tags.row.neutral")
+    }
+
+    private var colorStatusIcon: String {
+        hasColor ? "paintpalette.fill" : "circle.dotted"
     }
 }
 
@@ -605,6 +2200,7 @@ private struct RuleEditorRow: View {
     @State private var priority: Int
     @State private var selectedBundleId: String
     @State private var isHovering = false
+    @State private var isConfirmingDelete = false
 
     private let unassignedTagId: Int64 = -1
     private let anyBundleId: String = "__any__"
@@ -626,88 +2222,194 @@ private struct RuleEditorRow: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Toggle("Enabled", isOn: $enabled)
-                    .toggleStyle(.switch)
-                TextField("Rule name", text: $name)
-                    .textFieldStyle(.roundedBorder)
-                Picker("Tag", selection: $selectedTagId) {
-                    Text("Unassigned").tag(unassignedTagId)
-                    ForEach(tags) { tag in
-                        Text(tag.name).tag(tag.id)
-                    }
-                }
-                .frame(width: 160)
-                Stepper(value: $priority, in: -10...10) {
-                    Text(String(format: L("rules.priority"), priority))
-                }
-                .frame(width: 150)
-            }
+        RowSurface(tone: ruleTone, isHovering: isHovering) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+                    IconWell(systemImage: enabled ? "bolt.fill" : "pause.circle", tone: ruleTone, accessibilityLabel: name)
 
-            HStack(spacing: 8) {
-                Picker(L("rules.target_app"), selection: $selectedBundleId) {
-                    Text(L("rules.any_app")).tag(anyBundleId)
-                    ForEach(appOptions) { app in
+                    VStack(alignment: .leading, spacing: 4) {
+                        fieldCaption("rules.row.name_label")
+                        TextField("rules.row.name_placeholder", text: $name)
+                            .textFieldStyle(.roundedBorder)
                         HStack(spacing: 6) {
-                            Image(nsImage: icon(for: app))
-                                .resizable()
-                                .frame(width: 14, height: 14)
-                                .cornerRadius(3)
-                            VStack(alignment: .leading, spacing: 0) {
-                                Text(app.appName)
-                                Text(app.bundleId)
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
-                            }
+                            StatusPill(enabled ? L("rules.row.active") : L("rules.row.paused"), systemImage: enabled ? "bolt.fill" : "pause", tone: ruleTone)
+                            StatusPill(tagStatusText, systemImage: "rectangle.split.3x1", tone: selectedTagId == unassignedTagId ? .warning : .info)
+                            StatusPill(scopeStatusText, systemImage: scopeStatusIcon, tone: selectedBundleId == anyBundleId ? .neutral : .info)
                         }
-                        .tag(app.bundleId)
+                    }
+
+                    Spacer()
+
+                    Toggle("rules.row.enabled", isOn: $enabled)
+                        .toggleStyle(.switch)
+                }
+
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 190), spacing: DesignSystem.Spacing.md)],
+                    alignment: .leading,
+                    spacing: DesignSystem.Spacing.sm
+                ) {
+                    ruleDestinationEditor
+                    ruleScopeEditor
+                    rulePriorityEditor
+                }
+
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    Text("rules.row.conditions_title")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+                    Text("rules.row.conditions_detail")
+                        .font(.caption2)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+
+                    LazyVGrid(
+                        columns: [GridItem(.adaptive(minimum: 180), spacing: DesignSystem.Spacing.sm)],
+                        alignment: .leading,
+                        spacing: DesignSystem.Spacing.sm
+                    ) {
+                        ruleAppNameField
+                        ruleWindowTitleField
+                        ruleMatchModePicker
                     }
                 }
-                .frame(width: 260)
-                .labelsHidden()
 
-                TextField("Match app name", text: $matchAppName)
-                    .textFieldStyle(.roundedBorder)
-                TextField("Match window title", text: $matchWindowTitle)
-                    .textFieldStyle(.roundedBorder)
-                Picker("Mode", selection: $matchMode) {
-                    ForEach(RuleMatchMode.allCases) { mode in
-                        Text(mode.label).tag(mode)
-                    }
-                }
-                .frame(width: 140)
-
-                Spacer()
-
-                Button("Save") {
-                    onSave(updatedRule)
-                }
-                .buttonStyle(.bordered)
-
-                Button("Delete") {
-                    onDelete()
-                }
-                .buttonStyle(.bordered)
-                .tint(.red)
+                ruleRowActions
             }
         }
-        .padding(DesignSystem.Spacing.sm)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(DesignSystem.Colors.cardBackground)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(DesignSystem.Colors.separator.opacity(isHovering ? 0.6 : 0.25), lineWidth: 1)
-        )
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(DesignSystem.Colors.separator.opacity(isHovering ? 0.06 : 0.0))
-        )
         .onHover { hovering in
             isHovering = hovering
         }
+        .confirmationDialog(
+            L("rules.delete.confirm.title"),
+            isPresented: $isConfirmingDelete,
+            titleVisibility: .visible
+        ) {
+            Button(L("rules.delete.confirm.action"), role: .destructive) {
+                onDelete()
+            }
+
+            Button(L("actions.cancel"), role: .cancel) {}
+        } message: {
+            Text(String(format: L("rules.delete.confirm.message"), rule.name))
+        }
+    }
+
+    private var ruleRowActions: some View {
+        HStack(spacing: DesignSystem.Spacing.sm) {
+            Spacer(minLength: 0)
+
+            Button {
+                onSave(updatedRule)
+            } label: {
+                Label("rules.row.save_changes", systemImage: "checkmark")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(DesignSystem.Colors.accentSkyBlue)
+            .accessibilityIdentifier("rules.row.save")
+
+            Button {
+                isConfirmingDelete = true
+            } label: {
+                Label("rules.row.delete_rule", systemImage: "trash")
+            }
+            .buttonStyle(.bordered)
+            .tint(.red)
+            .accessibilityIdentifier("rules.row.delete")
+        }
+        .frame(maxWidth: .infinity, minHeight: 34, alignment: .trailing)
+    }
+
+    private var ruleDestinationEditor: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            fieldCaption("rules.row.destination")
+            Picker("rules.row.destination", selection: $selectedTagId) {
+                Text("rules.row.unassigned").tag(unassignedTagId)
+                ForEach(tags) { tag in
+                    Text(tag.name).tag(tag.id)
+                }
+            }
+            .labelsHidden()
+            .accessibilityIdentifier("rules.row.destination")
+        }
+        .frame(minWidth: 170, maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var ruleScopeEditor: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            fieldCaption("rules.row.scope")
+            Picker("rules.row.scope", selection: $selectedBundleId) {
+                Text(L("rules.any_app")).tag(anyBundleId)
+                ForEach(appOptions) { app in
+                    HStack(spacing: 6) {
+                        Image(nsImage: icon(for: app))
+                            .resizable()
+                            .frame(width: 14, height: 14)
+                            .cornerRadius(3)
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(app.appName)
+                            Text(app.bundleId)
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .tag(app.bundleId)
+                }
+            }
+            .labelsHidden()
+            .accessibilityIdentifier("rules.row.scope")
+        }
+        .frame(minWidth: 220, maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var rulePriorityEditor: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            fieldCaption("rules.row.priority_label")
+            Stepper(value: $priority, in: -10...10) {
+                Text(String(format: L("rules.row.priority_value"), priority))
+            }
+            .accessibilityIdentifier("rules.row.priority")
+        }
+        .frame(minWidth: 150, maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var ruleAppNameField: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            fieldCaption("rules.row.app_name_match")
+            TextField("rules.row.app_name_placeholder", text: $matchAppName)
+                .textFieldStyle(.roundedBorder)
+                .accessibilityIdentifier("rules.row.matchAppName")
+        }
+        .frame(minWidth: 170, maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var ruleWindowTitleField: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            fieldCaption("rules.row.window_title_match")
+            TextField("rules.row.window_title_placeholder", text: $matchWindowTitle)
+                .textFieldStyle(.roundedBorder)
+                .accessibilityIdentifier("rules.row.matchWindowTitle")
+        }
+        .frame(minWidth: 200, maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var ruleMatchModePicker: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            fieldCaption("rules.row.match_mode")
+            Picker("rules.row.match_mode", selection: $matchMode) {
+                ForEach(RuleMatchMode.allCases) { mode in
+                    Text(mode.label).tag(mode)
+                }
+            }
+            .labelsHidden()
+            .accessibilityIdentifier("rules.row.mode")
+        }
+        .frame(minWidth: 140, maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func fieldCaption(_ key: LocalizedStringKey) -> some View {
+        Text(key)
+            .font(.caption2.weight(.semibold))
+            .foregroundColor(DesignSystem.Colors.secondaryText)
     }
 
     private var updatedRule: RuleRow {
@@ -729,6 +2431,29 @@ private struct RuleEditorRow: View {
         )
     }
 
+    private var ruleTone: DesignSystem.StatusTone {
+        enabled ? .success : .warning
+    }
+
+    private var selectedTag: TagRow? {
+        tags.first(where: { $0.id == selectedTagId })
+    }
+
+    private var tagStatusText: String {
+        selectedTag?.name ?? L("rules.row.unassigned")
+    }
+
+    private var scopeStatusText: String {
+        if selectedBundleId == anyBundleId {
+            return L("rules.scope.any")
+        }
+        return appOptions.first(where: { $0.bundleId == selectedBundleId })?.appName ?? L("rules.scope.selected")
+    }
+
+    private var scopeStatusIcon: String {
+        selectedBundleId == anyBundleId ? "scope" : "app.fill"
+    }
+
     private var appOptions: [AppMappingRow] {
         appMappings.sorted { $0.appName.localizedCaseInsensitiveCompare($1.appName) == .orderedAscending }
     }
@@ -737,7 +2462,7 @@ private struct RuleEditorRow: View {
         if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: app.bundleId) {
             return NSWorkspace.shared.icon(forFile: url.path)
         }
-        return NSWorkspace.shared.icon(forFileType: "app")
+        return DesignSystem.Images.genericAppIcon
     }
 }
 
@@ -795,7 +2520,7 @@ private struct TagColorSwatchButton: View {
             }
 
             if showChooseButton {
-                Button("Choose…") {
+                Button("tags.color.choose") {
                     activePopoverId = popoverId
                 }
                 .buttonStyle(.bordered)
@@ -834,14 +2559,14 @@ private struct TagColorPopoverContent: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
-                Text("Color")
+                Text("tags.color.current")
                     .font(.caption)
                     .foregroundColor(.secondary)
 
                 ColorSwatchView(hex: hex ?? "")
 
                 if allowClear {
-                    Button("Clear") {
+                    Button("tags.color.clear") {
                         hex = nil
                         colorSelection = Color(hex: TagColorPalette.defaultHex) ?? .blue
                     }
@@ -866,7 +2591,7 @@ private struct TagColorPopoverContent: View {
                 }
             }
 
-            ColorPicker("More…", selection: $colorSelection, supportsOpacity: false)
+            ColorPicker("tags.color.more", selection: $colorSelection, supportsOpacity: false)
                 .onChange(of: colorSelection) { _, newValue in
                     if let hexValue = newValue.toHexString() {
                         hex = hexValue

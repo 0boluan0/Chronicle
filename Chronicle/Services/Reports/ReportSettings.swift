@@ -171,6 +171,32 @@ final class ReportSettings: ObservableObject {
         weeklyTemplateText = Self.defaultWeeklyTemplate
     }
 
+    func dailyExportSucceeded(for date: Date, calendar: Calendar = .current) -> Bool {
+        guard !lastDailyExportIsError else { return false }
+
+        let selectedDay = ReportService.dayKey(for: date)
+        if let lastExportedDay {
+            return lastExportedDay == selectedDay
+        }
+
+        guard lastDailyExportAt > 0 else { return false }
+        let exportedDate = Date(timeIntervalSince1970: lastDailyExportAt)
+        return calendar.isDate(exportedDate, inSameDayAs: date)
+    }
+
+    func weeklyExportSucceeded(for date: Date) -> Bool {
+        guard !lastWeeklyExportIsError else { return false }
+
+        let selectedWeek = ReportService.weekKey(for: date)
+        if let lastExportedWeek {
+            return lastExportedWeek == selectedWeek
+        }
+
+        guard lastWeeklyExportAt > 0 else { return false }
+        let exportedDate = Date(timeIntervalSince1970: lastWeeklyExportAt)
+        return ReportService.weekKey(for: exportedDate) == selectedWeek
+    }
+
     func updateDailyFolderBookmark(url: URL) throws {
         let data = try url.bookmarkData(
             options: bookmarkCreationOptions,

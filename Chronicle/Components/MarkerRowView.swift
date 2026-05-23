@@ -12,39 +12,64 @@ struct MarkerRowView: View {
     @State private var isHovering = false
 
     var body: some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-            Image(systemName: "pin.fill")
-                .foregroundColor(DesignSystem.Colors.accentSkyBlue)
-                .font(.system(size: 12, weight: .semibold))
-                .padding(.top, 2)
+        RowSurface(tone: .success, isHovering: isHovering) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                IconWell(systemImage: "note.text", tone: .success, accessibilityLabel: L("timeline.marker.point"))
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(TimeFormatters.timeText(for: marker.timestamp, includeSeconds: true))
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                VStack(alignment: .leading, spacing: 6) {
+                    LazyVGrid(
+                        columns: adaptiveColumns(minimum: 112, spacing: DesignSystem.Spacing.xs),
+                        alignment: .leading,
+                        spacing: DesignSystem.Spacing.xs
+                    ) {
+                        markerStatus
+                        markerTime
+                    }
 
-                Text(marker.text)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    Text(marker.text)
+                        .font(.callout.weight(.medium))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    HStack(spacing: 7) {
+                        Image(systemName: "doc.text.magnifyingglass")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundColor(DesignSystem.StatusTone.success.color)
+
+                        Text("timeline.row.closeout_cue")
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .accessibilityIdentifier("timeline.marker.closeoutCue")
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Spacer(minLength: DesignSystem.Spacing.sm)
             }
-
-            Spacer(minLength: DesignSystem.Spacing.sm)
         }
-        .padding(DesignSystem.Spacing.md)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(DesignSystem.Colors.cardBackground)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .stroke(DesignSystem.Colors.separator.opacity(isHovering ? 0.55 : 0.25), lineWidth: 1)
-        )
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(DesignSystem.Colors.separator.opacity(isHovering ? 0.08 : 0.0))
-        )
         .onHover { hovering in
             isHovering = hovering
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("timeline.markerRow")
+    }
+
+    private var markerStatus: some View {
+        StatusPill(L("timeline.marker.point"), systemImage: "note.text", tone: .success)
+    }
+
+    private var markerTime: some View {
+        Text(TimeFormatters.timeText(for: marker.timestamp, includeSeconds: true))
+            .font(DesignSystem.Typography.caption)
+            .foregroundColor(DesignSystem.Colors.secondaryText)
+            .monospacedDigit()
+            .lineLimit(1)
+    }
+
+    private func adaptiveColumns(minimum: CGFloat, spacing: CGFloat) -> [GridItem] {
+        [GridItem(.adaptive(minimum: minimum), spacing: spacing, alignment: .leading)]
     }
 }

@@ -50,6 +50,10 @@ final class HealthCheckService: ObservableObject {
         metrics["tracking_running"] = ActivityTracker.shared.isRunning ? "true" : "false"
         metrics["accessibility_authorized"] = appState.accessibilityAuthorized ? "true" : "false"
         metrics["window_title_capture_enabled"] = appState.windowTitleCaptureEnabled ? "true" : "false"
+        metrics["auto_daily_export_enabled"] = reportSettings.enableAutoDailyExport ? "true" : "false"
+        metrics["auto_weekly_export_enabled"] = reportSettings.enableAutoWeeklyExport ? "true" : "false"
+        metrics["daily_export_folder_configured"] = reportSettings.dailyFolderBookmark == nil ? "false" : "true"
+        metrics["weekly_export_folder_configured"] = reportSettings.weeklyFolderBookmark == nil ? "false" : "true"
 
         if !dbFolderWritable {
             issues.append(
