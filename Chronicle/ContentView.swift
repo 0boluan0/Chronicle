@@ -75,48 +75,82 @@ struct ContentView: View {
     }
 
     private var popoverHeaderView: some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(LocalizedStringKey("app.name"))
-                    .font(DesignSystem.Typography.title)
-                    .foregroundColor(DesignSystem.Colors.primaryText)
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+                IconWell(
+                    systemImage: popoverHeaderStatusIconName,
+                    tone: popoverHeaderStatusTone,
+                    accessibilityLabel: popoverHeaderStatusText
+                )
+                .accessibilityIdentifier("popover.headerIcon")
 
-                Text(LocalizedStringKey("popover.subtitle"))
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack(spacing: DesignSystem.Spacing.sm) {
+                        Text(LocalizedStringKey("app.name"))
+                            .font(DesignSystem.Typography.title)
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.86)
+
+                        StatusPill(
+                            popoverHeaderStatusText,
+                            systemImage: popoverHeaderStatusIconName,
+                            tone: popoverHeaderStatusTone
+                        )
+                        .accessibilityIdentifier("popover.headerStatus")
+                    }
+
+                    Text(LocalizedStringKey("popover.subtitle"))
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+                .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+
+                popoverHeaderActions
             }
 
-            Spacer()
-
-            VStack(alignment: .trailing, spacing: 6) {
-                StatusPill(
-                    popoverHeaderStatusText,
-                    systemImage: popoverHeaderStatusIconName,
-                    tone: popoverHeaderStatusTone
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                RatioBar(
+                    filledFraction: commandCenterLoopProgressFraction,
+                    filledColor: commandCenterLoopTone.color,
+                    remainderColor: DesignSystem.Colors.separator
                 )
-                .accessibilityIdentifier("popover.headerStatus")
+                .frame(maxWidth: .infinity)
 
-                HStack(spacing: 6) {
-                    popoverHeaderIconButton(
-                        titleKey: "popover.open_dashboard",
-                        systemImage: "sun.max",
-                        accessibilityIdentifier: "popover.openDashboard"
-                    ) {
-                        TelemetryService.shared.increment("dashboard_opened")
-                        AppWindowRouter.shared.open(.dashboard)
-                    }
+                Text(commandCenterLoopProgressText)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundColor(commandCenterLoopTone.color)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("popover.headerProgress")
+        }
+        .padding(.bottom, 2)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("popover.header")
+    }
 
-                    popoverHeaderIconButton(
-                        titleKey: "popover.open_preferences",
-                        systemImage: "gearshape",
-                        accessibilityIdentifier: "popover.openPreferences"
-                    ) {
-                        TelemetryService.shared.increment("preferences_opened")
-                        AppWindowRouter.shared.open(.settings())
-                    }
-                }
+    private var popoverHeaderActions: some View {
+        HStack(spacing: 6) {
+            popoverHeaderIconButton(
+                titleKey: "popover.open_dashboard",
+                systemImage: "sun.max",
+                accessibilityIdentifier: "popover.openDashboard"
+            ) {
+                TelemetryService.shared.increment("dashboard_opened")
+                AppWindowRouter.shared.open(.dashboard)
+            }
+
+            popoverHeaderIconButton(
+                titleKey: "popover.open_preferences",
+                systemImage: "gearshape",
+                accessibilityIdentifier: "popover.openPreferences"
+            ) {
+                TelemetryService.shared.increment("preferences_opened")
+                AppWindowRouter.shared.open(.settings())
             }
         }
     }
