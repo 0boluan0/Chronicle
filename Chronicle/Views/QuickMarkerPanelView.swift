@@ -14,6 +14,7 @@ struct QuickMarkerPanelView: View {
     @EnvironmentObject private var appState: AppState
     @ObservedObject private var reportSettings = ReportSettings.shared
     @State private var contextDate = Date()
+    @State private var draftText = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
@@ -74,6 +75,7 @@ struct QuickMarkerPanelView: View {
             autoFocus: true,
             triggerSource: .hotkey,
             showsOutcomeStrip: false,
+            onDraftChange: { draftText = $0 },
             onSubmit: AppRuntime.isUITestMode ? nil : onClose,
             onCancel: onClose
         )
@@ -82,11 +84,85 @@ struct QuickMarkerPanelView: View {
 
     private var panelSideRail: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            reviewLoopStrip
             contextStrip
             captureRouteStrip
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .accessibilityIdentifier("quickMarker.sideRail")
+    }
+
+    private var reviewLoopStrip: some View {
+        RowSurface(tone: reviewLoopTone) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                    IconWell(
+                        systemImage: reviewLoopIconName,
+                        tone: reviewLoopTone,
+                        accessibilityLabel: reviewLoopStatusText
+                    )
+                    .frame(width: 32, height: 32)
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("quick_marker.loop.title")
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+                            .lineLimit(1)
+
+                        Text(LocalizedStringKey(reviewLoopDetailKey))
+                            .font(.caption2)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .lineLimit(3)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Spacer(minLength: 0)
+                }
+
+                HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.xs) {
+                    Text(String(format: L("quick_marker.loop.progress"), reviewLoopReadyCount, reviewLoopTotalCount))
+                        .font(.caption2.weight(.semibold))
+                        .foregroundColor(reviewLoopTone.color)
+                        .monospacedDigit()
+                        .lineLimit(1)
+
+                    Spacer(minLength: 0)
+
+                    StatusPill(reviewLoopStatusText, systemImage: reviewLoopStatusIconName, tone: reviewLoopTone)
+                }
+
+                RatioBar(
+                    filledFraction: reviewLoopProgressFraction,
+                    filledColor: reviewLoopTone.color,
+                    remainderColor: DesignSystem.Colors.separator
+                )
+
+                VStack(alignment: .leading, spacing: 6) {
+                    reviewLoopStep(
+                        titleKey: "quick_marker.loop.step.time_title",
+                        value: currentTimeText,
+                        systemImage: "clock",
+                        tone: .info,
+                        accessibilityIdentifier: "quickMarker.loop.time"
+                    )
+                    reviewLoopStep(
+                        titleKey: "quick_marker.loop.step.context_title",
+                        value: draftContextValue,
+                        systemImage: draftHasContext ? "checkmark.circle.fill" : "note.text.badge.plus",
+                        tone: draftHasContext ? .success : .warning,
+                        accessibilityIdentifier: "quickMarker.loop.context"
+                    )
+                    reviewLoopStep(
+                        titleKey: "quick_marker.loop.step.log_title",
+                        value: dailyLogContextDetail,
+                        systemImage: dailyLogContextIconName,
+                        tone: dailyLogContextTone,
+                        accessibilityIdentifier: "quickMarker.loop.log"
+                    )
+                }
+            }
+        }
+        .accessibilityIdentifier("quickMarker.reviewLoop")
     }
 
     private var panelHeaderCopy: some View {
@@ -279,6 +355,47 @@ struct QuickMarkerPanelView: View {
         .accessibilityIdentifier(accessibilityIdentifier)
     }
 
+    private func reviewLoopStep(
+        titleKey: LocalizedStringKey,
+        value: String,
+        systemImage: String,
+        tone: DesignSystem.StatusTone,
+        accessibilityIdentifier: String
+    ) -> some View {
+        HStack(alignment: .center, spacing: DesignSystem.Spacing.xs) {
+            Image(systemName: systemImage)
+                .font(.caption2.weight(.semibold))
+                .foregroundColor(tone.color)
+                .frame(width: 13)
+
+            Text(titleKey)
+                .font(.caption2.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.primaryText)
+                .lineLimit(1)
+
+            Spacer(minLength: DesignSystem.Spacing.xs)
+
+            Text(value)
+                .font(.caption2.weight(.semibold))
+                .foregroundColor(tone.color)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .minimumScaleFactor(0.82)
+        }
+        .padding(.horizontal, DesignSystem.Spacing.sm)
+        .padding(.vertical, 5)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .fill(tone.color.opacity(0.07))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .stroke(tone.color.opacity(0.16), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier(accessibilityIdentifier)
+    }
+
     private var currentAppName: String {
         let appName = appState.currentActiveAppName.trimmingCharacters(in: .whitespacesAndNewlines)
         if appName.isEmpty || appName == "Unknown" {
@@ -289,6 +406,91 @@ struct QuickMarkerPanelView: View {
 
     private var currentTimeText: String {
         Self.timeFormatter.string(from: contextDate)
+    }
+
+    private var draftHasContext: Bool {
+        !draftText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var draftContextValue: String {
+        draftHasContext
+            ? L("quick_marker.loop.context_ready")
+            : L("quick_marker.loop.context_waiting")
+    }
+
+    private var reviewLoopReadyCount: Int {
+        var count = 1
+        if draftHasContext {
+            count += 1
+        }
+        if dailyLogSavedToday || reportSettings.dailyFolderBookmark != nil {
+            count += 1
+        }
+        return count
+    }
+
+    private var reviewLoopTotalCount: Int {
+        3
+    }
+
+    private var reviewLoopProgressFraction: Double {
+        Double(reviewLoopReadyCount) / Double(reviewLoopTotalCount)
+    }
+
+    private var reviewLoopStatusText: String {
+        if reportSettings.dailyFolderBookmark == nil {
+            return L("quick_marker.loop.status.needs_folder")
+        }
+        if !draftHasContext {
+            return L("quick_marker.loop.status.needs_context")
+        }
+        if dailyLogSavedToday {
+            return L("quick_marker.loop.status.saved")
+        }
+        return L("quick_marker.loop.status.ready")
+    }
+
+    private var reviewLoopDetailKey: String {
+        if reportSettings.dailyFolderBookmark == nil {
+            return "quick_marker.loop.detail.needs_folder"
+        }
+        if !draftHasContext {
+            return "quick_marker.loop.detail.needs_context"
+        }
+        if dailyLogSavedToday {
+            return "quick_marker.loop.detail.saved"
+        }
+        return "quick_marker.loop.detail.ready"
+    }
+
+    private var reviewLoopStatusIconName: String {
+        if reportSettings.dailyFolderBookmark == nil {
+            return "folder.badge.plus"
+        }
+        if !draftHasContext {
+            return "note.text.badge.plus"
+        }
+        if dailyLogSavedToday {
+            return "checkmark.seal.fill"
+        }
+        return "checkmark.circle.fill"
+    }
+
+    private var reviewLoopIconName: String {
+        if reportSettings.dailyFolderBookmark == nil {
+            return "folder.badge.plus"
+        }
+        if !draftHasContext {
+            return "note.text.badge.plus"
+        }
+        return "arrow.triangle.2.circlepath"
+    }
+
+    private var reviewLoopTone: DesignSystem.StatusTone {
+        if reportSettings.dailyFolderBookmark == nil || !draftHasContext {
+            return .warning
+        }
+        return .success
     }
 
     private var dailyLogContextDetail: String {

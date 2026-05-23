@@ -25,6 +25,7 @@ struct QuickMarkerEntryView: View {
     let autoFocus: Bool
     let triggerSource: QuickMarkerTriggerSource
     let showsOutcomeStrip: Bool
+    let onDraftChange: ((String) -> Void)?
     let onSubmit: (() -> Void)?
     let onCancel: (() -> Void)?
 
@@ -33,6 +34,7 @@ struct QuickMarkerEntryView: View {
         autoFocus: Bool,
         triggerSource: QuickMarkerTriggerSource,
         showsOutcomeStrip: Bool = true,
+        onDraftChange: ((String) -> Void)? = nil,
         onSubmit: (() -> Void)?,
         onCancel: (() -> Void)?
     ) {
@@ -40,6 +42,7 @@ struct QuickMarkerEntryView: View {
         self.autoFocus = autoFocus
         self.triggerSource = triggerSource
         self.showsOutcomeStrip = showsOutcomeStrip
+        self.onDraftChange = onDraftChange
         self.onSubmit = onSubmit
         self.onCancel = onCancel
     }
@@ -87,6 +90,7 @@ struct QuickMarkerEntryView: View {
                 }
                 loadSuggestions()
                 loadOpenSpan()
+                onDraftChange?(markerText)
                 TelemetryService.shared.increment("quick_marker_opened")
                 if autoFocus {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
@@ -94,6 +98,9 @@ struct QuickMarkerEntryView: View {
                     }
                 }
             }
+        }
+        .onChange(of: markerText) { _, newValue in
+            onDraftChange?(newValue)
         }
         .onChange(of: appState.quickMarkerMode) { _, _ in
             loadOpenSpan()
