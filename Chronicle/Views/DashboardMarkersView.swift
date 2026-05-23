@@ -99,6 +99,8 @@ struct DashboardMarkersView: View {
 
                 cueCaptureNextActionView
 
+                cueCaptureProgressView
+
                 Divider()
 
                 cueSummaryGrid
@@ -125,6 +127,43 @@ struct DashboardMarkersView: View {
             }
         }
         .accessibilityIdentifier("dashboard.markers.nextAction")
+    }
+
+    private var cueCaptureProgressView: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+                Image(systemName: cueCaptureStatusIconName)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(cueCaptureProgressTone.color)
+                    .frame(width: 16)
+
+                Text("markers.capture.progress.title")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(1)
+
+                Spacer(minLength: DesignSystem.Spacing.sm)
+
+                StatusPill(cueCaptureProgressText, systemImage: cueCaptureProgressIconName, tone: cueCaptureProgressTone)
+            }
+
+            RatioBar(
+                filledFraction: cueCaptureProgressFraction,
+                filledColor: cueCaptureProgressTone.color,
+                remainderColor: DesignSystem.Colors.separator
+            )
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(cueCaptureProgressTone.color.opacity(0.07))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(cueCaptureProgressTone.color.opacity(0.18), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("dashboard.markers.progress")
     }
 
     private var cueCaptureNextActionSummary: some View {
@@ -742,6 +781,72 @@ struct DashboardMarkersView: View {
             return "markers.capture.path.folder_detail"
         }
         return "markers.capture.path.closeout_detail"
+    }
+
+    private var cueCaptureProgressReadyCount: Int {
+        var count = 0
+        if cueNotePathState.isComplete {
+            count += 1
+        }
+        if cueSessionPathState.isComplete {
+            count += 1
+        }
+        if cueCloseoutPathState.isComplete {
+            count += 1
+        }
+        return count
+    }
+
+    private var cueCaptureProgressTotalCount: Int {
+        3
+    }
+
+    private var cueCaptureProgressFraction: Double {
+        guard !isLoadingCueSummary, cueSummaryError == nil else { return 0 }
+        return Double(cueCaptureProgressReadyCount) / Double(cueCaptureProgressTotalCount)
+    }
+
+    private var cueCaptureProgressText: String {
+        if cueSummaryError != nil {
+            return L("markers.capture.progress.error")
+        }
+        if isLoadingCueSummary {
+            return L("markers.capture.progress.loading")
+        }
+        return String(
+            format: L("markers.capture.progress.value"),
+            cueCaptureProgressReadyCount,
+            cueCaptureProgressTotalCount
+        )
+    }
+
+    private var cueCaptureProgressIconName: String {
+        if cueSummaryError != nil {
+            return "exclamationmark.triangle.fill"
+        }
+        if isLoadingCueSummary {
+            return "arrow.triangle.2.circlepath"
+        }
+        if cueCaptureProgressReadyCount == cueCaptureProgressTotalCount {
+            return "checkmark.circle.fill"
+        }
+        return "circle.dashed"
+    }
+
+    private var cueCaptureProgressTone: DesignSystem.StatusTone {
+        if cueSummaryError != nil {
+            return .critical
+        }
+        if isLoadingCueSummary {
+            return .neutral
+        }
+        if cueCaptureProgressReadyCount == cueCaptureProgressTotalCount {
+            return .success
+        }
+        if cueSummary.ongoingCount > 0 || cueNeedsLogFolder {
+            return .warning
+        }
+        return cueSummary.totalCount == 0 ? .info : .success
     }
 
     private var cueCaptureStatusText: String {

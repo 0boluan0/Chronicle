@@ -1702,6 +1702,10 @@
 "markers.capture.next.loading_detail" = "You can still add a note while the summary refreshes.";
 "markers.capture.next.error_title" = "Refresh the context summary first.";
 "markers.capture.next.error_detail" = "Retry the summary, then use App Health if the context count still cannot load.";
+"markers.capture.progress.title" = "Review loop progress";
+"markers.capture.progress.value" = "%d/%d ready";
+"markers.capture.progress.loading" = "Checking";
+"markers.capture.progress.error" = "Needs check";
 "markers.capture.summary.notes" = "Notes";
 "markers.capture.summary.sessions" = "Focus blocks";
 "markers.capture.summary.ongoing" = "Live";

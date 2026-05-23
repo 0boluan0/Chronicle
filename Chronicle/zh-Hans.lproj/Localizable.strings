@@ -1702,6 +1702,10 @@
 "markers.capture.next.loading_detail" = "概览刷新时仍可先添加一条笔记。";
 "markers.capture.next.error_title" = "先刷新语境概览。";
 "markers.capture.next.error_detail" = "重试概览；如果语境数量仍无法读取，再打开应用健康。";
+"markers.capture.progress.title" = "复盘闭环进度";
+"markers.capture.progress.value" = "%d/%d 就绪";
+"markers.capture.progress.loading" = "检查中";
+"markers.capture.progress.error" = "需检查";
 "markers.capture.summary.notes" = "备注";
 "markers.capture.summary.sessions" = "专注区间";
 "markers.capture.summary.ongoing" = "进行中";

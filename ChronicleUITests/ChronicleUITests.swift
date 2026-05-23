@@ -565,6 +565,7 @@ final class ChronicleUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Context Capture"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.descendants(matching: .any)["dashboard.markers.dateControls"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["dashboard.markers.captureHeader"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["dashboard.markers.progress"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["dashboard.markers.addCue"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["dashboard.markers.openTimeline"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["dashboard.markers.closeout"].waitForExistence(timeout: 5))
