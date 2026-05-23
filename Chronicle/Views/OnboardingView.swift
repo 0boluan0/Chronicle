@@ -88,7 +88,7 @@ struct OnboardingView: View {
             spacing: DesignSystem.Spacing.sm
         ) {
             onboardingHeaderCopy
-            StatusPill(stepStatusText, systemImage: stepStatusIconName, tone: stepTone)
+            onboardingHeaderProgress
                 .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .accessibilityIdentifier("onboarding.header")
@@ -115,6 +115,39 @@ struct OnboardingView: View {
             }
         }
         .accessibilityElement(children: .combine)
+    }
+
+    private var onboardingHeaderProgress: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+            StatusPill(stepStatusText, systemImage: stepStatusIconName, tone: stepTone)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            RatioBar(
+                filledFraction: setupRailProgressFraction,
+                filledColor: setupRailFocusTone.color,
+                remainderColor: DesignSystem.Colors.separator
+            )
+            .frame(maxWidth: 180)
+
+            Text(setupRailProgressText)
+                .font(.caption2.weight(.medium))
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.82)
+                .monospacedDigit()
+        }
+        .padding(.horizontal, DesignSystem.Spacing.sm)
+        .padding(.vertical, 7)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(setupRailFocusTone.color.opacity(0.07))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(setupRailFocusTone.color.opacity(0.18), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("onboarding.header.progress")
     }
 
     private var setupRail: some View {
