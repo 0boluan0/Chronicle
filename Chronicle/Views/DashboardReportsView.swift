@@ -1586,7 +1586,7 @@ struct ReportsWorkspaceView: View {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                 csvHeader
 
-                Divider()
+                csvGuidanceStrip
 
                 csvDestinationRow
 
@@ -1629,6 +1629,194 @@ struct ReportsWorkspaceView: View {
             .accessibilityIdentifier("reports.csvFolderStatus")
         }
         .accessibilityIdentifier("reports.csv.header")
+    }
+
+    private var csvGuidanceStrip: some View {
+        let folderStatus = folderStatusLine(for: .csv)
+        let destinationReady = !folderStatus.isError
+        let destinationTone: DesignSystem.StatusTone = destinationReady ? .success : .warning
+
+        return VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                IconWell(
+                    systemImage: "shippingbox.fill",
+                    tone: destinationTone,
+                    accessibilityLabel: L("reports.csv.guidance.title")
+                )
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("reports.csv.guidance.title")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+
+                    Text("reports.csv.guidance.detail")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 0)
+            }
+
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 184), spacing: DesignSystem.Spacing.sm)],
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                csvGuidanceTile(
+                    titleKey: "reports.csv.guidance.destination_title",
+                    statusText: destinationReady ? L("reports.csv.guidance.destination_ready") : L("reports.csv.guidance.destination_needed"),
+                    statusSystemImage: destinationReady ? "checkmark" : "exclamationmark.triangle.fill",
+                    detail: String(format: L("reports.csv.guidance.destination_detail"), settings.csvFolderDisplayPath),
+                    systemImage: destinationReady ? "folder" : "folder.badge.plus",
+                    tone: destinationTone,
+                    accessibilityID: "reports.csv.guidance.destination"
+                )
+
+                csvGuidanceTile(
+                    titleKey: "reports.csv.guidance.range_title",
+                    statusText: csvRangeSummary,
+                    statusSystemImage: "calendar",
+                    detail: String(format: L("reports.csv.guidance.range_detail"), csvRangeSummary),
+                    systemImage: "calendar",
+                    tone: .info,
+                    accessibilityID: "reports.csv.guidance.range"
+                )
+
+                csvGuidanceTile(
+                    titleKey: "reports.csv.guidance.fields_title",
+                    statusText: String(format: L("reports.csv.fields.selected"), selectedCSVColumns.count),
+                    statusSystemImage: "checklist",
+                    detail: String(format: L("reports.csv.guidance.fields_detail"), selectedCSVColumns.count),
+                    systemImage: "checklist",
+                    tone: .info,
+                    accessibilityID: "reports.csv.guidance.fields"
+                )
+            }
+
+            csvGuidanceNextAction(folderStatus: folderStatus)
+        }
+        .padding(DesignSystem.Spacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(destinationTone.color.opacity(0.055))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(destinationTone.color.opacity(0.16), lineWidth: 1)
+        )
+        .accessibilityIdentifier("reports.csv.guidance")
+    }
+
+    private func csvGuidanceTile(
+        titleKey: LocalizedStringKey,
+        statusText: String,
+        statusSystemImage: String,
+        detail: String,
+        systemImage: String,
+        tone: DesignSystem.StatusTone,
+        accessibilityID: String
+    ) -> some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+            HStack(alignment: .center, spacing: DesignSystem.Spacing.xs) {
+                Image(systemName: systemImage)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(tone.color)
+                    .frame(width: 18)
+
+                Text(titleKey)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(1)
+
+                Spacer(minLength: 0)
+            }
+
+            StatusPill(statusText, systemImage: statusSystemImage, tone: tone)
+
+            Text(detail)
+                .font(DesignSystem.Typography.caption)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .lineLimit(2)
+                .truncationMode(.middle)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .frame(maxWidth: .infinity, minHeight: 94, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(DesignSystem.Colors.cardBackground.opacity(0.72))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(tone.color.opacity(0.16), lineWidth: 1)
+        )
+        .accessibilityIdentifier(accessibilityID)
+    }
+
+    private func csvGuidanceNextAction(folderStatus: StatusMessage) -> some View {
+        let isReady = !folderStatus.isError
+        let tone: DesignSystem.StatusTone = isReady ? .success : .warning
+
+        return RowSurface(tone: tone, isHovering: false) {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 232), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.md
+            ) {
+                HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                    IconWell(
+                        systemImage: isReady ? "square.and.arrow.down" : "folder.badge.plus",
+                        tone: tone,
+                        accessibilityLabel: L("reports.csv.guidance.next.label")
+                    )
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("reports.csv.guidance.next.label")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .lineLimit(1)
+
+                        Text(L(isReady ? "reports.csv.guidance.next.ready_title" : "reports.csv.guidance.next.folder_title"))
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        Text(L(isReady ? "reports.csv.guidance.next.ready_detail" : "reports.csv.guidance.next.folder_detail"))
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .lineLimit(3)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    if isReady {
+                        Button {
+                            exportCsv()
+                        } label: {
+                            Label(L("reports.export_now"), systemImage: "square.and.arrow.down")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(DesignSystem.Colors.accentSkyBlue)
+                        .accessibilityIdentifier("reports.csv.guidance.export")
+                    } else {
+                        Button {
+                            chooseCsvFolder()
+                        } label: {
+                            Label(L("reports.choose_folder"), systemImage: "folder.badge.plus")
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(DesignSystem.Colors.accentSkyBlue)
+                        .accessibilityIdentifier("reports.csv.guidance.chooseFolder")
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .accessibilityIdentifier("reports.csv.guidance.nextAction")
     }
 
     private func csvHeaderCopy(folderStatus: StatusMessage) -> some View {
