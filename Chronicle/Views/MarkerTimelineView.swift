@@ -278,43 +278,129 @@ struct MarkerTimelineView: View {
 
     private var markerSummaryStrip: some View {
         SectionCard {
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 150), spacing: DesignSystem.Spacing.lg)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.md
-            ) {
-                MetricValueView(
-                    title: "markers.summary.groups",
-                    value: "\(groups.count)",
-                    systemImage: "rectangle.stack",
-                    tone: .neutral
-                )
-                MetricValueView(
-                    title: "markers.summary.notes_metric",
-                    value: "\(totalPointCount)",
-                    systemImage: "bookmark.fill",
-                    tone: .success
-                )
-                MetricValueView(
-                    title: "markers.summary.sessions_metric",
-                    value: "\(totalSpanCount)",
-                    systemImage: "timer",
-                    tone: .info
-                )
-                MetricValueView(
-                    title: "markers.summary.duration_metric",
-                    value: TimeFormatters.durationText(start: 0, end: totalDurationSeconds),
-                    systemImage: "clock.fill",
-                    tone: .info
-                )
-                MetricValueView(
-                    title: "markers.summary.ongoing_metric",
-                    value: "\(totalOngoingCount)",
-                    systemImage: "record.circle",
-                    tone: totalOngoingCount > 0 ? .warning : .neutral
-                )
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 150), spacing: DesignSystem.Spacing.lg)],
+                    alignment: .leading,
+                    spacing: DesignSystem.Spacing.md
+                ) {
+                    MetricValueView(
+                        title: "markers.summary.groups",
+                        value: "\(groups.count)",
+                        systemImage: "rectangle.stack",
+                        tone: .neutral
+                    )
+                    MetricValueView(
+                        title: "markers.summary.notes_metric",
+                        value: "\(totalPointCount)",
+                        systemImage: "bookmark.fill",
+                        tone: .success
+                    )
+                    MetricValueView(
+                        title: "markers.summary.sessions_metric",
+                        value: "\(totalSpanCount)",
+                        systemImage: "timer",
+                        tone: .info
+                    )
+                    MetricValueView(
+                        title: "markers.summary.duration_metric",
+                        value: TimeFormatters.durationText(start: 0, end: totalDurationSeconds),
+                        systemImage: "clock.fill",
+                        tone: .info
+                    )
+                    MetricValueView(
+                        title: "markers.summary.ongoing_metric",
+                        value: "\(totalOngoingCount)",
+                        systemImage: "record.circle",
+                        tone: totalOngoingCount > 0 ? .warning : .neutral
+                    )
+                }
+
+                Divider()
+
+                markerReviewLensStrip
             }
         }
+    }
+
+    private var markerReviewLensStrip: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 220), spacing: DesignSystem.Spacing.sm)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            markerReviewLensItem(
+                titleKey: "markers.review.find_title",
+                detail: String(format: L("markers.review.find_detail"), filteredGroups.count, groups.count),
+                status: searchIsActive ? L("markers.review.search_active") : L("markers.review.all_visible"),
+                systemImage: "magnifyingglass",
+                tone: searchIsActive ? .info : lensResolvedTone,
+                accessibilityIdentifier: "markers.review.findLens"
+            )
+
+            markerReviewLensItem(
+                titleKey: "markers.review.live_title",
+                detail: String(format: L("markers.review.live_detail"), totalOngoingCount),
+                status: totalOngoingCount > 0
+                    ? String(format: L("markers.review.ongoing_count"), totalOngoingCount)
+                    : L("markers.review.none_ongoing"),
+                systemImage: "record.circle",
+                tone: totalOngoingCount > 0 ? .warning : lensResolvedTone,
+                accessibilityIdentifier: "markers.review.liveLens"
+            )
+
+            markerReviewLensItem(
+                titleKey: "markers.review.density_title",
+                detail: String(format: L("markers.review.density_detail"), crowdedGroupCount),
+                status: crowdedGroupCount > 0
+                    ? String(format: L("markers.review.crowded_count"), crowdedGroupCount)
+                    : L("markers.review.no_crowding"),
+                systemImage: "rectangle.3.group",
+                tone: crowdedGroupCount > 0 ? .info : lensResolvedTone,
+                accessibilityIdentifier: "markers.review.densityLens"
+            )
+        }
+        .accessibilityIdentifier("markers.review.lensStrip")
+    }
+
+    private func markerReviewLensItem(
+        titleKey: LocalizedStringKey,
+        detail: String,
+        status: String,
+        systemImage: String,
+        tone: DesignSystem.StatusTone,
+        accessibilityIdentifier: String
+    ) -> some View {
+        RowSurface(tone: tone, isHovering: false) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                IconWell(
+                    systemImage: systemImage,
+                    tone: tone
+                )
+
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.xs) {
+                        Text(titleKey)
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.82)
+
+                        Spacer(minLength: 0)
+
+                        StatusPill(status, systemImage: systemImage, tone: tone)
+                    }
+
+                    Text(detail)
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .accessibilityIdentifier(accessibilityIdentifier)
+        .accessibilityElement(children: .combine)
     }
 
     private var markerControls: some View {
@@ -655,6 +741,10 @@ struct MarkerTimelineView: View {
 
     private var totalDurationSeconds: Int64 {
         groups.reduce(Int64(0)) { $0 + $1.summaryDuration }
+    }
+
+    private var lensResolvedTone: DesignSystem.StatusTone {
+        groups.isEmpty || filteredGroups.isEmpty ? .neutral : .success
     }
 
     private var crowdedGroups: [MarkerTimelineGroupData] {

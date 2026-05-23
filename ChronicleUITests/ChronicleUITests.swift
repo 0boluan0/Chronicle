@@ -573,6 +573,10 @@ final class ChronicleUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["markers.review.compactStrip"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["No review notes in this range yet."].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["markers.review.addCue"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["markers.review.lensStrip"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["markers.review.findLens"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["markers.review.liveLens"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["markers.review.densityLens"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["markers.timeline.controls"].waitForExistence(timeout: 5))
         let markerSearch = app.textFields["markers.timeline.search"]
         XCTAssertTrue(markerSearch.waitForExistence(timeout: 5))
