@@ -107,7 +107,7 @@ struct TimelineView: View {
         DateNavigationHeader(
             title: "dashboard.timeline",
             subtitle: formattedDateTitle,
-            dateRangeMode: appState.dateRangeMode,
+            dateRangeMode: $appState.dateRangeMode,
             selectedDate: $appState.selectedDate,
             isLoading: isLoading,
             isTodaySelected: isTodaySelected,

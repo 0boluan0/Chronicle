@@ -99,7 +99,7 @@ struct StatsView: View {
         DateNavigationHeader(
             title: "dashboard.stats",
             subtitle: dateTitle,
-            dateRangeMode: appState.dateRangeMode,
+            dateRangeMode: $appState.dateRangeMode,
             selectedDate: $appState.selectedDate,
             isLoading: isLoading,
             isTodaySelected: isTodaySelected,

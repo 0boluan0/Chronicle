@@ -1179,6 +1179,8 @@ final class ChronicleTests: XCTestCase {
             "date_navigation.previous_range",
             "date_navigation.next_range",
             "date_navigation.pick_date",
+            "date_navigation.range",
+            "date_navigation.range_help",
             "date_navigation.today",
             "date_navigation.today_help",
             "date_navigation.status.today",

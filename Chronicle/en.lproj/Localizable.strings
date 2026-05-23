@@ -1395,6 +1395,8 @@
 "date_navigation.previous_range" = "Previous range";
 "date_navigation.next_range" = "Next range";
 "date_navigation.pick_date" = "Choose date";
+"date_navigation.range" = "Range";
+"date_navigation.range_help" = "Switch between day, week, and month review ranges.";
 "date_navigation.today" = "Today";
 "date_navigation.today_help" = "Return to today";
 "date_navigation.status.today" = "Viewing today";

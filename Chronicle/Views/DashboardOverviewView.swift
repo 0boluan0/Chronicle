@@ -424,7 +424,8 @@ struct DashboardOverviewView: View {
         DateNavigationHeader(
             title: "dashboard.overview",
             subtitle: Self.dateFormatter.string(from: appState.selectedDate),
-            dateRangeMode: overviewRangeMode,
+            dateRangeMode: rangeModeBinding,
+            availableRangeModes: [.day, .week],
             selectedDate: $appState.selectedDate,
             isLoading: isLoading,
             isTodaySelected: isTodaySelected,
@@ -1008,7 +1009,6 @@ struct DashboardOverviewView: View {
                 spacing: DesignSystem.Spacing.md
             ) {
                 overviewModeControl
-                overviewRangeControl
                 overviewTopCountControl
                 overviewGridControl
             }
@@ -1038,21 +1038,6 @@ struct DashboardOverviewView: View {
             }
             .pickerStyle(.segmented)
             .accessibilityIdentifier("dashboard.overview.mode")
-        }
-    }
-
-    private var overviewRangeControl: some View {
-        overviewControlItem(
-            title: "overview.controls.period",
-            systemImage: "calendar",
-            width: 180
-        ) {
-            Picker("overview.controls.period", selection: rangeModeBinding) {
-                Text("range.day").tag(DateRangeMode.day)
-                Text("range.week").tag(DateRangeMode.week)
-            }
-            .pickerStyle(.segmented)
-            .accessibilityIdentifier("dashboard.overview.range")
         }
     }
 

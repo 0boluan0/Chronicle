@@ -10,7 +10,8 @@ import SwiftUI
 struct DateNavigationHeader: View {
     let title: LocalizedStringKey
     let subtitle: String
-    var dateRangeMode: DateRangeMode = .day
+    @Binding var dateRangeMode: DateRangeMode
+    var availableRangeModes: [DateRangeMode] = DateRangeMode.allCases
     @Binding var selectedDate: Date
     let isLoading: Bool
     let isTodaySelected: Bool
@@ -62,6 +63,31 @@ struct DateNavigationHeader: View {
     }
 
     private var dateControls: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+            dateControlRow
+
+            if availableRangeModes.count > 1 {
+                rangeControl
+            }
+        }
+        .padding(.horizontal, DesignSystem.Spacing.sm)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(DesignSystem.Colors.cardBackground.opacity(0.76))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(DesignSystem.Colors.separator.opacity(0.34), lineWidth: 1)
+        )
+        .shadow(color: Color.black.opacity(0.025), radius: 4, x: 0, y: 1)
+        .fixedSize(horizontal: true, vertical: false)
+        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("\(accessibilityPrefix).dateControls")
+    }
+
+    private var dateControlRow: some View {
         HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
             Button(action: onPreviousDay) {
                 Image(systemName: "chevron.left")
@@ -101,21 +127,32 @@ struct DateNavigationHeader: View {
             .accessibilityLabel(L("date_navigation.today_help"))
             .accessibilityIdentifier("\(accessibilityPrefix).today")
         }
-        .padding(.horizontal, DesignSystem.Spacing.sm)
-        .padding(.vertical, 6)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(DesignSystem.Colors.cardBackground.opacity(0.76))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .stroke(DesignSystem.Colors.separator.opacity(0.34), lineWidth: 1)
-        )
-        .shadow(color: Color.black.opacity(0.025), radius: 4, x: 0, y: 1)
-        .fixedSize(horizontal: true, vertical: false)
-        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+    }
+
+    private var rangeControl: some View {
+        HStack(spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: "calendar.badge.clock")
+                .font(.caption.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .frame(width: 18)
+                .accessibilityHidden(true)
+
+            Picker("date_navigation.range", selection: $dateRangeMode) {
+                ForEach(availableRangeModes) { range in
+                    Text(range.titleKey).tag(range)
+                }
+            }
+            .pickerStyle(.segmented)
+            .controlSize(.small)
+            .frame(width: rangeControlWidth)
+            .accessibilityIdentifier("\(accessibilityPrefix).range")
+        }
+        .help(L("date_navigation.range_help"))
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("\(accessibilityPrefix).dateControls")
+    }
+
+    private var rangeControlWidth: CGFloat {
+        availableRangeModes.count > 2 ? 210 : 150
     }
 
     private var displaySubtitle: String {

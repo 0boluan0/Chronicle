@@ -173,7 +173,7 @@ struct DashboardTimelineView: View {
         DateNavigationHeader(
             title: "dashboard.timeline",
             subtitle: Self.dateFormatter.string(from: appState.selectedDate),
-            dateRangeMode: appState.dateRangeMode,
+            dateRangeMode: $appState.dateRangeMode,
             selectedDate: $appState.selectedDate,
             isLoading: isLoading,
             isTodaySelected: isTodaySelected,

@@ -1395,6 +1395,8 @@
 "date_navigation.previous_range" = "上一个范围";
 "date_navigation.next_range" = "下一个范围";
 "date_navigation.pick_date" = "选择日期";
+"date_navigation.range" = "范围";
+"date_navigation.range_help" = "在日、周、月复盘范围之间切换。";
 "date_navigation.today" = "今天";
 "date_navigation.today_help" = "回到今天";
 "date_navigation.status.today" = "正在查看今天";

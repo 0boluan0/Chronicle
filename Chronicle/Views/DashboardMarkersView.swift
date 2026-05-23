@@ -81,7 +81,7 @@ struct DashboardMarkersView: View {
         DateNavigationHeader(
             title: "dashboard.markers",
             subtitle: Self.dateFormatter.string(from: appState.selectedDate),
-            dateRangeMode: appState.dateRangeMode,
+            dateRangeMode: $appState.dateRangeMode,
             selectedDate: $appState.selectedDate,
             isLoading: isLoadingCueSummary,
             isTodaySelected: isTodaySelected,
