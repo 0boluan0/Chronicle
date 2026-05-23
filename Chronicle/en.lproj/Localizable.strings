@@ -2343,6 +2343,16 @@
 "apps.review.untagged" = "No category";
 "apps.review.uncategorized" = "Uncategorized";
 "apps.review.manual" = "Manual review";
+"apps.review.queue.title" = "Next in queue";
+"apps.review.queue.detail" = "Classify these first so daily logs stop reading like raw app names.";
+"apps.review.queue.ready_detail" = "No known apps need category cleanup right now.";
+"apps.review.queue.status.ready" = "Queue clear";
+"apps.review.queue.status.count" = "%d left";
+"apps.review.queue.reason.untagged" = "No category selected";
+"apps.review.queue.reason.uncategorized" = "Still landing in Uncategorized";
+"apps.review.queue.focus" = "Focus";
+"apps.review.queue.focus_help" = "Focus %@ in the app list";
+"apps.review.queue.more" = "+%d more";
 "apps.review.path.find_title" = "Find unknown apps";
 "apps.review.path.find_detail" = "Filter No category or Uncategorized before browsing the full list.";
 "apps.review.path.assign_title" = "Pick the log section";

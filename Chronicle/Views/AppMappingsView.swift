@@ -171,6 +171,8 @@ struct AppMappingsView: View {
                         )
                     }
 
+                    mappingReviewQueue
+
                     mappingReviewPath
 
                     mappingImpactStrip
@@ -179,6 +181,140 @@ struct AppMappingsView: View {
                 }
             }
         }
+    }
+
+    private var mappingReviewQueue: some View {
+        RowSurface(tone: mappingReviewQueueTone) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                    IconWell(
+                        systemImage: needsReviewMappingCount == 0 ? "checkmark.seal.fill" : "tray.full.fill",
+                        tone: mappingReviewQueueTone,
+                        accessibilityLabel: L("apps.review.queue.title")
+                    )
+                    .frame(width: 32, height: 32)
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("apps.review.queue.title")
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+
+                        Text(LocalizedStringKey(needsReviewMappingCount == 0 ? "apps.review.queue.ready_detail" : "apps.review.queue.detail"))
+                            .font(.caption2)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Spacer(minLength: 0)
+
+                    StatusPill(
+                        mappingReviewQueueStatusText,
+                        systemImage: needsReviewMappingCount == 0 ? "checkmark.circle" : "number",
+                        tone: mappingReviewQueueTone
+                    )
+                }
+
+                if !mappingReviewCandidates.isEmpty {
+                    LazyVGrid(
+                        columns: [GridItem(.adaptive(minimum: 210), spacing: DesignSystem.Spacing.sm, alignment: .topLeading)],
+                        alignment: .leading,
+                        spacing: DesignSystem.Spacing.sm
+                    ) {
+                        ForEach(mappingReviewCandidates.prefix(3)) { mapping in
+                            mappingReviewQueueItem(mapping)
+                        }
+
+                        if mappingReviewQueueRemainingCount > 0 {
+                            mappingReviewQueueMoreItem
+                        }
+                    }
+                }
+            }
+        }
+        .accessibilityIdentifier("appMappings.reviewQueue")
+    }
+
+    private func mappingReviewQueueItem(_ mapping: AppMappingRow) -> some View {
+        let tone = mappingReviewQueueTone(for: mapping)
+
+        return HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+            IconWell(
+                image: appIcon(for: mapping),
+                tone: tone,
+                accessibilityLabel: mapping.appName
+            )
+            .frame(width: 28, height: 28)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(mapping.appName)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
+
+                Text(mappingReviewQueueReasonText(for: mapping))
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 0)
+
+            Button {
+                focusMapping(mapping)
+            } label: {
+                Label(L("apps.review.queue.focus"), systemImage: "scope")
+                    .labelStyle(.iconOnly)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .help(String(format: L("apps.review.queue.focus_help"), mapping.appName))
+            .accessibilityLabel(String(format: L("apps.review.queue.focus_help"), mapping.appName))
+            .accessibilityIdentifier("appMappings.reviewQueue.focus.\(mapping.id)")
+        }
+        .padding(.horizontal, DesignSystem.Spacing.sm)
+        .padding(.vertical, 7)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .fill(tone.color.opacity(0.07))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .stroke(tone.color.opacity(0.16), lineWidth: 1)
+        )
+    }
+
+    private var mappingReviewQueueMoreItem: some View {
+        Button {
+            if untaggedMappingCount > 0 {
+                showUntaggedMappings()
+            } else {
+                showUncategorizedMappings()
+            }
+        } label: {
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                Image(systemName: "ellipsis.circle")
+                    .font(.caption.weight(.semibold))
+
+                Text(String(format: L("apps.review.queue.more"), mappingReviewQueueRemainingCount))
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
+            }
+            .frame(maxWidth: .infinity, minHeight: 42, alignment: .leading)
+            .padding(.horizontal, DesignSystem.Spacing.sm)
+            .foregroundColor(mappingReviewQueueTone.color)
+        }
+        .buttonStyle(.plain)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .fill(mappingReviewQueueTone.color.opacity(0.06))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .stroke(mappingReviewQueueTone.color.opacity(0.16), lineWidth: 1)
+        )
+        .accessibilityIdentifier("appMappings.reviewQueue.more")
     }
 
     private var mappingReviewPath: some View {
@@ -400,6 +536,12 @@ struct AppMappingsView: View {
 
     private func showAllMappings() {
         clearMappingFilters()
+    }
+
+    private func focusMapping(_ mapping: AppMappingRow) {
+        searchText = mapping.appName
+        showUntaggedOnly = false
+        showUncategorizedOnly = false
     }
 
     private func clearMappingFilters() {
@@ -891,6 +1033,39 @@ struct AppMappingsView: View {
         }.count
     }
 
+    private var mappingReviewCandidates: [AppMappingRow] {
+        appMappings
+            .filter { mapping in
+                mapping.tagId == nil || mapping.tagId == uncategorizedTagId
+            }
+            .sorted { lhs, rhs in
+                let lhsUntagged = lhs.tagId == nil
+                let rhsUntagged = rhs.tagId == nil
+                if lhsUntagged != rhsUntagged {
+                    return lhsUntagged
+                }
+                if lhs.updatedAt != rhs.updatedAt {
+                    return lhs.updatedAt > rhs.updatedAt
+                }
+                return lhs.appName.localizedCaseInsensitiveCompare(rhs.appName) == .orderedAscending
+            }
+    }
+
+    private var mappingReviewQueueRemainingCount: Int {
+        max(0, mappingReviewCandidates.count - 3)
+    }
+
+    private var mappingReviewQueueStatusText: String {
+        if needsReviewMappingCount == 0 {
+            return L("apps.review.queue.status.ready")
+        }
+        return String(format: L("apps.review.queue.status.count"), needsReviewMappingCount)
+    }
+
+    private var mappingReviewQueueTone: DesignSystem.StatusTone {
+        needsReviewMappingCount == 0 ? .success : .warning
+    }
+
     private var untaggedMappingCount: Int {
         appMappings.filter { $0.tagId == nil }.count
     }
@@ -979,6 +1154,26 @@ struct AppMappingsView: View {
     private func tagName(for mapping: AppMappingRow) -> String? {
         guard let tagId = mapping.tagId else { return nil }
         return tags.first { $0.id == tagId }?.name
+    }
+
+    private func mappingReviewQueueTone(for mapping: AppMappingRow) -> DesignSystem.StatusTone {
+        mapping.tagId == nil ? .warning : .info
+    }
+
+    private func mappingReviewQueueReasonText(for mapping: AppMappingRow) -> String {
+        mapping.tagId == nil
+            ? L("apps.review.queue.reason.untagged")
+            : L("apps.review.queue.reason.uncategorized")
+    }
+
+    private func appIcon(for mapping: AppMappingRow) -> NSImage {
+        if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: mapping.bundleId) {
+            return NSWorkspace.shared.icon(forFile: url.path)
+        }
+        if let systemIcon = NSImage(systemSymbolName: "app.fill", accessibilityDescription: nil) {
+            return systemIcon
+        }
+        return DesignSystem.Images.genericAppIcon
     }
 
     private func reloadData() {

@@ -2342,6 +2342,16 @@
 "apps.review.untagged" = "无分类";
 "apps.review.uncategorized" = "未分类";
 "apps.review.manual" = "手动复核";
+"apps.review.queue.title" = "下一批队列";
+"apps.review.queue.detail" = "先处理这些应用，让今日日志不再像原始应用清单。";
+"apps.review.queue.ready_detail" = "当前没有已知应用需要分类清理。";
+"apps.review.queue.status.ready" = "队列已清空";
+"apps.review.queue.status.count" = "剩 %d 个";
+"apps.review.queue.reason.untagged" = "尚未选择分类";
+"apps.review.queue.reason.uncategorized" = "仍落入未分类";
+"apps.review.queue.focus" = "聚焦";
+"apps.review.queue.focus_help" = "在应用列表中聚焦 %@";
+"apps.review.queue.more" = "还有 %d 个";
 "apps.review.path.find_title" = "先找未知应用";
 "apps.review.path.find_detail" = "先筛选无分类或未分类，再浏览全部列表。";
 "apps.review.path.assign_title" = "选择日志分区";
