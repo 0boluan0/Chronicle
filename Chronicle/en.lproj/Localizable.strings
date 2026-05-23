@@ -457,6 +457,17 @@
 "onboarding.exports.outcome.local_detail" = "Nothing uploads; change later.";
 "onboarding.privacy.title" = "Privacy and Permissions";
 "onboarding.privacy.body" = "Choose whether Chronicle should capture window titles. The app still works fully offline if you leave this off.";
+"onboarding.privacy.choice.title" = "Privacy choice";
+"onboarding.privacy.choice.heading" = "Start with the context level you trust.";
+"onboarding.privacy.choice.detail" = "You can keep Chronicle app-only, or add window titles later when the extra recall is worth the macOS permission.";
+"onboarding.privacy.choice.app_only_title" = "App-only timeline";
+"onboarding.privacy.choice.app_only_detail" = "Records app sessions, idle time, markers, and reports without asking for Accessibility.";
+"onboarding.privacy.choice.app_only_status" = "Recommended start";
+"onboarding.privacy.choice.title_capture_title" = "Add window titles";
+"onboarding.privacy.choice.title_capture_detail" = "Adds searchable document/page context for better recall and rule matching.";
+"onboarding.privacy.choice.title_capture_status.off" = "Optional";
+"onboarding.privacy.choice.title_capture_status.needs_permission" = "Needs permission";
+"onboarding.privacy.choice.title_capture_status.ready" = "Ready";
 "onboarding.privacy.capture_title" = "Window Title Capture";
 "onboarding.privacy.hint" = "Turn this on only if you want richer recall and classification context.";
 "onboarding.privacy.outcome.title" = "Choose the amount of context Chronicle keeps";

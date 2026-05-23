@@ -457,6 +457,17 @@
 "onboarding.exports.outcome.local_detail" = "不会上传；之后可修改。";
 "onboarding.privacy.title" = "隐私与权限";
 "onboarding.privacy.body" = "决定是否让 Chronicle 采集窗口标题。即使关闭，它也会继续完全离线地工作。";
+"onboarding.privacy.choice.title" = "隐私选择";
+"onboarding.privacy.choice.heading" = "先选择你能信任的语境级别。";
+"onboarding.privacy.choice.detail" = "你可以先只记录应用；如果以后觉得额外回忆线索值得，再开启窗口标题和对应权限。";
+"onboarding.privacy.choice.app_only_title" = "仅应用时间线";
+"onboarding.privacy.choice.app_only_detail" = "记录应用会话、空闲时间、标记和报告，不需要辅助功能权限。";
+"onboarding.privacy.choice.app_only_status" = "推荐起步";
+"onboarding.privacy.choice.title_capture_title" = "加入窗口标题";
+"onboarding.privacy.choice.title_capture_detail" = "增加可搜索的文档/页面语境，用于更清楚回忆和规则匹配。";
+"onboarding.privacy.choice.title_capture_status.off" = "可选";
+"onboarding.privacy.choice.title_capture_status.needs_permission" = "需授权";
+"onboarding.privacy.choice.title_capture_status.ready" = "已就绪";
 "onboarding.privacy.capture_title" = "窗口标题采集";
 "onboarding.privacy.hint" = "只有在你需要更丰富的回忆线索和自动分类上下文时再开启。";
 "onboarding.privacy.outcome.title" = "选择 Chronicle 保留多少语境";

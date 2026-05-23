@@ -964,6 +964,8 @@ struct OnboardingView: View {
                 .font(DesignSystem.Typography.caption)
                 .foregroundColor(DesignSystem.Colors.secondaryText)
 
+            privacyChoiceSection
+
             SectionCard(title: "onboarding.privacy.capture_title") {
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                     privacyCaptureStatusRow
@@ -1019,6 +1021,123 @@ struct OnboardingView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
+    }
+
+    private var privacyChoiceSection: some View {
+        SectionCard(title: "onboarding.privacy.choice.title") {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                    IconWell(
+                        systemImage: "hand.raised",
+                        tone: titleCaptureTone,
+                        accessibilityLabel: L("onboarding.privacy.choice.title")
+                    )
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("onboarding.privacy.choice.heading")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+                            .lineLimit(2)
+
+                        Text("onboarding.privacy.choice.detail")
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Spacer(minLength: 0)
+
+                    StatusPill(titleCaptureStatusText, systemImage: titleCaptureIconName, tone: titleCaptureTone)
+                }
+
+                LazyVGrid(
+                    columns: adaptiveColumns(minimum: 250, spacing: DesignSystem.Spacing.md),
+                    alignment: .leading,
+                    spacing: DesignSystem.Spacing.md
+                ) {
+                    privacyChoiceCard(
+                        systemImage: "app.connected.to.app.below.fill",
+                        title: "onboarding.privacy.choice.app_only_title",
+                        detail: "onboarding.privacy.choice.app_only_detail",
+                        status: "onboarding.privacy.choice.app_only_status",
+                        tone: appState.windowTitleCaptureEnabled ? .neutral : .success,
+                        isSelected: !appState.windowTitleCaptureEnabled,
+                        accessibilityIdentifier: "onboarding.privacy.choice.appOnly"
+                    ) {
+                        appState.windowTitleCaptureEnabled = false
+                        AccessibilityPermissionManager.shared.syncAppState(appState)
+                    }
+
+                    privacyChoiceCard(
+                        systemImage: "text.viewfinder",
+                        title: "onboarding.privacy.choice.title_capture_title",
+                        detail: "onboarding.privacy.choice.title_capture_detail",
+                        status: titleCaptureChoiceStatusKey,
+                        tone: titleCaptureToneForChoice,
+                        isSelected: appState.windowTitleCaptureEnabled,
+                        accessibilityIdentifier: "onboarding.privacy.choice.windowTitles"
+                    ) {
+                        appState.windowTitleCaptureEnabled = true
+                        AccessibilityPermissionManager.shared.syncAppState(appState)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityIdentifier("onboarding.privacy.choice")
+    }
+
+    private func privacyChoiceCard(
+        systemImage: String,
+        title: String,
+        detail: String,
+        status: String,
+        tone: DesignSystem.StatusTone,
+        isSelected: Bool,
+        accessibilityIdentifier: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                    IconWell(systemImage: systemImage, tone: tone, accessibilityLabel: L(title))
+                        .frame(width: 32, height: 32)
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(LocalizedStringKey(title))
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+                            .lineLimit(2)
+
+                        Text(LocalizedStringKey(detail))
+                            .font(.caption2)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .lineLimit(3)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Spacer(minLength: 0)
+                }
+
+                StatusPill(
+                    L(status),
+                    systemImage: isSelected ? "checkmark.circle.fill" : "circle",
+                    tone: tone
+                )
+            }
+            .padding(DesignSystem.Spacing.md)
+            .frame(maxWidth: .infinity, minHeight: 118, alignment: .topLeading)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                    .fill(isSelected ? tone.color.opacity(0.10) : DesignSystem.Colors.background.opacity(0.50))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                    .stroke(isSelected ? tone.color.opacity(0.34) : DesignSystem.Colors.separator.opacity(0.34), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     private var privacyOutcomeStrip: some View {
@@ -1736,6 +1855,23 @@ struct OnboardingView: View {
             return .warning
         }
         return .success
+    }
+
+    private var titleCaptureChoiceStatusKey: String {
+        if !appState.windowTitleCaptureEnabled {
+            return "onboarding.privacy.choice.title_capture_status.off"
+        }
+        if !appState.accessibilityAuthorized {
+            return "onboarding.privacy.choice.title_capture_status.needs_permission"
+        }
+        return "onboarding.privacy.choice.title_capture_status.ready"
+    }
+
+    private var titleCaptureToneForChoice: DesignSystem.StatusTone {
+        if !appState.windowTitleCaptureEnabled {
+            return .info
+        }
+        return titleCaptureTone
     }
 
     private var permissionStatusText: String {
