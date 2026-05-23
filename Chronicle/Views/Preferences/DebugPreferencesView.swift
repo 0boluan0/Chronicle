@@ -14,7 +14,11 @@ struct DebugPreferencesView: View {
     var body: some View {
         PreferencesPageLayout(
             titleKey: "preferences.debug",
-            descriptionKey: "preferences.debug.description"
+            descriptionKey: "preferences.debug.description",
+            systemImage: appState.debugLoggingEnabled ? "record.circle" : "ladybug",
+            statusText: L(appState.debugLoggingEnabled ? "preferences.debug.logging_on" : "preferences.debug.logging_off"),
+            statusSystemImage: appState.debugLoggingEnabled ? "record.circle" : "circle",
+            tone: appState.debugLoggingEnabled ? .warning : .neutral
         ) {
             diagnosticStatusSection
             troubleshootingFlowSection

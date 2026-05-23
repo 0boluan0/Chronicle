@@ -33,7 +33,11 @@ struct SupportPreferencesView: View {
     var body: some View {
         PreferencesPageLayout(
             titleKey: "preferences.support",
-            descriptionKey: "support.page.description"
+            descriptionKey: "support.page.description",
+            systemImage: readinessIconName,
+            statusText: readinessText,
+            statusSystemImage: readinessStatusIconName,
+            tone: readinessTone
         ) {
             SectionCard(title: "support.readiness.title") {
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {

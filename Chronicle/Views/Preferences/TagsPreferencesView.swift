@@ -48,7 +48,14 @@ struct TagsPreferencesView: View {
     }
 
     var body: some View {
-        PreferencesPageLayout(titleKey: "preferences.tags") {
+        PreferencesPageLayout(
+            titleKey: "preferences.tags",
+            descriptionKey: "preferences.tags.description",
+            systemImage: setupStage.systemImage,
+            statusText: L(setupStage.statusKey),
+            statusSystemImage: setupStage.statusIcon,
+            tone: setupStage.tone
+        ) {
             setupGuide
 
             Picker("preferences.tags.subsection", selection: $selectedSubsectionRaw) {

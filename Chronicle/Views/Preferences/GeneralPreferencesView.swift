@@ -29,7 +29,11 @@ struct GeneralPreferencesView: View {
     var body: some View {
         PreferencesPageLayout(
             titleKey: "preferences.general",
-            descriptionKey: "preferences.general.description"
+            descriptionKey: "preferences.general.description",
+            systemImage: readinessIconName,
+            statusText: readinessStatusText,
+            statusSystemImage: readinessIconName,
+            tone: readinessTone
         ) {
             readinessSection
             overviewSection

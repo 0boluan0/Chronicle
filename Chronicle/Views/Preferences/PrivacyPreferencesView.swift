@@ -29,7 +29,11 @@ struct PrivacyPreferencesView: View {
     var body: some View {
         PreferencesPageLayout(
             titleKey: "preferences.privacy",
-            descriptionKey: "privacy.page.description"
+            descriptionKey: "privacy.page.description",
+            systemImage: "hand.raised",
+            statusText: permissionSummaryText,
+            statusSystemImage: titleCaptureIconName,
+            tone: permissionTone
         ) {
             overviewSection
             privacyNextStepSection

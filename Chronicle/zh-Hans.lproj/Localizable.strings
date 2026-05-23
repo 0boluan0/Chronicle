@@ -962,7 +962,9 @@
 "preferences.sidebar.guide.status.issues" = "有问题";
 "preferences.sidebar.guide.status.optional" = "可选";
 
+"preferences.page.header" = "设置页面";
 "preferences.general.description" = "设置 Chronicle 如何启动、记录什么，以及哪些高级追踪规则应该安静地在后台工作。";
+"preferences.tags.description" = "让分类、应用映射和自动化建议保持一致，方便每天复盘。";
 "preferences.readiness.title" = "日常使用状态";
 "preferences.readiness.headline.ready" = "适合日常使用";
 "preferences.readiness.headline.permission" = "窗口标题采集需要权限";

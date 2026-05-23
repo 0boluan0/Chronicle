@@ -962,7 +962,9 @@
 "preferences.sidebar.guide.status.issues" = "Issues";
 "preferences.sidebar.guide.status.optional" = "Optional";
 
+"preferences.page.header" = "Preferences page";
 "preferences.general.description" = "Set how Chronicle starts, what it records, and which advanced tracking rules should stay in the background.";
+"preferences.tags.description" = "Keep categories, app mappings, and automation suggestions aligned with how you review the day.";
 "preferences.readiness.title" = "Daily use status";
 "preferences.readiness.headline.ready" = "Ready for daily use";
 "preferences.readiness.headline.permission" = "Window title capture needs permission";
