@@ -216,6 +216,8 @@ struct PreferencesView: View {
                     .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
 
+                setupGuideProgressSummary
+
                 setupGuideCurrentStep
 
                 Divider()
@@ -262,7 +264,7 @@ struct PreferencesView: View {
                         stepNumber: "5",
                         titleKey: "preferences.sidebar.guide.health_title",
                         detailKey: "preferences.sidebar.guide.health_detail",
-                        systemImage: "stethoscope",
+                        systemImage: "arrow.triangle.2.circlepath",
                         section: .support,
                         identifier: "preferences.sidebar.guide.health"
                     )
@@ -282,6 +284,63 @@ struct PreferencesView: View {
         .padding(.bottom, DesignSystem.Spacing.lg)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("preferences.sidebar.guide")
+    }
+
+    private var setupGuideProgressSummary: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: DesignSystem.Spacing.xs) {
+                Label {
+                    Text("preferences.sidebar.guide.progress.title")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                } icon: {
+                    Image(systemName: "checklist")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(setupGuideProgressTone.color)
+                }
+                .labelStyle(.titleAndIcon)
+
+                Spacer(minLength: DesignSystem.Spacing.xs)
+
+                Text(setupGuideProgressValueText)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(setupGuideProgressTone.color)
+                    .monospacedDigit()
+                    .lineLimit(1)
+            }
+
+            RatioBar(
+                filledFraction: setupGuideProgressFraction,
+                filledColor: setupGuideProgressTone.color,
+                remainderColor: DesignSystem.Colors.separator
+            )
+
+            HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.xs) {
+                StatusPill(
+                    setupGuideProgressStatusText,
+                    systemImage: setupGuideProgressIconName,
+                    tone: setupGuideProgressTone
+                )
+
+                Text(LocalizedStringKey(setupGuideProgressDetailKey))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .fill(setupGuideProgressTone.color.opacity(0.08))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .stroke(setupGuideProgressTone.color.opacity(0.20), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("preferences.sidebar.guide.progress")
     }
 
     private var setupGuideCurrentStep: some View {
@@ -420,6 +479,71 @@ struct PreferencesView: View {
                 .stroke(readiness.tone.color.opacity(0.22), lineWidth: 1)
         )
         .accessibilityIdentifier(identifier)
+    }
+
+    private var setupGuideProgressSections: [Section] {
+        [.general, .privacy, .tags, .export, .support]
+    }
+
+    private var setupGuideProgressReadiness: [PreferencesSetupReadiness] {
+        setupGuideProgressSections.map { setupGuideReadiness(for: $0) }
+    }
+
+    private var setupGuideReadyCount: Int {
+        setupGuideProgressReadiness.filter { $0.isComplete }.count
+    }
+
+    private var setupGuideProgressTotal: Int {
+        setupGuideProgressSections.count
+    }
+
+    private var setupGuideProgressFraction: Double {
+        guard setupGuideProgressTotal > 0 else { return 0 }
+        return Double(setupGuideReadyCount) / Double(setupGuideProgressTotal)
+    }
+
+    private var setupGuideProgressValueText: String {
+        String(format: L("preferences.sidebar.guide.progress.value"), setupGuideReadyCount, setupGuideProgressTotal)
+    }
+
+    private var setupGuideProgressStatusText: String {
+        if setupGuideReadyCount == setupGuideProgressTotal {
+            return L("preferences.sidebar.guide.progress.ready")
+        }
+        if setupGuideReadyCount == 0 {
+            return L("preferences.sidebar.guide.progress.start")
+        }
+        return L("preferences.sidebar.guide.progress.in_progress")
+    }
+
+    private var setupGuideProgressDetailKey: String {
+        if setupGuideReadyCount == setupGuideProgressTotal {
+            return "preferences.sidebar.guide.progress.ready_detail"
+        }
+        if setupGuideProgressReadiness.contains(where: { $0.needsAttention }) {
+            return "preferences.sidebar.guide.progress.review_detail"
+        }
+        return "preferences.sidebar.guide.progress.start_detail"
+    }
+
+    private var setupGuideProgressIconName: String {
+        if setupGuideReadyCount == setupGuideProgressTotal {
+            return "checkmark.seal.fill"
+        }
+        if setupGuideProgressReadiness.contains(where: { $0.needsAttention }) {
+            return "exclamationmark.triangle.fill"
+        }
+        return "arrow.forward.circle"
+    }
+
+    private var setupGuideProgressTone: DesignSystem.StatusTone {
+        if setupGuideReadyCount == setupGuideProgressTotal {
+            return .success
+        }
+        if setupGuideProgressReadiness.contains(where: { $0.needsAttention }) {
+            return .warning
+        }
+        return setupGuideReadyCount == 0 ? .neutral : .info
     }
 
     private func setupGuideReadiness(for section: Section) -> PreferencesSetupReadiness {
@@ -672,6 +796,30 @@ private struct PreferencesSetupReadiness {
     let titleKey: String
     let systemImage: String
     let tone: DesignSystem.StatusTone
+
+    var isComplete: Bool {
+        switch titleKey {
+        case "preferences.sidebar.guide.status.ready",
+            "preferences.sidebar.guide.status.selected",
+            "preferences.sidebar.guide.status.optional":
+            return true
+        default:
+            return false
+        }
+    }
+
+    var needsAttention: Bool {
+        switch titleKey {
+        case "preferences.sidebar.guide.status.paused",
+            "preferences.sidebar.guide.status.needs_permission",
+            "preferences.sidebar.guide.status.needs_review",
+            "preferences.sidebar.guide.status.needs_folder",
+            "preferences.sidebar.guide.status.issues":
+            return true
+        default:
+            return false
+        }
+    }
 }
 
 private struct PreferencesSidebarTagSummary {
