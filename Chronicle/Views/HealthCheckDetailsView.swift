@@ -47,22 +47,71 @@ struct HealthCheckDetailsView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-                Text(L("self_check.details.title"))
-                    .font(DesignSystem.Typography.title)
-                Text(subtitleText)
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                healthHeaderCopy
+                healthHeaderStatus
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
-
-            Spacer()
 
             Button(L("actions.close")) {
                 onClose()
             }
             .buttonStyle(.bordered)
         }
+        .accessibilityIdentifier("selfCheck.header")
+    }
+
+    private var healthHeaderCopy: some View {
+        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+            IconWell(
+                systemImage: readinessIconName,
+                tone: readinessTone,
+                accessibilityLabel: L("self_check.details.title")
+            )
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                Text(L("self_check.details.title"))
+                    .font(DesignSystem.Typography.title)
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(1)
+
+                Text(subtitleText)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var healthHeaderStatus: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+            StatusPill(readinessStatusText, systemImage: readinessStatusIconName, tone: readinessTone)
+
+            Text(LocalizedStringKey(readinessHeadlineKey))
+                .font(.caption2.weight(.medium))
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, DesignSystem.Spacing.sm)
+        .padding(.vertical, 7)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(readinessTone.color.opacity(0.07))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(readinessTone.color.opacity(0.18), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("selfCheck.header.status")
     }
 
     private var subtitleText: String {
