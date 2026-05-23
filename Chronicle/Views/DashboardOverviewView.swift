@@ -1408,9 +1408,7 @@ struct DashboardOverviewView: View {
 
     private var detailView: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            Text("overview.selection.title")
-                .font(.caption.weight(.semibold))
-                .foregroundColor(DesignSystem.Colors.secondaryText)
+            selectionPanelHeader
 
             if let selection {
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
@@ -1439,7 +1437,11 @@ struct DashboardOverviewView: View {
                         }
                     }
 
-                    HStack(spacing: DesignSystem.Spacing.lg) {
+                    LazyVGrid(
+                        columns: selectionInfoColumns,
+                        alignment: .leading,
+                        spacing: DesignSystem.Spacing.sm
+                    ) {
                         selectionInfoItem(
                             title: L(selection.rangeLabel == nil ? "overview.selection.time" : "overview.selection.range"),
                             value: selection.rangeLabel ?? TimeFormatters.timeRange(start: selection.start, end: selection.end),
@@ -1462,13 +1464,73 @@ struct DashboardOverviewView: View {
         .padding(DesignSystem.Spacing.md)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(DesignSystem.Colors.background.opacity(0.52))
+                .fill(selectionPanelBackgroundColor)
         )
         .overlay(
             RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .stroke(DesignSystem.Colors.separator.opacity(0.36), lineWidth: 1)
+                .stroke(selectionPanelBorderColor, lineWidth: 1)
         )
+        .overlay(alignment: .leading) {
+            if selection != nil {
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                    .fill(DesignSystem.Colors.accentSkyBlue.opacity(0.72))
+                    .frame(width: 3)
+                    .padding(.vertical, DesignSystem.Spacing.sm)
+            }
+        }
         .accessibilityIdentifier("dashboard.overview.selection")
+    }
+
+    private var selectionPanelHeader: some View {
+        HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+            Label {
+                Text("overview.selection.title")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+            } icon: {
+                Image(systemName: selection == nil ? "cursorarrow.click" : "scope")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(selection == nil ? DesignSystem.Colors.secondaryText : DesignSystem.Colors.accentSkyBlue)
+            }
+            .labelStyle(.titleAndIcon)
+
+            Spacer(minLength: DesignSystem.Spacing.sm)
+
+            selectionClearButton
+        }
+    }
+
+    @ViewBuilder
+    private var selectionClearButton: some View {
+        if selection != nil {
+            Button {
+                selection = nil
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.caption.weight(.semibold))
+            }
+            .buttonStyle(.plain)
+            .foregroundColor(DesignSystem.Colors.secondaryText)
+            .help(L("overview.selection.clear"))
+            .accessibilityLabel(L("overview.selection.clear"))
+            .accessibilityIdentifier("dashboard.overview.selection.clear")
+        }
+    }
+
+    private var selectionInfoColumns: [GridItem] {
+        [GridItem(.adaptive(minimum: 150), spacing: DesignSystem.Spacing.lg, alignment: .leading)]
+    }
+
+    private var selectionPanelBackgroundColor: Color {
+        selection == nil
+            ? DesignSystem.Colors.background.opacity(0.52)
+            : DesignSystem.Colors.accentSkyBlue.opacity(0.055)
+    }
+
+    private var selectionPanelBorderColor: Color {
+        selection == nil
+            ? DesignSystem.Colors.separator.opacity(0.36)
+            : DesignSystem.Colors.accentSkyBlue.opacity(0.30)
     }
 
     private var selectionEmptyState: some View {

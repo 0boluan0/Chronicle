@@ -866,6 +866,7 @@
 "overview.selection.duration" = "时长";
 "overview.selection.idle" = "空闲";
 "overview.selection.overlay" = "短切换";
+"overview.selection.clear" = "清空选择";
 "overview.selection.open_timeline" = "在时间线中查看";
 "overview.selection.add_note" = "添加笔记";
 

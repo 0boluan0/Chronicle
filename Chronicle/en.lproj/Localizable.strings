@@ -866,6 +866,7 @@
 "overview.selection.duration" = "Duration";
 "overview.selection.idle" = "Idle";
 "overview.selection.overlay" = "Short switch";
+"overview.selection.clear" = "Clear Selection";
 "overview.selection.open_timeline" = "Open in Timeline";
 "overview.selection.add_note" = "Add Note";
 
