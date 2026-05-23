@@ -15,6 +15,7 @@ struct QuickMarkerPanelView: View {
     @ObservedObject private var reportSettings = ReportSettings.shared
     @State private var contextDate = Date()
     @State private var draftText = ""
+    @State private var isCloseHovering = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
@@ -194,8 +195,20 @@ struct QuickMarkerPanelView: View {
         } label: {
             Image(systemName: "xmark")
                 .font(.caption.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .frame(width: 28, height: 28)
+                .background(
+                    Circle()
+                        .fill(isCloseHovering ? DesignSystem.Colors.separator.opacity(0.18) : DesignSystem.Colors.cardBackground.opacity(0.68))
+                )
+                .overlay(
+                    Circle()
+                        .stroke(DesignSystem.Colors.separator.opacity(isCloseHovering ? 0.36 : 0.22), lineWidth: 1)
+                )
         }
         .buttonStyle(.borderless)
+        .contentShape(Circle())
+        .onHover { isCloseHovering = $0 }
         .help(L("actions.close"))
         .accessibilityLabel(L("actions.close"))
         .accessibilityIdentifier("quickMarker.headerClose")
