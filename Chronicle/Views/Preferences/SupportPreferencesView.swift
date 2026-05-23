@@ -19,6 +19,7 @@ struct SupportPreferencesView: View {
     @State private var docsStatus: StatusMessage?
     @State private var feedbackStatus: StatusMessage?
     @State private var releaseSafetyStatus: StatusMessage?
+    @State private var updateChannelStatus: StatusMessage?
     @State private var isCreatingFeedbackBundle = false
     @State private var hasTrackedOpen = false
     @State private var showHealthReport = false
@@ -56,6 +57,8 @@ struct SupportPreferencesView: View {
             }
 
             releaseSafetySection
+
+            updateChannelSection
 
             supportPathSection
 
@@ -329,7 +332,7 @@ struct SupportPreferencesView: View {
                     alignment: .leading,
                     spacing: DesignSystem.Spacing.sm
                 ) {
-                    releaseSafetyItem(
+                    supportChecklistItem(
                         systemImage: readinessIconName,
                         tone: readinessTone,
                         titleKey: "support.release_safety.health_title",
@@ -338,7 +341,7 @@ struct SupportPreferencesView: View {
                         accessibilityIdentifier: "support.releaseSafety.health"
                     )
 
-                    releaseSafetyItem(
+                    supportChecklistItem(
                         systemImage: "externaldrive",
                         tone: .success,
                         titleKey: "support.release_safety.data_title",
@@ -347,7 +350,7 @@ struct SupportPreferencesView: View {
                         accessibilityIdentifier: "support.releaseSafety.data"
                     )
 
-                    releaseSafetyItem(
+                    supportChecklistItem(
                         systemImage: "tag",
                         tone: .info,
                         titleKey: "support.release_safety.release_title",
@@ -397,7 +400,94 @@ struct SupportPreferencesView: View {
         .accessibilityIdentifier("support.releaseSafety")
     }
 
-    private func releaseSafetyItem(
+    private var updateChannelSection: some View {
+        SectionCard(title: "support.update_channel.title") {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                supportStatusHeader(
+                    systemImage: "arrow.down.app",
+                    tone: .info,
+                    title: L("support.update_channel.heading"),
+                    detail: L("support.update_channel.detail"),
+                    status: L("support.update_channel.status"),
+                    statusIcon: "hand.tap",
+                    accessibilityIdentifier: "support.updateChannel.header"
+                )
+
+                Divider()
+
+                LazyVGrid(
+                    columns: adaptiveColumns(minimum: 220, spacing: DesignSystem.Spacing.sm),
+                    alignment: .leading,
+                    spacing: DesignSystem.Spacing.sm
+                ) {
+                    supportChecklistItem(
+                        systemImage: "number",
+                        tone: .neutral,
+                        titleKey: "support.update_channel.current_title",
+                        detailKey: "support.update_channel.current_detail",
+                        status: versionString,
+                        accessibilityIdentifier: "support.updateChannel.current"
+                    )
+
+                    supportChecklistItem(
+                        systemImage: "safari",
+                        tone: .info,
+                        titleKey: "support.update_channel.source_title",
+                        detailKey: "support.update_channel.source_detail",
+                        status: L("support.update_channel.source_status"),
+                        accessibilityIdentifier: "support.updateChannel.source"
+                    )
+
+                    supportChecklistItem(
+                        systemImage: "checkmark.shield",
+                        tone: .success,
+                        titleKey: "support.update_channel.checksum_title",
+                        detailKey: "support.update_channel.checksum_detail",
+                        status: L("support.update_channel.checksum_status"),
+                        accessibilityIdentifier: "support.updateChannel.checksum"
+                    )
+                }
+                .accessibilityIdentifier("support.updateChannel.path")
+
+                responsiveActionGroup {
+                    Button {
+                        TelemetryService.shared.increment("check_updates_opened")
+                        open(
+                            url: latestReleaseURL,
+                            target: .updateChannel,
+                            successKey: "support.status.opened_latest_release",
+                            failureKey: "support.status.open_failed_url"
+                        )
+                    } label: {
+                        Label(L("support.update_channel.open_latest"), systemImage: "arrow.down.circle")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(DesignSystem.Colors.accentSkyBlue)
+                    .accessibilityIdentifier("support.updateChannel.openLatest")
+
+                    Button {
+                        open(
+                            url: migrationGuideURL,
+                            target: .updateChannel,
+                            successKey: "support.status.opened_migration_guide",
+                            failureKey: "support.status.open_failed_url"
+                        )
+                    } label: {
+                        Label(L("support.update_channel.open_upgrade_guide"), systemImage: "arrow.triangle.2.circlepath")
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("support.updateChannel.openUpgradeGuide")
+                }
+                .accessibilityIdentifier("support.updateChannel.actions")
+
+                StatusBannerView(status: updateChannelStatus, accessibilityIdentifier: "support.updateChannelStatus")
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityIdentifier("support.updateChannel")
+    }
+
+    private func supportChecklistItem(
         systemImage: String,
         tone: DesignSystem.StatusTone,
         titleKey: LocalizedStringKey,
@@ -752,6 +842,7 @@ struct SupportPreferencesView: View {
         case actions
         case docs
         case feedback
+        case updateChannel
     }
 
     private var readinessState: ReadinessState {
@@ -989,6 +1080,8 @@ struct SupportPreferencesView: View {
             docsStatus = status
         case .feedback:
             feedbackStatus = status
+        case .updateChannel:
+            updateChannelStatus = status
         }
     }
 
