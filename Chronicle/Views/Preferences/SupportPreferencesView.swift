@@ -18,6 +18,7 @@ struct SupportPreferencesView: View {
     @State private var actionsStatus: StatusMessage?
     @State private var docsStatus: StatusMessage?
     @State private var feedbackStatus: StatusMessage?
+    @State private var releaseSafetyStatus: StatusMessage?
     @State private var isCreatingFeedbackBundle = false
     @State private var hasTrackedOpen = false
     @State private var showHealthReport = false
@@ -53,6 +54,8 @@ struct SupportPreferencesView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+
+            releaseSafetySection
 
             supportPathSection
 
@@ -304,6 +307,164 @@ struct SupportPreferencesView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityIdentifier("support.path")
+    }
+
+    private var releaseSafetySection: some View {
+        SectionCard(title: "support.release_safety.title") {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                supportStatusHeader(
+                    systemImage: "arrow.triangle.2.circlepath",
+                    tone: releaseSafetyTone,
+                    title: L("support.release_safety.heading"),
+                    detail: L("support.release_safety.detail"),
+                    status: releaseSafetyStatusText,
+                    statusIcon: releaseSafetyStatusIconName,
+                    accessibilityIdentifier: "support.releaseSafety.header"
+                )
+
+                Divider()
+
+                LazyVGrid(
+                    columns: adaptiveColumns(minimum: 220, spacing: DesignSystem.Spacing.sm),
+                    alignment: .leading,
+                    spacing: DesignSystem.Spacing.sm
+                ) {
+                    releaseSafetyItem(
+                        systemImage: readinessIconName,
+                        tone: readinessTone,
+                        titleKey: "support.release_safety.health_title",
+                        detailKey: "support.release_safety.health_detail",
+                        status: readinessText,
+                        accessibilityIdentifier: "support.releaseSafety.health"
+                    )
+
+                    releaseSafetyItem(
+                        systemImage: "externaldrive",
+                        tone: .success,
+                        titleKey: "support.release_safety.data_title",
+                        detailKey: "support.release_safety.data_detail",
+                        status: L("support.release_safety.data_status"),
+                        accessibilityIdentifier: "support.releaseSafety.data"
+                    )
+
+                    releaseSafetyItem(
+                        systemImage: "tag",
+                        tone: .info,
+                        titleKey: "support.release_safety.release_title",
+                        detailKey: "support.release_safety.release_detail",
+                        status: L("support.release_safety.release_status"),
+                        accessibilityIdentifier: "support.releaseSafety.release"
+                    )
+                }
+                .accessibilityIdentifier("support.releaseSafety.path")
+
+                responsiveActionGroup {
+                    releaseSafetyHealthAction
+
+                    Button {
+                        open(
+                            url: dataSafetyGuideURL,
+                            target: .releaseSafety,
+                            successKey: "support.status.opened_data_safety_guide",
+                            failureKey: "support.status.open_failed_url"
+                        )
+                    } label: {
+                        Label(L("support.release_safety.open_data_safety"), systemImage: "lock.shield")
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("support.releaseSafety.openDataSafety")
+
+                    Button {
+                        TelemetryService.shared.increment("check_updates_opened")
+                        open(
+                            url: latestReleaseURL,
+                            target: .releaseSafety,
+                            successKey: "support.status.opened_latest_release",
+                            failureKey: "support.status.open_failed_url"
+                        )
+                    } label: {
+                        Label(L("support.release_safety.open_latest"), systemImage: "arrow.down.circle")
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("support.releaseSafety.openLatest")
+                }
+                .accessibilityIdentifier("support.releaseSafety.actions")
+
+                StatusBannerView(status: releaseSafetyStatus, accessibilityIdentifier: "support.releaseSafetyStatus")
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityIdentifier("support.releaseSafety")
+    }
+
+    private func releaseSafetyItem(
+        systemImage: String,
+        tone: DesignSystem.StatusTone,
+        titleKey: LocalizedStringKey,
+        detailKey: LocalizedStringKey,
+        status: String,
+        accessibilityIdentifier: String
+    ) -> some View {
+        RowSurface(tone: tone) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                    Image(systemName: systemImage)
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(tone.color)
+                        .frame(width: 16, height: 18)
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(titleKey)
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        Text(detailKey)
+                            .font(.caption2)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .lineLimit(3)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+
+                StatusPill(status, systemImage: systemImage, tone: tone)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(maxWidth: .infinity, minHeight: 102, alignment: .topLeading)
+        }
+        .accessibilityIdentifier(accessibilityIdentifier)
+    }
+
+    @ViewBuilder
+    private var releaseSafetyHealthAction: some View {
+        switch readinessState {
+        case .notRun, .failed:
+            Button {
+                healthCheck.runQuickChecks()
+            } label: {
+                Label(L("support.release_safety.run_check"), systemImage: "stethoscope")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(DesignSystem.Colors.accentSkyBlue)
+            .disabled(healthCheck.isRunning)
+            .accessibilityIdentifier("support.releaseSafety.runCheck")
+        case .running:
+            Button {} label: {
+                Label(L("popover.self_check.running"), systemImage: "waveform.path.ecg")
+            }
+            .buttonStyle(.borderedProminent)
+            .disabled(true)
+        case .blocked, .attention, .ready:
+            Button {
+                showHealthReport = true
+            } label: {
+                Label(L("support.release_safety.open_health"), systemImage: "doc.text.magnifyingglass")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(DesignSystem.Colors.accentSkyBlue)
+            .accessibilityIdentifier("support.releaseSafety.openHealth")
+        }
     }
 
     private var supportPackageTrustRow: some View {
@@ -586,6 +747,7 @@ struct SupportPreferencesView: View {
     private enum SupportStatusTarget {
         case readiness
         case supportPath
+        case releaseSafety
         case identity
         case actions
         case docs
@@ -817,6 +979,8 @@ struct SupportPreferencesView: View {
             readinessStatus = status
         case .supportPath:
             supportPathStatus = status
+        case .releaseSafety:
+            releaseSafetyStatus = status
         case .identity:
             identityStatus = status
         case .actions:
@@ -825,6 +989,51 @@ struct SupportPreferencesView: View {
             docsStatus = status
         case .feedback:
             feedbackStatus = status
+        }
+    }
+
+    private var releaseSafetyStatusText: String {
+        switch readinessState {
+        case .ready:
+            return L("support.release_safety.status.ready")
+        case .running:
+            return L("support.release_safety.status.checking")
+        case .blocked, .failed:
+            return L("support.release_safety.status.blocked")
+        case .attention:
+            return L("support.release_safety.status.review")
+        case .notRun:
+            return L("support.release_safety.status.start")
+        }
+    }
+
+    private var releaseSafetyStatusIconName: String {
+        switch readinessState {
+        case .ready:
+            return "checkmark"
+        case .running:
+            return "waveform.path.ecg"
+        case .blocked, .failed:
+            return "xmark"
+        case .attention:
+            return "exclamationmark"
+        case .notRun:
+            return "circle"
+        }
+    }
+
+    private var releaseSafetyTone: DesignSystem.StatusTone {
+        switch readinessState {
+        case .ready:
+            return .success
+        case .running:
+            return .info
+        case .blocked, .failed:
+            return .critical
+        case .attention:
+            return .warning
+        case .notRun:
+            return .info
         }
     }
 
