@@ -20,6 +20,12 @@
 "popover.open_dashboard" = "打开今天";
 "popover.open_preferences" = "设置";
 "popover.subtitle" = "记录、补语境、保存今天。";
+"popover.header.status.recording" = "记录中";
+"popover.header.status.checking" = "检查中";
+"popover.header.status.ready" = "健康";
+"popover.header.status.review" = "复查健康";
+"popover.header.status.fix" = "修复健康";
+"popover.header.status.paused" = "已暂停";
 "popover.self_check.title" = "记录健康度";
 "popover.self_check.checked_at" = "上次检查：%@";
 "popover.self_check.run" = "立即检查";

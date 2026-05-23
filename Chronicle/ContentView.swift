@@ -90,26 +90,52 @@ struct ContentView: View {
 
             Spacer()
 
-            Button {
-                TelemetryService.shared.increment("dashboard_opened")
-                AppWindowRouter.shared.open(.dashboard)
-            } label: {
-                Label(LocalizedStringKey("popover.open_dashboard"), systemImage: "sun.max")
-                    .labelStyle(.titleAndIcon)
-            }
-            .buttonStyle(.bordered)
-            .accessibilityIdentifier("popover.openDashboard")
+            VStack(alignment: .trailing, spacing: 6) {
+                StatusPill(
+                    popoverHeaderStatusText,
+                    systemImage: popoverHeaderStatusIconName,
+                    tone: popoverHeaderStatusTone
+                )
+                .accessibilityIdentifier("popover.headerStatus")
 
-            Button {
-                TelemetryService.shared.increment("preferences_opened")
-                AppWindowRouter.shared.open(.settings())
-            } label: {
-                Label(LocalizedStringKey("popover.open_preferences"), systemImage: "gearshape")
-                    .labelStyle(.titleAndIcon)
+                HStack(spacing: 6) {
+                    popoverHeaderIconButton(
+                        titleKey: "popover.open_dashboard",
+                        systemImage: "sun.max",
+                        accessibilityIdentifier: "popover.openDashboard"
+                    ) {
+                        TelemetryService.shared.increment("dashboard_opened")
+                        AppWindowRouter.shared.open(.dashboard)
+                    }
+
+                    popoverHeaderIconButton(
+                        titleKey: "popover.open_preferences",
+                        systemImage: "gearshape",
+                        accessibilityIdentifier: "popover.openPreferences"
+                    ) {
+                        TelemetryService.shared.increment("preferences_opened")
+                        AppWindowRouter.shared.open(.settings())
+                    }
+                }
             }
-            .buttonStyle(.bordered)
-            .accessibilityIdentifier("popover.openPreferences")
         }
+    }
+
+    private func popoverHeaderIconButton(
+        titleKey: String,
+        systemImage: String,
+        accessibilityIdentifier: String,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.semibold))
+                .frame(width: 30, height: 26)
+        }
+        .buttonStyle(.bordered)
+        .help(L(titleKey))
+        .accessibilityLabel(Text(LocalizedStringKey(titleKey)))
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     private var todayCommandCenterView: some View {
@@ -1400,6 +1426,67 @@ struct ContentView: View {
         }
         if dailySnapshot.activeSeconds == 0 || dailySnapshot.reviewCueCount == 0 {
             return .info
+        }
+        return .success
+    }
+
+    private var popoverHeaderStatusText: String {
+        if appState.trackingPaused {
+            return L("popover.header.status.paused")
+        }
+        if healthCheckService.isRunning {
+            return L("popover.header.status.checking")
+        }
+        if let error = healthCheckService.lastError, !error.isEmpty {
+            return L("popover.header.status.fix")
+        }
+        guard let report = healthCheckService.lastReport else {
+            return L("popover.header.status.recording")
+        }
+        let counts = selfCheckIssueCounts(for: report)
+        if counts.errors > 0 {
+            return L("popover.header.status.fix")
+        }
+        if counts.warnings > 0 {
+            return L("popover.header.status.review")
+        }
+        return L("popover.header.status.ready")
+    }
+
+    private var popoverHeaderStatusIconName: String {
+        switch popoverHeaderStatusTone {
+        case .success:
+            return "checkmark.circle.fill"
+        case .warning:
+            return appState.trackingPaused ? "pause.fill" : "exclamationmark.triangle.fill"
+        case .critical:
+            return "xmark.octagon.fill"
+        case .info:
+            return healthCheckService.isRunning ? "arrow.clockwise" : "record.circle"
+        case .neutral:
+            return "circle"
+        }
+    }
+
+    private var popoverHeaderStatusTone: DesignSystem.StatusTone {
+        if appState.trackingPaused {
+            return .warning
+        }
+        if healthCheckService.isRunning {
+            return .info
+        }
+        if let error = healthCheckService.lastError, !error.isEmpty {
+            return .critical
+        }
+        guard let report = healthCheckService.lastReport else {
+            return .info
+        }
+        let counts = selfCheckIssueCounts(for: report)
+        if counts.errors > 0 {
+            return .critical
+        }
+        if counts.warnings > 0 {
+            return .warning
         }
         return .success
     }

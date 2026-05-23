@@ -20,6 +20,12 @@
 "popover.open_dashboard" = "Open Today";
 "popover.open_preferences" = "Settings";
 "popover.subtitle" = "Capture, add context, save the day.";
+"popover.header.status.recording" = "Recording";
+"popover.header.status.checking" = "Checking";
+"popover.header.status.ready" = "Healthy";
+"popover.header.status.review" = "Review health";
+"popover.header.status.fix" = "Fix health";
+"popover.header.status.paused" = "Paused";
 "popover.self_check.title" = "Capture Health";
 "popover.self_check.checked_at" = "Last checked: %@";
 "popover.self_check.run" = "Check Now";
