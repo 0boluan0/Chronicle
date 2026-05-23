@@ -215,6 +215,8 @@ final class ChronicleUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Quick Capture"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["Capture a review note or start a focus block without leaving your work."].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["quickMarker.panelHeaderRow"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["quickMarker.headerStatus"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["quickMarker.headerProgress"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["quickMarker.headerClose"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["quickMarker.workspace"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["quickMarker.primaryCapture"].waitForExistence(timeout: 5))

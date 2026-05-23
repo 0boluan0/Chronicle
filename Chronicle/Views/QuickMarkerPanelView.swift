@@ -48,6 +48,8 @@ struct QuickMarkerPanelView: View {
                 headerCloseButton
             }
             .accessibilityIdentifier("quickMarker.panelHeaderRow")
+
+            panelHeaderProgressRail
         }
         .accessibilityIdentifier("quickMarker.panelHeader")
     }
@@ -176,10 +178,16 @@ struct QuickMarkerPanelView: View {
 
     private var panelHeaderText: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(L("quick_marker.title"))
-                .font(DesignSystem.Typography.title)
-                .foregroundColor(DesignSystem.Colors.primaryText)
-                .lineLimit(2)
+            HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.sm) {
+                Text(L("quick_marker.title"))
+                    .font(DesignSystem.Typography.title)
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.86)
+
+                StatusPill(reviewLoopStatusText, systemImage: reviewLoopStatusIconName, tone: reviewLoopTone)
+                    .accessibilityIdentifier("quickMarker.headerStatus")
+            }
 
             Text(L("quick_marker.subtitle"))
                 .font(DesignSystem.Typography.caption)
@@ -187,6 +195,40 @@ struct QuickMarkerPanelView: View {
                 .lineLimit(3)
                 .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    private var panelHeaderProgressRail: some View {
+        HStack(spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: reviewLoopIconName)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(reviewLoopTone.color)
+                .frame(width: 16)
+
+            RatioBar(
+                filledFraction: reviewLoopProgressFraction,
+                filledColor: reviewLoopTone.color,
+                remainderColor: DesignSystem.Colors.separator
+            )
+
+            Text(String(format: L("quick_marker.loop.progress"), reviewLoopReadyCount, reviewLoopTotalCount))
+                .font(.caption2.weight(.semibold))
+                .foregroundColor(reviewLoopTone.color)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.82)
+        }
+        .padding(.horizontal, DesignSystem.Spacing.sm)
+        .padding(.vertical, 7)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(reviewLoopTone.color.opacity(0.07))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(reviewLoopTone.color.opacity(0.18), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("quickMarker.headerProgress")
     }
 
     private var headerCloseButton: some View {
