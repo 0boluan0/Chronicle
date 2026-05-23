@@ -120,8 +120,7 @@ struct ReportsWorkspaceView: View {
     private var reportsContent: some View {
         VStack(alignment: .leading, spacing: 20) {
             if showTitle {
-                Text(L("preferences.export"))
-                    .font(.title2.weight(.semibold))
+                reportsWorkspaceHeader
             }
 
             closeoutSection
@@ -146,6 +145,59 @@ struct ReportsWorkspaceView: View {
         }
         .frame(maxWidth: reportsReadableContentWidth, alignment: .leading)
         .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+
+    private var reportsWorkspaceHeader: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+                    IconWell(
+                        systemImage: mode == .dashboard ? "checklist" : "doc.text.magnifyingglass",
+                        tone: planExportReadinessTone,
+                        accessibilityLabel: L("preferences.export")
+                    )
+
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                        Text("preferences.export")
+                            .font(DesignSystem.Typography.title)
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+                            .lineLimit(1)
+
+                        Text(LocalizedStringKey(reportPlanDetailKey))
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .lineLimit(3)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                    StatusPill(
+                        planExportReadinessHeadline,
+                        systemImage: planExportReadinessStatusIconName,
+                        tone: planExportReadinessTone
+                    )
+
+                    Text(String(format: L("reports.readiness.ready_count"), planReadyExportFolderCount, planExportFolderKinds.count))
+                        .font(.caption2.weight(.medium))
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            Rectangle()
+                .fill(planExportReadinessTone.color.opacity(0.18))
+                .frame(height: 1)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("reports.workspace.header")
     }
 
     private var closeoutSection: some View {
@@ -4512,6 +4564,10 @@ struct ReportsWorkspaceView: View {
 
     private var planExportReadinessTone: DesignSystem.StatusTone {
         planExportFoldersReady ? .success : .warning
+    }
+
+    private var planExportReadinessStatusIconName: String {
+        planExportFoldersReady ? "checkmark.seal.fill" : "exclamationmark.triangle.fill"
     }
 
     private var selectedReportDayText: String {
