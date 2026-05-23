@@ -2479,6 +2479,8 @@
 "apps.filter.untagged" = "无分类";
 "apps.visible_count" = "显示 %d / %d";
 "apps.list.title" = "整理应用";
+"apps.load_more.title" = "还有更多应用";
+"apps.load_more.detail" = "当前已载入 %d 个应用；需要继续整理时可加载下一批。";
 "apps.empty" = "暂无应用分类。";
 "apps.empty_hint" = "使用 Chronicle 一段时间后，影响日志分类的应用会出现在这里。";
 "apps.empty.path.capture_title" = "正常使用应用";

@@ -60,15 +60,7 @@ struct AppMappingsView: View {
             mappingListSection
 
             if hasMoreMappings {
-                HStack {
-                    Spacer()
-                    Button(L("common.load_more")) {
-                        loadMappings(reset: false)
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(isLoadingMappings)
-                    Spacer()
-                }
+                mappingLoadMoreFooter
             }
         }
         .onAppear {
@@ -868,6 +860,63 @@ struct AppMappingsView: View {
 
             mappingList
         }
+    }
+
+    private var mappingLoadMoreFooter: some View {
+        RowSurface(tone: .info) {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 230), spacing: DesignSystem.Spacing.md, alignment: .center)],
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                    IconWell(
+                        systemImage: "tray.and.arrow.down",
+                        tone: .info,
+                        accessibilityLabel: L("apps.load_more.title")
+                    )
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("apps.load_more.title")
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+                            .lineLimit(1)
+
+                        Text(String(format: L("apps.load_more.detail"), appMappings.count))
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    StatusPill(
+                        String(format: L("apps.visible_count"), filteredMappings.count, appMappings.count),
+                        systemImage: "eye",
+                        tone: .info
+                    )
+
+                    if isLoadingMappings {
+                        ProgressView()
+                            .controlSize(.small)
+                    }
+
+                    Button {
+                        loadMappings(reset: false)
+                    } label: {
+                        Label(L("common.load_more"), systemImage: "plus.circle")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(DesignSystem.Colors.accentSkyBlue)
+                    .disabled(isLoadingMappings)
+                    .accessibilityIdentifier("appMappings.loadMore")
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .accessibilityIdentifier("appMappings.loadMoreFooter")
     }
 
     private var mappingList: some View {

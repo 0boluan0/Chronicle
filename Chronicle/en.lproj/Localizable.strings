@@ -2480,6 +2480,8 @@
 "apps.filter.untagged" = "No category";
 "apps.visible_count" = "%d of %d visible";
 "apps.list.title" = "Review apps";
+"apps.load_more.title" = "More apps are available";
+"apps.load_more.detail" = "Showing %d loaded apps now. Load the next page when you want to keep reviewing.";
 "apps.empty" = "No app categories yet.";
 "apps.empty_hint" = "Use Chronicle for a while and the apps that affect daily logs will appear here.";
 "apps.empty.path.capture_title" = "Use apps normally";
