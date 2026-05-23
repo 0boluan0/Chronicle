@@ -11,6 +11,14 @@ import SwiftUI
 private let statsReadableContentWidth: CGFloat = 1040
 
 struct DashboardStatsView: View {
+    private enum CapturePipelineState {
+        case waiting
+        case legacy
+        case pendingNormalization
+        case grouped
+        case direct
+    }
+
     @EnvironmentObject private var appState: AppState
     @ObservedObject private var reportSettings = ReportSettings.shared
 
@@ -843,6 +851,12 @@ struct DashboardStatsView: View {
                 spacing: DesignSystem.Spacing.sm
             ) {
                 MetricValueView(
+                    title: "dashboard.stats.data_quality.raw_events",
+                    value: "\(stats.rawEventCount)",
+                    systemImage: "waveform.path.ecg",
+                    tone: stats.rawEventCount == 0 ? .neutral : .info
+                )
+                MetricValueView(
                     title: "dashboard.stats.data_quality.sessions",
                     value: "\(stats.summary.sessions)",
                     systemImage: "list.bullet.rectangle",
@@ -861,8 +875,100 @@ struct DashboardStatsView: View {
                     tone: dataQualityContextCount(stats) == 0 ? .neutral : .info
                 )
             }
+
+            capturePipelineStrip(stats: stats)
         }
         .accessibilityIdentifier("dashboard.stats.dataQuality")
+    }
+
+    private func capturePipelineStrip(stats: RangeStats) -> some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.md
+        ) {
+            capturePipelineCopy(stats: stats)
+            capturePipelineActions(stats: stats)
+        }
+        .padding(DesignSystem.Spacing.md)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(capturePipelineTone(stats).color.opacity(0.07))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(capturePipelineTone(stats).color.opacity(0.20), lineWidth: 1)
+        )
+        .accessibilityIdentifier("dashboard.stats.capturePipeline")
+    }
+
+    private func capturePipelineCopy(stats: RangeStats) -> some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            IconWell(
+                systemImage: capturePipelineIconName(stats),
+                tone: capturePipelineTone(stats),
+                accessibilityLabel: L("dashboard.stats.data_quality.pipeline_title")
+            )
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("dashboard.stats.data_quality.pipeline_title")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+
+                Text(LocalizedStringKey(capturePipelineDetailKey(stats)))
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(capturePipelineRulesText)
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(capturePipelineCompactionText)
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func capturePipelineActions(stats: RangeStats) -> some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            StatusPill(
+                capturePipelineStatusText(stats),
+                systemImage: capturePipelineStatusIconName(stats),
+                tone: capturePipelineTone(stats)
+            )
+
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 142), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                Button {
+                    selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
+                } label: {
+                    Label(L("dashboard.stats.review.open_timeline"), systemImage: "clock")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .accessibilityIdentifier("dashboard.stats.capturePipeline.openTimeline")
+
+                Button {
+                    AppWindowRouter.shared.open(.settings(.general))
+                } label: {
+                    Label(L("dashboard.stats.data_quality.capture_settings"), systemImage: "slider.horizontal.3")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .accessibilityIdentifier("dashboard.stats.capturePipeline.openSettings")
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func statsFocusPanels(stats: RangeStats) -> some View {
@@ -1256,6 +1362,116 @@ struct DashboardStatsView: View {
         stats.markerNotesCount + stats.markerSessionsCount
     }
 
+    private func capturePipelineState(_ stats: RangeStats) -> CapturePipelineState {
+        if stats.rawEventCount == 0 && stats.summary.sessions == 0 {
+            return .waiting
+        }
+        if stats.rawEventCount == 0 {
+            return .legacy
+        }
+        if stats.summary.sessions == 0 {
+            return .pendingNormalization
+        }
+        if stats.rawEventCount > stats.summary.sessions {
+            return .grouped
+        }
+        return .direct
+    }
+
+    private func capturePipelineDetailKey(_ stats: RangeStats) -> String {
+        switch capturePipelineState(stats) {
+        case .waiting:
+            return "dashboard.stats.data_quality.pipeline_detail.waiting"
+        case .legacy:
+            return "dashboard.stats.data_quality.pipeline_detail.legacy"
+        case .pendingNormalization:
+            return "dashboard.stats.data_quality.pipeline_detail.pending"
+        case .grouped:
+            return "dashboard.stats.data_quality.pipeline_detail.grouped"
+        case .direct:
+            return "dashboard.stats.data_quality.pipeline_detail.direct"
+        }
+    }
+
+    private func capturePipelineStatusText(_ stats: RangeStats) -> String {
+        switch capturePipelineState(stats) {
+        case .waiting:
+            return L("dashboard.stats.data_quality.pipeline_status.waiting")
+        case .legacy:
+            return L("dashboard.stats.data_quality.pipeline_status.legacy")
+        case .pendingNormalization:
+            return L("dashboard.stats.data_quality.pipeline_status.pending")
+        case .grouped:
+            return L("dashboard.stats.data_quality.pipeline_status.grouped")
+        case .direct:
+            return L("dashboard.stats.data_quality.pipeline_status.direct")
+        }
+    }
+
+    private func capturePipelineStatusIconName(_ stats: RangeStats) -> String {
+        switch capturePipelineState(stats) {
+        case .waiting:
+            return "circle"
+        case .legacy:
+            return "archivebox"
+        case .pendingNormalization:
+            return "exclamationmark.triangle"
+        case .grouped:
+            return "arrow.triangle.merge"
+        case .direct:
+            return "checkmark.circle"
+        }
+    }
+
+    private func capturePipelineIconName(_ stats: RangeStats) -> String {
+        switch capturePipelineState(stats) {
+        case .waiting:
+            return "waveform.path.ecg"
+        case .legacy:
+            return "clock.arrow.circlepath"
+        case .pendingNormalization:
+            return "exclamationmark.triangle.fill"
+        case .grouped:
+            return "arrow.triangle.merge"
+        case .direct:
+            return "checkmark.seal.fill"
+        }
+    }
+
+    private func capturePipelineTone(_ stats: RangeStats) -> DesignSystem.StatusTone {
+        switch capturePipelineState(stats) {
+        case .waiting:
+            return .neutral
+        case .legacy:
+            return .info
+        case .pendingNormalization:
+            return .warning
+        case .grouped:
+            return .info
+        case .direct:
+            return .success
+        }
+    }
+
+    private var capturePipelineRulesText: String {
+        String(
+            format: L("dashboard.stats.data_quality.pipeline_rules"),
+            appState.minSessionDurationSeconds,
+            appState.mergeGapSeconds,
+            appState.switchDebounceSeconds
+        )
+    }
+
+    private var capturePipelineCompactionText: String {
+        if appState.compactionEnabled {
+            return String(
+                format: L("dashboard.stats.data_quality.pipeline_compaction_on"),
+                appState.compactionLookbackDays
+            )
+        }
+        return L("dashboard.stats.data_quality.pipeline_compaction_off")
+    }
+
     private var rangeTitle: String {
         L(rangeTitleKey)
     }
@@ -1288,6 +1504,7 @@ struct DashboardStatsView: View {
         var topApps: [TopItem] = []
         var topTags: [TopItem] = []
         var tagRows: [TagRow] = []
+        var rawEventCount = 0
         var errorMessage: String?
 
         group.enter()
@@ -1336,6 +1553,17 @@ struct DashboardStatsView: View {
         }
 
         group.enter()
+        DatabaseService.shared.fetchRawEventCount(start: bounds.start, end: bounds.end) { result in
+            switch result {
+            case .success(let count):
+                rawEventCount = count
+            case .failure(let error):
+                errorMessage = error.localizedDescription
+            }
+            group.leave()
+        }
+
+        group.enter()
         AggregationService.shared.fetchTags { result in
             switch result {
             case .success(let rows):
@@ -1361,7 +1589,8 @@ struct DashboardStatsView: View {
                     return TagDuration(tagId: item.tagId, name: item.name, color: color, seconds: item.durationSeconds)
                 },
                 markerNotesCount: summary?.markerNotesCount ?? 0,
-                markerSessionsCount: summary?.markerSessionsCount ?? 0
+                markerSessionsCount: summary?.markerSessionsCount ?? 0,
+                rawEventCount: rawEventCount
             )
 
             self.rangeStats = rangeStats
@@ -1714,13 +1943,15 @@ private struct RangeStats {
     let topTags: [TagDuration]
     let markerNotesCount: Int
     let markerSessionsCount: Int
+    let rawEventCount: Int
 
     static let empty = RangeStats(
         summary: SummaryMetrics(totalSeconds: 0, activeSeconds: 0, idleSeconds: 0, sessions: 0),
         topApps: [],
         topTags: [],
         markerNotesCount: 0,
-        markerSessionsCount: 0
+        markerSessionsCount: 0,
+        rawEventCount: 0
     )
 }
 
