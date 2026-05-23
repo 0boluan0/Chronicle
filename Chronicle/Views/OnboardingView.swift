@@ -30,12 +30,14 @@ struct OnboardingView: View {
 
     @EnvironmentObject private var appState: AppState
     @ObservedObject private var reportSettings = ReportSettings.shared
+    @ObservedObject private var healthCheckService = HealthCheckService.shared
 
     @State private var step: Step = .value
     @State private var exportStatusMessage: String?
     @State private var exportStatusIsError = false
     @State private var launchAtLoginMessage: String?
     @State private var hoveredRailStep: Step?
+    @State private var showHealthDetails = false
 
     let onClose: () -> Void
 
@@ -69,6 +71,12 @@ struct OnboardingView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             AccessibilityPermissionManager.shared.syncAppState(appState)
+        }
+        .sheet(isPresented: $showHealthDetails) {
+            HealthCheckDetailsView {
+                showHealthDetails = false
+            }
+            .environmentObject(appState)
         }
         .onExitCommand(perform: onClose)
     }
@@ -1341,12 +1349,22 @@ struct OnboardingView: View {
                             tone: titleCaptureTone
                         )
                         MetricValueView(
+                            title: "onboarding.summary.health",
+                            value: finishHealthStatusText,
+                            systemImage: "stethoscope",
+                            tone: finishHealthTone
+                        )
+                        MetricValueView(
                             title: "onboarding.summary.startup",
                             value: startupSummaryText,
                             systemImage: "power",
                             tone: startupTone
                         )
                     }
+
+                    Divider()
+
+                    finishHealthReadiness
 
                     Divider()
 
@@ -1358,6 +1376,9 @@ struct OnboardingView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+        }
+        .onAppear {
+            runFinishHealthCheckIfNeeded()
         }
     }
 
@@ -1516,6 +1537,53 @@ struct OnboardingView: View {
                 }
             }
             .accessibilityIdentifier("onboarding.finishPrimaryActions")
+        }
+    }
+
+    private var finishHealthReadiness: some View {
+        RowSurface(tone: finishHealthTone) {
+            LazyVGrid(
+                columns: adaptiveColumns(minimum: 240, spacing: DesignSystem.Spacing.md),
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                finishChecklistCopy(
+                    systemImage: finishHealthIconName,
+                    title: "onboarding.finish.health_title",
+                    detail: LocalizedStringKey(finishHealthDetailKey),
+                    tone: finishHealthTone
+                )
+                finishHealthActions
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+        }
+        .accessibilityIdentifier("onboarding.finish.health")
+    }
+
+    private var finishHealthActions: some View {
+        HStack(spacing: DesignSystem.Spacing.sm) {
+            StatusPill(finishHealthStatusText, systemImage: finishHealthStatusIconName, tone: finishHealthTone)
+
+            Button {
+                healthCheckService.runQuickChecks()
+            } label: {
+                Label(L("onboarding.finish.check_health"), systemImage: "checkmark.shield")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .disabled(healthCheckService.isRunning)
+            .accessibilityIdentifier("onboarding.finish.checkHealth")
+
+            if finishHealthCanShowDetails {
+                Button {
+                    showHealthDetails = true
+                } label: {
+                    Label(L("onboarding.finish.health_details"), systemImage: "doc.text.magnifyingglass")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .accessibilityIdentifier("onboarding.finish.healthDetails")
+            }
         }
     }
 
@@ -1911,6 +1979,129 @@ struct OnboardingView: View {
         appState.launchAtLoginEnabled ? "checkmark.circle.fill" : "power"
     }
 
+    private enum FinishHealthState {
+        case notRun
+        case running
+        case failed
+        case blocked
+        case attention
+        case ready
+    }
+
+    private var finishHealthState: FinishHealthState {
+        if healthCheckService.isRunning {
+            return .running
+        }
+        if let error = healthCheckService.lastError, !error.isEmpty {
+            return .failed
+        }
+        guard let report = healthCheckService.lastReport else {
+            return .notRun
+        }
+        let counts = healthIssueCounts(for: report)
+        if counts.errors > 0 {
+            return .blocked
+        }
+        if counts.warnings > 0 {
+            return .attention
+        }
+        return .ready
+    }
+
+    private var finishHealthStatusText: String {
+        switch finishHealthState {
+        case .notRun:
+            return L("self_check.details.status.not_run")
+        case .running:
+            return L("self_check.details.status.running")
+        case .failed:
+            return L("self_check.details.status.failed")
+        case .blocked:
+            return L("self_check.details.status.blocked")
+        case .attention:
+            return L("self_check.details.status.attention")
+        case .ready:
+            return L("self_check.details.status.ready")
+        }
+    }
+
+    private var finishHealthDetailKey: String {
+        switch finishHealthState {
+        case .notRun:
+            return "onboarding.finish.health_detail.not_run"
+        case .running:
+            return "onboarding.finish.health_detail.running"
+        case .failed:
+            return "onboarding.finish.health_detail.failed"
+        case .blocked:
+            return "onboarding.finish.health_detail.blocked"
+        case .attention:
+            return "onboarding.finish.health_detail.attention"
+        case .ready:
+            return "onboarding.finish.health_detail.ready"
+        }
+    }
+
+    private var finishHealthIconName: String {
+        switch finishHealthState {
+        case .notRun:
+            return "stethoscope"
+        case .running:
+            return "waveform.path.ecg"
+        case .failed, .blocked:
+            return "xmark.octagon.fill"
+        case .attention:
+            return "exclamationmark.triangle.fill"
+        case .ready:
+            return "checkmark.seal.fill"
+        }
+    }
+
+    private var finishHealthStatusIconName: String {
+        switch finishHealthState {
+        case .notRun:
+            return "circle"
+        case .running:
+            return "arrow.clockwise"
+        case .failed, .blocked:
+            return "xmark"
+        case .attention:
+            return "exclamationmark"
+        case .ready:
+            return "checkmark"
+        }
+    }
+
+    private var finishHealthTone: DesignSystem.StatusTone {
+        switch finishHealthState {
+        case .notRun:
+            return .neutral
+        case .running:
+            return .info
+        case .failed, .blocked:
+            return .critical
+        case .attention:
+            return .warning
+        case .ready:
+            return .success
+        }
+    }
+
+    private var finishHealthCanShowDetails: Bool {
+        healthCheckService.lastReport != nil || healthCheckService.lastError != nil
+    }
+
+    private func healthIssueCounts(for report: HealthCheckReport) -> (errors: Int, warnings: Int) {
+        report.issues.reduce(into: (errors: 0, warnings: 0)) { result, issue in
+            switch issue.severity {
+            case .error:
+                result.errors += 1
+            case .warning:
+                result.warnings += 1
+            }
+        }
+    }
+
     private var finishCloseoutDetailKey: LocalizedStringKey {
         hasDailyExportFolderConfigured
             ? "onboarding.finish.checklist.closeout_detail_ready"
@@ -2024,6 +2215,13 @@ struct OnboardingView: View {
     private func goBack() {
         guard let index = flowSteps.firstIndex(of: step), index > 0 else { return }
         step = flowSteps[index - 1]
+    }
+
+    private func runFinishHealthCheckIfNeeded() {
+        guard !healthCheckService.isRunning else { return }
+        if healthCheckService.lastReport == nil && healthCheckService.lastError == nil {
+            healthCheckService.runQuickChecks()
+        }
     }
 
     private func finish() {
