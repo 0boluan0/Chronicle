@@ -439,6 +439,8 @@ struct GeneralPreferencesView: View {
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
 
+                captureProfilesDeck
+
                 advancedRecommendationCard
 
                 DisclosureGroup(
@@ -471,6 +473,108 @@ struct GeneralPreferencesView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+
+    private var captureProfilesDeck: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                IconWell(
+                    systemImage: "dial.high",
+                    tone: activeCaptureProfileTone,
+                    accessibilityLabel: L("preferences.capture_profiles.title")
+                )
+
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: DesignSystem.Spacing.sm) {
+                        Text("preferences.capture_profiles.title")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+
+                        StatusPill(
+                            activeCaptureProfileStatusText,
+                            systemImage: activeCaptureProfileIconName,
+                            tone: activeCaptureProfileTone
+                        )
+                    }
+
+                    Text("preferences.capture_profiles.detail")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            LazyVGrid(
+                columns: adaptiveColumns(minimum: 210, spacing: DesignSystem.Spacing.sm),
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                ForEach(CaptureTuningProfile.allCases) { profile in
+                    captureProfileButton(profile)
+                }
+            }
+        }
+        .padding(DesignSystem.Spacing.md)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(activeCaptureProfileTone.color.opacity(0.06))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(activeCaptureProfileTone.color.opacity(0.18), lineWidth: 1)
+        )
+        .accessibilityIdentifier("preferences.captureProfiles")
+    }
+
+    private func captureProfileButton(_ profile: CaptureTuningProfile) -> some View {
+        let isSelected = appState.matchesCaptureTuningProfile(profile)
+        let tone = captureProfileTone(profile, isSelected: isSelected)
+
+        return Button {
+            appState.applyCaptureTuningProfile(profile)
+        } label: {
+            RowSurface(tone: tone, isSelected: isSelected) {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                        Image(systemName: captureProfileIconName(profile))
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundColor(tone.color)
+                            .frame(width: 18)
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(LocalizedStringKey(captureProfileTitleKey(profile)))
+                                .font(.caption.weight(.semibold))
+                                .foregroundColor(DesignSystem.Colors.primaryText)
+                                .lineLimit(2)
+                                .fixedSize(horizontal: false, vertical: true)
+
+                            Text(LocalizedStringKey(captureProfileDetailKey(profile)))
+                                .font(.caption2)
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
+                                .lineLimit(3)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+
+                        Spacer(minLength: 0)
+                    }
+
+                    Divider()
+
+                    HStack(spacing: DesignSystem.Spacing.sm) {
+                        StatusPill(
+                            isSelected ? L("preferences.capture_profiles.applied") : L("preferences.capture_profiles.apply"),
+                            systemImage: isSelected ? "checkmark.circle.fill" : "arrow.right.circle",
+                            tone: tone
+                        )
+
+                        Spacer(minLength: 0)
+                    }
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(L(captureProfileTitleKey(profile))) \(isSelected ? L("preferences.capture_profiles.applied") : L("preferences.capture_profiles.apply"))")
+        .accessibilityIdentifier("preferences.captureProfiles.\(profile.rawValue)")
     }
 
     private var advancedRecommendationCard: some View {
@@ -1114,6 +1218,85 @@ struct GeneralPreferencesView: View {
         appState.usesRecommendedTrackingSettings
             ? L("preferences.advanced_tracking.status.recommended")
             : L("preferences.advanced_tracking.status.custom")
+    }
+
+    private var activeCaptureProfileStatusText: String {
+        guard let profile = appState.currentCaptureTuningProfile else {
+            return L("preferences.capture_profiles.status.custom")
+        }
+        return L(captureProfileShortTitleKey(profile))
+    }
+
+    private var activeCaptureProfileIconName: String {
+        guard let profile = appState.currentCaptureTuningProfile else {
+            return "slider.horizontal.3"
+        }
+        return captureProfileIconName(profile)
+    }
+
+    private var activeCaptureProfileTone: DesignSystem.StatusTone {
+        guard let profile = appState.currentCaptureTuningProfile else {
+            return .warning
+        }
+        return captureProfileTone(profile, isSelected: true)
+    }
+
+    private func captureProfileTitleKey(_ profile: CaptureTuningProfile) -> String {
+        switch profile {
+        case .balanced:
+            return "preferences.capture_profiles.balanced.title"
+        case .batterySaver:
+            return "preferences.capture_profiles.battery.title"
+        case .detailedReview:
+            return "preferences.capture_profiles.detailed.title"
+        }
+    }
+
+    private func captureProfileShortTitleKey(_ profile: CaptureTuningProfile) -> String {
+        switch profile {
+        case .balanced:
+            return "preferences.capture_profiles.balanced.short"
+        case .batterySaver:
+            return "preferences.capture_profiles.battery.short"
+        case .detailedReview:
+            return "preferences.capture_profiles.detailed.short"
+        }
+    }
+
+    private func captureProfileDetailKey(_ profile: CaptureTuningProfile) -> String {
+        switch profile {
+        case .balanced:
+            return "preferences.capture_profiles.balanced.detail"
+        case .batterySaver:
+            return "preferences.capture_profiles.battery.detail"
+        case .detailedReview:
+            return "preferences.capture_profiles.detailed.detail"
+        }
+    }
+
+    private func captureProfileIconName(_ profile: CaptureTuningProfile) -> String {
+        switch profile {
+        case .balanced:
+            return "checkmark.seal.fill"
+        case .batterySaver:
+            return "leaf.fill"
+        case .detailedReview:
+            return "text.magnifyingglass"
+        }
+    }
+
+    private func captureProfileTone(_ profile: CaptureTuningProfile, isSelected: Bool) -> DesignSystem.StatusTone {
+        guard isSelected else {
+            return .neutral
+        }
+        switch profile {
+        case .balanced:
+            return .success
+        case .batterySaver:
+            return .info
+        case .detailedReview:
+            return .warning
+        }
     }
 
     private var currentLanguageText: String {

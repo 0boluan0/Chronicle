@@ -1131,6 +1131,39 @@ final class ChronicleTests: XCTestCase {
         XCTAssertTrue(reloaded.usesRecommendedTrackingSettings)
     }
 
+    func testCaptureTuningProfilesApplyAndPersist() {
+        let suiteName = "chronicle-tests-capture-profiles-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+
+        let state = AppState.makeTestInstance(defaults: defaults)
+        XCTAssertEqual(state.currentCaptureTuningProfile, .balanced)
+
+        state.applyCaptureTuningProfile(.batterySaver)
+        XCTAssertTrue(state.matchesCaptureTuningProfile(.batterySaver))
+        XCTAssertEqual(state.currentCaptureTuningProfile, .batterySaver)
+        XCTAssertEqual(state.minSessionDurationSeconds, 15)
+        XCTAssertEqual(state.idleCheckIntervalSeconds, 8)
+        XCTAssertEqual(state.compactionLookbackDays, 14)
+        XCTAssertFalse(state.countOverlaysInTotals)
+
+        state.applyCaptureTuningProfile(.detailedReview)
+        XCTAssertTrue(state.matchesCaptureTuningProfile(.detailedReview))
+        XCTAssertEqual(state.currentCaptureTuningProfile, .detailedReview)
+        XCTAssertEqual(state.minSessionDurationSeconds, 2)
+        XCTAssertEqual(state.switchDebounceSeconds, 0)
+        XCTAssertEqual(state.rapidSwitchMinHops, 2)
+        XCTAssertEqual(state.idleThresholdSeconds, 180)
+        XCTAssertTrue(state.countOverlaysInTotals)
+
+        let reloaded = AppState.makeTestInstance(defaults: defaults)
+        XCTAssertEqual(reloaded.currentCaptureTuningProfile, .detailedReview)
+
+        reloaded.applyCaptureTuningProfile(.balanced)
+        XCTAssertTrue(reloaded.usesRecommendedTrackingSettings)
+        XCTAssertEqual(reloaded.currentCaptureTuningProfile, .balanced)
+    }
+
     func testNewLocalizationKeysExistInSupportedBundles() {
         let keys = [
             "menu.open_dashboard",
@@ -2532,6 +2565,20 @@ final class ChronicleTests: XCTestCase {
             "preferences.capture.ignore_self",
             "preferences.language.heading",
             "preferences.advanced_tracking.description",
+            "preferences.capture_profiles.title",
+            "preferences.capture_profiles.detail",
+            "preferences.capture_profiles.status.custom",
+            "preferences.capture_profiles.apply",
+            "preferences.capture_profiles.applied",
+            "preferences.capture_profiles.balanced.title",
+            "preferences.capture_profiles.balanced.short",
+            "preferences.capture_profiles.balanced.detail",
+            "preferences.capture_profiles.battery.title",
+            "preferences.capture_profiles.battery.short",
+            "preferences.capture_profiles.battery.detail",
+            "preferences.capture_profiles.detailed.title",
+            "preferences.capture_profiles.detailed.short",
+            "preferences.capture_profiles.detailed.detail",
             "preferences.advanced_tracking.recommended.title",
             "preferences.advanced_tracking.recommended.detail",
             "preferences.advanced_tracking.status.recommended",

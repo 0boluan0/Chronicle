@@ -59,6 +59,14 @@ enum WindowTitlePrivacyMode: String, CaseIterable, Identifiable {
     }
 }
 
+enum CaptureTuningProfile: String, CaseIterable, Identifiable {
+    case balanced
+    case batterySaver
+    case detailedReview
+
+    var id: String { rawValue }
+}
+
 struct RuntimePerformanceSnapshot: Equatable {
     let dbWriteBacklog: Int
     let dbWriteLastLatencyMs: Int
@@ -399,6 +407,10 @@ final class AppState: ObservableObject {
         countOverlaysInTotals == Self.defaultCountOverlaysInTotals
     }
 
+    var currentCaptureTuningProfile: CaptureTuningProfile? {
+        CaptureTuningProfile.allCases.first { matchesCaptureTuningProfile($0) }
+    }
+
     func restoreRecommendedTrackingSettings() {
         trackingAggregationEnabled = Self.defaultTrackingAggregationEnabled
         minSessionDurationSeconds = Self.defaultMinSessionDurationSeconds
@@ -415,6 +427,160 @@ final class AppState: ObservableObject {
         idleHysteresisCount = Self.defaultIdleHysteresisCount
         idleResumeGraceSeconds = Self.defaultIdleResumeGraceSeconds
         countOverlaysInTotals = Self.defaultCountOverlaysInTotals
+    }
+
+    func applyCaptureTuningProfile(_ profile: CaptureTuningProfile) {
+        switch profile {
+        case .balanced:
+            restoreRecommendedTrackingSettings()
+        case .batterySaver:
+            applyCaptureTuningValues(
+                trackingAggregationEnabled: true,
+                minSessionDurationSeconds: 15,
+                mergeGapSeconds: 5,
+                switchDebounceSeconds: 2,
+                rapidSwitchWindowSeconds: 6,
+                rapidSwitchMinHops: 4,
+                compactionEnabled: true,
+                compactionLookbackDays: 14,
+                idleDetectionEnabled: true,
+                suppressIdleWhileMediaPlaying: true,
+                idleThresholdSeconds: 420,
+                idleCheckIntervalSeconds: 8,
+                idleHysteresisCount: 3,
+                idleResumeGraceSeconds: 5,
+                countOverlaysInTotals: false
+            )
+        case .detailedReview:
+            applyCaptureTuningValues(
+                trackingAggregationEnabled: true,
+                minSessionDurationSeconds: 2,
+                mergeGapSeconds: 1,
+                switchDebounceSeconds: 0,
+                rapidSwitchWindowSeconds: 3,
+                rapidSwitchMinHops: 2,
+                compactionEnabled: true,
+                compactionLookbackDays: 3,
+                idleDetectionEnabled: true,
+                suppressIdleWhileMediaPlaying: true,
+                idleThresholdSeconds: 180,
+                idleCheckIntervalSeconds: 2,
+                idleHysteresisCount: 1,
+                idleResumeGraceSeconds: 1,
+                countOverlaysInTotals: true
+            )
+        }
+    }
+
+    func matchesCaptureTuningProfile(_ profile: CaptureTuningProfile) -> Bool {
+        switch profile {
+        case .balanced:
+            return usesRecommendedTrackingSettings
+        case .batterySaver:
+            return captureTuningValuesMatch(
+                trackingAggregationEnabled: true,
+                minSessionDurationSeconds: 15,
+                mergeGapSeconds: 5,
+                switchDebounceSeconds: 2,
+                rapidSwitchWindowSeconds: 6,
+                rapidSwitchMinHops: 4,
+                compactionEnabled: true,
+                compactionLookbackDays: 14,
+                idleDetectionEnabled: true,
+                suppressIdleWhileMediaPlaying: true,
+                idleThresholdSeconds: 420,
+                idleCheckIntervalSeconds: 8,
+                idleHysteresisCount: 3,
+                idleResumeGraceSeconds: 5,
+                countOverlaysInTotals: false
+            )
+        case .detailedReview:
+            return captureTuningValuesMatch(
+                trackingAggregationEnabled: true,
+                minSessionDurationSeconds: 2,
+                mergeGapSeconds: 1,
+                switchDebounceSeconds: 0,
+                rapidSwitchWindowSeconds: 3,
+                rapidSwitchMinHops: 2,
+                compactionEnabled: true,
+                compactionLookbackDays: 3,
+                idleDetectionEnabled: true,
+                suppressIdleWhileMediaPlaying: true,
+                idleThresholdSeconds: 180,
+                idleCheckIntervalSeconds: 2,
+                idleHysteresisCount: 1,
+                idleResumeGraceSeconds: 1,
+                countOverlaysInTotals: true
+            )
+        }
+    }
+
+    private func applyCaptureTuningValues(
+        trackingAggregationEnabled: Bool,
+        minSessionDurationSeconds: Int,
+        mergeGapSeconds: Int,
+        switchDebounceSeconds: Int,
+        rapidSwitchWindowSeconds: Int,
+        rapidSwitchMinHops: Int,
+        compactionEnabled: Bool,
+        compactionLookbackDays: Int,
+        idleDetectionEnabled: Bool,
+        suppressIdleWhileMediaPlaying: Bool,
+        idleThresholdSeconds: Int,
+        idleCheckIntervalSeconds: Int,
+        idleHysteresisCount: Int,
+        idleResumeGraceSeconds: Int,
+        countOverlaysInTotals: Bool
+    ) {
+        self.trackingAggregationEnabled = trackingAggregationEnabled
+        self.minSessionDurationSeconds = minSessionDurationSeconds
+        self.mergeGapSeconds = mergeGapSeconds
+        self.switchDebounceSeconds = switchDebounceSeconds
+        self.rapidSwitchWindowSeconds = rapidSwitchWindowSeconds
+        self.rapidSwitchMinHops = rapidSwitchMinHops
+        self.compactionEnabled = compactionEnabled
+        self.compactionLookbackDays = compactionLookbackDays
+        self.idleDetectionEnabled = idleDetectionEnabled
+        self.suppressIdleWhileMediaPlaying = suppressIdleWhileMediaPlaying
+        self.idleThresholdSeconds = idleThresholdSeconds
+        self.idleCheckIntervalSeconds = idleCheckIntervalSeconds
+        self.idleHysteresisCount = idleHysteresisCount
+        self.idleResumeGraceSeconds = idleResumeGraceSeconds
+        self.countOverlaysInTotals = countOverlaysInTotals
+    }
+
+    private func captureTuningValuesMatch(
+        trackingAggregationEnabled: Bool,
+        minSessionDurationSeconds: Int,
+        mergeGapSeconds: Int,
+        switchDebounceSeconds: Int,
+        rapidSwitchWindowSeconds: Int,
+        rapidSwitchMinHops: Int,
+        compactionEnabled: Bool,
+        compactionLookbackDays: Int,
+        idleDetectionEnabled: Bool,
+        suppressIdleWhileMediaPlaying: Bool,
+        idleThresholdSeconds: Int,
+        idleCheckIntervalSeconds: Int,
+        idleHysteresisCount: Int,
+        idleResumeGraceSeconds: Int,
+        countOverlaysInTotals: Bool
+    ) -> Bool {
+        self.trackingAggregationEnabled == trackingAggregationEnabled &&
+        self.minSessionDurationSeconds == minSessionDurationSeconds &&
+        self.mergeGapSeconds == mergeGapSeconds &&
+        self.switchDebounceSeconds == switchDebounceSeconds &&
+        self.rapidSwitchWindowSeconds == rapidSwitchWindowSeconds &&
+        self.rapidSwitchMinHops == rapidSwitchMinHops &&
+        self.compactionEnabled == compactionEnabled &&
+        self.compactionLookbackDays == compactionLookbackDays &&
+        self.idleDetectionEnabled == idleDetectionEnabled &&
+        self.suppressIdleWhileMediaPlaying == suppressIdleWhileMediaPlaying &&
+        self.idleThresholdSeconds == idleThresholdSeconds &&
+        self.idleCheckIntervalSeconds == idleCheckIntervalSeconds &&
+        self.idleHysteresisCount == idleHysteresisCount &&
+        self.idleResumeGraceSeconds == idleResumeGraceSeconds &&
+        self.countOverlaysInTotals == countOverlaysInTotals
     }
 
     private static var defaultDebugLoggingEnabled: Bool {
