@@ -84,6 +84,11 @@
 "self_check.details.metrics" = "Detailed Checks";
 "self_check.details.no_issues" = "No action needed.";
 "self_check.details.no_metrics" = "No detailed checks available.";
+"self_check.details.issue.not_run_detail" = "Run the check to see whether anything needs repair.";
+"self_check.details.issue_triage.title" = "Fix Order";
+"self_check.details.issue_triage.detail" = "Start with “%@”; Chronicle sorted it ahead of lower-impact items.";
+"self_check.details.issue_triage.ready_detail" = "No issue needs triage right now.";
+"self_check.details.issue_triage.counts" = "%d error(s), %d warning(s)";
 "self_check.details.issue.technical_details" = "Technical details";
 "self_check.details.issue.severity.error" = "Fix first";
 "self_check.details.issue.severity.warning" = "Review";

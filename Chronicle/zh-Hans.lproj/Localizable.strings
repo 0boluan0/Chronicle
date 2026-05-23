@@ -84,6 +84,11 @@
 "self_check.details.metrics" = "详细检查";
 "self_check.details.no_issues" = "暂无需要处理的事项。";
 "self_check.details.no_metrics" = "暂无详细检查。";
+"self_check.details.issue.not_run_detail" = "运行检查后，这里会显示是否有需要修复的事项。";
+"self_check.details.issue_triage.title" = "修复顺序";
+"self_check.details.issue_triage.detail" = "先处理“%@”；Chronicle 已把它排在影响较小的事项前面。";
+"self_check.details.issue_triage.ready_detail" = "当前没有需要分诊的问题。";
+"self_check.details.issue_triage.counts" = "%d 个错误，%d 个警告";
 "self_check.details.issue.technical_details" = "技术详情";
 "self_check.details.issue.severity.error" = "先处理";
 "self_check.details.issue.severity.warning" = "需复查";

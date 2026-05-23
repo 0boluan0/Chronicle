@@ -735,16 +735,169 @@ struct HealthCheckDetailsView: View {
                 if report.issues.isEmpty {
                     healthNoIssuesView
                 } else {
-                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                        ForEach(report.issues) { issue in
-                            healthIssueRow(issue)
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                        healthIssueTriageHeader(report.issues)
+
+                        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                            ForEach(sortedHealthIssues(report.issues)) { issue in
+                                healthIssueRow(issue)
+                            }
                         }
+                        .accessibilityIdentifier("selfCheck.issue.list")
                     }
                 }
             } else {
+                healthNotCheckedIssueView
+            }
+        }
+    }
+
+    private var healthNotCheckedIssueView: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            IconWell(
+                systemImage: "stethoscope",
+                tone: .neutral,
+                accessibilityLabel: L("popover.self_check.not_run")
+            )
+
+            VStack(alignment: .leading, spacing: 4) {
                 Text(L("popover.self_check.not_run"))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+
+                Text("self_check.details.issue.not_run_detail")
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(DesignSystem.Spacing.md)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(DesignSystem.Colors.separator.opacity(0.06))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(DesignSystem.Colors.separator.opacity(0.22), lineWidth: 1)
+        )
+        .accessibilityIdentifier("selfCheck.issue.notRun")
+    }
+
+    private func healthIssueTriageHeader(_ issues: [HealthCheckIssue]) -> some View {
+        let sortedIssues = sortedHealthIssues(issues)
+        let topIssue = sortedIssues.first
+        let presentation = topIssue.map { issuePresentation(for: $0) }
+        let counts = issueCounts(in: issues)
+
+        return LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.md
+        ) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                IconWell(
+                    systemImage: presentation?.systemImage ?? "list.bullet.clipboard",
+                    tone: presentation?.tone ?? readinessTone,
+                    accessibilityLabel: L("self_check.details.issue_triage.title")
+                )
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("self_check.details.issue_triage.title")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+
+                    Text(issueTriageDetailText(topIssue: topIssue))
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                StatusPill(
+                    String(format: L("self_check.details.issue_triage.counts"), counts.errors, counts.warnings),
+                    systemImage: issueTriageStatusIconName(errors: counts.errors),
+                    tone: counts.errors > 0 ? .critical : .warning
+                )
+
+                if let action = presentation?.action {
+                    issueActionButton(action)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(DesignSystem.Spacing.md)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill((presentation?.tone ?? readinessTone).color.opacity(0.08))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke((presentation?.tone ?? readinessTone).color.opacity(0.2), lineWidth: 1)
+        )
+        .accessibilityIdentifier("selfCheck.issue.triage")
+    }
+
+    private func issueTriageDetailText(topIssue: HealthCheckIssue?) -> String {
+        guard let topIssue else {
+            return L("self_check.details.issue_triage.ready_detail")
+        }
+
+        let presentation = issuePresentation(for: topIssue)
+        return String(
+            format: L("self_check.details.issue_triage.detail"),
+            L(presentation.titleKey)
+        )
+    }
+
+    private func issueTriageStatusIconName(errors: Int) -> String {
+        errors > 0 ? "xmark" : "exclamationmark"
+    }
+
+    private func sortedHealthIssues(_ issues: [HealthCheckIssue]) -> [HealthCheckIssue] {
+        issues.sorted { lhs, rhs in
+            let lhsSeverityPriority = issuePriority(lhs)
+            let rhsSeverityPriority = issuePriority(rhs)
+            if lhsSeverityPriority != rhsSeverityPriority {
+                return lhsSeverityPriority < rhsSeverityPriority
+            }
+
+            let lhsActionPriority = issueActionPriority(issuePresentation(for: lhs).action)
+            let rhsActionPriority = issueActionPriority(issuePresentation(for: rhs).action)
+            if lhsActionPriority != rhsActionPriority {
+                return lhsActionPriority < rhsActionPriority
+            }
+
+            return lhs.message.localizedCaseInsensitiveCompare(rhs.message) == .orderedAscending
+        }
+    }
+
+    private func issueActionPriority(_ action: HealthIssueAction?) -> Int {
+        switch action {
+        case .grantAccessibility, .openDataFolder:
+            return 0
+        case .runCheck:
+            return 1
+        case .openPreferences:
+            return 2
+        case .createSupportPackage:
+            return 3
+        case .none:
+            return 4
+        }
+    }
+
+    private func issueCounts(in issues: [HealthCheckIssue]) -> (errors: Int, warnings: Int) {
+        issues.reduce(into: (errors: 0, warnings: 0)) { result, issue in
+            switch issue.severity {
+            case .error:
+                result.errors += 1
+            case .warning:
+                result.warnings += 1
             }
         }
     }
@@ -1278,7 +1431,7 @@ struct HealthCheckDetailsView: View {
             if report.issues.isEmpty {
                 lines.append("- \(L("self_check.details.clipboard.none"))")
             } else {
-                for issue in report.issues {
+                for issue in sortedHealthIssues(report.issues) {
                     let presentation = issuePresentation(for: issue)
                     let messageText = issue.message.trimmingCharacters(in: .whitespacesAndNewlines)
                     let detailText = (issue.details?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 }
@@ -1459,10 +1612,7 @@ struct HealthCheckDetailsView: View {
         guard let report = healthCheckService.lastReport else {
             return nil
         }
-        return report.issues
-            .sorted { lhs, rhs in
-                issuePriority(lhs) < issuePriority(rhs)
-            }
+        return sortedHealthIssues(report.issues)
             .compactMap { issuePresentation(for: $0).action }
             .first
     }
