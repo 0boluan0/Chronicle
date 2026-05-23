@@ -243,36 +243,99 @@ struct TagsRulesView: View {
     }
 
     private var classificationHeader: some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
-            IconWell(systemImage: "rectangle.split.3x1", tone: .info, accessibilityLabel: L("preferences.tags_rules"))
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+                IconWell(systemImage: "rectangle.split.3x1", tone: .info, accessibilityLabel: L("preferences.tags_rules"))
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text("preferences.tags_rules")
-                    .font(DesignSystem.Typography.title)
-                Text("tags_rules.page.subtitle")
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("preferences.tags_rules")
+                        .font(DesignSystem.Typography.title)
+                    Text("tags_rules.page.subtitle")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer()
+
+                StatusPill(
+                    L("tags_rules.page.badge"),
+                    systemImage: "checklist",
+                    tone: .info
+                )
             }
 
-            Spacer()
-
-            StatusPill(
-                L("tags_rules.page.badge"),
-                systemImage: "checklist",
-                tone: .info
-            )
+            classificationHeaderPath
         }
+        .accessibilityIdentifier("tagsRules.header")
+    }
+
+    private var classificationHeaderPath: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 178), spacing: DesignSystem.Spacing.sm, alignment: .topLeading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            ForEach(Section.allCases) { section in
+                classificationHeaderPathItem(section)
+            }
+        }
+        .accessibilityIdentifier("tagsRules.headerPath")
+    }
+
+    private func classificationHeaderPathItem(_ section: Section) -> some View {
+        let isSelected = selection == section
+        return HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: isSelected ? "checkmark.circle.fill" : section.systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(section.tone.color)
+                .frame(width: 16)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(section.titleKey)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(isSelected ? DesignSystem.Colors.primaryText : DesignSystem.Colors.secondaryText)
+                    .lineLimit(1)
+
+                Text(section.detailKey)
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, DesignSystem.Spacing.sm)
+        .padding(.vertical, 7)
+        .frame(maxWidth: .infinity, minHeight: 54, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .fill(section.tone.color.opacity(isSelected ? 0.10 : 0.05))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .stroke(section.tone.color.opacity(isSelected ? 0.28 : 0.13), lineWidth: isSelected ? 1.2 : 1)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("tagsRules.headerPath.\(section.rawValue)")
     }
 
     private var sectionPicker: some View {
         SectionCard {
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.md
-            ) {
-                sectionModePicker
-                sectionPickerSummary
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
+                    alignment: .leading,
+                    spacing: DesignSystem.Spacing.md
+                ) {
+                    sectionModePicker
+                    sectionPickerSummary
+                }
+
+                if !showHeader {
+                    classificationHeaderPath
+                }
             }
         }
         .accessibilityIdentifier("tagsRules.sectionPicker")
