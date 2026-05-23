@@ -627,6 +627,7 @@ final class ChronicleUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["dashboard.stats.includeIdle"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Activity Insights"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.descendants(matching: .any)["dashboard.stats.reviewHeader"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["dashboard.stats.reviewProgress"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Time captured"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Main focus"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Review cues"].waitForExistence(timeout: 5))

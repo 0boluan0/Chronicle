@@ -1563,6 +1563,9 @@
 "dashboard.stats.review.status.labels" = "Needs categories";
 "dashboard.stats.review.status.cues" = "Needs notes";
 "dashboard.stats.review.status.ready" = "Ready";
+"dashboard.stats.review.progress.title" = "Review readiness";
+"dashboard.stats.review.progress.value" = "%d/%d ready";
+"dashboard.stats.review.progress.loading" = "Checking";
 "dashboard.stats.review.capture_title" = "Time captured";
 "dashboard.stats.review.focus_title" = "Main focus";
 "dashboard.stats.review.cues_title" = "Notes and focus blocks";

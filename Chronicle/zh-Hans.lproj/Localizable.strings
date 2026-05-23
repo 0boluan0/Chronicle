@@ -1563,6 +1563,9 @@
 "dashboard.stats.review.status.labels" = "待分类";
 "dashboard.stats.review.status.cues" = "待补笔记";
 "dashboard.stats.review.status.ready" = "可解读";
+"dashboard.stats.review.progress.title" = "复盘就绪度";
+"dashboard.stats.review.progress.value" = "%d/%d 就绪";
+"dashboard.stats.review.progress.loading" = "检查中";
 "dashboard.stats.review.capture_title" = "记录时长";
 "dashboard.stats.review.focus_title" = "主要投入";
 "dashboard.stats.review.cues_title" = "笔记与专注区间";

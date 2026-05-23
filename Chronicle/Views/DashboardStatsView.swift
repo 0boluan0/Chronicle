@@ -279,6 +279,8 @@ struct DashboardStatsView: View {
                     )
                 }
 
+                statsReviewProgressView
+
                 statsInterpretationPath
 
                 statsReviewNextStepCard
@@ -353,6 +355,47 @@ struct DashboardStatsView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var statsReviewProgressView: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+                Image(systemName: statsReviewStatusIconName)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(statsReviewProgressTone.color)
+                    .frame(width: 16)
+
+                Text("dashboard.stats.review.progress.title")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(1)
+
+                Spacer(minLength: DesignSystem.Spacing.sm)
+
+                StatusPill(
+                    statsReviewProgressText,
+                    systemImage: statsReviewProgressIconName,
+                    tone: statsReviewProgressTone
+                )
+            }
+
+            RatioBar(
+                filledFraction: statsReviewProgressFraction,
+                filledColor: statsReviewProgressTone.color,
+                remainderColor: DesignSystem.Colors.separator
+            )
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(statsReviewProgressTone.color.opacity(0.07))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(statsReviewProgressTone.color.opacity(0.18), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("dashboard.stats.reviewProgress")
     }
 
     private var statsInterpretationPath: some View {
@@ -1828,6 +1871,60 @@ struct DashboardStatsView: View {
             return .warning
         }
         return statsReviewTone
+    }
+
+    private var statsReviewProgressReadyCount: Int {
+        var count = 0
+        if rangeStats.summary.totalSeconds > 0 {
+            count += 1
+        }
+        if !rangeStats.topTags.isEmpty {
+            count += 1
+        }
+        if reviewCueCount > 0 {
+            count += 1
+        }
+        return count
+    }
+
+    private var statsReviewProgressTotalCount: Int {
+        3
+    }
+
+    private var statsReviewProgressFraction: Double {
+        guard !isLoading else { return 0 }
+        return Double(statsReviewProgressReadyCount) / Double(statsReviewProgressTotalCount)
+    }
+
+    private var statsReviewProgressText: String {
+        if isLoading {
+            return L("dashboard.stats.review.progress.loading")
+        }
+        return String(
+            format: L("dashboard.stats.review.progress.value"),
+            statsReviewProgressReadyCount,
+            statsReviewProgressTotalCount
+        )
+    }
+
+    private var statsReviewProgressIconName: String {
+        if isLoading {
+            return "arrow.triangle.2.circlepath"
+        }
+        if statsReviewProgressReadyCount == statsReviewProgressTotalCount {
+            return "checkmark.circle.fill"
+        }
+        return "circle.dashed"
+    }
+
+    private var statsReviewProgressTone: DesignSystem.StatusTone {
+        if isLoading {
+            return .neutral
+        }
+        if statsReviewProgressReadyCount == statsReviewProgressTotalCount {
+            return .success
+        }
+        return statsReviewProgressReadyCount == 0 ? .neutral : .warning
     }
 
     private var statsDailyLogSavedForRange: Bool {
