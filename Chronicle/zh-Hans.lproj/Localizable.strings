@@ -1356,6 +1356,11 @@
 "support.update_channel.checklist.health" = "启动后运行应用健康检查，并确认今日日志导出仍可用。";
 "support.readiness.title" = "应用健康";
 "support.readiness.not_run_detail" = "运行自检，确认本地存储、追踪、权限与日志保存是否正常。";
+"support.readiness.path.title" = "支持流程";
+"support.readiness.path.detail" = "先检查健康状态，再确认本地数据位置；问题仍在时再打包上下文。";
+"support.readiness.path.health_detail" = "改设置前先确认基础状态。";
+"support.readiness.path.data_detail" = "让本地文件夹随时可检查。";
+"support.readiness.path.bundle_detail" = "问题仍在时再生成一份支持包。";
 "support.readiness.open_report" = "查看健康详情";
 "support.readiness.review_fixes" = "查看修复项";
 "support.readiness.running_detail" = "Chronicle 正在检查记录、本地存储、权限、日志保存与复盘准确性。";

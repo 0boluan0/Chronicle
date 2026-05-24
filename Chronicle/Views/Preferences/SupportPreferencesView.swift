@@ -54,6 +54,8 @@ struct SupportPreferencesView: View {
 
                     Divider()
 
+                    supportReadinessPath
+
                     readinessActionGroup
 
                     StatusBannerView(status: readinessStatus, accessibilityIdentifier: "support.readinessStatus")
@@ -335,6 +337,132 @@ struct SupportPreferencesView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityIdentifier("support.path")
+    }
+
+    private var supportReadinessPath: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            Label {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("support.readiness.path.title")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+                        .lineLimit(2)
+
+                    Text("support.readiness.path.detail")
+                        .font(.caption2)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            } icon: {
+                Image(systemName: "point.3.connected.trianglepath.dotted")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(readinessTone.color)
+                    .frame(width: 16)
+            }
+            .labelStyle(.titleAndIcon)
+
+            LazyVGrid(
+                columns: adaptiveColumns(minimum: 174, spacing: DesignSystem.Spacing.sm),
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                supportReadinessPathItem(
+                    step: "1",
+                    titleKey: "support.path.health_title",
+                    detailKey: "support.readiness.path.health_detail",
+                    systemImage: "stethoscope",
+                    tone: readinessTone,
+                    accessibilityIdentifier: "support.readiness.path.health"
+                )
+
+                supportReadinessPathItem(
+                    step: "2",
+                    titleKey: "support.path.data_title",
+                    detailKey: "support.readiness.path.data_detail",
+                    systemImage: "folder",
+                    tone: .success,
+                    accessibilityIdentifier: "support.readiness.path.data"
+                )
+
+                supportReadinessPathItem(
+                    step: "3",
+                    titleKey: "support.path.bundle_title",
+                    detailKey: "support.readiness.path.bundle_detail",
+                    systemImage: "shippingbox",
+                    tone: .info,
+                    accessibilityIdentifier: "support.readiness.path.bundle"
+                )
+            }
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(readinessTone.color.opacity(0.06))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(readinessTone.color.opacity(0.16), lineWidth: 1)
+        )
+        .accessibilityIdentifier("support.readiness.path")
+    }
+
+    private func supportReadinessPathItem(
+        step: String,
+        titleKey: LocalizedStringKey,
+        detailKey: LocalizedStringKey,
+        systemImage: String,
+        tone: DesignSystem.StatusTone,
+        accessibilityIdentifier: String
+    ) -> some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+            ZStack {
+                Circle()
+                    .fill(tone.color.opacity(0.12))
+
+                Text(step)
+                    .font(.caption2.weight(.bold))
+                    .foregroundColor(tone.color)
+                    .monospacedDigit()
+            }
+            .frame(width: 22, height: 22)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Label {
+                    Text(titleKey)
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                } icon: {
+                    Image(systemName: systemImage)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundColor(tone.color)
+                        .frame(width: 13)
+                }
+                .labelStyle(.titleAndIcon)
+
+                Text(detailKey)
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, DesignSystem.Spacing.sm)
+        .padding(.vertical, 7)
+        .frame(maxWidth: .infinity, minHeight: 68, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .fill(tone.color.opacity(0.06))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .stroke(tone.color.opacity(0.14), lineWidth: 1)
+        )
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     private var releaseSafetySection: some View {

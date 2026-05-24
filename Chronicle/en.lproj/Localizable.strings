@@ -1356,6 +1356,11 @@
 "support.update_channel.checklist.health" = "After launch, run App Health and confirm daily log export still works.";
 "support.readiness.title" = "App Health";
 "support.readiness.not_run_detail" = "Run Self-Check to confirm local storage, tracking, permissions, and log saving.";
+"support.readiness.path.title" = "Support flow";
+"support.readiness.path.detail" = "Check health first, locate local data, then package context only if needed.";
+"support.readiness.path.health_detail" = "Confirm the basics before changing settings.";
+"support.readiness.path.data_detail" = "Keep the local folder easy to inspect.";
+"support.readiness.path.bundle_detail" = "Create one package when an issue remains.";
 "support.readiness.open_report" = "Review Health Details";
 "support.readiness.review_fixes" = "Review Fixes";
 "support.readiness.running_detail" = "Chronicle is checking recording, local storage, permissions, saved logs, and review accuracy.";
