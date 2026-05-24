@@ -1061,6 +1061,20 @@ final class ChronicleTests: XCTestCase {
         XCTAssertEqual(DashboardView.Section.allCases.first, .overview)
     }
 
+    func testDashboardNavigationDestinationSelectsReviewSurface() {
+        let suiteName = "chronicle-tests-dashboard-navigation-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+
+        DashboardNavigationDestination.reports.apply(to: defaults)
+        XCTAssertEqual(defaults.string(forKey: "dashboard.selectedSection"), "reports")
+
+        DashboardNavigationDestination.timeline.apply(to: defaults)
+        XCTAssertEqual(defaults.string(forKey: "dashboard.selectedSection"), "timeline")
+
+        defaults.removePersistentDomain(forName: suiteName)
+    }
+
     func testPreferencesNavigationDestinationSelectsCategoryWorkbench() {
         let suiteName = "chronicle-tests-preferences-navigation-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!

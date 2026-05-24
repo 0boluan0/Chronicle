@@ -457,9 +457,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     @objc private func openTodayCloseout() {
-        UserDefaults.standard.set(DashboardView.Section.reports.rawValue, forKey: "dashboard.selectedSection")
         TelemetryService.shared.increment("dashboard_opened")
-        AppWindowRouter.shared.open(.dashboard)
+        AppWindowRouter.shared.openDashboard(destination: .reports)
     }
 
     @objc private func openWelcome() {

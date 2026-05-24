@@ -8,6 +8,36 @@
 import AppKit
 import Foundation
 
+enum DashboardNavigationDestination {
+    case overview
+    case timeline
+    case markers
+    case reports
+    case stats
+#if DEBUG
+    case debug
+#endif
+
+    func apply(to defaults: UserDefaults = .standard) {
+        switch self {
+        case .overview:
+            defaults.set("overview", forKey: "dashboard.selectedSection")
+        case .timeline:
+            defaults.set("timeline", forKey: "dashboard.selectedSection")
+        case .markers:
+            defaults.set("markers", forKey: "dashboard.selectedSection")
+        case .reports:
+            defaults.set("reports", forKey: "dashboard.selectedSection")
+        case .stats:
+            defaults.set("stats", forKey: "dashboard.selectedSection")
+#if DEBUG
+        case .debug:
+            defaults.set("debug", forKey: "dashboard.selectedSection")
+#endif
+        }
+    }
+}
+
 enum PreferencesNavigationDestination {
     case general
     case tagsRules
@@ -71,9 +101,7 @@ final class AppWindowRouter {
         DispatchQueue.main.async {
             switch route {
             case .dashboard:
-                self.openScene(id: AppWindowSceneID.dashboard) {
-                    DashboardWindowController.shared.show()
-                }
+                self.openDashboardScene(destination: nil)
             case .settings(let destination):
                 self.openSettings(destination: destination)
             case .welcome:
@@ -83,6 +111,12 @@ final class AppWindowRouter {
             case .quickMarker:
                 QuickMarkerPanelController.shared.show()
             }
+        }
+    }
+
+    func openDashboard(destination: DashboardNavigationDestination? = nil) {
+        DispatchQueue.main.async {
+            self.openDashboardScene(destination: destination)
         }
     }
 
@@ -113,6 +147,15 @@ final class AppWindowRouter {
         }
         self.openScene(id: AppWindowSceneID.settings) {
             PreferencesWindowController.shared.show()
+        }
+    }
+
+    private func openDashboardScene(destination: DashboardNavigationDestination?) {
+        if let destination {
+            destination.apply()
+        }
+        self.openScene(id: AppWindowSceneID.dashboard) {
+            DashboardWindowController.shared.show()
         }
     }
 

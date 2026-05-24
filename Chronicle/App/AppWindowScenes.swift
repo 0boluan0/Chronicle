@@ -28,7 +28,31 @@ struct AppWindowRouterCommands: Commands {
             }
         )
 
-        return CommandGroup(after: .windowArrangement) {}
+        return CommandMenu("Chronicle") {
+            Button(L("menu.open_dashboard")) {
+                TelemetryService.shared.increment("dashboard_opened")
+                AppWindowRouter.shared.openDashboard()
+            }
+            .keyboardShortcut("1", modifiers: [.command])
+
+            Button(L("menu.quick_marker")) {
+                AppWindowRouter.shared.open(.quickMarker)
+            }
+            .keyboardShortcut("m", modifiers: [.command, .shift])
+
+            Button(L("menu.closeout_today")) {
+                TelemetryService.shared.increment("dashboard_opened")
+                AppWindowRouter.shared.openDashboard(destination: .reports)
+            }
+            .keyboardShortcut("r", modifiers: [.command, .shift])
+
+            Divider()
+
+            Button(L("preferences.title")) {
+                TelemetryService.shared.increment("preferences_opened")
+                AppWindowRouter.shared.open(.settings())
+            }
+        }
     }
 }
 
