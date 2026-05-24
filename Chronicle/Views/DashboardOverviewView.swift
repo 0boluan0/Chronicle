@@ -542,14 +542,27 @@ struct DashboardOverviewView: View {
     }
 
     private var reviewHeroEyebrow: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 132), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.xs
-        ) {
-            reviewHeroTitle
-            reviewStatePill
-            captureStatePill
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+                reviewHeroTitle
+                reviewStatePill
+                captureStatePill
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                reviewHeroTitle
+
+                HStack(spacing: DesignSystem.Spacing.xs) {
+                    reviewStatePill
+                    captureStatePill
+                }
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                reviewHeroTitle
+                reviewStatePill
+                captureStatePill
+            }
         }
     }
 
