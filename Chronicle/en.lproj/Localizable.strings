@@ -1765,11 +1765,14 @@
 "dashboard.stats.review.labels_detail" = "Review uncategorized sessions so the app and category patterns become useful for planning.";
 "dashboard.stats.review.cues_headline" = "The pattern is visible, but the important moments still need notes.";
 "dashboard.stats.review.cues_detail" = "Add quick notes or focus blocks around the moments you will want to remember later.";
+"dashboard.stats.review.failed_headline" = "The daily log save failed.";
+"dashboard.stats.review.failed_detail" = "The stats are still useful, but the Markdown log did not write. Retry the daily log or refresh the folder permission.";
 "dashboard.stats.review.ready_headline" = "This range is ready to interpret.";
 "dashboard.stats.review.ready_detail" = "Use the focus mix, notes, and sessions to understand where the time actually went.";
 "dashboard.stats.review.status.empty" = "No data";
 "dashboard.stats.review.status.labels" = "Needs categories";
 "dashboard.stats.review.status.cues" = "Needs notes";
+"dashboard.stats.review.status.failed" = "Save failed";
 "dashboard.stats.review.status.ready" = "Ready";
 "dashboard.stats.review.progress.title" = "Review readiness";
 "dashboard.stats.review.progress.value" = "%d/%d ready";
@@ -1804,6 +1807,8 @@
 "dashboard.stats.review.next.labels_detail" = "Categorize the largest unknown sessions so the charts describe work, not just app usage.";
 "dashboard.stats.review.next.cues_title" = "Add one note to the important moment";
 "dashboard.stats.review.next.cues_detail" = "A short note or focus block makes the pattern useful when you read the daily log later.";
+"dashboard.stats.review.next.failed_title" = "Retry the daily log save";
+"dashboard.stats.review.next.failed_detail" = "Open Daily Log to retry. If the folder changed, refresh the destination before saving again.";
 "dashboard.stats.review.next.folder_title" = "Choose a daily log folder before closeout";
 "dashboard.stats.review.next.folder_detail" = "The stats are ready, but Chronicle needs a destination before it can save the daily log.";
 "dashboard.stats.review.next.ready_title" = "Turn this into a daily log";
@@ -1819,6 +1824,8 @@
 "dashboard.stats.review.open_markers" = "Open Notes";
 "dashboard.stats.review.set_log_folder" = "Set Log Folder";
 "dashboard.stats.review.prepare_report" = "Review Daily Log";
+"dashboard.stats.review.retry_daily_log" = "Retry Daily Log";
+"dashboard.stats.review.open_log_settings" = "Log Settings";
 "dashboard.stats.review.open_log_folder" = "Open Log Folder";
 "Range" = "Range";
 "Include idle in charts" = "Include idle in charts";
@@ -3225,6 +3232,8 @@
 "timeline.next.folder_detail" = "The timeline is ready, but Chronicle needs a destination before it can save the day.";
 "timeline.next.closeout_title" = "Move to the daily log.";
 "timeline.next.closeout_detail" = "The timeline has enough structure for a final review and save.";
+"timeline.next.failed_title" = "Retry the daily log save.";
+"timeline.next.failed_detail" = "The timeline is ready, but the last Markdown save failed. Open Daily Log to retry or refresh the folder.";
 "timeline.next.saved_title" = "This day already has a saved daily log.";
 "timeline.next.saved_detail" = "Open the log folder to inspect it, or add a note if today changed.";
 "timeline.next.action.loading" = "Refreshing";
@@ -3236,6 +3245,7 @@
 "timeline.next.action.context" = "Add Note";
 "timeline.next.action.set_folder" = "Set Log Folder";
 "timeline.next.action.closeout" = "Open Daily Log";
+"timeline.next.action.retry" = "Retry Daily Log";
 "timeline.next.action.open_folder" = "Open Log Folder";
 "timeline.start.label" = "Where to start";
 "timeline.start.loading_title" = "Let the refresh finish first.";

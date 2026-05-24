@@ -37,6 +37,7 @@ struct DashboardTimelineView: View {
         case addContext
         case setupLogFolder
         case closeout
+        case retryDailyLog
         case openSavedLog
     }
 
@@ -2616,6 +2617,9 @@ struct DashboardTimelineView: View {
         if isLoading {
             return .loading
         }
+        if timelineDailyLogFailedForRange {
+            return .retryDailyLog
+        }
         if !hasAnyTimelineData {
             if appState.trackingPaused {
                 return .resumeCapture
@@ -2663,6 +2667,8 @@ struct DashboardTimelineView: View {
             return "timeline.next.folder_title"
         case .closeout:
             return "timeline.next.closeout_title"
+        case .retryDailyLog:
+            return "timeline.next.failed_title"
         case .openSavedLog:
             return "timeline.next.saved_title"
         }
@@ -2688,6 +2694,8 @@ struct DashboardTimelineView: View {
             return "timeline.next.folder_detail"
         case .closeout:
             return "timeline.next.closeout_detail"
+        case .retryDailyLog:
+            return "timeline.next.failed_detail"
         case .openSavedLog:
             return "timeline.next.saved_detail"
         }
@@ -2713,6 +2721,8 @@ struct DashboardTimelineView: View {
             return "timeline.next.action.set_folder"
         case .closeout:
             return "timeline.next.action.closeout"
+        case .retryDailyLog:
+            return "timeline.next.action.retry"
         case .openSavedLog:
             return "timeline.next.action.open_folder"
         }
@@ -2738,6 +2748,8 @@ struct DashboardTimelineView: View {
             return "folder.badge.plus"
         case .closeout:
             return "doc.badge.plus"
+        case .retryDailyLog:
+            return "exclamationmark.triangle.fill"
         case .openSavedLog:
             return "checkmark.seal.fill"
         }
@@ -2763,6 +2775,8 @@ struct DashboardTimelineView: View {
             return "folder.badge.plus"
         case .closeout:
             return "doc.badge.plus"
+        case .retryDailyLog:
+            return "arrow.clockwise"
         case .openSavedLog:
             return "folder"
         }
@@ -2776,6 +2790,8 @@ struct DashboardTimelineView: View {
             return .warning
         case .closeout, .openSavedLog:
             return .success
+        case .retryDailyLog:
+            return .critical
         }
     }
 
@@ -3010,6 +3026,11 @@ struct DashboardTimelineView: View {
             && reportSettings.dailyExportSucceeded(for: appState.selectedDate)
     }
 
+    private var timelineDailyLogFailedForRange: Bool {
+        appState.dateRangeMode == .day
+            && reportSettings.dailyExportFailed(for: appState.selectedDate)
+    }
+
     private var timelineDailyLogFolderReady: Bool {
         reportSettings.dailyFolderBookmark != nil
     }
@@ -3017,6 +3038,9 @@ struct DashboardTimelineView: View {
     private var timelineCloseoutHandoffTitle: String {
         if timelineDailyLogSavedForRange {
             return L("timeline.next.action.open_folder")
+        }
+        if timelineDailyLogFailedForRange {
+            return L("timeline.next.action.retry")
         }
         if appState.dateRangeMode == .day, !timelineDailyLogFolderReady {
             return L("timeline.next.action.set_folder")
@@ -3027,6 +3051,9 @@ struct DashboardTimelineView: View {
     private var timelineCloseoutHandoffIconName: String {
         if timelineDailyLogSavedForRange {
             return "folder"
+        }
+        if timelineDailyLogFailedForRange {
+            return "arrow.clockwise"
         }
         if appState.dateRangeMode == .day, !timelineDailyLogFolderReady {
             return "folder.badge.plus"
@@ -3663,6 +3690,8 @@ struct DashboardTimelineView: View {
         case .setupLogFolder:
             selectedDashboardSectionRaw = DashboardView.Section.reports.rawValue
         case .closeout:
+            selectedDashboardSectionRaw = DashboardView.Section.reports.rawValue
+        case .retryDailyLog:
             selectedDashboardSectionRaw = DashboardView.Section.reports.rawValue
         case .openSavedLog:
             performTimelineCloseoutHandoff()

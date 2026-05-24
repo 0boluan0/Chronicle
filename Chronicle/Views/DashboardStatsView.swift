@@ -688,6 +688,8 @@ struct DashboardStatsView: View {
             .tint(DesignSystem.Colors.accentSkyBlue)
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("dashboard.stats.addCue")
+        case .saveFailed:
+            prepareReportPrimaryButton
         case .ready:
             prepareReportPrimaryButton
         }
@@ -701,6 +703,9 @@ struct DashboardStatsView: View {
             if statsCaptureNeedsAttention {
                 statsOpenTodayButton(isPrimary: false)
             }
+        } else if statsReviewState == .saveFailed {
+            openTimelineButton
+            openLogSettingsButton
         } else {
             if statsReviewState != .needsLabels {
                 openTimelineButton
@@ -821,6 +826,17 @@ struct DashboardStatsView: View {
         .buttonStyle(.bordered)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityIdentifier("dashboard.stats.openMarkers")
+    }
+
+    private var openLogSettingsButton: some View {
+        Button {
+            AppWindowRouter.shared.open(.settings(.export))
+        } label: {
+            statsActionLabel(L("dashboard.stats.review.open_log_settings"), systemImage: "gearshape")
+        }
+        .buttonStyle(.bordered)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityIdentifier("dashboard.stats.openLogSettings")
     }
 
     private var prepareReportButton: some View {
@@ -2489,10 +2505,14 @@ struct DashboardStatsView: View {
         case empty
         case needsLabels
         case needsCues
+        case saveFailed
         case ready
     }
 
     private var statsReviewState: StatsReviewState {
+        if statsDailyLogFailedForRange {
+            return .saveFailed
+        }
         if rangeStats.summary.totalSeconds == 0 {
             return .empty
         }
@@ -2513,6 +2533,8 @@ struct DashboardStatsView: View {
             return "dashboard.stats.review.labels_headline"
         case .needsCues:
             return "dashboard.stats.review.cues_headline"
+        case .saveFailed:
+            return "dashboard.stats.review.failed_headline"
         case .ready:
             return "dashboard.stats.review.ready_headline"
         }
@@ -2526,6 +2548,8 @@ struct DashboardStatsView: View {
             return "dashboard.stats.review.labels_detail"
         case .needsCues:
             return "dashboard.stats.review.cues_detail"
+        case .saveFailed:
+            return "dashboard.stats.review.failed_detail"
         case .ready:
             return "dashboard.stats.review.ready_detail"
         }
@@ -2539,6 +2563,8 @@ struct DashboardStatsView: View {
             return L("dashboard.stats.review.status.labels")
         case .needsCues:
             return L("dashboard.stats.review.status.cues")
+        case .saveFailed:
+            return L("dashboard.stats.review.status.failed")
         case .ready:
             return L("dashboard.stats.review.status.ready")
         }
@@ -2552,6 +2578,8 @@ struct DashboardStatsView: View {
             return "rectangle.split.3x1"
         case .needsCues:
             return "note.text"
+        case .saveFailed:
+            return "exclamationmark.triangle.fill"
         case .ready:
             return "checkmark"
         }
@@ -2565,6 +2593,8 @@ struct DashboardStatsView: View {
             return "exclamationmark.triangle.fill"
         case .needsCues:
             return "square.and.pencil"
+        case .saveFailed:
+            return "exclamationmark.triangle.fill"
         case .ready:
             return "sparkles"
         }
@@ -2584,6 +2614,8 @@ struct DashboardStatsView: View {
             return "rectangle.split.3x1"
         case .needsCues:
             return "square.and.pencil"
+        case .saveFailed:
+            return statsPrepareReportIconName
         case .ready:
             return statsPrepareReportIconName
         }
@@ -2599,6 +2631,8 @@ struct DashboardStatsView: View {
             return "dashboard.stats.review.next.labels_title"
         case .needsCues:
             return "dashboard.stats.review.next.cues_title"
+        case .saveFailed:
+            return "dashboard.stats.review.next.failed_title"
         case .ready:
             if statsDailyLogSavedForRange {
                 return "dashboard.stats.review.next.saved_title"
@@ -2620,6 +2654,8 @@ struct DashboardStatsView: View {
             return "dashboard.stats.review.next.labels_detail"
         case .needsCues:
             return "dashboard.stats.review.next.cues_detail"
+        case .saveFailed:
+            return "dashboard.stats.review.next.failed_detail"
         case .ready:
             if statsDailyLogSavedForRange {
                 return "dashboard.stats.review.next.saved_detail"
@@ -2632,6 +2668,9 @@ struct DashboardStatsView: View {
     }
 
     private var statsReviewNextStepTone: DesignSystem.StatusTone {
+        if statsReviewState == .saveFailed {
+            return .critical
+        }
         if statsReviewState == .ready, statsNeedsDailyLogFolder {
             return .warning
         }
@@ -2686,6 +2725,9 @@ struct DashboardStatsView: View {
         if isLoading {
             return .neutral
         }
+        if statsReviewState == .saveFailed {
+            return .critical
+        }
         if statsReviewProgressReadyCount == statsReviewProgressTotalCount {
             return .success
         }
@@ -2697,6 +2739,11 @@ struct DashboardStatsView: View {
             && reportSettings.dailyExportSucceeded(for: appState.selectedDate)
     }
 
+    private var statsDailyLogFailedForRange: Bool {
+        appState.dateRangeMode == .day
+            && reportSettings.dailyExportFailed(for: appState.selectedDate)
+    }
+
     private var statsNeedsDailyLogFolder: Bool {
         appState.dateRangeMode == .day && reportSettings.dailyFolderBookmark == nil
     }
@@ -2704,6 +2751,9 @@ struct DashboardStatsView: View {
     private var statsPrepareReportTitle: String {
         if statsDailyLogSavedForRange {
             return L("dashboard.stats.review.open_log_folder")
+        }
+        if statsDailyLogFailedForRange {
+            return L("dashboard.stats.review.retry_daily_log")
         }
         if statsNeedsDailyLogFolder {
             return L("dashboard.stats.review.set_log_folder")
@@ -2714,6 +2764,9 @@ struct DashboardStatsView: View {
     private var statsPrepareReportIconName: String {
         if statsDailyLogSavedForRange {
             return "folder"
+        }
+        if statsDailyLogFailedForRange {
+            return "arrow.clockwise"
         }
         if statsNeedsDailyLogFolder {
             return "folder.badge.plus"
@@ -2743,6 +2796,8 @@ struct DashboardStatsView: View {
             return .neutral
         case .needsLabels, .needsCues:
             return .warning
+        case .saveFailed:
+            return .critical
         case .ready:
             return .success
         }

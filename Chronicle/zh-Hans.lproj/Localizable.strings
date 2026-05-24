@@ -1765,11 +1765,14 @@
 "dashboard.stats.review.labels_detail" = "先复查未分类会话，让应用和分类结构更适合后续规划。";
 "dashboard.stats.review.cues_headline" = "投入结构已经可见，但重要时刻还缺少笔记。";
 "dashboard.stats.review.cues_detail" = "在之后还想记住的时刻补快速笔记或专注区间，复盘会更快。";
+"dashboard.stats.review.failed_headline" = "今日日志保存失败。";
+"dashboard.stats.review.failed_detail" = "统计仍然可用，但 Markdown 日志没有写出。重试今日日志，或刷新文件夹权限。";
 "dashboard.stats.review.ready_headline" = "这个范围已经可以解读。";
 "dashboard.stats.review.ready_detail" = "结合投入占比、备注和区间，判断时间实际流向。";
 "dashboard.stats.review.status.empty" = "无数据";
 "dashboard.stats.review.status.labels" = "待分类";
 "dashboard.stats.review.status.cues" = "待补笔记";
+"dashboard.stats.review.status.failed" = "保存失败";
 "dashboard.stats.review.status.ready" = "可解读";
 "dashboard.stats.review.progress.title" = "复盘就绪度";
 "dashboard.stats.review.progress.value" = "%d/%d 就绪";
@@ -1804,6 +1807,8 @@
 "dashboard.stats.review.next.labels_detail" = "先把占比最大的未知会话归类，让图表描述工作，而不只是应用使用。";
 "dashboard.stats.review.next.cues_title" = "给重要时刻补一条笔记";
 "dashboard.stats.review.next.cues_detail" = "一条短笔记或专注区间，就能让之后查看今日日志时快速回到语境。";
+"dashboard.stats.review.next.failed_title" = "重试保存今日日志";
+"dashboard.stats.review.next.failed_detail" = "打开今日日志重试；如果文件夹变过，先刷新保存位置。";
 "dashboard.stats.review.next.folder_title" = "收尾前先选择今日日志文件夹";
 "dashboard.stats.review.next.folder_detail" = "统计已经可复盘，但保存今日日志之前还需要一个目标文件夹。";
 "dashboard.stats.review.next.ready_title" = "把它整理成今日日志";
@@ -1819,6 +1824,8 @@
 "dashboard.stats.review.open_markers" = "打开笔记";
 "dashboard.stats.review.set_log_folder" = "设置日志文件夹";
 "dashboard.stats.review.prepare_report" = "查看今日日志";
+"dashboard.stats.review.retry_daily_log" = "重试今日日志";
+"dashboard.stats.review.open_log_settings" = "日志设置";
 "dashboard.stats.review.open_log_folder" = "打开日志文件夹";
 "Range" = "范围";
 "Include idle in charts" = "图表包含空闲";
@@ -3217,6 +3224,8 @@
 "timeline.next.folder_detail" = "时间线已经可复盘，但保存当天之前还需要一个目标文件夹。";
 "timeline.next.closeout_title" = "进入今日日志。";
 "timeline.next.closeout_detail" = "这段时间线已经有足够结构，可以做最后复盘并保存。";
+"timeline.next.failed_title" = "重试保存今日日志。";
+"timeline.next.failed_detail" = "时间线已经可复盘，但上次 Markdown 保存失败。打开今日日志重试，或刷新文件夹。";
 "timeline.next.saved_title" = "这一天已经保存过今日日志。";
 "timeline.next.saved_detail" = "可以打开日志文件夹检查；如果今天又变化，再补一条笔记。";
 "timeline.next.action.loading" = "刷新中";
@@ -3228,6 +3237,7 @@
 "timeline.next.action.context" = "添加笔记";
 "timeline.next.action.set_folder" = "设置日志文件夹";
 "timeline.next.action.closeout" = "打开今日日志";
+"timeline.next.action.retry" = "重试今日日志";
 "timeline.next.action.open_folder" = "打开日志文件夹";
 "timeline.start.label" = "从哪里开始";
 "timeline.start.loading_title" = "先等时间线刷新完成。";
