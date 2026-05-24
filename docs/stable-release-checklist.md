@@ -46,6 +46,7 @@ This checklist is for preparing a stable `v0.x` release with low upgrade risk.
 - If signing secrets are unavailable, verify the workflow publishes a development DMG plus checksum.
 - If signing secrets are available, verify signing, notarization, stapling, and checksum generation.
 - Publish checksums and file sizes in release notes.
+- Confirm GitHub Releases shows the intended tag, DMG, checksum, and notes before changing README download copy. Ignore local `dist/` files as public-release evidence until they are attached to the release.
 - Smoke-test install on a clean macOS user account.
 
 ## 6. Rollout and Recovery

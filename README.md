@@ -179,6 +179,8 @@ cd dist && shasum -a 256 -c Chronicle-v0.1.0-rc1.dmg.sha256
 
 Signing and notarization are optional in the current workflow. When credentials are not configured, the generated artifact is a development, notarization-free DMG and the release notes should say so explicitly.
 
+Treat GitHub Releases as the public download source of truth. Local files under `dist/` may be developer or internal builds; do not update the Download section unless the matching tag, DMG, checksum, and release notes are published on GitHub.
+
 See [docs/stable-release-checklist.md](docs/stable-release-checklist.md), [docs/update-strategy.md](docs/update-strategy.md), and [docs/releases/v0.1.0-rc1.md](docs/releases/v0.1.0-rc1.md) for the current release checklist and RC validation record.
 
 ## Documentation
