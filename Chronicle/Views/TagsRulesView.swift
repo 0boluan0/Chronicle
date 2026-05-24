@@ -8,6 +8,18 @@
 import AppKit
 import SwiftUI
 
+private func tagsRulesActionLabel(_ title: String, systemImage: String) -> some View {
+    Label {
+        Text(title)
+            .lineLimit(2)
+            .minimumScaleFactor(0.86)
+            .multilineTextAlignment(.leading)
+            .fixedSize(horizontal: false, vertical: true)
+    } icon: {
+        Image(systemName: systemImage)
+    }
+}
+
 struct TagsRulesView: View {
     enum Section: String, CaseIterable, Identifiable {
         case tags
@@ -587,7 +599,7 @@ struct TagsManagementView: View {
             Button {
                 restoreStarterCategories()
             } label: {
-                Label(L("tags.review.restore_starters"), systemImage: "arrow.clockwise")
+                tagsRulesActionLabel(L("tags.review.restore_starters"), systemImage: "arrow.clockwise")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -597,7 +609,7 @@ struct TagsManagementView: View {
             Button {
                 AppWindowRouter.shared.open(.settings(.tagWizard))
             } label: {
-                Label(L("tags.review.review_apps"), systemImage: "rectangle.grid.1x2")
+                tagsRulesActionLabel(L("tags.review.review_apps"), systemImage: "rectangle.grid.1x2")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -610,7 +622,7 @@ struct TagsManagementView: View {
         Button {
             focusTagComposer()
         } label: {
-            Label(L("tags.review.add_custom"), systemImage: "plus")
+            tagsRulesActionLabel(L("tags.review.add_custom"), systemImage: "plus")
         }
         .buttonStyle(.bordered)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -755,7 +767,7 @@ struct TagsManagementView: View {
         Button {
             addTag()
         } label: {
-            Label(L("tags.create.add"), systemImage: "plus")
+            tagsRulesActionLabel(L("tags.create.add"), systemImage: "plus")
         }
         .buttonStyle(.borderedProminent)
         .tint(DesignSystem.Colors.accentSkyBlue)
@@ -1340,7 +1352,7 @@ struct RulesManagementView: View {
                 Button {
                     createRuleFromSuggestion(suggestion)
                 } label: {
-                    Label(L("rules.review.accept_top_suggestion"), systemImage: "checkmark")
+                    tagsRulesActionLabel(L("rules.review.accept_top_suggestion"), systemImage: "checkmark")
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(DesignSystem.Colors.accentSkyBlue)
@@ -1351,7 +1363,7 @@ struct RulesManagementView: View {
             Button {
                 focusRuleComposer()
             } label: {
-                Label(L("rules.review.create_first"), systemImage: "plus")
+                tagsRulesActionLabel(L("rules.review.create_first"), systemImage: "plus")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -1361,7 +1373,7 @@ struct RulesManagementView: View {
             Button {
                 recomputeForCurrentRange()
             } label: {
-                Label(L("rules.recompute_range"), systemImage: "arrow.triangle.2.circlepath")
+                tagsRulesActionLabel(L("rules.recompute_range"), systemImage: "arrow.triangle.2.circlepath")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -1371,7 +1383,7 @@ struct RulesManagementView: View {
             Button {
                 recomputeForCurrentRange()
             } label: {
-                Label(L("rules.review.apply_now"), systemImage: "arrow.triangle.2.circlepath")
+                tagsRulesActionLabel(L("rules.review.apply_now"), systemImage: "arrow.triangle.2.circlepath")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -1386,7 +1398,7 @@ struct RulesManagementView: View {
             Button {
                 focusRuleComposer()
             } label: {
-                Label(L("rules.review.create_custom"), systemImage: "plus")
+                tagsRulesActionLabel(L("rules.review.create_custom"), systemImage: "plus")
             }
             .buttonStyle(.bordered)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -1397,7 +1409,7 @@ struct RulesManagementView: View {
             Button {
                 reloadData()
             } label: {
-                Label(L("wizard.refresh"), systemImage: "arrow.clockwise")
+                tagsRulesActionLabel(L("wizard.refresh"), systemImage: "arrow.clockwise")
             }
             .buttonStyle(.bordered)
             .disabled(isLoadingSuggestions)
@@ -1536,7 +1548,7 @@ struct RulesManagementView: View {
         Button {
             addRule()
         } label: {
-            Label(L("rules.create.add"), systemImage: "plus")
+            tagsRulesActionLabel(L("rules.create.add"), systemImage: "plus")
         }
         .buttonStyle(.borderedProminent)
         .tint(DesignSystem.Colors.accentSkyBlue)
@@ -1579,7 +1591,7 @@ struct RulesManagementView: View {
                     Button {
                         recomputeForCurrentRange()
                     } label: {
-                        Label(L("rules.recompute_range"), systemImage: "arrow.triangle.2.circlepath")
+                        tagsRulesActionLabel(L("rules.recompute_range"), systemImage: "arrow.triangle.2.circlepath")
                     }
                     .buttonStyle(.bordered)
                 }
@@ -1942,7 +1954,7 @@ struct RulesManagementView: View {
                 Button {
                     reloadData()
                 } label: {
-                    Label(L("rules.review.refresh_suggestions"), systemImage: "arrow.clockwise")
+                    tagsRulesActionLabel(L("rules.review.refresh_suggestions"), systemImage: "arrow.clockwise")
                 }
                 .buttonStyle(.bordered)
                 .disabled(isLoadingSuggestions)
@@ -2013,7 +2025,7 @@ struct RulesManagementView: View {
         Button {
             createRuleFromSuggestion(suggestion)
         } label: {
-            Label(L("rules.suggestions.create"), systemImage: "plus")
+            tagsRulesActionLabel(L("rules.suggestions.create"), systemImage: "plus")
         }
         .buttonStyle(.borderedProminent)
         .tint(DesignSystem.Colors.accentSkyBlue)
@@ -2086,7 +2098,7 @@ struct RulesManagementView: View {
             Button {
                 AppWindowRouter.shared.open(.settings(.tagWizard))
             } label: {
-                Label(L("rules.suggestions.empty.review_apps"), systemImage: "rectangle.grid.1x2")
+                tagsRulesActionLabel(L("rules.suggestions.empty.review_apps"), systemImage: "rectangle.grid.1x2")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -2241,7 +2253,7 @@ private struct TagEditorRow: View {
             Button {
                 saveTag()
             } label: {
-                Label(L("tags.row.save_category"), systemImage: "checkmark")
+                tagsRulesActionLabel(L("tags.row.save_category"), systemImage: "checkmark")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -2251,7 +2263,7 @@ private struct TagEditorRow: View {
             Button {
                 isConfirmingDelete = true
             } label: {
-                Label(L("tags.row.delete_category"), systemImage: "trash")
+                tagsRulesActionLabel(L("tags.row.delete_category"), systemImage: "trash")
             }
             .buttonStyle(.bordered)
             .tint(.red)
