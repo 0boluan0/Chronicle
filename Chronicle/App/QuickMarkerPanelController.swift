@@ -10,7 +10,9 @@ import SwiftUI
 
 final class QuickMarkerPanelController: NSWindowController, NSWindowDelegate {
     static let shared = QuickMarkerPanelController()
+    private static let frameAutosaveName = "ChronicleQuickMarkerPanel"
     private static let minimumPanelSize = NSSize(width: 700, height: 500)
+    private var hasPreparedInitialFrame = false
 
     private init() {
         let panel = NSPanel(
@@ -20,6 +22,7 @@ final class QuickMarkerPanelController: NSWindowController, NSWindowDelegate {
             defer: false
         )
         panel.minSize = Self.minimumPanelSize
+        panel.setFrameAutosaveName(Self.frameAutosaveName)
         panel.titleVisibility = .hidden
         panel.titlebarAppearsTransparent = true
         panel.isMovableByWindowBackground = true
@@ -59,8 +62,7 @@ final class QuickMarkerPanelController: NSWindowController, NSWindowDelegate {
 
     func show() {
         guard let window else { return }
-        adjustPanelSize(for: window)
-        window.center()
+        preparePanelFrameIfNeeded(for: window)
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
@@ -73,6 +75,16 @@ final class QuickMarkerPanelController: NSWindowController, NSWindowDelegate {
         window?.orderOut(nil)
     }
 
+    private func preparePanelFrameIfNeeded(for window: NSWindow) {
+        window.minSize = Self.minimumPanelSize
+        guard !hasPreparedInitialFrame else { return }
+        if !window.setFrameUsingName(Self.frameAutosaveName) {
+            adjustPanelSize(for: window)
+            window.center()
+        }
+        hasPreparedInitialFrame = true
+    }
+
     private func adjustPanelSize(for window: NSWindow) {
         guard let screen = window.screen ?? NSScreen.main ?? NSScreen.screens.first else { return }
         let targetWidth = max(800, min(screen.visibleFrame.width * 0.56, 980))
@@ -81,6 +93,5 @@ final class QuickMarkerPanelController: NSWindowController, NSWindowDelegate {
         if window.frame.size != targetSize {
             window.setContentSize(targetSize)
         }
-        window.minSize = Self.minimumPanelSize
     }
 }
