@@ -1218,8 +1218,12 @@
 "support.update_channel.checksum_title" = "Verification file";
 "support.update_channel.checksum_detail" = "Use the matching .sha256 file when you want to verify a downloaded DMG.";
 "support.update_channel.checksum_status" = ".sha256";
+"support.update_channel.recovery_title" = "Recovery path";
+"support.update_channel.recovery_detail" = "Keep the previous stable build reachable before replacing Chronicle.";
+"support.update_channel.recovery_status" = "Rollback ready";
 "support.update_channel.open_latest" = "Open Latest Release";
 "support.update_channel.open_upgrade_guide" = "Open Upgrade Guide";
+"support.update_channel.open_release_archive" = "Open Release Archive";
 "support.readiness.title" = "App Health";
 "support.readiness.not_run_detail" = "Run Self-Check to confirm local storage, tracking, permissions, and log saving.";
 "support.readiness.open_report" = "Review Health Details";

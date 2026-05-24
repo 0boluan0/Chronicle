@@ -1218,8 +1218,12 @@
 "support.update_channel.checksum_title" = "校验文件";
 "support.update_channel.checksum_detail" = "需要验证下载的 DMG 时，使用同名 .sha256 文件。";
 "support.update_channel.checksum_status" = ".sha256";
+"support.update_channel.recovery_title" = "回退路径";
+"support.update_channel.recovery_detail" = "替换 Chronicle 前，保留上一个稳定版本的下载入口。";
+"support.update_channel.recovery_status" = "可手动回退";
 "support.update_channel.open_latest" = "打开最新版";
 "support.update_channel.open_upgrade_guide" = "打开升级指南";
+"support.update_channel.open_release_archive" = "打开历史版本";
 "support.readiness.title" = "应用健康";
 "support.readiness.not_run_detail" = "运行自检，确认本地存储、追踪、权限与日志保存是否正常。";
 "support.readiness.open_report" = "查看健康详情";

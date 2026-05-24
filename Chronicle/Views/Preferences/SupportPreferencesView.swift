@@ -450,6 +450,15 @@ struct SupportPreferencesView: View {
                         status: L("support.update_channel.checksum_status"),
                         accessibilityIdentifier: "support.updateChannel.checksum"
                     )
+
+                    supportChecklistItem(
+                        systemImage: "clock.arrow.circlepath",
+                        tone: .warning,
+                        titleKey: "support.update_channel.recovery_title",
+                        detailKey: "support.update_channel.recovery_detail",
+                        status: L("support.update_channel.recovery_status"),
+                        accessibilityIdentifier: "support.updateChannel.recovery"
+                    )
                 }
                 .accessibilityIdentifier("support.updateChannel.path")
 
@@ -481,6 +490,19 @@ struct SupportPreferencesView: View {
                     }
                     .buttonStyle(.bordered)
                     .accessibilityIdentifier("support.updateChannel.openUpgradeGuide")
+
+                    Button {
+                        open(
+                            url: releasesPageURL,
+                            target: .updateChannel,
+                            successKey: "support.status.opened_releases",
+                            failureKey: "support.status.open_failed_url"
+                        )
+                    } label: {
+                        Label(L("support.update_channel.open_release_archive"), systemImage: "clock.arrow.circlepath")
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("support.updateChannel.openReleaseArchive")
                 }
                 .accessibilityIdentifier("support.updateChannel.actions")
 
