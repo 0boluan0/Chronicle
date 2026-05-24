@@ -116,11 +116,7 @@ struct DashboardStatsView: View {
                     }
                 }
 
-                LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 170), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
-                    alignment: .leading,
-                    spacing: DesignSystem.Spacing.sm
-                ) {
+                ActionButtonGrid(minimumItemWidth: 170) {
                     statsIssueActions
                 }
 
@@ -655,15 +651,10 @@ struct DashboardStatsView: View {
     }
 
     private var statsReviewActionsGrid: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 170), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
+        ActionButtonGrid(minimumItemWidth: 170) {
             primaryStatsReviewActionButton
             secondaryStatsReviewButtons
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
@@ -1159,15 +1150,10 @@ struct DashboardStatsView: View {
     }
 
     private func dataQualityActionStrip(stats: RangeStats) -> some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 170), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
+        ActionButtonGrid(minimumItemWidth: 170) {
             dataQualityPrimaryActionButton(stats: stats)
             dataQualitySecondaryActionButton(stats: stats)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityIdentifier("dashboard.stats.dataQuality.actions")
     }
 
@@ -1371,11 +1357,7 @@ struct DashboardStatsView: View {
                 tone: capturePipelineTone(stats)
             )
 
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 170), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.sm
-            ) {
+            ActionButtonGrid(minimumItemWidth: 170) {
                 Button {
                     selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
                 } label: {
