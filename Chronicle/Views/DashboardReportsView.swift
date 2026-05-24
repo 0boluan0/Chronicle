@@ -534,7 +534,7 @@ struct ReportsWorkspaceView: View {
         Button {
             performCloseoutPrimaryAction()
         } label: {
-            Label(L(closeoutPrimaryActionTitleKey), systemImage: closeoutPrimaryActionIconName)
+            reportActionButtonLabel(L(closeoutPrimaryActionTitleKey), systemImage: closeoutPrimaryActionIconName)
         }
         .buttonStyle(.borderedProminent)
         .tint(closeoutNextActionTone.color)
@@ -550,7 +550,7 @@ struct ReportsWorkspaceView: View {
             Button {
                 AppWindowRouter.shared.open(.settings(.support))
             } label: {
-                Label(L("reports.closeout.brief.issue.open_health"), systemImage: "stethoscope")
+                reportActionButtonLabel(L("reports.closeout.brief.issue.open_health"), systemImage: "stethoscope")
             }
             .buttonStyle(.bordered)
             .accessibilityIdentifier("reports.closeout.brief.issue.openHealth")
@@ -558,7 +558,7 @@ struct ReportsWorkspaceView: View {
             Button {
                 selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
             } label: {
-                Label(L("reports.closeout.action.open_timeline"), systemImage: "clock")
+                reportActionButtonLabel(L("reports.closeout.action.open_timeline"), systemImage: "clock")
             }
             .buttonStyle(.bordered)
             .accessibilityIdentifier("reports.closeout.openTimeline")
@@ -567,7 +567,7 @@ struct ReportsWorkspaceView: View {
                 Button {
                     previewDaily(date: Date())
                 } label: {
-                    Label(L("reports.closeout.action.preview_today"), systemImage: "doc.text.magnifyingglass")
+                    reportActionButtonLabel(L("reports.closeout.action.preview_today"), systemImage: "doc.text.magnifyingglass")
                 }
                 .buttonStyle(.bordered)
                 .accessibilityIdentifier("reports.closeout.previewToday")
@@ -575,7 +575,7 @@ struct ReportsWorkspaceView: View {
                 Button {
                     generateDaily(date: Date())
                 } label: {
-                    Label(L("reports.closeout.action.save_today"), systemImage: "doc.badge.plus")
+                    reportActionButtonLabel(L("reports.closeout.action.save_today"), systemImage: "doc.badge.plus")
                 }
                 .buttonStyle(.bordered)
                 .accessibilityIdentifier("reports.closeout.generateToday")
@@ -584,7 +584,7 @@ struct ReportsWorkspaceView: View {
             Button {
                 previewDaily(date: Date())
             } label: {
-                Label(L("reports.closeout.action.preview_today"), systemImage: "doc.text.magnifyingglass")
+                reportActionButtonLabel(L("reports.closeout.action.preview_today"), systemImage: "doc.text.magnifyingglass")
             }
             .buttonStyle(.bordered)
             .accessibilityIdentifier("reports.closeout.previewToday")
@@ -592,7 +592,7 @@ struct ReportsWorkspaceView: View {
             Button {
                 dailyStatus = handleOpenFolder(result: ReportService.shared.openDailyFolder())
             } label: {
-                Label(L("reports.closeout.action.open_folder"), systemImage: "folder")
+                reportActionButtonLabel(L("reports.closeout.action.open_folder"), systemImage: "folder")
             }
             .buttonStyle(.bordered)
             .accessibilityIdentifier("reports.closeout.openDailyFolder")
@@ -601,7 +601,7 @@ struct ReportsWorkspaceView: View {
                 Button {
                     previewDaily(date: Date())
                 } label: {
-                    Label(L("reports.closeout.action.preview_today"), systemImage: "doc.text.magnifyingglass")
+                    reportActionButtonLabel(L("reports.closeout.action.preview_today"), systemImage: "doc.text.magnifyingglass")
                 }
                 .buttonStyle(.bordered)
                 .accessibilityIdentifier("reports.closeout.previewToday")
@@ -609,7 +609,7 @@ struct ReportsWorkspaceView: View {
                 Button {
                     generateDaily(date: Date())
                 } label: {
-                    Label(L("reports.closeout.action.regenerate"), systemImage: "arrow.clockwise")
+                    reportActionButtonLabel(L("reports.closeout.action.regenerate"), systemImage: "arrow.clockwise")
                 }
                 .buttonStyle(.bordered)
                 .accessibilityIdentifier("reports.closeout.generateToday")
@@ -635,7 +635,7 @@ struct ReportsWorkspaceView: View {
             Button {
                 chooseWeeklyFolder()
             } label: {
-                Label(L("reports.weekly.closeout.action.choose_folder"), systemImage: "folder.badge.plus")
+                reportActionButtonLabel(L("reports.weekly.closeout.action.choose_folder"), systemImage: "folder.badge.plus")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -644,7 +644,7 @@ struct ReportsWorkspaceView: View {
             Button {
                 weeklyStatus = handleOpenFolder(result: ReportService.shared.openWeeklyFolder())
             } label: {
-                Label(L("reports.weekly.closeout.action.open_folder"), systemImage: "folder")
+                reportActionButtonLabel(L("reports.weekly.closeout.action.open_folder"), systemImage: "folder")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -653,7 +653,7 @@ struct ReportsWorkspaceView: View {
             Button {
                 previewWeekly(date: appState.selectedDate)
             } label: {
-                Label(L("reports.weekly.closeout.action.preview"), systemImage: "calendar.badge.clock")
+                reportActionButtonLabel(L("reports.weekly.closeout.action.preview"), systemImage: "calendar.badge.clock")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -668,7 +668,7 @@ struct ReportsWorkspaceView: View {
                 Button {
                     generateWeekly(date: appState.selectedDate)
                 } label: {
-                    Label(L("reports.weekly.closeout.action.save"), systemImage: "doc.badge.plus")
+                    reportActionButtonLabel(L("reports.weekly.closeout.action.save"), systemImage: "doc.badge.plus")
                 }
                 .buttonStyle(.bordered)
                 .accessibilityIdentifier("reports.dashboardWeekly.generate")
@@ -676,7 +676,7 @@ struct ReportsWorkspaceView: View {
                 Button {
                     previewWeekly(date: appState.selectedDate)
                 } label: {
-                    Label(L("reports.weekly.closeout.action.preview"), systemImage: "calendar.badge.clock")
+                    reportActionButtonLabel(L("reports.weekly.closeout.action.preview"), systemImage: "calendar.badge.clock")
                 }
                 .buttonStyle(.bordered)
                 .accessibilityIdentifier("reports.dashboardWeekly.preview")
@@ -684,7 +684,7 @@ struct ReportsWorkspaceView: View {
                 Button {
                     generateWeekly(date: appState.selectedDate)
                 } label: {
-                    Label(L("reports.weekly.closeout.action.regenerate"), systemImage: "arrow.clockwise")
+                    reportActionButtonLabel(L("reports.weekly.closeout.action.regenerate"), systemImage: "arrow.clockwise")
                 }
                 .buttonStyle(.bordered)
                 .accessibilityIdentifier("reports.dashboardWeekly.generate")
@@ -904,7 +904,7 @@ struct ReportsWorkspaceView: View {
         Button {
             refreshCloseoutSnapshot(reason: "closeout brief issue retry")
         } label: {
-            Label(L("reports.closeout.brief.issue.retry"), systemImage: "arrow.clockwise")
+            reportActionButtonLabel(L("reports.closeout.brief.issue.retry"), systemImage: "arrow.clockwise")
         }
         .buttonStyle(.bordered)
         .accessibilityIdentifier("reports.closeout.brief.issue.retry")
@@ -914,7 +914,7 @@ struct ReportsWorkspaceView: View {
         Button {
             AppWindowRouter.shared.open(.settings(.support))
         } label: {
-            Label(L("reports.closeout.brief.issue.open_health"), systemImage: "stethoscope")
+            reportActionButtonLabel(L("reports.closeout.brief.issue.open_health"), systemImage: "stethoscope")
         }
         .buttonStyle(.bordered)
         .accessibilityIdentifier("reports.closeout.brief.issue.openHealth")
@@ -1676,7 +1676,7 @@ struct ReportsWorkspaceView: View {
                 Button {
                     chooseFolder(for: nextMissingExportFolderKind)
                 } label: {
-                    Label(L("reports.readiness.next.choose"), systemImage: "folder.badge.plus")
+                    reportActionButtonLabel(L("reports.readiness.next.choose"), systemImage: "folder.badge.plus")
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(DesignSystem.Colors.accentSkyBlue)
@@ -1685,7 +1685,7 @@ struct ReportsWorkspaceView: View {
                 Button {
                     openFolder(for: .daily)
                 } label: {
-                    Label(L("reports.readiness.next.open_daily"), systemImage: "folder")
+                    reportActionButtonLabel(L("reports.readiness.next.open_daily"), systemImage: "folder")
                 }
                 .buttonStyle(.bordered)
                 .accessibilityIdentifier("reports.readiness.next.openDaily")
@@ -2886,6 +2886,7 @@ struct ReportsWorkspaceView: View {
         Label {
             Text(title)
                 .lineLimit(2)
+                .minimumScaleFactor(0.86)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
         } icon: {
@@ -3017,6 +3018,7 @@ struct ReportsWorkspaceView: View {
         Label {
             Text(title)
                 .lineLimit(2)
+                .minimumScaleFactor(0.86)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
         } icon: {
