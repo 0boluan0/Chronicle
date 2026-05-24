@@ -34,16 +34,16 @@ struct StatusBannerView: View {
                         .frame(width: 34, height: 34)
 
                         VStack(alignment: .leading, spacing: 3) {
-                            Text(LocalizedStringKey(titleKey(for: status)))
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundColor(DesignSystem.Colors.primaryText)
-                                .lineLimit(2)
-                                .fixedSize(horizontal: false, vertical: true)
+                            StatusPill(
+                                L(titleKey(for: status)),
+                                systemImage: iconName(for: status),
+                                tone: tone(for: status)
+                            )
 
                             Text(status.text)
                                 .font(DesignSystem.Typography.caption)
                                 .foregroundColor(DesignSystem.Colors.secondaryText)
-                                .lineLimit(3)
+                                .lineLimit(messageLineLimit(for: status))
                                 .fixedSize(horizontal: false, vertical: true)
                                 .textSelection(.enabled)
                                 .help(status.text)
@@ -52,6 +52,7 @@ struct StatusBannerView: View {
 
                         Spacer(minLength: 0)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .accessibilityElement(children: .combine)
             }
@@ -69,6 +70,10 @@ struct StatusBannerView: View {
 
     private func tone(for status: StatusMessage) -> DesignSystem.StatusTone {
         status.isError ? .critical : .success
+    }
+
+    private func messageLineLimit(for status: StatusMessage) -> Int {
+        status.isError ? 5 : 3
     }
 }
 
@@ -94,7 +99,7 @@ struct ExportStatusLine: View {
                     Text(status.text)
                         .font(DesignSystem.Typography.caption)
                         .foregroundColor(DesignSystem.Colors.secondaryText)
-                        .lineLimit(3)
+                        .lineLimit(status.isError ? 5 : 3)
                         .textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
                         .help(status.text)
