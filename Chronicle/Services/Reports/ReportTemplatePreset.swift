@@ -101,6 +101,9 @@ enum ReportTemplatePreset: String, CaseIterable, Identifiable {
             ## Time by Tag (Session Count)
             {{top_tags_session_table}}
 
+            ## Deep Work Blocks
+            {{deep_work_blocks}}
+
             ## Switching Hotspots
             {{peak_switch_slots}}
 
@@ -187,6 +190,9 @@ enum ReportTemplatePreset: String, CaseIterable, Identifiable {
 
             ## Time by Tag (Session Count)
             {{top_tags_session_table}}
+
+            ## Deep Work Blocks
+            {{deep_work_blocks}}
 
             ## Switching Hotspots
             {{peak_switch_slots}}

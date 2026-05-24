@@ -3148,14 +3148,61 @@ final class ChronicleTests: XCTestCase {
         XCTAssertTrue(ReportService.shouldAttemptAutoExport(currentKey: nextKey, lastAttemptKey: dayKey, lastExportedKey: dayKey))
     }
 
+    func testWorkBlockInsightBuilderFallsBackToStoredTagIdForLegacyRows() {
+        let tags = [TagRow(id: 42, name: "Writing", color: nil)]
+        let rows = [
+            ActivityRow(
+                id: 1,
+                startTime: 0,
+                endTime: 20 * 60,
+                appName: "Ulysses",
+                bundleId: "com.ulyssesapp.mac",
+                windowTitle: nil,
+                isIdle: false,
+                tagId: 42,
+                ruleTagId: nil,
+                userTagOverrideId: nil,
+                effectiveTagId: nil
+            ),
+            ActivityRow(
+                id: 2,
+                startTime: 20 * 60 + 30,
+                endTime: 35 * 60,
+                appName: "Safari",
+                bundleId: "com.apple.Safari",
+                windowTitle: nil,
+                isIdle: false,
+                tagId: 42,
+                ruleTagId: nil,
+                userTagOverrideId: nil,
+                effectiveTagId: nil
+            )
+        ]
+
+        let blocks = WorkBlockInsightBuilder.build(
+            activities: rows,
+            tags: tags,
+            rangeStart: 0,
+            rangeEnd: 60 * 60,
+            untaggedTitle: "Untagged"
+        )
+
+        XCTAssertEqual(blocks.count, 1)
+        XCTAssertEqual(blocks.first?.title, "Writing")
+        XCTAssertEqual(blocks.first?.sessionCount, 2)
+        XCTAssertEqual(blocks.first?.appNames, ["Safari", "Ulysses"])
+    }
+
     func testReportTemplatePresetsIncludeCoreVariables() {
         for preset in ReportTemplatePreset.allCases {
             XCTAssertTrue(preset.dailyTemplate.contains("{{notes}}"))
             XCTAssertTrue(preset.dailyTemplate.contains("{{top_tags_session_table}}"))
+            XCTAssertTrue(preset.dailyTemplate.contains("{{deep_work_blocks}}"))
             XCTAssertTrue(preset.dailyTemplate.contains("{{peak_switch_slots}}"))
 
             XCTAssertTrue(preset.weeklyTemplate.contains("{{notes}}"))
             XCTAssertTrue(preset.weeklyTemplate.contains("{{top_tags_session_table}}"))
+            XCTAssertTrue(preset.weeklyTemplate.contains("{{deep_work_blocks}}"))
             XCTAssertTrue(preset.weeklyTemplate.contains("{{peak_switch_slots}}"))
         }
     }

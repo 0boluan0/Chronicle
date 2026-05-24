@@ -41,9 +41,14 @@ enum WorkBlockInsightBuilder {
                 guard end > start else { return nil }
 
                 let appName = activity.appName.trimmingCharacters(in: .whitespacesAndNewlines)
-                let resolvedTag: (id: Int64, name: String)? = activity.effectiveTagId.flatMap { tagId in
-                    tagLookup[tagId].map { tagName in (id: tagId, name: tagName) }
-                }
+                let resolvedTag: (id: Int64, name: String)? = {
+                    for tagId in [activity.effectiveTagId, activity.tagId].compactMap({ $0 }) {
+                        if let tagName = tagLookup[tagId] {
+                            return (id: tagId, name: tagName)
+                        }
+                    }
+                    return nil
+                }()
                 let title = resolvedTag?.name ?? (appName.isEmpty ? untaggedTitle : appName)
                 let identity = resolvedTag.map { "tag:\($0.id)" } ?? "app:\(appName.lowercased())"
 
