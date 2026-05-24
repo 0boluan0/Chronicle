@@ -307,11 +307,7 @@ struct DashboardOverviewView: View {
             activityMapEmptyPath
                 .padding(.top, DesignSystem.Spacing.xs)
 
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 160), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.sm
-            ) {
+            ActionButtonGrid(minimumItemWidth: 160) {
                 activityMapEmptyPrimaryButton
                 activityMapEmptySecondaryButton
             }
@@ -723,11 +719,7 @@ struct DashboardOverviewView: View {
     }
 
     private var reviewActionRow: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 160), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
+        ActionButtonGrid(minimumItemWidth: 160) {
             primaryReviewActionButton
             secondaryReviewActionButton
         }
@@ -1259,11 +1251,7 @@ struct DashboardOverviewView: View {
     }
 
     private var weeklySummaryActionRow: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 170), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
+        ActionButtonGrid(minimumItemWidth: 170) {
             weeklySummaryPrimaryAction
             weeklySummarySecondaryActions
         }
@@ -1313,11 +1301,7 @@ struct DashboardOverviewView: View {
     }
 
     private var weeklySummarySecondaryActions: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 170), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
+        ActionButtonGrid(minimumItemWidth: 170) {
             if weeklyReviewState != .needsFolder {
                 Button {
                     AppWindowRouter.shared.open(.settings(.export))
@@ -1704,11 +1688,7 @@ struct DashboardOverviewView: View {
     }
 
     private var selectionActionRow: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 160), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
+        ActionButtonGrid(minimumItemWidth: 160) {
             selectionOpenTimelineButton
             selectionAddNoteButton
         }
