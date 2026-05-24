@@ -118,12 +118,20 @@ struct ActivityRowView: View {
     }
 
     private var activityTimeRange: some View {
-        Text(TimeFormatters.timeRange(start: activity.startTime, end: activity.endTime))
-            .font(.caption.weight(.medium))
-            .foregroundColor(DesignSystem.Colors.primaryText)
-            .monospacedDigit()
-            .lineLimit(1)
-            .minimumScaleFactor(0.86)
+        Label {
+            Text(TimeFormatters.timeRange(start: activity.startTime, end: activity.endTime))
+                .font(.caption.weight(.medium))
+                .foregroundColor(DesignSystem.Colors.primaryText)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.86)
+        } icon: {
+            Image(systemName: "clock")
+        }
+        .font(.caption2)
+        .foregroundColor(DesignSystem.Colors.secondaryText)
+        .labelStyle(.titleAndIcon)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var activityDuration: some View {
@@ -134,6 +142,7 @@ struct ActivityRowView: View {
             .lineLimit(1)
             .minimumScaleFactor(0.86)
             .labelStyle(.titleAndIcon)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var rowTitle: some View {
