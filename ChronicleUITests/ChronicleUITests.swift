@@ -1037,6 +1037,10 @@ final class ChronicleUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["preferences.general.windowTitleHeader"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Language"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["preferences.general.languageHeader"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["preferences.captureProfiles"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["preferences.captureProfiles.impact"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["preferences.captureProfiles.impact.sampling"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["preferences.captureProfiles.impact.cleanup"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["preferences.dailyUse.reviewPrivacy"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.radioGroups["preferences.language"].waitForExistence(timeout: 5))
 

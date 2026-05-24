@@ -517,6 +517,10 @@ struct GeneralPreferencesView: View {
                     captureProfileButton(profile)
                 }
             }
+
+            Divider()
+
+            captureProfileImpactStrip
         }
         .padding(DesignSystem.Spacing.md)
         .background(
@@ -579,6 +583,112 @@ struct GeneralPreferencesView: View {
         .buttonStyle(.plain)
         .accessibilityLabel("\(L(captureProfileTitleKey(profile))) \(isSelected ? L("preferences.capture_profiles.applied") : L("preferences.capture_profiles.apply"))")
         .accessibilityIdentifier("preferences.captureProfiles.\(profile.rawValue)")
+    }
+
+    private var captureProfileImpactStrip: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                Image(systemName: "gauge.with.dots.needle.50percent")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(activeCaptureProfileTone.color)
+                    .frame(width: 16)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("preferences.capture_profiles.impact.title")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+
+                    Text("preferences.capture_profiles.impact.detail")
+                        .font(.caption2)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            LazyVGrid(
+                columns: adaptiveColumns(minimum: 160, spacing: DesignSystem.Spacing.sm),
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                captureProfileImpactItem(
+                    titleKey: "preferences.capture_profiles.impact.sampling_title",
+                    value: captureProfileSamplingValue,
+                    detailKey: captureProfileSamplingDetailKey,
+                    systemImage: "timer",
+                    tone: captureProfileSamplingTone,
+                    accessibilityIdentifier: "preferences.captureProfiles.impact.sampling"
+                )
+
+                captureProfileImpactItem(
+                    titleKey: "preferences.capture_profiles.impact.cleanup_title",
+                    value: captureProfileCleanupValue,
+                    detailKey: "preferences.capture_profiles.impact.cleanup_detail",
+                    systemImage: "line.3.horizontal.decrease.circle",
+                    tone: appState.trackingAggregationEnabled ? .success : .neutral,
+                    accessibilityIdentifier: "preferences.captureProfiles.impact.cleanup"
+                )
+
+                captureProfileImpactItem(
+                    titleKey: "preferences.capture_profiles.impact.away_title",
+                    value: captureProfileAwayValue,
+                    detailKey: captureProfileAwayDetailKey,
+                    systemImage: "moon.zzz",
+                    tone: idleTone,
+                    accessibilityIdentifier: "preferences.captureProfiles.impact.away"
+                )
+
+                captureProfileImpactItem(
+                    titleKey: "preferences.capture_profiles.impact.shape_title",
+                    value: captureProfileShapeValue,
+                    detailKey: captureProfileShapeDetailKey,
+                    systemImage: activeCaptureProfileIconName,
+                    tone: activeCaptureProfileTone,
+                    accessibilityIdentifier: "preferences.captureProfiles.impact.shape"
+                )
+            }
+        }
+        .accessibilityIdentifier("preferences.captureProfiles.impact")
+    }
+
+    private func captureProfileImpactItem(
+        titleKey: LocalizedStringKey,
+        value: String,
+        detailKey: LocalizedStringKey,
+        systemImage: String,
+        tone: DesignSystem.StatusTone,
+        accessibilityIdentifier: String
+    ) -> some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.xs) {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(tone.color)
+                .frame(width: 16)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(titleKey)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.86)
+
+                Text(value)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
+
+                Text(detailKey)
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .frame(minWidth: 148, maxWidth: .infinity, minHeight: 64, alignment: .topLeading)
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     private var advancedRecommendationCard: some View {
@@ -1243,6 +1353,82 @@ struct GeneralPreferencesView: View {
             return .warning
         }
         return captureProfileTone(profile, isSelected: true)
+    }
+
+    private var captureProfileSamplingValue: String {
+        appState.idleDetectionEnabled
+            ? formatSeconds(appState.idleCheckIntervalSeconds)
+            : L("privacy.status.off")
+    }
+
+    private var captureProfileSamplingDetailKey: LocalizedStringKey {
+        appState.idleDetectionEnabled
+            ? "preferences.capture_profiles.impact.sampling_detail"
+            : "preferences.capture_profiles.impact.sampling_off_detail"
+    }
+
+    private var captureProfileSamplingTone: DesignSystem.StatusTone {
+        if !appState.idleDetectionEnabled {
+            return .neutral
+        }
+        if appState.idleCheckIntervalSeconds <= 2 {
+            return .warning
+        }
+        if appState.idleCheckIntervalSeconds >= 8 {
+            return .info
+        }
+        return .success
+    }
+
+    private var captureProfileCleanupValue: String {
+        guard appState.trackingAggregationEnabled else {
+            return L("privacy.status.off")
+        }
+        return String(
+            format: L("preferences.capture_profiles.impact.cleanup_value"),
+            formatSeconds(appState.minSessionDurationSeconds),
+            formatSeconds(appState.mergeGapSeconds)
+        )
+    }
+
+    private var captureProfileAwayValue: String {
+        appState.idleDetectionEnabled
+            ? formatDuration(seconds: appState.idleThresholdSeconds)
+            : L("privacy.status.off")
+    }
+
+    private var captureProfileAwayDetailKey: LocalizedStringKey {
+        appState.idleDetectionEnabled
+            ? "preferences.capture_profiles.impact.away_detail"
+            : "preferences.capture_profiles.impact.away_off_detail"
+    }
+
+    private var captureProfileShapeValue: String {
+        guard let profile = appState.currentCaptureTuningProfile else {
+            return L("preferences.capture_profiles.impact.shape.custom")
+        }
+        switch profile {
+        case .balanced:
+            return L("preferences.capture_profiles.impact.shape.balanced")
+        case .batterySaver:
+            return L("preferences.capture_profiles.impact.shape.battery")
+        case .detailedReview:
+            return L("preferences.capture_profiles.impact.shape.detailed")
+        }
+    }
+
+    private var captureProfileShapeDetailKey: LocalizedStringKey {
+        guard let profile = appState.currentCaptureTuningProfile else {
+            return "preferences.capture_profiles.impact.shape_detail.custom"
+        }
+        switch profile {
+        case .balanced:
+            return "preferences.capture_profiles.impact.shape_detail.balanced"
+        case .batterySaver:
+            return "preferences.capture_profiles.impact.shape_detail.battery"
+        case .detailedReview:
+            return "preferences.capture_profiles.impact.shape_detail.detailed"
+        }
     }
 
     private func captureProfileTitleKey(_ profile: CaptureTuningProfile) -> String {
