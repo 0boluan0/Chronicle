@@ -2668,7 +2668,7 @@ struct ReportsWorkspaceView: View {
             tone: .info
         ) {
             LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 142), spacing: DesignSystem.Spacing.sm)],
+                columns: [GridItem(.adaptive(minimum: 170), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
                 alignment: .leading,
                 spacing: DesignSystem.Spacing.sm
             ) {
@@ -2686,7 +2686,7 @@ struct ReportsWorkspaceView: View {
         Button {
             pendingTemplateReset = .daily
         } label: {
-            Label(L("reports.reset_default"), systemImage: "arrow.counterclockwise")
+            reportActionButtonLabel(L("reports.reset_default"), systemImage: "arrow.counterclockwise")
         }
         .buttonStyle(.bordered)
         .accessibilityIdentifier("reports.daily.resetTemplate")
@@ -2696,7 +2696,7 @@ struct ReportsWorkspaceView: View {
         Button {
             previewDaily(date: appState.selectedDate)
         } label: {
-            Label(L("reports.preview"), systemImage: "doc.text.magnifyingglass")
+            reportActionButtonLabel(L("reports.preview"), systemImage: "doc.text.magnifyingglass")
         }
         .buttonStyle(.bordered)
         .accessibilityIdentifier("reports.daily.copy")
@@ -2706,7 +2706,7 @@ struct ReportsWorkspaceView: View {
         Button {
             copyDailyToClipboard(date: appState.selectedDate)
         } label: {
-            Label(L("reports.daily.copy_selected"), systemImage: "doc.on.doc")
+            reportActionButtonLabel(L("reports.daily.copy_selected"), systemImage: "doc.on.doc")
         }
         .buttonStyle(.bordered)
     }
@@ -2715,7 +2715,7 @@ struct ReportsWorkspaceView: View {
         Button {
             generateDaily(date: appState.selectedDate)
         } label: {
-            Label(L("reports.daily.generate_selected"), systemImage: "calendar.badge.checkmark")
+            reportActionButtonLabel(L("reports.daily.generate_selected"), systemImage: "calendar.badge.checkmark")
         }
         .buttonStyle(.borderedProminent)
         .accessibilityIdentifier("reports.generateDailySelected")
@@ -2725,7 +2725,7 @@ struct ReportsWorkspaceView: View {
         Button {
             generateDaily(date: Date())
         } label: {
-            Label(L("reports.daily.generate_today"), systemImage: "doc.badge.plus")
+            reportActionButtonLabel(L("reports.daily.generate_today"), systemImage: "doc.badge.plus")
         }
         .buttonStyle(.borderedProminent)
         .accessibilityIdentifier("reports.generateDailyTodayBottom")
@@ -2741,7 +2741,7 @@ struct ReportsWorkspaceView: View {
             tone: .info
         ) {
             LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 142), spacing: DesignSystem.Spacing.sm)],
+                columns: [GridItem(.adaptive(minimum: 170), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
                 alignment: .leading,
                 spacing: DesignSystem.Spacing.sm
             ) {
@@ -2759,7 +2759,7 @@ struct ReportsWorkspaceView: View {
         Button {
             pendingTemplateReset = .weekly
         } label: {
-            Label(L("reports.reset_default"), systemImage: "arrow.counterclockwise")
+            reportActionButtonLabel(L("reports.reset_default"), systemImage: "arrow.counterclockwise")
         }
         .buttonStyle(.bordered)
         .accessibilityIdentifier("reports.weekly.resetTemplate")
@@ -2810,7 +2810,7 @@ struct ReportsWorkspaceView: View {
         Button {
             previewWeekly(date: appState.selectedDate)
         } label: {
-            Label(L("reports.preview"), systemImage: "doc.text.magnifyingglass")
+            reportActionButtonLabel(L("reports.preview"), systemImage: "doc.text.magnifyingglass")
         }
         .buttonStyle(.bordered)
         .accessibilityIdentifier("reports.weekly.preview")
@@ -2820,7 +2820,7 @@ struct ReportsWorkspaceView: View {
         Button {
             copyWeeklyToClipboard(date: appState.selectedDate)
         } label: {
-            Label(L("reports.weekly.copy_selected"), systemImage: "doc.on.doc")
+            reportActionButtonLabel(L("reports.weekly.copy_selected"), systemImage: "doc.on.doc")
         }
         .buttonStyle(.bordered)
         .accessibilityIdentifier("reports.weekly.copy")
@@ -2830,7 +2830,7 @@ struct ReportsWorkspaceView: View {
         Button {
             generateWeekly(date: appState.selectedDate)
         } label: {
-            Label(L("reports.weekly.generate_selected"), systemImage: "calendar.badge.checkmark")
+            reportActionButtonLabel(L("reports.weekly.generate_selected"), systemImage: "calendar.badge.checkmark")
         }
         .buttonStyle(.borderedProminent)
         .accessibilityIdentifier("reports.generateWeeklySelected")
@@ -2840,10 +2840,22 @@ struct ReportsWorkspaceView: View {
         Button {
             generateWeekly(date: Date())
         } label: {
-            Label(L("reports.weekly.generate_this"), systemImage: "calendar.badge.plus")
+            reportActionButtonLabel(L("reports.weekly.generate_this"), systemImage: "calendar.badge.plus")
         }
         .buttonStyle(.borderedProminent)
         .accessibilityIdentifier("reports.generateWeeklyCurrent")
+    }
+
+    private func reportActionButtonLabel(_ title: String, systemImage: String) -> some View {
+        Label {
+            Text(title)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: systemImage)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private static let previewDateFormatter: DateFormatter = {
@@ -3000,35 +3012,19 @@ struct ReportsWorkspaceView: View {
         @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 240), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.sm
-            ) {
+            ViewThatFits(in: .horizontal) {
                 HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-                    IconWell(
-                        systemImage: systemImage,
-                        tone: tone,
-                        accessibilityLabel: L("reports.actions.title")
-                    )
+                    reportActionBarLead(titleKey: titleKey, detailKey: detailKey, systemImage: systemImage, tone: tone)
+                        .frame(maxWidth: .infinity, alignment: .leading)
 
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(titleKey)
-                            .font(.caption.weight(.semibold))
-                            .foregroundColor(DesignSystem.Colors.primaryText)
-                            .lineLimit(1)
-
-                        Text(detailKey)
-                            .font(DesignSystem.Typography.caption)
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
-                            .lineLimit(2)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
+                    StatusPill(statusText, systemImage: statusSystemImage, tone: tone)
+                        .fixedSize(horizontal: true, vertical: false)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
 
-                StatusPill(statusText, systemImage: statusSystemImage, tone: tone)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    reportActionBarLead(titleKey: titleKey, detailKey: detailKey, systemImage: systemImage, tone: tone)
+                    StatusPill(statusText, systemImage: statusSystemImage, tone: tone)
+                }
             }
 
             Divider()
@@ -3045,6 +3041,35 @@ struct ReportsWorkspaceView: View {
             RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
                 .stroke(DesignSystem.Colors.separator.opacity(0.35), lineWidth: 1)
         )
+    }
+
+    private func reportActionBarLead(
+        titleKey: LocalizedStringKey,
+        detailKey: LocalizedStringKey,
+        systemImage: String,
+        tone: DesignSystem.StatusTone
+    ) -> some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            IconWell(
+                systemImage: systemImage,
+                tone: tone,
+                accessibilityLabel: L("reports.actions.title")
+            )
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(titleKey)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(detailKey)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 
     private func reportStatusStack(
