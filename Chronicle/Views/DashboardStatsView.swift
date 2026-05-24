@@ -913,13 +913,19 @@ struct DashboardStatsView: View {
     }
 
     private func statsRangeHeader(title: String, stats: RangeStats) -> some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            statsRangeCopy(title: title, stats: stats)
-            StatusPill(statsRangeStatusText(stats), systemImage: statsRangeStatusIconName(stats), tone: statsRangeTone(stats))
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                statsRangeCopy(title: title, stats: stats)
+
+                StatusPill(statsRangeStatusText(stats), systemImage: statsRangeStatusIconName(stats), tone: statsRangeTone(stats))
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                statsRangeCopy(title: title, stats: stats)
+
+                StatusPill(statsRangeStatusText(stats), systemImage: statsRangeStatusIconName(stats), tone: statsRangeTone(stats))
+            }
         }
         .accessibilityIdentifier("dashboard.stats.rangeHeader")
     }
@@ -943,6 +949,7 @@ struct DashboardStatsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func activityMixView(summary: SummaryMetrics) -> some View {
@@ -967,51 +974,52 @@ struct DashboardStatsView: View {
     }
 
     private func activityMixLegend(summary: SummaryMetrics) -> some View {
-        HStack(spacing: DesignSystem.Spacing.sm) {
-            Text(String(format: L("dashboard.stats.active_share"), Int((summary.activeShare * 100).rounded())))
-                .font(DesignSystem.Typography.caption)
-                .foregroundColor(DesignSystem.Colors.secondaryText)
-                .lineLimit(1)
-            Text(String(format: L("dashboard.stats.idle_share"), Int((summary.idleShare * 100).rounded())))
-                .font(DesignSystem.Typography.caption)
-                .foregroundColor(DesignSystem.Colors.secondaryText)
-                .lineLimit(1)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                activityMixLegendText(String(format: L("dashboard.stats.active_share"), Int((summary.activeShare * 100).rounded())))
+                activityMixLegendText(String(format: L("dashboard.stats.idle_share"), Int((summary.idleShare * 100).rounded())))
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                activityMixLegendText(String(format: L("dashboard.stats.active_share"), Int((summary.activeShare * 100).rounded())))
+                activityMixLegendText(String(format: L("dashboard.stats.idle_share"), Int((summary.idleShare * 100).rounded())))
+            }
         }
+    }
+
+    private func activityMixLegendText(_ text: String) -> some View {
+        Text(text)
+            .font(DesignSystem.Typography.caption)
+            .foregroundColor(DesignSystem.Colors.secondaryText)
+            .lineLimit(2)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private func dataQualityView(stats: RangeStats) -> some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
             Divider()
 
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.sm
-            ) {
+            ViewThatFits(in: .horizontal) {
                 HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-                    IconWell(
+                    dataQualityHeaderCopy(stats: stats)
+
+                    StatusPill(
+                        dataQualityStatusText(stats),
                         systemImage: dataQualityStatusIconName(stats),
-                        tone: dataQualityTone(stats),
-                        accessibilityLabel: L("dashboard.stats.data_quality.title")
+                        tone: dataQualityTone(stats)
                     )
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("dashboard.stats.data_quality.title")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundColor(DesignSystem.Colors.primaryText)
-
-                        Text("dashboard.stats.data_quality.detail")
-                            .font(DesignSystem.Typography.caption)
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
+                    .fixedSize(horizontal: true, vertical: false)
                 }
 
-                StatusPill(
-                    dataQualityStatusText(stats),
-                    systemImage: dataQualityStatusIconName(stats),
-                    tone: dataQualityTone(stats)
-                )
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    dataQualityHeaderCopy(stats: stats)
+
+                    StatusPill(
+                        dataQualityStatusText(stats),
+                        systemImage: dataQualityStatusIconName(stats),
+                        tone: dataQualityTone(stats)
+                    )
+                }
             }
 
             LazyVGrid(
@@ -1051,6 +1059,28 @@ struct DashboardStatsView: View {
             capturePipelineStrip(stats: stats)
         }
         .accessibilityIdentifier("dashboard.stats.dataQuality")
+    }
+
+    private func dataQualityHeaderCopy(stats: RangeStats) -> some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            IconWell(
+                systemImage: dataQualityStatusIconName(stats),
+                tone: dataQualityTone(stats),
+                accessibilityLabel: L("dashboard.stats.data_quality.title")
+            )
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("dashboard.stats.data_quality.title")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+
+                Text("dashboard.stats.data_quality.detail")
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func dataQualityEvidenceChain(stats: RangeStats) -> some View {
@@ -1122,7 +1152,7 @@ struct DashboardStatsView: View {
 
     private func dataQualityActionStrip(stats: RangeStats) -> some View {
         LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 150), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
+            columns: [GridItem(.adaptive(minimum: 170), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
             alignment: .leading,
             spacing: DesignSystem.Spacing.sm
         ) {
@@ -1139,7 +1169,7 @@ struct DashboardStatsView: View {
             Button {
                 selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
             } label: {
-                Label(L("dashboard.stats.review.open_today"), systemImage: "sun.max")
+                statsActionLabel(L("dashboard.stats.review.open_today"), systemImage: "sun.max")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -1149,7 +1179,7 @@ struct DashboardStatsView: View {
             Button {
                 showUnlabeledTimeline()
             } label: {
-                Label(L("dashboard.stats.review.review_labels"), systemImage: "rectangle.split.3x1")
+                statsActionLabel(L("dashboard.stats.review.review_labels"), systemImage: "rectangle.split.3x1")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -1159,7 +1189,7 @@ struct DashboardStatsView: View {
             Button {
                 AppWindowRouter.shared.open(.quickMarker)
             } label: {
-                Label(L("dashboard.stats.review.add_cue"), systemImage: "square.and.pencil")
+                statsActionLabel(L("dashboard.stats.review.add_cue"), systemImage: "square.and.pencil")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -1169,7 +1199,7 @@ struct DashboardStatsView: View {
             Button {
                 performStatsPrepareReportAction()
             } label: {
-                Label(statsPrepareReportTitle, systemImage: statsPrepareReportIconName)
+                statsActionLabel(statsPrepareReportTitle, systemImage: statsPrepareReportIconName)
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -1184,7 +1214,7 @@ struct DashboardStatsView: View {
             Button {
                 AppWindowRouter.shared.open(.settings(.general))
             } label: {
-                Label(L("dashboard.stats.data_quality.capture_settings"), systemImage: "slider.horizontal.3")
+                statsActionLabel(L("dashboard.stats.data_quality.capture_settings"), systemImage: "slider.horizontal.3")
             }
             .buttonStyle(.bordered)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -1193,7 +1223,7 @@ struct DashboardStatsView: View {
             Button {
                 selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
             } label: {
-                Label(L("dashboard.stats.review.open_timeline"), systemImage: "clock")
+                statsActionLabel(L("dashboard.stats.review.open_timeline"), systemImage: "clock")
             }
             .buttonStyle(.bordered)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -1216,19 +1246,19 @@ struct DashboardStatsView: View {
                 .frame(width: 14, height: 16)
 
             VStack(alignment: .leading, spacing: 2) {
-                HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.xs) {
-                    Text(titleKey)
-                        .font(.caption2.weight(.semibold))
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                        .lineLimit(1)
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.xs) {
+                        dataQualityEvidenceTitle(titleKey)
 
-                    Spacer(minLength: DesignSystem.Spacing.xs)
+                        Spacer(minLength: DesignSystem.Spacing.xs)
 
-                    Text(value)
-                        .font(.caption2.weight(.semibold))
-                        .foregroundColor(DesignSystem.Colors.primaryText)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.85)
+                        dataQualityEvidenceValue(value)
+                    }
+
+                    VStack(alignment: .leading, spacing: 1) {
+                        dataQualityEvidenceTitle(titleKey)
+                        dataQualityEvidenceValue(value)
+                    }
                 }
 
                 Text(detail)
@@ -1252,6 +1282,22 @@ struct DashboardStatsView: View {
                 .stroke(tone.color.opacity(0.16), lineWidth: 1)
         )
         .accessibilityIdentifier(accessibilityIdentifier)
+    }
+
+    private func dataQualityEvidenceTitle(_ titleKey: LocalizedStringKey) -> some View {
+        Text(titleKey)
+            .font(.caption2.weight(.semibold))
+            .foregroundColor(DesignSystem.Colors.secondaryText)
+            .lineLimit(2)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func dataQualityEvidenceValue(_ value: String) -> some View {
+        Text(value)
+            .font(.caption2.weight(.semibold))
+            .foregroundColor(DesignSystem.Colors.primaryText)
+            .lineLimit(2)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private func capturePipelineStrip(stats: RangeStats) -> some View {
@@ -1318,14 +1364,14 @@ struct DashboardStatsView: View {
             )
 
             LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 142), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
+                columns: [GridItem(.adaptive(minimum: 170), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
                 alignment: .leading,
                 spacing: DesignSystem.Spacing.sm
             ) {
                 Button {
                     selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
                 } label: {
-                    Label(L("dashboard.stats.review.open_timeline"), systemImage: "clock")
+                    statsActionLabel(L("dashboard.stats.review.open_timeline"), systemImage: "clock")
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
@@ -1334,7 +1380,7 @@ struct DashboardStatsView: View {
                 Button {
                     AppWindowRouter.shared.open(.settings(.general))
                 } label: {
-                    Label(L("dashboard.stats.data_quality.capture_settings"), systemImage: "slider.horizontal.3")
+                    statsActionLabel(L("dashboard.stats.data_quality.capture_settings"), systemImage: "slider.horizontal.3")
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
@@ -1382,38 +1428,52 @@ struct DashboardStatsView: View {
     }
 
     private func workBlocksHeader(stats: RangeStats) -> some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
+        ViewThatFits(in: .horizontal) {
             HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-                IconWell(
-                    systemImage: workBlocksIconName(stats),
-                    tone: workBlocksTone(stats),
-                    accessibilityLabel: L("dashboard.stats.work_blocks.title")
+                workBlocksHeaderCopy(stats: stats)
+
+                StatusPill(
+                    workBlocksStatusText(stats),
+                    systemImage: workBlocksStatusIconName(stats),
+                    tone: workBlocksTone(stats)
                 )
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("dashboard.stats.work_blocks.title")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundColor(DesignSystem.Colors.primaryText)
-
-                    Text("dashboard.stats.work_blocks.detail")
-                        .font(DesignSystem.Typography.caption)
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                        .lineLimit(3)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+                .fixedSize(horizontal: true, vertical: false)
             }
 
-            StatusPill(
-                workBlocksStatusText(stats),
-                systemImage: workBlocksStatusIconName(stats),
-                tone: workBlocksTone(stats)
-            )
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                workBlocksHeaderCopy(stats: stats)
+
+                StatusPill(
+                    workBlocksStatusText(stats),
+                    systemImage: workBlocksStatusIconName(stats),
+                    tone: workBlocksTone(stats)
+                )
+            }
         }
         .accessibilityIdentifier("dashboard.stats.workBlocks.header")
+    }
+
+    private func workBlocksHeaderCopy(stats: RangeStats) -> some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            IconWell(
+                systemImage: workBlocksIconName(stats),
+                tone: workBlocksTone(stats),
+                accessibilityLabel: L("dashboard.stats.work_blocks.title")
+            )
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("dashboard.stats.work_blocks.title")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+
+                Text("dashboard.stats.work_blocks.detail")
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func workBlocksMetrics(stats: RangeStats) -> some View {
@@ -1472,8 +1532,8 @@ struct DashboardStatsView: View {
                             Text(block.title)
                                 .font(.caption.weight(.semibold))
                                 .foregroundColor(DesignSystem.Colors.primaryText)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.85)
+                                .lineLimit(2)
+                                .fixedSize(horizontal: false, vertical: true)
 
                             Text(workBlockTimeRange(block))
                                 .font(.caption2)
