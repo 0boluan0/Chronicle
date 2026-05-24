@@ -1140,7 +1140,7 @@ struct ReportsWorkspaceView: View {
             Button {
                 appState.dailyReviewReminderEnabled = true
             } label: {
-                Label(L("reports.closeout.enable_reminder"), systemImage: "bell")
+                reportCompactActionLabel(L("reports.closeout.enable_reminder"), systemImage: "bell")
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
@@ -1764,7 +1764,7 @@ struct ReportsWorkspaceView: View {
                 Button {
                     openFolder(for: kind)
                 } label: {
-                    Label(L("reports.open_folder"), systemImage: "folder")
+                    reportActionButtonLabel(L("reports.open_folder"), systemImage: "folder")
                 }
                 .buttonStyle(.bordered)
                 .accessibilityIdentifier("reports.readiness.open.\(folderKindIdentifier(kind))")
@@ -1778,7 +1778,7 @@ struct ReportsWorkspaceView: View {
             Button {
                 chooseFolder(for: kind)
             } label: {
-                Label(L("reports.choose_folder"), systemImage: "folder.badge.plus")
+                reportActionButtonLabel(L("reports.choose_folder"), systemImage: "folder.badge.plus")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -1787,7 +1787,7 @@ struct ReportsWorkspaceView: View {
             Button {
                 chooseFolder(for: kind)
             } label: {
-                Label(L("reports.reselect_folder"), systemImage: "folder.badge.plus")
+                reportActionButtonLabel(L("reports.reselect_folder"), systemImage: "folder.badge.plus")
             }
             .buttonStyle(.bordered)
             .accessibilityIdentifier("reports.readiness.choose.\(folderKindIdentifier(kind))")
@@ -2013,7 +2013,7 @@ struct ReportsWorkspaceView: View {
                         Button {
                             exportCsv()
                         } label: {
-                            Label(L("reports.export_now"), systemImage: "square.and.arrow.down")
+                            reportActionButtonLabel(L("reports.export_now"), systemImage: "square.and.arrow.down")
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(DesignSystem.Colors.accentSkyBlue)
@@ -2022,7 +2022,7 @@ struct ReportsWorkspaceView: View {
                         Button {
                             chooseCsvFolder()
                         } label: {
-                            Label(L("reports.choose_folder"), systemImage: "folder.badge.plus")
+                            reportActionButtonLabel(L("reports.choose_folder"), systemImage: "folder.badge.plus")
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(DesignSystem.Colors.accentSkyBlue)
@@ -2230,7 +2230,7 @@ struct ReportsWorkspaceView: View {
         Button {
             exportCsv()
         } label: {
-            Label(L("reports.export_now"), systemImage: "square.and.arrow.down")
+            reportActionButtonLabel(L("reports.export_now"), systemImage: "square.and.arrow.down")
         }
         .buttonStyle(.borderedProminent)
         .accessibilityIdentifier("reports.exportCsv")
@@ -2240,7 +2240,7 @@ struct ReportsWorkspaceView: View {
         Button {
             exportTimesheet()
         } label: {
-            Label(L("reports.timesheet.export"), systemImage: "tablecells")
+            reportActionButtonLabel(L("reports.timesheet.export"), systemImage: "tablecells")
         }
         .buttonStyle(.bordered)
         .accessibilityIdentifier("reports.exportTimesheet")
@@ -2893,6 +2893,18 @@ struct ReportsWorkspaceView: View {
             Image(systemName: systemImage)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func reportCompactActionLabel(_ title: String, systemImage: String) -> some View {
+        Label {
+            Text(title)
+                .lineLimit(2)
+                .minimumScaleFactor(0.86)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: systemImage)
+        }
     }
 
     private static let previewDateFormatter: DateFormatter = {
@@ -3702,7 +3714,7 @@ struct ReportsWorkspaceView: View {
                     )
                     .padding(.top, DesignSystem.Spacing.xs)
             } label: {
-                Label(L("reports.preview.issue.support_details"), systemImage: "wrench.and.screwdriver")
+                previewActionLabel(L("reports.preview.issue.support_details"), systemImage: "wrench.and.screwdriver")
                     .font(.caption.weight(.semibold))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -3752,7 +3764,7 @@ struct ReportsWorkspaceView: View {
             Button {
                 onRetry()
             } label: {
-                Label(L("reports.preview.issue.retry"), systemImage: "arrow.clockwise")
+                previewActionLabel(L("reports.preview.issue.retry"), systemImage: "arrow.clockwise")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -3764,7 +3776,7 @@ struct ReportsWorkspaceView: View {
             Button {
                 AppWindowRouter.shared.open(.settings(.support))
             } label: {
-                Label(L("reports.preview.issue.open_health"), systemImage: "stethoscope")
+                previewActionLabel(L("reports.preview.issue.open_health"), systemImage: "stethoscope")
             }
             .buttonStyle(.bordered)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -4220,7 +4232,7 @@ struct ReportsWorkspaceView: View {
                 Button {
                     reselectAction()
                 } label: {
-                    Label(L("reports.reselect_folder"), systemImage: "folder.badge.plus")
+                    reportActionButtonLabel(L("reports.reselect_folder"), systemImage: "folder.badge.plus")
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(DesignSystem.Colors.accentSkyBlue)
@@ -5479,10 +5491,22 @@ private struct ReportPresetPanelView: View {
         Button {
             applyAction()
         } label: {
-            Label(L("reports.template_presets.apply"), systemImage: "checkmark.circle")
+            presetActionLabel(L("reports.template_presets.apply"), systemImage: "checkmark.circle")
         }
         .buttonStyle(.bordered)
         .accessibilityIdentifier("reports.templatePresets.apply")
+    }
+
+    private func presetActionLabel(_ title: String, systemImage: String) -> some View {
+        Label {
+            Text(title)
+                .lineLimit(2)
+                .minimumScaleFactor(0.86)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: systemImage)
+        }
     }
 }
 
@@ -5749,7 +5773,7 @@ private struct ReportCloseoutFeedbackView: View {
             Button {
                 openExportSettings()
             } label: {
-                Label(L("reports.feedback.open_export"), systemImage: "gearshape")
+                feedbackActionLabel(L("reports.feedback.open_export"), systemImage: "gearshape")
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
@@ -5758,11 +5782,23 @@ private struct ReportCloseoutFeedbackView: View {
             Button {
                 openFolder()
             } label: {
-                Label(L("reports.open_folder"), systemImage: "folder")
+                feedbackActionLabel(L("reports.open_folder"), systemImage: "folder")
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
             .accessibilityIdentifier("\(accessibilityIdentifier).openFolder")
+        }
+    }
+
+    private func feedbackActionLabel(_ title: String, systemImage: String) -> some View {
+        Label {
+            Text(title)
+                .lineLimit(2)
+                .minimumScaleFactor(0.86)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: systemImage)
         }
     }
 
