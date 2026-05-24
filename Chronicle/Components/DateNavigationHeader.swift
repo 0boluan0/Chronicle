@@ -188,26 +188,48 @@ struct DateNavigationHeader: View {
     }
 
     private var rangeControl: some View {
-        HStack(spacing: DesignSystem.Spacing.sm) {
-            Image(systemName: "calendar.badge.clock")
-                .font(.caption.weight(.semibold))
-                .foregroundColor(DesignSystem.Colors.secondaryText)
-                .frame(width: 18)
-                .accessibilityHidden(true)
-
-            Picker("date_navigation.range", selection: $dateRangeMode) {
-                ForEach(availableRangeModes) { range in
-                    Text(range.titleKey).tag(range)
-                }
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                rangeControlIcon
+                rangePicker
             }
-            .pickerStyle(.segmented)
-            .controlSize(.small)
-            .frame(minWidth: min(rangeControlWidth, 150), idealWidth: rangeControlWidth, maxWidth: .infinity, alignment: .leading)
-            .accessibilityIdentifier("\(accessibilityPrefix).range")
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                HStack(spacing: DesignSystem.Spacing.xs) {
+                    rangeControlIcon
+
+                    Text("date_navigation.range")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .lineLimit(1)
+                }
+
+                rangePicker
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .help(L("date_navigation.range_help"))
         .accessibilityElement(children: .contain)
+    }
+
+    private var rangeControlIcon: some View {
+        Image(systemName: "calendar.badge.clock")
+            .font(.caption.weight(.semibold))
+            .foregroundColor(DesignSystem.Colors.secondaryText)
+            .frame(width: 18)
+            .accessibilityHidden(true)
+    }
+
+    private var rangePicker: some View {
+        Picker("date_navigation.range", selection: $dateRangeMode) {
+            ForEach(availableRangeModes) { range in
+                Text(range.titleKey).tag(range)
+            }
+        }
+        .pickerStyle(.segmented)
+        .controlSize(.small)
+        .frame(minWidth: min(rangeControlWidth, 150), idealWidth: rangeControlWidth, maxWidth: .infinity, alignment: .leading)
+        .accessibilityIdentifier("\(accessibilityPrefix).range")
     }
 
     private var rangeControlWidth: CGFloat {
