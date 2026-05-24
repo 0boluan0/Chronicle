@@ -949,6 +949,15 @@ struct ReportsWorkspaceView: View {
                     tone: closeoutSnapshot.untaggedActiveCount > 0 ? .warning : .success,
                     accessibilityIdentifier: "reports.closeout.confidence.labels"
                 )
+
+                closeoutSaveConfidenceItem(
+                    titleKey: "reports.closeout.confidence.blocks_title",
+                    value: closeoutConfidenceBlocksValue,
+                    detail: closeoutConfidenceBlocksDetail,
+                    systemImage: closeoutSnapshot.workBlocks.isEmpty ? "square.split.2x2" : "rectangle.stack.fill",
+                    tone: closeoutSnapshot.workBlocks.isEmpty ? .info : .success,
+                    accessibilityIdentifier: "reports.closeout.confidence.blocks"
+                )
             }
         }
         .padding(.vertical, DesignSystem.Spacing.xs)
@@ -4486,6 +4495,24 @@ struct ReportsWorkspaceView: View {
         closeoutSnapshot.untaggedActiveCount > 0
             ? L("reports.closeout.confidence.labels_review_detail")
             : L("reports.closeout.confidence.labels_ready_detail")
+    }
+
+    private var closeoutConfidenceBlocksValue: String {
+        guard let block = closeoutSnapshot.topWorkBlock else {
+            return closeoutSnapshot.activeSeconds > 0
+                ? L("reports.closeout.confidence.blocks_building")
+                : L("reports.closeout.confidence.blocks_empty")
+        }
+        return String(format: L("reports.closeout.confidence.blocks_value"), formatDuration(block.durationSeconds))
+    }
+
+    private var closeoutConfidenceBlocksDetail: String {
+        guard let block = closeoutSnapshot.topWorkBlock else {
+            return closeoutSnapshot.activeSeconds > 0
+                ? L("reports.closeout.confidence.blocks_building_detail")
+                : L("reports.closeout.confidence.blocks_empty_detail")
+        }
+        return String(format: L("reports.closeout.confidence.blocks_ready_detail"), block.title)
     }
 
     private var closeoutCapturedValue: String {

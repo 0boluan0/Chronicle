@@ -2235,6 +2235,13 @@
 "reports.closeout.confidence.labels_value" = "%d 条未分类";
 "reports.closeout.confidence.labels_ready_detail" = "今日日志分段应该容易浏览。";
 "reports.closeout.confidence.labels_review_detail" = "如果日志显得杂乱，保存前先整理未分类活动。";
+"reports.closeout.confidence.blocks_title" = "工作块";
+"reports.closeout.confidence.blocks_empty" = "暂无工作块";
+"reports.closeout.confidence.blocks_building" = "正在形成";
+"reports.closeout.confidence.blocks_value" = "%@ 区间";
+"reports.closeout.confidence.blocks_empty_detail" = "先记录活跃工作，再判断是否有可总结区间。";
+"reports.closeout.confidence.blocks_building_detail" = "时间线已有活动，但还没有连续 25 分钟区间。";
+"reports.closeout.confidence.blocks_ready_detail" = "%@ 可以成为这份日志的主线。";
 "reports.closeout.include.title" = "今日日志会包含";
 "reports.closeout.include.timeline_title" = "时间线";
 "reports.closeout.include.timeline_detail" = "今天捕获到的应用活动。";

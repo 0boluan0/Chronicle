@@ -2236,6 +2236,13 @@
 "reports.closeout.confidence.labels_value" = "%d uncategorized";
 "reports.closeout.confidence.labels_ready_detail" = "Daily log sections should be easy to scan.";
 "reports.closeout.confidence.labels_review_detail" = "Classify uncategorized activity before saving if the log feels noisy.";
+"reports.closeout.confidence.blocks_title" = "Work blocks";
+"reports.closeout.confidence.blocks_empty" = "No work block";
+"reports.closeout.confidence.blocks_building" = "Still forming";
+"reports.closeout.confidence.blocks_value" = "%@ block";
+"reports.closeout.confidence.blocks_empty_detail" = "Capture active work before expecting a useful block.";
+"reports.closeout.confidence.blocks_building_detail" = "The timeline has activity, but no 25-minute block yet.";
+"reports.closeout.confidence.blocks_ready_detail" = "%@ gives the report a clear main thread.";
 "reports.closeout.include.title" = "Today's log includes";
 "reports.closeout.include.timeline_title" = "Timeline";
 "reports.closeout.include.timeline_detail" = "Captured app activity for the day.";

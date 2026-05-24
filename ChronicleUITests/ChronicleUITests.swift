@@ -786,6 +786,8 @@ final class ChronicleUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Timeline is missing"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Context can wait"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Categories read cleanly"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["reports.closeout.confidence.blocks"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["No work block"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Today's log includes"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Timeline"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Notes & focus"].waitForExistence(timeout: 5))
