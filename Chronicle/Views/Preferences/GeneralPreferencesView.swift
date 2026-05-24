@@ -198,32 +198,41 @@ struct GeneralPreferencesView: View {
                 .frame(width: 14)
 
             VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 5) {
-                    Text(titleKey)
-                        .font(.caption.weight(.semibold))
-                        .foregroundColor(DesignSystem.Colors.primaryText)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.86)
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .firstTextBaseline, spacing: 5) {
+                        Text(titleKey)
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
 
-                    Spacer(minLength: 0)
+                        Spacer(minLength: 0)
 
-                    Text(status)
-                        .font(.caption2.weight(.semibold))
-                        .foregroundColor(tone.color)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.82)
+                        readinessStepStatusText(status, tone: tone)
+                    }
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(titleKey)
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        readinessStepStatusText(status, tone: tone)
+                    }
                 }
 
                 Text(detailKey)
                     .font(.caption2)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
+                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.horizontal, DesignSystem.Spacing.sm)
         .padding(.vertical, 7)
-        .frame(maxWidth: .infinity, minHeight: 56, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: 62, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
                 .fill(tone.color.opacity(0.06))
@@ -233,6 +242,17 @@ struct GeneralPreferencesView: View {
                 .stroke(tone.color.opacity(0.16), lineWidth: 1)
         )
         .accessibilityIdentifier(accessibilityIdentifier)
+    }
+
+    private func readinessStepStatusText(
+        _ status: String,
+        tone: DesignSystem.StatusTone
+    ) -> some View {
+        Text(status)
+            .font(.caption2.weight(.semibold))
+            .foregroundColor(tone.color)
+            .lineLimit(2)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private var dailyUseSection: some View {
@@ -627,13 +647,16 @@ struct GeneralPreferencesView: View {
                     Text("preferences.capture_profiles.impact.title")
                         .font(.caption.weight(.semibold))
                         .foregroundColor(DesignSystem.Colors.primaryText)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     Text("preferences.capture_profiles.impact.detail")
                         .font(.caption2)
                         .foregroundColor(DesignSystem.Colors.secondaryText)
-                        .lineLimit(2)
+                        .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             LazyVGrid(
@@ -699,25 +722,26 @@ struct GeneralPreferencesView: View {
                 Text(titleKey)
                     .font(.caption2.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.86)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(value)
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.82)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(detailKey)
                     .font(.caption2)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
+                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer(minLength: 0)
         }
-        .frame(minWidth: 148, maxWidth: .infinity, minHeight: 64, alignment: .topLeading)
+        .frame(minWidth: 148, maxWidth: .infinity, minHeight: 74, alignment: .topLeading)
         .accessibilityIdentifier(accessibilityIdentifier)
     }
 
@@ -736,7 +760,7 @@ struct GeneralPreferencesView: View {
     }
 
     private var advancedRecommendationLead: some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
             IconWell(
                 systemImage: appState.usesRecommendedTrackingSettings ? "checkmark.seal.fill" : "slider.horizontal.3",
                 tone: advancedRecommendationTone,
@@ -747,11 +771,15 @@ struct GeneralPreferencesView: View {
                 Text("preferences.advanced_tracking.recommended.title")
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text("preferences.advanced_tracking.recommended.detail")
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -1047,16 +1075,21 @@ struct GeneralPreferencesView: View {
         detail: LocalizedStringKey,
         tone: DesignSystem.StatusTone
     ) -> some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
             IconWell(systemImage: systemImage, tone: tone)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.subheadline.weight(.semibold))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(detail)
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -1138,7 +1171,7 @@ struct GeneralPreferencesView: View {
         removeSystemImage: String = "trash",
         onRemove: @escaping () -> Void
     ) -> some View {
-        HStack(spacing: DesignSystem.Spacing.sm) {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
             Image(nsImage: item.icon)
                 .resizable()
                 .frame(width: 20, height: 20)
@@ -1147,17 +1180,29 @@ struct GeneralPreferencesView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.name)
                     .font(.subheadline.weight(.medium))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(detailKey)
                     .font(.caption2)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
-            Spacer()
+            Spacer(minLength: DesignSystem.Spacing.sm)
 
             Button {
                 onRemove()
             } label: {
-                Label(L(removeLabelKey), systemImage: removeSystemImage)
+                Label {
+                    Text(L(removeLabelKey))
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                } icon: {
+                    Image(systemName: removeSystemImage)
+                }
             }
             .buttonStyle(.bordered)
         }
@@ -1905,12 +1950,16 @@ struct GeneralPreferencesView: View {
                     Text(LocalizedStringKey(titleKey))
                         .font(.subheadline.weight(.semibold))
                         .foregroundColor(DesignSystem.Colors.primaryText)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     Text(LocalizedStringKey(detailKey))
                         .font(DesignSystem.Typography.caption)
                         .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 Spacer(minLength: 0)
             }
@@ -1953,19 +2002,21 @@ struct GeneralPreferencesView: View {
                 Text(LocalizedStringKey(titleKey))
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(LocalizedStringKey(detailKey))
                     .font(.caption2)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
+                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer(minLength: 0)
         }
         .padding(DesignSystem.Spacing.sm)
-        .frame(minWidth: 156, maxWidth: .infinity, minHeight: 70, alignment: .topLeading)
+        .frame(minWidth: 156, maxWidth: .infinity, minHeight: 78, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
                 .fill(tone.color.opacity(0.06))
@@ -2046,11 +2097,15 @@ struct GeneralPreferencesView: View {
                         Text(title)
                             .font(.subheadline.weight(.semibold))
                             .foregroundColor(DesignSystem.Colors.primaryText)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
                         Text(detail)
                             .font(DesignSystem.Typography.caption)
                             .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .lineLimit(3)
                             .fixedSize(horizontal: false, vertical: true)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
                 Divider()
@@ -2103,11 +2158,15 @@ struct GeneralPreferencesView: View {
                 Text(title)
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(detail)
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -2166,11 +2225,15 @@ struct GeneralPreferencesView: View {
             Text(title)
                 .font(.subheadline.weight(.medium))
                 .foregroundColor(DesignSystem.Colors.primaryText)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
             Text(detail)
                 .font(DesignSystem.Typography.caption)
                 .foregroundColor(DesignSystem.Colors.secondaryText)
+                .lineLimit(3)
                 .fixedSize(horizontal: false, vertical: true)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func advancedStepperControl(
@@ -2191,29 +2254,46 @@ struct GeneralPreferencesView: View {
 
     private var idleDecisionCard: some View {
         RowSurface(tone: idleDecisionTone) {
-            HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
-                IconWell(
-                    systemImage: idleDecisionIconName,
-                    tone: idleDecisionTone,
-                    accessibilityLabel: L("preferences.advanced_tracking.live_status.title")
-                )
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                    idleDecisionLead
 
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("preferences.advanced_tracking.live_status.title")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundColor(DesignSystem.Colors.primaryText)
-                    Text(idleDecisionDetailText)
-                        .font(DesignSystem.Typography.caption)
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: DesignSystem.Spacing.md)
+
+                    StatusPill(idleDecisionStatusText, systemImage: idleDecisionIconName, tone: idleDecisionTone)
                 }
 
-                Spacer(minLength: DesignSystem.Spacing.md)
-
-                StatusPill(idleDecisionStatusText, systemImage: idleDecisionIconName, tone: idleDecisionTone)
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    idleDecisionLead
+                    StatusPill(idleDecisionStatusText, systemImage: idleDecisionIconName, tone: idleDecisionTone)
+                }
             }
         }
         .accessibilityIdentifier("preferences.advancedTracking.idleLiveStatus")
+    }
+
+    private var idleDecisionLead: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            IconWell(
+                systemImage: idleDecisionIconName,
+                tone: idleDecisionTone,
+                accessibilityLabel: L("preferences.advanced_tracking.live_status.title")
+            )
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("preferences.advanced_tracking.live_status.title")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(idleDecisionDetailText)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 
     private var idleThresholdBinding: Binding<Int> {
