@@ -155,15 +155,19 @@ struct QuickMarkerEntryView: View {
     }
 
     private func activeFocusReminderCopy(_ span: MarkerSpanRow) -> some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+        let runningTitle = String(format: L("quick_marker.session_running"), span.text)
+
+        return HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
             IconWell(systemImage: "timer", tone: .warning, accessibilityLabel: L("quick_marker.active.title"))
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(String(format: L("quick_marker.session_running"), span.text))
+                Text(runningTitle)
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
                     .lineLimit(2)
                     .truncationMode(.tail)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .help(runningTitle)
 
                 Text(L("quick_marker.active.detail"))
                     .font(DesignSystem.Typography.caption)
@@ -592,8 +596,10 @@ struct QuickMarkerEntryView: View {
                 Text(message)
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(3)
+                    .lineLimit(4)
                     .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
+                    .help(message)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1007,14 +1013,18 @@ struct QuickMarkerEntryView: View {
     }
 
     private func intervalStatusCopy(_ openSpan: MarkerSpanRow) -> some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+        let runningTitle = String(format: L("quick_marker.session_running"), openSpan.text)
+
+        return HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
             IconWell(systemImage: "timer", tone: .warning, accessibilityLabel: L("quick_marker.active.title"))
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(String(format: L("quick_marker.session_running"), openSpan.text))
+                Text(runningTitle)
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(2)
                     .truncationMode(.tail)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .help(runningTitle)
                 Text(L("quick_marker.active.detail"))
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
