@@ -3325,7 +3325,7 @@ struct DashboardTimelineView: View {
                     setUserOverride(activity: activity, tagId: tagId)
                 }
             )
-            .frame(width: 320)
+            .frame(minWidth: 320, idealWidth: 360, maxWidth: 420, alignment: .leading)
             .padding(12)
         )
     }
@@ -4076,49 +4076,14 @@ private struct TagPickerPopover: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-                IconWell(
-                    systemImage: "rectangle.split.3x1",
-                    tone: currentTone,
-                    accessibilityLabel: L("tag.picker.title")
-                )
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(L("tag.picker.title"))
-                        .font(.headline.weight(.semibold))
-                        .foregroundColor(DesignSystem.Colors.primaryText)
-
-                    Text(L("tag.picker.detail"))
-                        .font(DesignSystem.Typography.caption)
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
+            tagPickerHeader
 
             activitySummary
             sourceSummary
 
             Divider()
 
-            Button {
-                onSelect(nil)
-            } label: {
-                HStack(spacing: DesignSystem.Spacing.sm) {
-                    Image(systemName: "wand.and.stars")
-                        .font(.caption.weight(.semibold))
-                    Text(L("tag.picker.use_auto"))
-                        .font(.callout.weight(.semibold))
-                    Spacer()
-                    if activity.userTagOverrideId == nil {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(DesignSystem.StatusTone.success.color)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.small)
-            .tint(DesignSystem.Colors.accentSkyBlue)
+            useAutoButton
 
             if tags.isEmpty {
                 noTagsGuidance
@@ -4128,7 +4093,7 @@ private struct TagPickerPopover: View {
                     .foregroundColor(DesignSystem.Colors.secondaryText)
 
                 LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 136), spacing: DesignSystem.Spacing.sm)],
+                    columns: [GridItem(.adaptive(minimum: 148), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
                     alignment: .leading,
                     spacing: DesignSystem.Spacing.sm
                 ) {
@@ -4143,6 +4108,62 @@ private struct TagPickerPopover: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var tagPickerHeader: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            IconWell(
+                systemImage: "rectangle.split.3x1",
+                tone: currentTone,
+                accessibilityLabel: L("tag.picker.title")
+            )
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(L("tag.picker.title"))
+                    .font(.headline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(L("tag.picker.detail"))
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var useAutoButton: some View {
+        Button {
+            onSelect(nil)
+        } label: {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                Image(systemName: "wand.and.stars")
+                    .font(.caption.weight(.semibold))
+                    .padding(.top, 2)
+
+                Text(L("tag.picker.use_auto"))
+                    .font(.callout.weight(.semibold))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Spacer(minLength: DesignSystem.Spacing.xs)
+
+                if activity.userTagOverrideId == nil {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(DesignSystem.StatusTone.success.color)
+                        .padding(.top, 2)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .buttonStyle(.borderedProminent)
+        .controlSize(.small)
+        .tint(DesignSystem.Colors.accentSkyBlue)
     }
 
     private var noTagsGuidance: some View {
@@ -4203,12 +4224,14 @@ private struct TagPickerPopover: View {
                 .font(.caption.weight(.semibold))
                 .foregroundColor(tone.color)
                 .frame(width: 16)
+                .padding(.top, 1)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(L(titleKey))
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(L(detailKey))
                     .font(.caption2)
@@ -4221,7 +4244,7 @@ private struct TagPickerPopover: View {
         }
         .padding(.horizontal, DesignSystem.Spacing.sm)
         .padding(.vertical, 7)
-        .frame(maxWidth: .infinity, minHeight: 54, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: 60, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
                 .fill(tone.color.opacity(0.06))
@@ -4235,20 +4258,7 @@ private struct TagPickerPopover: View {
 
     private var activitySummary: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-            HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.sm) {
-                Text(activity.appName)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
-
-                Spacer(minLength: DesignSystem.Spacing.sm)
-
-                Text(TimeFormatters.timeRange(start: activity.startTime, end: activity.endTime))
-                    .font(.caption.weight(.medium))
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .monospacedDigit()
-                    .lineLimit(1)
-            }
+            activitySummaryHeader
 
             if let title = activity.windowTitle?.trimmingCharacters(in: .whitespacesAndNewlines),
                !title.isEmpty {
@@ -4268,6 +4278,40 @@ private struct TagPickerPopover: View {
             RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
                 .stroke(DesignSystem.Colors.separator.opacity(0.36), lineWidth: 1)
         )
+    }
+
+    private var activitySummaryHeader: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.sm) {
+                activitySummaryTitle
+
+                Spacer(minLength: DesignSystem.Spacing.sm)
+
+                activitySummaryTimeRange
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                activitySummaryTitle
+                activitySummaryTimeRange
+            }
+        }
+    }
+
+    private var activitySummaryTitle: some View {
+        Text(activity.appName)
+            .font(.subheadline.weight(.semibold))
+            .foregroundColor(DesignSystem.Colors.primaryText)
+            .lineLimit(2)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var activitySummaryTimeRange: some View {
+        Text(TimeFormatters.timeRange(start: activity.startTime, end: activity.endTime))
+            .font(.caption.weight(.medium))
+            .foregroundColor(DesignSystem.Colors.secondaryText)
+            .monospacedDigit()
+            .lineLimit(1)
+            .minimumScaleFactor(0.86)
     }
 
     private var sourceSummary: some View {
@@ -4301,33 +4345,37 @@ private struct TagPickerPopover: View {
                 .font(.caption.weight(.semibold))
                 .foregroundColor(tone.color)
                 .frame(width: 16)
+                .padding(.top, 1)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.caption2.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(value)
                     .font(.caption)
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
+                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
 
     private func tagChoiceLabel(_ tag: TagRow) -> some View {
-        HStack(spacing: DesignSystem.Spacing.sm) {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
             Circle()
                 .fill(tagColor(for: tag))
                 .frame(width: 8, height: 8)
+                .padding(.top, 4)
 
             Text(tag.name)
                 .font(.caption.weight(.semibold))
                 .foregroundColor(DesignSystem.Colors.primaryText)
-                .lineLimit(1)
+                .lineLimit(2)
                 .truncationMode(.tail)
+                .fixedSize(horizontal: false, vertical: true)
 
             Spacer(minLength: DesignSystem.Spacing.xs)
 
@@ -4335,11 +4383,12 @@ private struct TagPickerPopover: View {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.StatusTone.success.color)
+                    .padding(.top, 1)
             }
         }
         .padding(.horizontal, DesignSystem.Spacing.sm)
         .padding(.vertical, 7)
-        .frame(maxWidth: .infinity, minHeight: 34, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: 40, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
                 .fill(isCurrent(tag) ? DesignSystem.StatusTone.success.color.opacity(0.08) : DesignSystem.Colors.cardBackground)
