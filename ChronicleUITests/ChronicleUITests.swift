@@ -953,6 +953,34 @@ final class ChronicleUITests: XCTestCase {
         app.terminate()
     }
 
+    func testDebugPreferencesDiagnosticsSurfaceSmoke() throws {
+        let workspace = try makeWorkspace(language: "en")
+        let app = makeApp(
+            route: "settingsDebug",
+            language: "en",
+            workspace: workspace,
+            resetState: true,
+            showDebug: true
+        )
+        app.launch()
+
+        XCTAssertTrue(app.staticTexts["Diagnostics"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Troubleshooting Mode"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["preferences.debug.logging"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["preferences.debug.statusHeader"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["preferences.debug.logging.toggle"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Diagnostics are quiet right now."].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Safe Troubleshooting Path"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["preferences.debug.flow"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["preferences.debug.flow.health"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["preferences.debug.flow.logs"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["preferences.debug.flow.package"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["preferences.debug.openSupport"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["preferences.debug.toggleLogging"].waitForExistence(timeout: 5))
+
+        app.terminate()
+    }
+
     func testSupportReadinessReportSmoke() throws {
         let workspace = try makeWorkspace(language: "en")
         let app = makeApp(

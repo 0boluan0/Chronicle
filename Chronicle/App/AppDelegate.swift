@@ -638,6 +638,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             return .settings(.tagsRules)
         case "settingsPrivacy":
             return .settings(.privacy)
+#if DEBUG
+        case "settingsDebug":
+            return .settings(.debug)
+#endif
         case "tagWizard":
             return .settings(.tagWizard)
         case "welcome":
