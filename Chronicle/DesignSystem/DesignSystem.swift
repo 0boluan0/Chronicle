@@ -317,6 +317,8 @@ struct ErrorStateView: View {
 }
 
 struct StatusPill: View {
+    private static let maxTextWidth: CGFloat = 180
+
     let text: String
     let systemImage: String?
     let tone: DesignSystem.StatusTone
@@ -337,7 +339,9 @@ struct StatusPill: View {
             Text(text)
                 .font(.caption.weight(.medium))
                 .lineLimit(1)
+                .truncationMode(.tail)
                 .minimumScaleFactor(0.82)
+                .frame(maxWidth: Self.maxTextWidth, alignment: .leading)
         }
         .foregroundColor(tone.color)
         .padding(.horizontal, 8)
@@ -352,6 +356,7 @@ struct StatusPill: View {
         )
         .fixedSize(horizontal: false, vertical: true)
         .help(text)
+        .accessibilityLabel(text)
     }
 }
 
