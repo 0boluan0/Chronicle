@@ -21,6 +21,10 @@ struct PreferencesView: View {
         var id: String { rawValue }
 
         var titleKey: LocalizedStringKey {
+            LocalizedStringKey(titleStringKey)
+        }
+
+        var titleStringKey: String {
             switch self {
             case .general:
                 return "preferences.general"
@@ -59,6 +63,10 @@ struct PreferencesView: View {
         }
 
         var subtitleKey: LocalizedStringKey {
+            LocalizedStringKey(subtitleStringKey)
+        }
+
+        var subtitleStringKey: String {
             switch self {
             case .general:
                 return "preferences.sidebar.general"
@@ -166,6 +174,7 @@ struct PreferencesView: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
+                .help(L("preferences.sidebar.flow_detail"))
         }
         .padding(.horizontal, DesignSystem.Spacing.lg)
         .padding(.top, DesignSystem.Spacing.lg)
@@ -189,8 +198,10 @@ struct PreferencesView: View {
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.vertical, 2)
+        .help("\(L(section.titleStringKey)): \(L(section.subtitleStringKey))")
         .accessibilityElement(children: .combine)
     }
 
@@ -215,6 +226,7 @@ struct PreferencesView: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
+                    .help(L("preferences.sidebar.guide.detail"))
 
                 setupGuideProgressSummary
 
@@ -355,6 +367,7 @@ struct PreferencesView: View {
             .foregroundStyle(.secondary)
             .lineLimit(2)
             .fixedSize(horizontal: false, vertical: true)
+            .help(L(setupGuideProgressDetailKey))
     }
 
     private var setupGuideCurrentStep: some View {
@@ -405,8 +418,8 @@ struct PreferencesView: View {
 
     private func setupGuideButton(
         stepNumber: String,
-        titleKey: LocalizedStringKey,
-        detailKey: LocalizedStringKey,
+        titleKey: String,
+        detailKey: String,
         systemImage: String,
         section: Section,
         destination: PreferencesNavigationDestination? = nil,
@@ -449,13 +462,15 @@ struct PreferencesView: View {
                     }
 
                     if isActive {
-                        Text(detailKey)
+                        Text(LocalizedStringKey(detailKey))
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                             .lineLimit(2)
                             .fixedSize(horizontal: false, vertical: true)
+                            .help(L(detailKey))
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 Spacer(minLength: 0)
             }
@@ -473,16 +488,18 @@ struct PreferencesView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .help("\(L(titleKey)): \(L(detailKey))")
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier(identifier)
     }
 
-    private func setupGuideButtonTitle(_ titleKey: LocalizedStringKey) -> some View {
-        Text(titleKey)
+    private func setupGuideButtonTitle(_ titleKey: String) -> some View {
+        Text(LocalizedStringKey(titleKey))
             .font(.caption.weight(.semibold))
             .foregroundStyle(.primary)
             .lineLimit(2)
             .fixedSize(horizontal: false, vertical: true)
+            .help(L(titleKey))
     }
 
     private func setupGuideStatusPill(
@@ -511,6 +528,7 @@ struct PreferencesView: View {
             Capsule()
                 .stroke(readiness.tone.color.opacity(0.22), lineWidth: 1)
         )
+        .help(L(readiness.titleKey))
         .accessibilityIdentifier(identifier)
     }
 
