@@ -210,11 +210,7 @@ struct DashboardTimelineView: View {
                     }
                 }
 
-                LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 170), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
-                    alignment: .leading,
-                    spacing: DesignSystem.Spacing.sm
-                ) {
+                ActionButtonGrid(minimumItemWidth: 170) {
                     timelineIssueActions
                 }
 
@@ -654,11 +650,7 @@ struct DashboardTimelineView: View {
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
 
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 170), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.sm
-            ) {
+            ActionButtonGrid(minimumItemWidth: 170) {
                 if let primaryActionTitle {
                     Button(action: primaryAction) {
                         reviewFocusActionLabel(primaryActionTitle, systemImage: primaryActionIcon)
@@ -1490,11 +1482,7 @@ struct DashboardTimelineView: View {
 
                 emptyTimelineGuidancePath
 
-                LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 170), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
-                    alignment: .leading,
-                    spacing: DesignSystem.Spacing.sm
-                ) {
+                ActionButtonGrid(minimumItemWidth: 170) {
                     emptyTimelineActions
                 }
             }
@@ -2086,11 +2074,7 @@ struct DashboardTimelineView: View {
 
     @ViewBuilder
     private var batchSelectionActions: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 156), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
+        ActionButtonGrid(minimumItemWidth: 156) {
             batchSelectVisibleButton
             batchClearSelectionButton
         }
@@ -2145,11 +2129,7 @@ struct DashboardTimelineView: View {
 
     @ViewBuilder
     private var batchApplyActions: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 156), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
+        ActionButtonGrid(minimumItemWidth: 156) {
             batchApplyButton
             batchUndoButton
         }
@@ -2256,11 +2236,7 @@ struct DashboardTimelineView: View {
 
     private func activityRowActions(for activity: ActivityRow) -> AnyView {
         AnyView(
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 150), spacing: DesignSystem.Spacing.xs, alignment: .leading)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.xs
-            ) {
+            ActionButtonGrid(minimumItemWidth: 150, spacing: DesignSystem.Spacing.xs) {
                 Button {
                     openInlineNote(for: activity)
                 } label: {
@@ -2342,11 +2318,7 @@ struct DashboardTimelineView: View {
     }
 
     private func inlineNoteActions(for activity: ActivityRow) -> some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 96), spacing: DesignSystem.Spacing.xs, alignment: .leading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.xs
-        ) {
+        ActionButtonGrid(minimumItemWidth: 96, spacing: DesignSystem.Spacing.xs) {
             Button {
                 submitInlineNote(for: activity)
             } label: {
