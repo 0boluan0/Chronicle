@@ -610,6 +610,10 @@ struct PreferencesView: View {
         setupGuideProgressReadiness.contains { $0.isCritical }
     }
 
+    private var setupGuideDailyLogSaveFailed: Bool {
+        reportSettings.dailyExportFailed(for: Date())
+    }
+
     private func setupGuideReadiness(for section: Section) -> PreferencesSetupReadiness {
         switch section {
         case .general:
@@ -640,7 +644,7 @@ struct PreferencesView: View {
             }
             return PreferencesSetupReadiness(titleKey: "preferences.sidebar.guide.status.ready", systemImage: "checkmark", tone: .success)
         case .export:
-            if reportSettings.dailyExportFailed(for: Date()) {
+            if setupGuideDailyLogSaveFailed {
                 return PreferencesSetupReadiness(titleKey: "preferences.sidebar.guide.status.save_failed", systemImage: "exclamationmark.triangle.fill", tone: .critical)
             }
             if reportSettings.allExportFoldersConfigured {
@@ -702,6 +706,9 @@ struct PreferencesView: View {
         case .tags:
             return "preferences.sidebar.guide.current.tags_title"
         case .export:
+            if setupGuideDailyLogSaveFailed {
+                return "preferences.sidebar.guide.current.logs_failed_title"
+            }
             return "preferences.sidebar.guide.current.logs_title"
         case .support:
             return "preferences.sidebar.guide.current.health_title"
@@ -721,6 +728,9 @@ struct PreferencesView: View {
         case .tags:
             return "preferences.sidebar.guide.current.tags_detail"
         case .export:
+            if setupGuideDailyLogSaveFailed {
+                return "preferences.sidebar.guide.current.logs_failed_detail"
+            }
             return "preferences.sidebar.guide.current.logs_detail"
         case .support:
             return "preferences.sidebar.guide.current.health_detail"
@@ -740,6 +750,9 @@ struct PreferencesView: View {
         case .tags:
             return "preferences.sidebar.guide.next.logs"
         case .export:
+            if setupGuideDailyLogSaveFailed {
+                return "preferences.sidebar.guide.next.retry_daily_log"
+            }
             return "preferences.sidebar.guide.next.health"
         case .support:
             return "preferences.sidebar.guide.next.today"
@@ -752,6 +765,8 @@ struct PreferencesView: View {
 
     private var nextSetupGuideIconName: String {
         switch selectedSection {
+        case .export where setupGuideDailyLogSaveFailed:
+            return "arrow.clockwise"
         case .support:
             return "sun.max"
 #if DEBUG
@@ -773,6 +788,10 @@ struct PreferencesView: View {
         case .tags:
             selectedSectionRaw = Section.export.rawValue
         case .export:
+            if setupGuideDailyLogSaveFailed {
+                AppWindowRouter.shared.openDashboard(destination: .reports)
+                return
+            }
             selectedSectionRaw = Section.support.rawValue
         case .support:
             AppWindowRouter.shared.open(.dashboard)

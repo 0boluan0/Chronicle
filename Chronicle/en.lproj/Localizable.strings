@@ -1034,6 +1034,8 @@
 "preferences.sidebar.guide.current.tags_detail" = "Assign apps and rules to log sections so reviews stop looking like a raw activity list.";
 "preferences.sidebar.guide.current.logs_title" = "Pick where finished logs go.";
 "preferences.sidebar.guide.current.logs_detail" = "Choose folders once so daily logs, weekly summaries, and timesheets do not interrupt review.";
+"preferences.sidebar.guide.current.logs_failed_title" = "Repair the failed daily log save.";
+"preferences.sidebar.guide.current.logs_failed_detail" = "Open Daily Log to retry the save, or refresh the folder if macOS blocked writing.";
 "preferences.sidebar.guide.current.health_title" = "Prepare safe updates.";
 "preferences.sidebar.guide.current.health_detail" = "Check app health, local data, and release notes before replacing a build.";
 "preferences.sidebar.guide.current.debug_title" = "Troubleshoot only when needed.";
@@ -1042,6 +1044,7 @@
 "preferences.sidebar.guide.next.categories" = "Next: Categories";
 "preferences.sidebar.guide.next.logs" = "Next: Log Output";
 "preferences.sidebar.guide.next.health" = "Next: Upgrade Safety";
+"preferences.sidebar.guide.next.retry_daily_log" = "Retry Daily Log";
 "preferences.sidebar.guide.next.today" = "Open Today";
 "preferences.sidebar.guide.next.support" = "Back to Upgrade Safety";
 "preferences.sidebar.guide.daily_title" = "Daily use";
