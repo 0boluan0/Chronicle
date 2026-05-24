@@ -55,6 +55,7 @@
 "popover.command_center.daily_log" = "今日日志";
 "popover.command_center.log_needs_folder" = "缺目录";
 "popover.command_center.log_not_saved" = "未保存";
+"popover.command_center.log_failed" = "保存失败";
 "popover.command_center.log_saved" = "已保存";
 "popover.command_center.current_app" = "当前";
 "popover.command_center.flow.capture" = "记录";
@@ -71,6 +72,8 @@
 "popover.command_center.progress.context_detail" = "现在留一句原因，晚上保存日志时会更可信。";
 "popover.command_center.progress.closeout_title" = "已经可以收尾。";
 "popover.command_center.progress.closeout_detail" = "今天已有活动和语境；工作结束时保存今日日志。";
+"popover.command_center.progress.failed_title" = "今日日志需要重试。";
+"popover.command_center.progress.failed_detail" = "上次保存失败。检查文件夹或导出状态后，再重试保存。";
 "popover.command_center.progress.saved_title" = "今天已经收尾。";
 "popover.command_center.progress.saved_detail" = "日志已保存；只有今天发生变化时再补笔记。";
 "popover.privacy.title" = "隐私防线";
@@ -344,6 +347,8 @@
 "popover.next_actions.resume_detail" = "追踪已暂停，恢复前 Chronicle 不会继续添加新的活动记录。";
 "popover.next_actions.setup_exports_title" = "选择今日日志保存位置。";
 "popover.next_actions.setup_exports_detail" = "只需设置一次日志目录，之后就能直接在这里生成今日日志。";
+"popover.next_actions.retry_title" = "重试保存今日日志。";
+"popover.next_actions.retry_detail" = "上次保存失败。现在可以重试；如果是权限丢失，请重新选择文件夹。";
 "popover.next_actions.daily_review_title" = "保存今天的复盘。";
 "popover.next_actions.daily_review_detail" = "复盘提醒已经到点，今天的日志还没有保存。";
 "popover.next_actions.saved_title" = "今日日志已保存。";
@@ -358,6 +363,7 @@
 "popover.next_actions.ready_detail" = "活动、语境和日志目录都已准备好。可以直接保存；需要确认时再复盘时间线。";
 "popover.next_actions.status.paused" = "已暂停";
 "popover.next_actions.status.setup" = "需设置";
+"popover.next_actions.status.retry" = "重试";
 "popover.next_actions.status.review" = "待复盘";
 "popover.next_actions.status.saved" = "已保存";
 "popover.next_actions.status.labels" = "需分类";

@@ -1286,6 +1286,8 @@ final class ChronicleTests: XCTestCase {
             "popover.next_actions.resume_detail",
             "popover.next_actions.setup_exports_title",
             "popover.next_actions.setup_exports_detail",
+            "popover.next_actions.retry_title",
+            "popover.next_actions.retry_detail",
             "popover.next_actions.daily_review_title",
             "popover.next_actions.daily_review_detail",
             "popover.next_actions.tags_title",
@@ -1296,6 +1298,7 @@ final class ChronicleTests: XCTestCase {
             "popover.next_actions.ready_detail",
             "popover.next_actions.status.paused",
             "popover.next_actions.status.setup",
+            "popover.next_actions.status.retry",
             "popover.next_actions.status.review",
             "popover.next_actions.status.labels",
             "popover.next_actions.status.capture",
@@ -1308,6 +1311,7 @@ final class ChronicleTests: XCTestCase {
             "popover.command_center.captured",
             "popover.command_center.context",
             "popover.command_center.context_value",
+            "popover.command_center.log_failed",
             "popover.command_center.current_app",
             "popover.command_center.progress.value",
             "popover.command_center.progress.paused_title",
@@ -1320,6 +1324,8 @@ final class ChronicleTests: XCTestCase {
             "popover.command_center.progress.context_detail",
             "popover.command_center.progress.closeout_title",
             "popover.command_center.progress.closeout_detail",
+            "popover.command_center.progress.failed_title",
+            "popover.command_center.progress.failed_detail",
             "popover.command_center.progress.saved_title",
             "popover.command_center.progress.saved_detail",
             "popover.action.review_timeline",
@@ -3311,15 +3317,21 @@ final class ChronicleTests: XCTestCase {
 
         settings.lastDailyExportIsError = true
         XCTAssertFalse(settings.dailyExportSucceeded(for: selectedDate))
+        XCTAssertTrue(settings.dailyExportFailed(for: selectedDate))
 
         settings.lastDailyExportIsError = false
         settings.lastExportedDay = ReportService.dayKey(for: differentDay)
         XCTAssertFalse(settings.dailyExportSucceeded(for: selectedDate))
+        XCTAssertFalse(settings.dailyExportFailed(for: selectedDate))
 
         settings.lastExportedDay = nil
         settings.lastDailyExportAt = laterSameDay.timeIntervalSince1970
         settings.lastDailyExportIsError = false
         XCTAssertTrue(settings.dailyExportSucceeded(for: selectedDate))
+
+        settings.lastDailyExportIsError = true
+        settings.lastDailyExportAt = differentDay.timeIntervalSince1970
+        XCTAssertFalse(settings.dailyExportFailed(for: selectedDate))
 
         settings.lastExportedWeek = ReportService.weekKey(for: selectedDate)
         settings.lastWeeklyExportAt = laterSameDay.timeIntervalSince1970

@@ -1539,6 +1539,9 @@ struct ContentView: View {
         if !hasDailyExportFolderConfigured {
             return .setupExports
         }
+        if dailyLogExportFailedToday {
+            return .retryDailyLog
+        }
         if shouldShowDailyReviewReminder {
             return .dailyReview
         }
@@ -1560,6 +1563,8 @@ struct ContentView: View {
             appState.trackingPaused = false
         case .setupExports:
             openExportPreferences()
+        case .retryDailyLog:
+            exportDailyNow()
         case .dailyReview:
             exportDailyNow()
         case .saved:
@@ -1581,6 +1586,8 @@ struct ContentView: View {
             AppWindowRouter.shared.open(.quickMarker)
         case .setupExports:
             AppWindowRouter.shared.open(.dashboard)
+        case .retryDailyLog:
+            openExportPreferences()
         case .dailyReview:
             dismissedDailyReviewDay = ReportService.dayKey(for: now)
         case .saved:
@@ -1647,9 +1654,16 @@ struct ContentView: View {
         reportSettings.dailyExportSucceeded(for: now)
     }
 
+    private var dailyLogExportFailedToday: Bool {
+        reportSettings.dailyExportFailed(for: now)
+    }
+
     private var dailyLogMetricValue: String {
         if !hasDailyExportFolderConfigured {
             return L("popover.command_center.log_needs_folder")
+        }
+        if dailyLogExportFailedToday {
+            return L("popover.command_center.log_failed")
         }
         if dailyLogSavedToday {
             return L("popover.command_center.log_saved")
@@ -1661,6 +1675,9 @@ struct ContentView: View {
         if !hasDailyExportFolderConfigured {
             return "folder.badge.questionmark"
         }
+        if dailyLogExportFailedToday {
+            return "exclamationmark.triangle.fill"
+        }
         if dailyLogSavedToday {
             return "checkmark.seal.fill"
         }
@@ -1669,6 +1686,9 @@ struct ContentView: View {
 
     private var dailyLogMetricTone: DesignSystem.StatusTone {
         if !hasDailyExportFolderConfigured {
+            return .warning
+        }
+        if dailyLogExportFailedToday {
             return .warning
         }
         if dailyLogSavedToday {
@@ -1718,6 +1738,9 @@ struct ContentView: View {
         if dailyLogSavedToday {
             return "popover.command_center.progress.saved_title"
         }
+        if dailyLogExportFailedToday {
+            return "popover.command_center.progress.failed_title"
+        }
         if !hasDailyExportFolderConfigured {
             return "popover.command_center.progress.folder_title"
         }
@@ -1736,6 +1759,9 @@ struct ContentView: View {
         }
         if dailyLogSavedToday {
             return "popover.command_center.progress.saved_detail"
+        }
+        if dailyLogExportFailedToday {
+            return "popover.command_center.progress.failed_detail"
         }
         if !hasDailyExportFolderConfigured {
             return "popover.command_center.progress.folder_detail"
@@ -1756,6 +1782,9 @@ struct ContentView: View {
         if dailyLogSavedToday {
             return "checkmark.seal.fill"
         }
+        if dailyLogExportFailedToday {
+            return "exclamationmark.triangle.fill"
+        }
         if !hasDailyExportFolderConfigured {
             return "folder.badge.plus"
         }
@@ -1769,7 +1798,7 @@ struct ContentView: View {
     }
 
     private var commandCenterLoopTone: DesignSystem.StatusTone {
-        if appState.trackingPaused || !hasDailyExportFolderConfigured {
+        if appState.trackingPaused || !hasDailyExportFolderConfigured || dailyLogExportFailedToday {
             return .warning
         }
         if dailyLogSavedToday {
@@ -1846,6 +1875,9 @@ struct ContentView: View {
         if !hasDailyExportFolderConfigured {
             return "folder.badge.questionmark"
         }
+        if dailyLogExportFailedToday {
+            return "exclamationmark.triangle.fill"
+        }
         if dailyLogSavedToday {
             return "checkmark.seal.fill"
         }
@@ -1854,6 +1886,9 @@ struct ContentView: View {
 
     private var commandCenterLogStepTone: DesignSystem.StatusTone {
         if !hasDailyExportFolderConfigured {
+            return .warning
+        }
+        if dailyLogExportFailedToday {
             return .warning
         }
         if dailyLogSavedToday || dailySnapshot.reviewCueCount > 0 {
@@ -2694,6 +2729,7 @@ private enum DailySnapshotGuidanceKind {
 private enum PopoverNextActionKind {
     case resumeTracking
     case setupExports
+    case retryDailyLog
     case dailyReview
     case saved
     case setupTags
@@ -2707,6 +2743,8 @@ private enum PopoverNextActionKind {
             return "popover.next_actions.resume_title"
         case .setupExports:
             return "popover.next_actions.setup_exports_title"
+        case .retryDailyLog:
+            return "popover.next_actions.retry_title"
         case .dailyReview:
             return "popover.next_actions.daily_review_title"
         case .saved:
@@ -2728,6 +2766,8 @@ private enum PopoverNextActionKind {
             return "popover.next_actions.resume_detail"
         case .setupExports:
             return "popover.next_actions.setup_exports_detail"
+        case .retryDailyLog:
+            return "popover.next_actions.retry_detail"
         case .dailyReview:
             return "popover.next_actions.daily_review_detail"
         case .saved:
@@ -2749,6 +2789,8 @@ private enum PopoverNextActionKind {
             return "popover.next_actions.status.paused"
         case .setupExports:
             return "popover.next_actions.status.setup"
+        case .retryDailyLog:
+            return "popover.next_actions.status.retry"
         case .dailyReview:
             return "popover.next_actions.status.review"
         case .saved:
@@ -2770,6 +2812,8 @@ private enum PopoverNextActionKind {
             return "popover.tracking.resume"
         case .setupExports:
             return "popover.action.setup_exports"
+        case .retryDailyLog:
+            return "popover.action.export_daily"
         case .dailyReview:
             return "popover.daily_review.export_now"
         case .saved:
@@ -2791,6 +2835,8 @@ private enum PopoverNextActionKind {
             return "play.fill"
         case .setupExports:
             return "folder.badge.plus"
+        case .retryDailyLog:
+            return "arrow.clockwise"
         case .dailyReview:
             return "doc.badge.plus"
         case .saved:
@@ -2812,6 +2858,8 @@ private enum PopoverNextActionKind {
             return "popover.action.quick_marker"
         case .setupExports:
             return "popover.open_dashboard"
+        case .retryDailyLog:
+            return "popover.action.setup_exports"
         case .dailyReview:
             return "popover.daily_review.dismiss_today"
         case .saved:
@@ -2833,6 +2881,8 @@ private enum PopoverNextActionKind {
             return "note.text"
         case .setupExports:
             return "sun.max"
+        case .retryDailyLog:
+            return "folder.badge.plus"
         case .dailyReview:
             return "xmark"
         case .saved:
@@ -2854,6 +2904,8 @@ private enum PopoverNextActionKind {
             return "popover.nextActionResumeTracking"
         case .setupExports:
             return "popover.setupExports"
+        case .retryDailyLog:
+            return "popover.nextActionRetryDailyLog"
         case .dailyReview:
             return "popover.nextActionExport"
         case .saved:
@@ -2875,6 +2927,8 @@ private enum PopoverNextActionKind {
             return "popover.nextActionQuickMarker"
         case .setupExports:
             return "popover.nextActionDashboard"
+        case .retryDailyLog:
+            return "popover.setupExports"
         case .dailyReview:
             return "popover.dismissReminder"
         case .saved:
@@ -2896,6 +2950,8 @@ private enum PopoverNextActionKind {
             return "pause.circle.fill"
         case .setupExports:
             return "folder.badge.plus"
+        case .retryDailyLog:
+            return "exclamationmark.triangle.fill"
         case .dailyReview:
             return "doc.text.fill"
         case .saved:
@@ -2917,6 +2973,8 @@ private enum PopoverNextActionKind {
             return "pause.fill"
         case .setupExports:
             return "folder"
+        case .retryDailyLog:
+            return "arrow.clockwise"
         case .dailyReview:
             return "clock.badge.exclamationmark"
         case .saved:
@@ -2934,7 +2992,7 @@ private enum PopoverNextActionKind {
 
     var tone: DesignSystem.StatusTone {
         switch self {
-        case .resumeTracking, .setupExports, .dailyReview, .setupTags, .addContext:
+        case .resumeTracking, .setupExports, .retryDailyLog, .dailyReview, .setupTags, .addContext:
             return .warning
         case .firstMarker:
             return .info

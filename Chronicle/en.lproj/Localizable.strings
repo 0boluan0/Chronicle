@@ -55,6 +55,7 @@
 "popover.command_center.daily_log" = "Daily log";
 "popover.command_center.log_needs_folder" = "Needs folder";
 "popover.command_center.log_not_saved" = "Not saved";
+"popover.command_center.log_failed" = "Save failed";
 "popover.command_center.log_saved" = "Saved";
 "popover.command_center.current_app" = "Current";
 "popover.command_center.flow.capture" = "Capture";
@@ -71,6 +72,8 @@
 "popover.command_center.progress.context_detail" = "A short note now will make the end-of-day log easier to trust.";
 "popover.command_center.progress.closeout_title" = "Ready for closeout.";
 "popover.command_center.progress.closeout_detail" = "The day has activity and context; save the daily log when work ends.";
+"popover.command_center.progress.failed_title" = "Daily log needs a retry.";
+"popover.command_center.progress.failed_detail" = "The last save failed. Retry after checking the folder or export status.";
 "popover.command_center.progress.saved_title" = "Today is closed out.";
 "popover.command_center.progress.saved_detail" = "Your log is saved; add another note only if the day changes.";
 "popover.privacy.title" = "Privacy guardrail";
@@ -344,6 +347,8 @@
 "popover.next_actions.resume_detail" = "Tracking is paused, so Chronicle is not adding new activity until you resume.";
 "popover.next_actions.setup_exports_title" = "Choose where daily logs should go.";
 "popover.next_actions.setup_exports_detail" = "Set the log folder once, then Chronicle can generate today’s log from here.";
+"popover.next_actions.retry_title" = "Retry today’s log.";
+"popover.next_actions.retry_detail" = "The last save attempt failed. Retry now, or reselect the folder if access was lost.";
 "popover.next_actions.daily_review_title" = "Save today’s review.";
 "popover.next_actions.daily_review_detail" = "Your review reminder is due and today’s log has not been saved yet.";
 "popover.next_actions.saved_title" = "Today’s log is saved.";
@@ -358,6 +363,7 @@
 "popover.next_actions.ready_detail" = "Activity, context, and the log folder are ready. Save now, or review the timeline first.";
 "popover.next_actions.status.paused" = "Paused";
 "popover.next_actions.status.setup" = "Setup needed";
+"popover.next_actions.status.retry" = "Retry";
 "popover.next_actions.status.review" = "Review due";
 "popover.next_actions.status.saved" = "Saved";
 "popover.next_actions.status.labels" = "Categories needed";

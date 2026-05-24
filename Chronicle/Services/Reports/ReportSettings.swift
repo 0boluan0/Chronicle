@@ -184,6 +184,13 @@ final class ReportSettings: ObservableObject {
         return calendar.isDate(exportedDate, inSameDayAs: date)
     }
 
+    func dailyExportFailed(for date: Date, calendar: Calendar = .current) -> Bool {
+        guard lastDailyExportIsError, lastDailyExportAt > 0 else { return false }
+
+        let exportedDate = Date(timeIntervalSince1970: lastDailyExportAt)
+        return calendar.isDate(exportedDate, inSameDayAs: date)
+    }
+
     func weeklyExportSucceeded(for date: Date) -> Bool {
         guard !lastWeeklyExportIsError else { return false }
 
