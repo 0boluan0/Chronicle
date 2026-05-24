@@ -39,6 +39,9 @@ jobs:
         with:
           xcode-version: "26.2"
 
+      - name: Run Release Preflight
+        run: script/run_release_preflight.sh
+
       - name: Build Debug
         run: |
           xcodebuild \
