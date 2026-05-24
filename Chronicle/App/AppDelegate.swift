@@ -11,6 +11,44 @@ import SwiftUI
 import UserNotifications
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
+    private enum MenuNextStepState {
+        case resumeCapture
+        case chooseFolder
+        case retryDailyLog
+        case reviewSavedLog
+        case addContext
+
+        var titleKey: String {
+            switch self {
+            case .resumeCapture:
+                return "menu.next_step.resume_capture"
+            case .chooseFolder:
+                return "menu.next_step.choose_folder"
+            case .retryDailyLog:
+                return "menu.next_step.retry_daily_log"
+            case .reviewSavedLog:
+                return "menu.next_step.review_saved_log"
+            case .addContext:
+                return "menu.next_step.add_context"
+            }
+        }
+
+        var symbolName: String {
+            switch self {
+            case .resumeCapture:
+                return "play.fill"
+            case .chooseFolder:
+                return "folder.badge.plus"
+            case .retryDailyLog:
+                return "exclamationmark.triangle"
+            case .reviewSavedLog:
+                return "checkmark.seal"
+            case .addContext:
+                return "square.and.pencil"
+            }
+        }
+    }
+
     private let appState = AppState.shared
     private let activityTracker = ActivityTracker.shared
     private let languageManager = AppLanguageManager.shared
@@ -23,6 +61,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var openPopoverObserver: NSObjectProtocol?
     private var languageCancellable: AnyCancellable?
     private var trackingStatusMenuItem: NSMenuItem?
+    private var menuNextStepItem: NSMenuItem?
     private var dashboardItem: NSMenuItem?
     private var quickMarkerItem: NSMenuItem?
     private var closeoutItem: NSMenuItem?
@@ -149,6 +188,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         let trackingStatusMenuItem = NSMenuItem(title: trackingStatusMenuTitle, action: nil, keyEquivalent: "")
         trackingStatusMenuItem.isEnabled = false
         trackingStatusMenuItem.image = trackingStatusMenuImage
+        let menuNextStepItem = NSMenuItem(title: menuNextStepTitle, action: #selector(performMenuNextStep), keyEquivalent: "")
+        menuNextStepItem.target = self
         let dashboardItem = NSMenuItem(title: L("menu.open_dashboard"), action: #selector(openDashboard), keyEquivalent: "d")
         dashboardItem.target = self
         let quickMarkerItem = NSMenuItem(title: L("menu.quick_marker"), action: #selector(openQuickMarker), keyEquivalent: "m")
@@ -179,6 +220,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         quitItem.target = self
 
         self.trackingStatusMenuItem = trackingStatusMenuItem
+        self.menuNextStepItem = menuNextStepItem
         self.dashboardItem = dashboardItem
         self.quickMarkerItem = quickMarkerItem
         self.closeoutItem = closeoutItem
@@ -194,6 +236,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         updateStatusMenuItemImages()
 
         statusMenu.addItem(trackingStatusMenuItem)
+        statusMenu.addItem(menuNextStepItem)
         statusMenu.addItem(.separator())
         statusMenu.addItem(quickMarkerItem)
         statusMenu.addItem(dashboardItem)
@@ -266,6 +309,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     private func updateLocalizedStrings() {
         updateTrackingStatusMenuItem()
+        updateMenuNextStepItem()
         dashboardItem?.title = L("menu.open_dashboard")
         quickMarkerItem?.title = L("menu.quick_marker")
         closeoutItem?.title = L("menu.closeout_today")
@@ -308,6 +352,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     private func updateStatusMenuItemImages() {
+        updateMenuNextStepItem()
         dashboardItem?.image = menuImage(systemSymbolName: "rectangle.3.group", accessibilityKey: "menu.open_dashboard")
         quickMarkerItem?.image = menuImage(systemSymbolName: "square.and.pencil", accessibilityKey: "menu.quick_marker")
         closeoutItem?.image = menuImage(systemSymbolName: "doc.text.magnifyingglass", accessibilityKey: "menu.closeout_today")
@@ -342,6 +387,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         exportItem?.image = menuImage(systemSymbolName: presentation.symbolName, accessibilityText: title)
     }
 
+    private func updateDynamicStatusMenuItems() {
+        updateTrackingStatusMenuItem()
+        updateMenuNextStepItem()
+        updateExportMenuItem()
+    }
+
+    private var menuNextStepState: MenuNextStepState {
+        let settings = ReportSettings.shared
+        let now = Date()
+
+        if appState.trackingPaused {
+            return .resumeCapture
+        }
+        if settings.dailyFolderBookmark == nil {
+            return .chooseFolder
+        }
+        if settings.dailyExportFailed(for: now) {
+            return .retryDailyLog
+        }
+        if settings.dailyExportSucceeded(for: now) {
+            return .reviewSavedLog
+        }
+        return .addContext
+    }
+
+    private var menuNextStepTitle: String {
+        L(menuNextStepState.titleKey)
+    }
+
+    private func updateMenuNextStepItem() {
+        let state = menuNextStepState
+        let title = L(state.titleKey)
+        menuNextStepItem?.title = title
+        menuNextStepItem?.image = menuImage(systemSymbolName: state.symbolName, accessibilityText: title)
+        menuNextStepItem?.isEnabled = true
+    }
+
     private func updateStatusItemAppearance() {
         guard let button = statusItem?.button else { return }
         let statusText = appState.trackingPaused ? L("popover.tracking.paused") : L("popover.tracking.running")
@@ -372,7 +454,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
 
         if event.type == .rightMouseUp || event.type == .rightMouseDown || event.modifierFlags.contains(.control) {
-            updateExportMenuItem()
+            updateDynamicStatusMenuItems()
             statusMenu.popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.height + 4), in: button)
         } else {
             togglePopover()
@@ -454,7 +536,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     @objc private func exportNow() {
         DailyLogExportAction.perform {
-            self.updateExportMenuItem()
+            self.updateDynamicStatusMenuItems()
+        }
+    }
+
+    @objc private func performMenuNextStep() {
+        switch menuNextStepState {
+        case .resumeCapture:
+            setTrackingPaused(false)
+        case .chooseFolder:
+            AppWindowRouter.shared.open(.settings(.export))
+        case .retryDailyLog:
+            DailyLogExportAction.perform {
+                self.updateDynamicStatusMenuItems()
+            }
+        case .reviewSavedLog:
+            AppWindowRouter.shared.openDashboard(destination: .reports)
+        case .addContext:
+            AppWindowRouter.shared.open(.quickMarker)
         }
     }
 

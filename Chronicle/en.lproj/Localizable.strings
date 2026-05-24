@@ -21,6 +21,11 @@
 "menu.check_updates" = "Check for Updates…";
 "menu.open_releases" = "Open Releases Page";
 "menu.quit" = "Quit";
+"menu.next_step.resume_capture" = "Next: Resume Capture";
+"menu.next_step.choose_folder" = "Next: Set Log Folder";
+"menu.next_step.retry_daily_log" = "Next: Retry Daily Log";
+"menu.next_step.review_saved_log" = "Next: Review Saved Log";
+"menu.next_step.add_context" = "Next: Add Context";
 "about.credits" = "Offline work journal for capturing a local timeline, adding context, and saving reviewable Markdown closeouts.";
 
 "popover.open_dashboard" = "Open Today";

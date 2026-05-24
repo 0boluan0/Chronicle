@@ -21,6 +21,11 @@
 "menu.check_updates" = "检查更新…";
 "menu.open_releases" = "打开 Release 页面";
 "menu.quit" = "退出";
+"menu.next_step.resume_capture" = "下一步：恢复记录";
+"menu.next_step.choose_folder" = "下一步：设置日志文件夹";
+"menu.next_step.retry_daily_log" = "下一步：重试今日日志";
+"menu.next_step.review_saved_log" = "下一步：查看已保存日志";
+"menu.next_step.add_context" = "下一步：补一条语境";
 "about.credits" = "离线工作日志，用于记录本地时间线、补充语境，并保存可复查的 Markdown 复盘。";
 
 "popover.open_dashboard" = "打开今天";
