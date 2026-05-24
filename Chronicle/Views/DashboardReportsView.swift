@@ -1232,7 +1232,7 @@ struct ReportsWorkspaceView: View {
         status: StatusMessage,
         systemImage: String
     ) -> some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
             Image(systemName: systemImage)
                 .font(.subheadline.weight(.semibold))
                 .foregroundColor(status.isError ? Color(nsColor: .systemOrange) : DesignSystem.Colors.accentSkyBlue)
@@ -1242,14 +1242,19 @@ struct ReportsWorkspaceView: View {
                 Text(titleKey)
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(status.text)
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(status.isError ? Color(nsColor: .systemOrange) : DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
+                    .lineLimit(3)
                     .truncationMode(.middle)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
+                    .help(status.text)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer(minLength: DesignSystem.Spacing.sm)
         }
@@ -1936,7 +1941,8 @@ struct ReportsWorkspaceView: View {
                 Text(titleKey)
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Spacer(minLength: 0)
             }
@@ -1946,9 +1952,11 @@ struct ReportsWorkspaceView: View {
             Text(detail)
                 .font(DesignSystem.Typography.caption)
                 .foregroundColor(DesignSystem.Colors.secondaryText)
-                .lineLimit(2)
+                .lineLimit(3)
                 .truncationMode(.middle)
                 .fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled)
+                .help(detail)
         }
         .padding(DesignSystem.Spacing.sm)
         .frame(maxWidth: .infinity, minHeight: 94, alignment: .topLeading)
@@ -2066,17 +2074,26 @@ struct ReportsWorkspaceView: View {
                 Text("reports.csv.destination_title")
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text("reports.csv.destination_detail")
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .help(L("reports.csv.destination_detail"))
 
                 Text(String(format: L("reports.folder.label"), settings.csvFolderDisplayPath))
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
                     .truncationMode(.middle)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
+                    .help(String(format: L("reports.folder.label"), settings.csvFolderDisplayPath))
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         } icon: {
             Image(systemName: "folder")
                 .font(.caption.weight(.semibold))
@@ -2961,12 +2978,17 @@ struct ReportsWorkspaceView: View {
                 Text(L("reports.destination.title"))
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(String(format: L("reports.folder.label"), folderPath))
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
                     .truncationMode(.middle)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
+                    .help(String(format: L("reports.folder.label"), folderPath))
 
                 StatusPill(
                     folderStatus.text,
@@ -2975,6 +2997,7 @@ struct ReportsWorkspaceView: View {
                 )
                 .accessibilityIdentifier(folderStatusIdentifier)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .layoutPriority(1)
     }
@@ -5635,7 +5658,7 @@ private struct ReportCloseoutFeedbackView: View {
     }
 
     private func feedbackCopy(for status: StatusMessage) -> some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
             IconWell(
                 systemImage: feedbackIconName(for: status),
                 tone: feedbackTone(for: status),
@@ -5646,15 +5669,18 @@ private struct ReportCloseoutFeedbackView: View {
                 Text(LocalizedStringKey(feedbackTitleKey(for: status)))
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(status.text)
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
+                    .lineLimit(4)
                     .textSelection(.enabled)
                     .fixedSize(horizontal: false, vertical: true)
+                    .help(status.text)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
