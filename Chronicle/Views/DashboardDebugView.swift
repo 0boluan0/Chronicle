@@ -24,6 +24,7 @@ struct DashboardDebugView: View {
                     runtimeIssueCard(message: lastDbError)
                 }
 
+                diagnosticsFlowCard
                 runtimeSection
                 maintenanceSection
                 healthCheckSection
@@ -95,6 +96,106 @@ struct DashboardDebugView: View {
             }
         }
         .accessibilityIdentifier("dashboard.debug.issue")
+    }
+
+    private var diagnosticsFlowCard: some View {
+        SectionCard(title: "debug.flow.title") {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                diagnosticsFlowHeader
+
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 190), spacing: DesignSystem.Spacing.sm, alignment: .topLeading)],
+                    alignment: .leading,
+                    spacing: DesignSystem.Spacing.sm
+                ) {
+                    diagnosticsFlowStep(
+                        titleKey: "debug.flow.health_title",
+                        detailKey: "debug.flow.health_detail",
+                        systemImage: "checkmark.shield",
+                        tone: healthTone,
+                        accessibilityIdentifier: "dashboard.debug.flow.health"
+                    )
+                    diagnosticsFlowStep(
+                        titleKey: "debug.flow.range_title",
+                        detailKey: "debug.flow.range_detail",
+                        systemImage: "calendar.badge.clock",
+                        tone: maintenance.currentJob == nil ? .neutral : .info,
+                        accessibilityIdentifier: "dashboard.debug.flow.range"
+                    )
+                    diagnosticsFlowStep(
+                        titleKey: "debug.flow.queue_title",
+                        detailKey: "debug.flow.queue_detail",
+                        systemImage: maintenance.currentJob == nil ? "tray" : "gearshape.2",
+                        tone: maintenanceTone,
+                        accessibilityIdentifier: "dashboard.debug.flow.queue"
+                    )
+                }
+                .accessibilityIdentifier("dashboard.debug.flow.steps")
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityIdentifier("dashboard.debug.flow")
+    }
+
+    private var diagnosticsFlowHeader: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            sectionLead(
+                systemImage: diagnosticsFlowIconName,
+                tone: diagnosticsFlowTone,
+                titleKey: "debug.flow.heading",
+                detailKey: "debug.flow.detail"
+            )
+
+            StatusPill(diagnosticsFlowStatusText, systemImage: diagnosticsFlowIconName, tone: diagnosticsFlowTone)
+        }
+        .accessibilityIdentifier("dashboard.debug.flow.header")
+    }
+
+    private func diagnosticsFlowStep(
+        titleKey: LocalizedStringKey,
+        detailKey: LocalizedStringKey,
+        systemImage: String,
+        tone: DesignSystem.StatusTone,
+        accessibilityIdentifier: String
+    ) -> some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(tone.color)
+                .frame(width: 18, height: 18)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(titleKey)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(detailKey)
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .frame(maxWidth: .infinity, minHeight: 78, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(tone.color.opacity(0.07))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(tone.color.opacity(0.18), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     private var runtimeSection: some View {
@@ -587,6 +688,53 @@ struct DashboardDebugView: View {
             return "exclamationmark.triangle.fill"
         }
         return appState.trackingPaused ? "pause.fill" : "checkmark"
+    }
+
+    private var diagnosticsFlowTone: DesignSystem.StatusTone {
+        if appState.lastDbErrorMessage?.isEmpty == false || healthCheck.lastError != nil {
+            return .critical
+        }
+        if healthCheck.isRunning || maintenance.currentJob != nil {
+            return .info
+        }
+        if maintenance.lastError != nil {
+            return .warning
+        }
+        if let report = healthCheck.lastReport {
+            return report.issues.isEmpty ? .success : .warning
+        }
+        return .neutral
+    }
+
+    private var diagnosticsFlowStatusText: String {
+        if appState.lastDbErrorMessage?.isEmpty == false || healthCheck.lastError != nil {
+            return L("debug.flow.status.issue")
+        }
+        if healthCheck.isRunning || maintenance.currentJob != nil {
+            return L("debug.flow.status.running")
+        }
+        if maintenance.lastError != nil || healthCheck.lastReport?.issues.isEmpty == false {
+            return L("debug.flow.status.review")
+        }
+        if healthCheck.lastReport != nil {
+            return L("debug.flow.status.ready")
+        }
+        return L("debug.flow.status.start")
+    }
+
+    private var diagnosticsFlowIconName: String {
+        switch diagnosticsFlowTone {
+        case .critical:
+            return "exclamationmark.triangle.fill"
+        case .warning:
+            return "exclamationmark.circle.fill"
+        case .success:
+            return "checkmark.seal.fill"
+        case .info:
+            return "waveform.path.ecg"
+        case .neutral:
+            return "checkmark.shield"
+        }
     }
 
     private var maintenanceTone: DesignSystem.StatusTone {

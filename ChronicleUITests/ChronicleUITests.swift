@@ -676,6 +676,40 @@ final class ChronicleUITests: XCTestCase {
         app.terminate()
     }
 
+    func testDashboardDebugFlowSmoke() throws {
+        let workspace = try makeWorkspace(language: "en")
+        let app = makeApp(
+            route: "dashboard",
+            language: "en",
+            workspace: workspace,
+            resetState: true,
+            showDebug: true
+        )
+        app.launch()
+
+        let debugSection = app.descendants(matching: .any)["dashboard.section.debug"]
+        XCTAssertTrue(debugSection.waitForExistence(timeout: 10))
+        debugSection.click()
+
+        XCTAssertTrue(app.staticTexts["Diagnostics"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["dashboard.debug.header"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["dashboard.debug.flow"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["dashboard.debug.flow.header"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["dashboard.debug.flow.steps"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["dashboard.debug.flow.health"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["dashboard.debug.flow.range"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["dashboard.debug.flow.queue"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Safe Diagnostics Path"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Start here"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["dashboard.debug.runtime"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["dashboard.debug.maintenance"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["dashboard.debug.health"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["dashboard.debug.runHealthCheck"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["dashboard.debug.openSupportFromHealth"].waitForExistence(timeout: 5))
+
+        app.terminate()
+    }
+
     func testDashboardReportsCloseoutSmoke() throws {
         let workspace = try makeWorkspace(language: "en")
         let app = makeApp(
@@ -1261,7 +1295,8 @@ final class ChronicleUITests: XCTestCase {
         language: String,
         workspace: Workspace,
         resetState: Bool,
-        dailyReviewReminderEnabled: Bool? = nil
+        dailyReviewReminderEnabled: Bool? = nil,
+        showDebug: Bool = false
     ) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment["CHRONICLE_UI_TEST_MODE"] = "1"
@@ -1269,6 +1304,9 @@ final class ChronicleUITests: XCTestCase {
         app.launchEnvironment["CHRONICLE_UI_TEST_LANGUAGE"] = language
         app.launchEnvironment["CHRONICLE_UI_TEST_EXPORT_ROOT"] = workspace.exportRoot.path
         app.launchEnvironment["CHRONICLE_UI_TEST_APP_SUPPORT_DIR"] = workspace.appSupportRoot.path
+        if showDebug {
+            app.launchEnvironment["CHRONICLE_SHOW_DEBUG"] = "1"
+        }
         if let dailyReviewReminderEnabled {
             app.launchEnvironment["CHRONICLE_UI_TEST_DAILY_REVIEW_REMINDER_ENABLED"] = dailyReviewReminderEnabled ? "1" : "0"
         }
