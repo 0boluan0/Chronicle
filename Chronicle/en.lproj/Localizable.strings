@@ -2078,6 +2078,12 @@
 "quick_marker.route.closeout_setup_detail" = "Choose one before saving.";
 "quick_marker.route.closeout_failed_title" = "Retry daily log";
 "quick_marker.route.closeout_failed_detail" = "The last Markdown save failed. Keep this context, then retry the daily log.";
+"quick_marker.route.unsaved.title" = "Leave with unsaved text?";
+"quick_marker.route.unsaved.message" = "The text currently in Quick Capture has not been saved yet. Leave anyway?";
+"quick_marker.route.unsaved.leave" = "Leave Without Saving";
+"quick_marker.route.unsaved.warning_title" = "Draft is not saved yet.";
+"quick_marker.route.unsaved.warning_detail" = "Save it before jumping to the daily log or timeline, or confirm that you want to leave it behind.";
+"quick_marker.route.unsaved.status" = "Draft waiting";
 "quick_marker.placeholder" = "What are you doing?";
 "quick_marker.placeholder.point" = "Decision, blocker, handoff, or context to remember";
 "quick_marker.placeholder.interval" = "Focus block name, meeting, reading, or writing";

@@ -9,6 +9,13 @@ import Combine
 import SwiftUI
 
 struct QuickMarkerPanelView: View {
+    private enum RouteAction: String, Identifiable {
+        case dailyLog
+        case timeline
+
+        var id: String { rawValue }
+    }
+
     let onClose: () -> Void
 
     @EnvironmentObject private var appState: AppState
@@ -17,6 +24,7 @@ struct QuickMarkerPanelView: View {
     @State private var contextDate = Date()
     @State private var draftText = ""
     @State private var isCloseHovering = false
+    @State private var pendingRouteAction: RouteAction?
 
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
@@ -36,6 +44,20 @@ struct QuickMarkerPanelView: View {
         }
         .onReceive(Self.contextClock) { date in
             contextDate = date
+        }
+        .confirmationDialog(
+            L("quick_marker.route.unsaved.title"),
+            isPresented: unsavedRouteConfirmationBinding,
+            titleVisibility: .visible
+        ) {
+            Button(L("quick_marker.route.unsaved.leave"), role: .destructive) {
+                confirmPendingRouteAction()
+            }
+            Button(L("actions.cancel"), role: .cancel) {
+                pendingRouteAction = nil
+            }
+        } message: {
+            Text("quick_marker.route.unsaved.message")
         }
     }
 
@@ -372,29 +394,70 @@ struct QuickMarkerPanelView: View {
     }
 
     private var captureRouteActions: some View {
-        ActionButtonStack {
-            Button {
-                performDailyLogRouteAction()
-            } label: {
-                panelActionLabel(L(dailyLogRouteActionTitleKey), systemImage: dailyLogRouteActionIconName)
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            if draftHasContext {
+                unsavedRouteWarning
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.small)
-            .tint(DesignSystem.Colors.accentSkyBlue)
-            .frame(maxWidth: .infinity)
-            .accessibilityIdentifier("quickMarker.route.dailyLogAction")
 
-            Button {
-                openTodayTimeline()
-            } label: {
-                panelActionLabel(L("quick_marker.status.open_timeline"), systemImage: "clock")
+            ActionButtonStack {
+                Button {
+                    requestDailyLogRouteAction()
+                } label: {
+                    panelActionLabel(L(dailyLogRouteActionTitleKey), systemImage: dailyLogRouteActionIconName)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .tint(DesignSystem.Colors.accentSkyBlue)
+                .frame(maxWidth: .infinity)
+                .accessibilityIdentifier("quickMarker.route.dailyLogAction")
+
+                Button {
+                    requestOpenTodayTimeline()
+                } label: {
+                    panelActionLabel(L("quick_marker.status.open_timeline"), systemImage: "clock")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .frame(maxWidth: .infinity)
+                .accessibilityIdentifier("quickMarker.route.openTimeline")
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .frame(maxWidth: .infinity)
-            .accessibilityIdentifier("quickMarker.route.openTimeline")
         }
         .accessibilityIdentifier("quickMarker.route.actions")
+    }
+
+    private var unsavedRouteWarning: some View {
+        RowSurface(tone: .warning) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                    Image(systemName: "pencil.and.outline")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(DesignSystem.StatusTone.warning.color)
+                        .frame(width: 16, height: 18)
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("quick_marker.route.unsaved.warning_title")
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        Text("quick_marker.route.unsaved.warning_detail")
+                            .font(.caption2)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .lineLimit(3)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+
+                StatusPill(
+                    L("quick_marker.route.unsaved.status"),
+                    systemImage: "pencil",
+                    tone: .warning
+                )
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityIdentifier("quickMarker.route.unsavedWarning")
     }
 
     private func captureRouteItem(
@@ -788,6 +851,45 @@ struct QuickMarkerPanelView: View {
 
     private var dailyLogFailedToday: Bool {
         reportSettings.dailyExportFailed(for: contextDate)
+    }
+
+    private var unsavedRouteConfirmationBinding: Binding<Bool> {
+        Binding(
+            get: { pendingRouteAction != nil },
+            set: { isPresented in
+                if !isPresented {
+                    pendingRouteAction = nil
+                }
+            }
+        )
+    }
+
+    private func requestDailyLogRouteAction() {
+        guard !draftHasContext else {
+            pendingRouteAction = .dailyLog
+            return
+        }
+        performDailyLogRouteAction()
+    }
+
+    private func requestOpenTodayTimeline() {
+        guard !draftHasContext else {
+            pendingRouteAction = .timeline
+            return
+        }
+        openTodayTimeline()
+    }
+
+    private func confirmPendingRouteAction() {
+        guard let action = pendingRouteAction else { return }
+        pendingRouteAction = nil
+
+        switch action {
+        case .dailyLog:
+            performDailyLogRouteAction()
+        case .timeline:
+            openTodayTimeline()
+        }
     }
 
     private func performDailyLogRouteAction() {

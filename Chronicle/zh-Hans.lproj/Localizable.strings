@@ -2078,6 +2078,12 @@
 "quick_marker.route.closeout_setup_detail" = "先选择保存位置。";
 "quick_marker.route.closeout_failed_title" = "重试今日日志";
 "quick_marker.route.closeout_failed_detail" = "上次 Markdown 保存失败。保留这条语境后，再重试今日日志。";
+"quick_marker.route.unsaved.title" = "仍有未保存文字，要离开吗？";
+"quick_marker.route.unsaved.message" = "快速记录里的文字还没有保存。仍要离开吗？";
+"quick_marker.route.unsaved.leave" = "不保存并离开";
+"quick_marker.route.unsaved.warning_title" = "草稿还没有保存。";
+"quick_marker.route.unsaved.warning_detail" = "跳到今日日志或时间线前先保存；如果只是想离开，请在确认框里明确确认。";
+"quick_marker.route.unsaved.status" = "草稿等待中";
 "quick_marker.placeholder" = "你正在做什么？";
 "quick_marker.placeholder.point" = "决策、阻塞、交接，或之后要找回的语境";
 "quick_marker.placeholder.interval" = "专注区间名称、会议、阅读或写作";
