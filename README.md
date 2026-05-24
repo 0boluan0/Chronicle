@@ -132,6 +132,12 @@ UI smoke tests are intentionally separate from normal unit tests because macOS U
 ./script/run_ui_smoke.sh all
 ```
 
+Each smoke run has a 30-minute watchdog by default. Override it for slower dedicated runners when needed:
+
+```sh
+UI_SMOKE_TIMEOUT_SECONDS=2700 ./script/run_ui_smoke.sh full
+```
+
 Dedicated UI runners may need Automation Mode enabled once by an administrator:
 
 ```sh

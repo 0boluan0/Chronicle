@@ -7,6 +7,7 @@ SCHEME="ChronicleUISmoke"
 DESTINATION="platform=macOS"
 DERIVED_DATA="${ROOT_DIR}/build/ui-smoke"
 RESULTS_DIR="${ROOT_DIR}/build/ui-smoke-results"
+UI_SMOKE_TIMEOUT_SECONDS="${UI_SMOKE_TIMEOUT_SECONDS:-1800}"
 
 LANGUAGE="${1:-all}"
 
@@ -67,6 +68,49 @@ cleanup_processes() {
 
 usage() {
   echo "usage: $0 [all|public|full|surface|en|zh-Hans]" >&2
+  echo "env: UI_SMOKE_TIMEOUT_SECONDS=<seconds> (default: 1800, 0 disables)" >&2
+}
+
+validate_timeout() {
+  case "$UI_SMOKE_TIMEOUT_SECONDS" in
+    ''|*[!0-9]*)
+      echo "UI_SMOKE_TIMEOUT_SECONDS must be a non-negative integer." >&2
+      exit 2
+      ;;
+  esac
+}
+
+run_with_timeout() {
+  local timeout_seconds="$1"
+  shift
+
+  if [ "$timeout_seconds" -eq 0 ]; then
+    "$@"
+    return
+  fi
+
+  "$@" &
+  local command_pid=$!
+  local watchdog_pid
+  local status=0
+
+  (
+    sleep "$timeout_seconds"
+    if kill -0 "$command_pid" >/dev/null 2>&1; then
+      echo "UI smoke timed out after ${timeout_seconds}s; stopping xcodebuild." >&2
+      kill -TERM "$command_pid" >/dev/null 2>&1 || true
+      cleanup_processes
+      sleep 5
+      kill -KILL "$command_pid" >/dev/null 2>&1 || true
+    fi
+  ) &
+  watchdog_pid=$!
+
+  wait "$command_pid" || status=$?
+  kill "$watchdog_pid" >/dev/null 2>&1 || true
+  wait "$watchdog_pid" >/dev/null 2>&1 || true
+
+  return "$status"
 }
 
 run_case() {
@@ -93,8 +137,10 @@ run_case() {
 
   echo "Running ${scope} UI smoke (${language}) with ${#tests[@]} test(s)."
   echo "Result bundle: ${result_bundle}"
+  echo "Timeout: ${UI_SMOKE_TIMEOUT_SECONDS}s per smoke run."
 
-  xcodebuild \
+  run_with_timeout "$UI_SMOKE_TIMEOUT_SECONDS" \
+    xcodebuild \
     -project "$PROJECT_PATH" \
     -scheme "$SCHEME" \
     -destination "$DESTINATION" \
@@ -112,6 +158,8 @@ case "$LANGUAGE" in
     exit 2
     ;;
 esac
+
+validate_timeout
 
 trap cleanup_processes EXIT
 
