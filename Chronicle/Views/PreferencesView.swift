@@ -78,7 +78,7 @@ struct PreferencesView: View {
         }
 
         static var allCases: [Section] {
-            var sections: [Section] = [.general, .tags, .export, .support, .privacy]
+            var sections: [Section] = [.general, .privacy, .tags, .export, .support]
 #if DEBUG
             if DeveloperDiagnostics.showNavigationItems {
                 sections.append(.debug)
