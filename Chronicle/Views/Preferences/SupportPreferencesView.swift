@@ -1061,17 +1061,26 @@ struct SupportPreferencesView: View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: systemImage)
                 .foregroundColor(DesignSystem.Colors.secondaryText)
-                .frame(width: 16)
+                .frame(width: 16, height: 18)
 
             Text(text)
-                .font(DesignSystem.Typography.caption)
-                .foregroundColor(DesignSystem.Colors.secondaryText)
-                .lineLimit(3)
+                .font(.caption.monospaced())
+                .foregroundColor(DesignSystem.Colors.primaryText)
                 .truncationMode(.middle)
                 .fixedSize(horizontal: false, vertical: true)
                 .textSelection(.enabled)
                 .help(text)
         }
+        .padding(DesignSystem.Spacing.sm)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .fill(DesignSystem.Colors.separator.opacity(0.07))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .stroke(DesignSystem.Colors.separator.opacity(0.18), lineWidth: 1)
+        )
     }
 
     private func open(
