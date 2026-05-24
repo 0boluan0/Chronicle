@@ -2091,6 +2091,7 @@ final class ChronicleTests: XCTestCase {
             "dashboard.sidebar.flow.step.log",
             "dashboard.sidebar.flow.step.status.complete",
             "dashboard.sidebar.flow.step.status.current",
+            "dashboard.sidebar.flow.step.status.failed",
             "dashboard.sidebar.flow.step.status.open",
             "dashboard.sidebar.overview",
             "dashboard.sidebar.timeline",

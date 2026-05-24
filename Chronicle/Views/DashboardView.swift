@@ -301,7 +301,13 @@ struct DashboardView: View {
         let isSelected = sidebarFlowStepIsSelected(step)
         let isComplete = sidebarFlowStepIsComplete(step)
         let isCurrent = sidebarCurrentFlowStep == step && !isComplete
-        let color = sidebarFlowStepColor(isSelected: isSelected, isComplete: isComplete, isCurrent: isCurrent)
+        let isFailed = sidebarFlowStepIsFailed(step)
+        let color = sidebarFlowStepColor(
+            isSelected: isSelected,
+            isComplete: isComplete,
+            isCurrent: isCurrent,
+            isFailed: isFailed
+        )
 
         return Button {
             selectedSectionRaw = step.destination.rawValue
@@ -310,10 +316,14 @@ struct DashboardView: View {
                 HStack(spacing: 4) {
                     ZStack {
                         Circle()
-                            .fill(isComplete || isCurrent ? color : color.opacity(0.12))
+                            .fill(isComplete || isCurrent || isFailed ? color : color.opacity(0.12))
 
                         if isComplete {
                             Image(systemName: "checkmark")
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundStyle(.white)
+                        } else if isFailed {
+                            Image(systemName: "exclamationmark")
                                 .font(.system(size: 8, weight: .bold))
                                 .foregroundStyle(.white)
                         } else {
@@ -325,15 +335,15 @@ struct DashboardView: View {
                     }
                     .frame(width: 15, height: 15)
 
-                    Image(systemName: step.systemImage)
+                    Image(systemName: isFailed ? "exclamationmark.triangle.fill" : step.systemImage)
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(color)
                         .frame(height: 14)
                 }
 
                 Text(step.titleKey)
-                    .font(.caption2.weight(isSelected || isCurrent || isComplete ? .semibold : .regular))
-                    .foregroundStyle(isSelected || isCurrent || isComplete ? .primary : .secondary)
+                    .font(.caption2.weight(isSelected || isCurrent || isComplete || isFailed ? .semibold : .regular))
+                    .foregroundStyle(isSelected || isCurrent || isComplete || isFailed ? .primary : .secondary)
                     .lineLimit(2)
                     .multilineTextAlignment(.center)
                     .minimumScaleFactor(0.86)
@@ -347,7 +357,7 @@ struct DashboardView: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                    .stroke(color.opacity(isSelected || isCurrent ? 0.34 : 0.16), lineWidth: 1)
+                    .stroke(color.opacity(isSelected || isCurrent || isFailed ? 0.34 : 0.16), lineWidth: 1)
             )
         }
         .buttonStyle(.plain)
@@ -391,7 +401,19 @@ struct DashboardView: View {
         }
     }
 
-    private func sidebarFlowStepColor(isSelected: Bool, isComplete: Bool, isCurrent: Bool) -> Color {
+    private func sidebarFlowStepIsFailed(_ step: SidebarFlowStep) -> Bool {
+        step == .log && sidebarNextStepState == .logFailed
+    }
+
+    private func sidebarFlowStepColor(
+        isSelected: Bool,
+        isComplete: Bool,
+        isCurrent: Bool,
+        isFailed: Bool
+    ) -> Color {
+        if isFailed {
+            return DesignSystem.StatusTone.critical.color
+        }
         if isComplete {
             return DesignSystem.StatusTone.success.color
         }
@@ -402,6 +424,9 @@ struct DashboardView: View {
     }
 
     private func sidebarFlowStepStatusText(_ step: SidebarFlowStep) -> String {
+        if sidebarFlowStepIsFailed(step) {
+            return L("dashboard.sidebar.flow.step.status.failed")
+        }
         if sidebarFlowStepIsComplete(step) {
             return L("dashboard.sidebar.flow.step.status.complete")
         }
@@ -416,10 +441,12 @@ struct DashboardView: View {
         let step = sidebarFlowStep(for: section)
         let isComplete = step.map { sidebarFlowStepIsComplete($0) } ?? false
         let isCurrent = step.map { sidebarCurrentFlowStep == $0 && !isComplete } ?? false
+        let isFailed = step.map { sidebarFlowStepIsFailed($0) } ?? false
         let iconColor = sidebarRowIconColor(
             isSelected: isSelected,
             isComplete: isComplete,
-            isCurrent: isCurrent
+            isCurrent: isCurrent,
+            isFailed: isFailed
         )
 
         return HStack(spacing: 10) {
@@ -441,9 +468,9 @@ struct DashboardView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
 
             if let step {
-                Image(systemName: sidebarRowStatusIconName(isComplete: isComplete, isCurrent: isCurrent))
-                    .font(.caption2.weight(isComplete || isCurrent ? .semibold : .regular))
-                    .foregroundStyle(sidebarRowStatusColor(isComplete: isComplete, isCurrent: isCurrent))
+                Image(systemName: sidebarRowStatusIconName(isComplete: isComplete, isCurrent: isCurrent, isFailed: isFailed))
+                    .font(.caption2.weight(isComplete || isCurrent || isFailed ? .semibold : .regular))
+                    .foregroundStyle(sidebarRowStatusColor(isComplete: isComplete, isCurrent: isCurrent, isFailed: isFailed))
                     .frame(width: 16)
                     .help(sidebarFlowStepStatusText(step))
                     .accessibilityHidden(true)
@@ -473,7 +500,10 @@ struct DashboardView: View {
         }
     }
 
-    private func sidebarRowIconColor(isSelected: Bool, isComplete: Bool, isCurrent: Bool) -> Color {
+    private func sidebarRowIconColor(isSelected: Bool, isComplete: Bool, isCurrent: Bool, isFailed: Bool) -> Color {
+        if isFailed {
+            return DesignSystem.StatusTone.critical.color
+        }
         if isSelected || isCurrent {
             return DesignSystem.Colors.accentSkyBlue
         }
@@ -483,7 +513,10 @@ struct DashboardView: View {
         return DesignSystem.Colors.secondaryText
     }
 
-    private func sidebarRowStatusIconName(isComplete: Bool, isCurrent: Bool) -> String {
+    private func sidebarRowStatusIconName(isComplete: Bool, isCurrent: Bool, isFailed: Bool) -> String {
+        if isFailed {
+            return "exclamationmark.triangle.fill"
+        }
         if isComplete {
             return "checkmark.circle.fill"
         }
@@ -493,7 +526,10 @@ struct DashboardView: View {
         return "circle"
     }
 
-    private func sidebarRowStatusColor(isComplete: Bool, isCurrent: Bool) -> Color {
+    private func sidebarRowStatusColor(isComplete: Bool, isCurrent: Bool, isFailed: Bool) -> Color {
+        if isFailed {
+            return DesignSystem.StatusTone.critical.color
+        }
         if isComplete {
             return DesignSystem.StatusTone.success.color
         }

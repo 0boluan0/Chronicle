@@ -696,6 +696,7 @@
 "dashboard.sidebar.flow.step.log" = "日志";
 "dashboard.sidebar.flow.step.status.complete" = "已完成";
 "dashboard.sidebar.flow.step.status.current" = "当前";
+"dashboard.sidebar.flow.step.status.failed" = "需重试";
 "dashboard.sidebar.flow.step.status.open" = "待完成";
 "dashboard.sidebar.timeline" = "按顺序还原当天";
 "dashboard.sidebar.overview" = "判断哪里需要处理";

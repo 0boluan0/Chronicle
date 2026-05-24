@@ -696,6 +696,7 @@
 "dashboard.sidebar.flow.step.log" = "Log";
 "dashboard.sidebar.flow.step.status.complete" = "Done";
 "dashboard.sidebar.flow.step.status.current" = "Current";
+"dashboard.sidebar.flow.step.status.failed" = "Needs retry";
 "dashboard.sidebar.flow.step.status.open" = "Open";
 "dashboard.sidebar.timeline" = "Rebuild the day in order";
 "dashboard.sidebar.overview" = "Decide what needs attention";
