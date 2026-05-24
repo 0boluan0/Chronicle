@@ -590,24 +590,45 @@ struct ContentView: View {
     }
 
     private var commandCenterHealthSummary: some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
             Image(systemName: selfCheckIconName)
                 .font(.caption.weight(.semibold))
                 .foregroundColor(selfCheckTone.color)
-                .frame(width: 16)
+                .frame(width: 16, height: 18)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(LocalizedStringKey("popover.self_check.title"))
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.xs) {
+                        Text(LocalizedStringKey("popover.self_check.title"))
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+
+                        StatusPill(selfCheckStatusText, systemImage: selfCheckIconName, tone: selfCheckTone)
+                    }
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(LocalizedStringKey("popover.self_check.title"))
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+
+                        StatusPill(selfCheckStatusText, systemImage: selfCheckIconName, tone: selfCheckTone)
+                    }
+                }
 
                 Text(selfCheckHeadline)
                     .font(.caption2)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
+
+                Text(selfCheckDetail)
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
+        .accessibilityElement(children: .combine)
     }
 
     private var commandCenterHealthActions: some View {
@@ -1949,6 +1970,26 @@ struct ContentView: View {
             return String(format: L("popover.self_check.warning_count"), counts.warnings)
         }
         return L("popover.self_check.ok")
+    }
+
+    private var selfCheckStatusText: String {
+        if healthCheckService.isRunning {
+            return L("popover.header.status.checking")
+        }
+        if let error = healthCheckService.lastError, !error.isEmpty {
+            return L("popover.header.status.fix")
+        }
+        guard let report = healthCheckService.lastReport else {
+            return L("popover.header.status.recording")
+        }
+        let counts = selfCheckIssueCounts(for: report)
+        if counts.errors > 0 {
+            return L("popover.header.status.fix")
+        }
+        if counts.warnings > 0 {
+            return L("popover.header.status.review")
+        }
+        return L("popover.header.status.ready")
     }
 
     private var selfCheckDetail: String {
