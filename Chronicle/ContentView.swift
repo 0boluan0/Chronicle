@@ -209,6 +209,10 @@ struct ContentView: View {
                 }
 
                 commandCenterActions
+                ExportStatusLine(
+                    status: exportNowStatus,
+                    accessibilityIdentifier: "popover.exportStatus"
+                )
                 commandCenterLoopProgress
                 commandCenterMetrics
                 commandCenterFlow
@@ -1487,6 +1491,15 @@ struct ContentView: View {
 
     private var hasDailyExportFolderConfigured: Bool {
         reportSettings.dailyFolderBookmark != nil
+    }
+
+    private var exportNowStatus: StatusMessage? {
+        guard let message = appState.exportNowMessage?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !message.isEmpty else {
+            return nil
+        }
+
+        return StatusMessage(text: message, isError: appState.exportNowMessageIsError)
     }
 
     private var dailyLogSavedToday: Bool {
