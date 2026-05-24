@@ -3303,6 +3303,7 @@
 "overview.mode.tags" = "Categories";
 "overview.top_n" = "Top %d";
 "overview.grid" = "Grid";
+"overview.legend.idle" = "Idle";
 "overview.legend.tagged" = "Categorized";
 "overview.legend.overlay" = "Short switch";
 "preferences.tags.subsection" = "Classification Section";

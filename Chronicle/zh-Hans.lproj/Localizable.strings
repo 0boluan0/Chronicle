@@ -3295,6 +3295,7 @@
 "overview.mode.tags" = "分类";
 "overview.top_n" = "前 %d";
 "overview.grid" = "网格";
+"overview.legend.idle" = "空闲";
 "overview.legend.tagged" = "已分类";
 "overview.legend.overlay" = "短切换";
 "preferences.tags.subsection" = "分类分区";

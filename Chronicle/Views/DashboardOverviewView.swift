@@ -1132,36 +1132,44 @@ struct DashboardOverviewView: View {
     }
 
     private var legendView: some View {
-        HStack(spacing: 16) {
-            legendItem(title: L("Idle")) {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 116), spacing: DesignSystem.Spacing.md, alignment: .leading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.xs
+        ) {
+            legendItem(titleKey: "overview.legend.idle") {
                 IdleLegendSwatch()
             }
-            legendItem(title: L("popover.daily_snapshot.untagged")) {
+            legendItem(titleKey: "popover.daily_snapshot.untagged") {
                 RoundedRectangle(cornerRadius: 3)
                     .fill(neutralRowColor.opacity(0.55))
                     .frame(width: 16, height: 10)
             }
-            legendItem(title: L("overview.legend.tagged")) {
+            legendItem(titleKey: "overview.legend.tagged") {
                 RoundedRectangle(cornerRadius: 3)
                     .fill(Color(nsColor: .systemTeal).opacity(0.6))
                     .frame(width: 16, height: 10)
             }
-            legendItem(title: L("overview.legend.overlay")) {
+            legendItem(titleKey: "overview.legend.overlay") {
                 RoundedRectangle(cornerRadius: 3)
                     .stroke(style: StrokeStyle(lineWidth: 1, dash: [3, 2]))
                     .foregroundColor(DesignSystem.Colors.secondaryText.opacity(0.6))
                     .frame(width: 16, height: 10)
             }
         }
+        .accessibilityElement(children: .contain)
     }
 
-    private func legendItem<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+    private func legendItem<Content: View>(titleKey: LocalizedStringKey, @ViewBuilder content: () -> Content) -> some View {
         HStack(spacing: 6) {
             content()
-            Text(title)
+            Text(titleKey)
                 .font(.caption2)
                 .foregroundColor(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.82)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var weeklySummaryCard: some View {
