@@ -596,21 +596,20 @@ struct DashboardView: View {
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
-                        .minimumScaleFactor(0.82)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
                 Text(value)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.78)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                     .monospacedDigit()
                     .help(value)
             }
             .padding(.horizontal, DesignSystem.Spacing.sm)
             .padding(.vertical, 7)
-            .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
+            .frame(maxWidth: .infinity, minHeight: 58, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
                     .fill(tone.color.opacity(0.07))
@@ -752,20 +751,19 @@ struct DashboardView: View {
 
     private var sidebarReadinessMeter: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-            HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.sm) {
-                Text("dashboard.sidebar.progress.label")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.sm) {
+                    sidebarReadinessLabel
 
-                Spacer(minLength: 0)
+                    Spacer(minLength: 0)
 
-                Text(String(format: L("dashboard.sidebar.progress.value"), sidebarReadyStepCount, sidebarTotalStepCount))
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(sidebarReadinessTone.color)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.82)
-                    .monospacedDigit()
+                    sidebarReadinessValue
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    sidebarReadinessLabel
+                    sidebarReadinessValue
+                }
             }
 
             RatioBar(
@@ -778,6 +776,23 @@ struct DashboardView: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel(String(format: L("dashboard.sidebar.progress.value"), sidebarReadyStepCount, sidebarTotalStepCount))
         .accessibilityIdentifier("dashboard.sidebar.progress")
+    }
+
+    private var sidebarReadinessLabel: some View {
+        Text("dashboard.sidebar.progress.label")
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .lineLimit(2)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var sidebarReadinessValue: some View {
+        Text(String(format: L("dashboard.sidebar.progress.value"), sidebarReadyStepCount, sidebarTotalStepCount))
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(sidebarReadinessTone.color)
+            .lineLimit(2)
+            .fixedSize(horizontal: false, vertical: true)
+            .monospacedDigit()
     }
 
     private var sidebarTodayEvidenceStrip: some View {
@@ -848,8 +863,9 @@ struct DashboardView: View {
                     Text(value)
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.primary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .monospacedDigit()
                         .help(value)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -858,7 +874,7 @@ struct DashboardView: View {
             }
             .padding(.horizontal, DesignSystem.Spacing.sm)
             .padding(.vertical, 7)
-            .frame(maxWidth: .infinity, minHeight: 38, alignment: .leading)
+            .frame(maxWidth: .infinity, minHeight: 46, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
                     .fill(tone.color.opacity(0.07))
