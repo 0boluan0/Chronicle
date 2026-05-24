@@ -1045,6 +1045,8 @@ final class ChronicleUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["support.updateChannel.current"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["support.updateChannel.source"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["support.updateChannel.checksum"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["support.updateChannel.install"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["First launch check"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["support.updateChannel.recovery"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["support.updateChannel.actions"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["support.updateChannel.openLatest"].waitForExistence(timeout: 5))
