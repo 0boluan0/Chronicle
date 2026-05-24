@@ -6,6 +6,7 @@
 //
 
 #if DEBUG
+import AppKit
 import SwiftUI
 
 struct DashboardDebugView: View {
@@ -25,6 +26,7 @@ struct DashboardDebugView: View {
                 }
 
                 diagnosticsFlowCard
+                supportHandoffCard
                 runtimeSection
                 maintenanceSection
                 healthCheckSection
@@ -137,6 +139,98 @@ struct DashboardDebugView: View {
         .accessibilityIdentifier("dashboard.debug.flow")
     }
 
+    private var supportHandoffCard: some View {
+        SectionCard(title: "debug.handoff.title") {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
+                    alignment: .leading,
+                    spacing: DesignSystem.Spacing.md
+                ) {
+                    sectionLead(
+                        systemImage: "lifepreserver",
+                        tone: diagnosticsFlowTone,
+                        titleKey: "debug.handoff.heading",
+                        detailKey: "debug.handoff.detail"
+                    )
+
+                    StatusPill(
+                        diagnosticsFlowStatusText,
+                        systemImage: diagnosticsFlowIconName,
+                        tone: diagnosticsFlowTone
+                    )
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .accessibilityIdentifier("dashboard.debug.handoff.header")
+
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 190), spacing: DesignSystem.Spacing.sm, alignment: .topLeading)],
+                    alignment: .leading,
+                    spacing: DesignSystem.Spacing.sm
+                ) {
+                    handoffItem(
+                        systemImage: "checkmark.shield",
+                        titleKey: "debug.handoff.health_title",
+                        detailKey: "debug.handoff.health_detail",
+                        tone: healthTone,
+                        accessibilityIdentifier: "dashboard.debug.handoff.health"
+                    )
+
+                    handoffItem(
+                        systemImage: "shippingbox",
+                        titleKey: "debug.handoff.package_title",
+                        detailKey: "debug.handoff.package_detail",
+                        tone: .info,
+                        accessibilityIdentifier: "dashboard.debug.handoff.package"
+                    )
+
+                    handoffItem(
+                        systemImage: "folder",
+                        titleKey: "debug.handoff.data_title",
+                        detailKey: "debug.handoff.data_detail",
+                        tone: .neutral,
+                        accessibilityIdentifier: "dashboard.debug.handoff.data"
+                    )
+                }
+
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 160), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
+                    alignment: .leading,
+                    spacing: DesignSystem.Spacing.sm
+                ) {
+                    Button {
+                        healthCheck.runQuickChecks()
+                    } label: {
+                        Label(L("debug.handoff.run_health"), systemImage: "checkmark.shield")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(DesignSystem.Colors.accentSkyBlue)
+                    .disabled(healthCheck.isRunning)
+                    .accessibilityIdentifier("dashboard.debug.handoff.runHealth")
+
+                    Button {
+                        AppWindowRouter.shared.open(.settings(.support))
+                    } label: {
+                        Label(L("debug.handoff.open_support"), systemImage: "lifepreserver")
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("dashboard.debug.handoff.openSupport")
+
+                    Button {
+                        openLocalDataFolder()
+                    } label: {
+                        Label(L("debug.handoff.open_data_folder"), systemImage: "folder")
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("dashboard.debug.handoff.openDataFolder")
+                }
+                .accessibilityIdentifier("dashboard.debug.handoff.actions")
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityIdentifier("dashboard.debug.handoff")
+    }
+
     private var diagnosticsFlowHeader: some View {
         LazyVGrid(
             columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
@@ -153,6 +247,39 @@ struct DashboardDebugView: View {
             StatusPill(diagnosticsFlowStatusText, systemImage: diagnosticsFlowIconName, tone: diagnosticsFlowTone)
         }
         .accessibilityIdentifier("dashboard.debug.flow.header")
+    }
+
+    private func handoffItem(
+        systemImage: String,
+        titleKey: LocalizedStringKey,
+        detailKey: LocalizedStringKey,
+        tone: DesignSystem.StatusTone,
+        accessibilityIdentifier: String
+    ) -> some View {
+        RowSurface(tone: tone) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                Image(systemName: systemImage)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(tone.color)
+                    .frame(width: 18, height: 18)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(titleKey)
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Text(detailKey)
+                        .font(.caption2)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .frame(maxWidth: .infinity, minHeight: 76, alignment: .topLeading)
+        }
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     private func diagnosticsFlowStep(
@@ -788,6 +915,11 @@ struct DashboardDebugView: View {
 
     private func runtimeLatencyText(backlog: Int, averageMs: Int) -> String {
         String(format: L("debug.runtime.latency_value"), backlog, averageMs)
+    }
+
+    private func openLocalDataFolder() {
+        let databaseURL = URL(fileURLWithPath: DatabaseService.shared.databasePath)
+        NSWorkspace.shared.open(databaseURL.deletingLastPathComponent())
     }
 
     private var todayBounds: (start: Int64, end: Int64) {
