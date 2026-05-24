@@ -391,21 +391,24 @@ struct ContentView: View {
             systemImage: "record.circle",
             tone: dailySnapshot.activeSeconds > 0 ? .success : .info,
             isComplete: dailySnapshot.activeSeconds > 0,
-            isCurrent: dailySnapshot.activeSeconds == 0
+            isCurrent: dailySnapshot.activeSeconds == 0,
+            accessibilityIdentifier: "popover.commandCenter.flow.capture"
         )
         commandCenterFlowStep(
             titleKey: "popover.command_center.flow.context",
             systemImage: "note.text",
             tone: dailySnapshot.reviewCueCount > 0 ? .success : .warning,
             isComplete: dailySnapshot.reviewCueCount > 0,
-            isCurrent: dailySnapshot.activeSeconds > 0 && dailySnapshot.reviewCueCount == 0
+            isCurrent: dailySnapshot.activeSeconds > 0 && dailySnapshot.reviewCueCount == 0,
+            accessibilityIdentifier: "popover.commandCenter.flow.context"
         )
         commandCenterFlowStep(
             titleKey: "popover.command_center.flow.log",
             systemImage: commandCenterLogStepIconName,
             tone: commandCenterLogStepTone,
             isComplete: dailyLogSavedToday,
-            isCurrent: dailySnapshot.activeSeconds > 0 && dailySnapshot.reviewCueCount > 0 && !dailyLogSavedToday
+            isCurrent: dailySnapshot.activeSeconds > 0 && dailySnapshot.reviewCueCount > 0 && !dailyLogSavedToday,
+            accessibilityIdentifier: "popover.commandCenter.flow.log"
         )
     }
 
@@ -414,7 +417,8 @@ struct ContentView: View {
         systemImage: String,
         tone: DesignSystem.StatusTone,
         isComplete: Bool,
-        isCurrent: Bool
+        isCurrent: Bool,
+        accessibilityIdentifier: String
     ) -> some View {
         HStack(spacing: DesignSystem.Spacing.xs) {
             Image(systemName: isComplete ? "checkmark.circle.fill" : systemImage)
@@ -441,6 +445,7 @@ struct ContentView: View {
             RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
                 .stroke(tone.color.opacity(isCurrent ? 0.34 : 0.16), lineWidth: isCurrent ? 1.2 : 1)
         )
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     private func commandCenterMetric(
