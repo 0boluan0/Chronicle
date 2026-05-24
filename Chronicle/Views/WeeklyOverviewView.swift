@@ -36,13 +36,7 @@ struct WeeklyOverviewView: View {
             chartLegend
 
             if rows.isEmpty {
-                EmptyStateView(
-                    title: L("overview.weekly_chart.empty_title"),
-                    subtitle: L("overview.weekly_chart.empty_detail"),
-                    systemImage: "calendar.badge.exclamationmark",
-                    tone: .neutral
-                )
-                .padding(.vertical, DesignSystem.Spacing.sm)
+                weeklyEmptyState
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
@@ -95,6 +89,106 @@ struct WeeklyOverviewView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityIdentifier("overview.weeklyChart.header")
+    }
+
+    private var weeklyEmptyState: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            EmptyStateView(
+                title: L("overview.weekly_chart.empty_title"),
+                subtitle: L("overview.weekly_chart.empty_detail"),
+                systemImage: "calendar.badge.exclamationmark",
+                tone: .neutral
+            )
+
+            weeklyEmptyPath
+        }
+        .padding(DesignSystem.Spacing.lg)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(DesignSystem.Colors.cardBackground.opacity(0.84))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(DesignSystem.Colors.separator.opacity(0.34), lineWidth: 1)
+        )
+        .accessibilityIdentifier("overview.weeklyChart.empty")
+    }
+
+    private var weeklyEmptyPath: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 180), spacing: DesignSystem.Spacing.sm, alignment: .topLeading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            weeklyEmptyPathItem(
+                titleKey: "overview.weekly_chart.empty.path.capture_title",
+                detailKey: "overview.weekly_chart.empty.path.capture_detail",
+                systemImage: "dot.radiowaves.left.and.right",
+                tone: .info,
+                accessibilityIdentifier: "overview.weeklyChart.emptyPath.capture"
+            )
+
+            weeklyEmptyPathItem(
+                titleKey: "overview.weekly_chart.empty.path.lanes_title",
+                detailKey: "overview.weekly_chart.empty.path.lanes_detail",
+                systemImage: "rectangle.3.group",
+                tone: .warning,
+                accessibilityIdentifier: "overview.weeklyChart.emptyPath.lanes"
+            )
+
+            weeklyEmptyPathItem(
+                titleKey: "overview.weekly_chart.empty.path.review_title",
+                detailKey: "overview.weekly_chart.empty.path.review_detail",
+                systemImage: "doc.badge.plus",
+                tone: .success,
+                accessibilityIdentifier: "overview.weeklyChart.emptyPath.review"
+            )
+        }
+        .accessibilityIdentifier("overview.weeklyChart.emptyPath")
+    }
+
+    private func weeklyEmptyPathItem(
+        titleKey: LocalizedStringKey,
+        detailKey: LocalizedStringKey,
+        systemImage: String,
+        tone: DesignSystem.StatusTone,
+        accessibilityIdentifier: String
+    ) -> some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(tone.color)
+                .frame(width: 18, height: 18)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(titleKey)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(detailKey)
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Spacer(minLength: 0)
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .frame(maxWidth: .infinity, minHeight: 76, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .fill(tone.color.opacity(0.06))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .stroke(tone.color.opacity(0.16), lineWidth: 1)
+        )
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     private var weeklyInsightStrip: some View {

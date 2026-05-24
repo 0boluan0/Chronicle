@@ -876,6 +876,12 @@
 "overview.weekly_chart.insight.none" = "暂无";
 "overview.weekly_chart.empty_title" = "还没有一周节奏。";
 "overview.weekly_chart.empty_detail" = "Chronicle 记录到本周活动后，这里会显示时间集中在哪些天。";
+"overview.weekly_chart.empty.path.capture_title" = "保持记录开启";
+"overview.weekly_chart.empty.path.capture_detail" = "Chronicle 看到所选周的活动后，一周节奏会自动出现。";
+"overview.weekly_chart.empty.path.lanes_title" = "整理清晰主线";
+"overview.weekly_chart.empty.path.lanes_detail" = "宽泛的应用分类会让数据出现后的图表更容易扫读。";
+"overview.weekly_chart.empty.path.review_title" = "回看这一周";
+"overview.weekly_chart.empty.path.review_detail" = "记录到工作后再回来，判断高峰日期和空白间隔。";
 "overview.weekly_chart.day_fallback" = "日期";
 "overview.weekly_chart.duration" = "%@\n%@\n时长：%@";
 "overview.weekly_chart.accessibility_cell" = "%@ 在 %@，%@";

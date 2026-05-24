@@ -876,6 +876,12 @@
 "overview.weekly_chart.insight.none" = "None yet";
 "overview.weekly_chart.empty_title" = "No weekly rhythm yet.";
 "overview.weekly_chart.empty_detail" = "Once Chronicle captures activity in this week, the rhythm chart will show where time concentrated.";
+"overview.weekly_chart.empty.path.capture_title" = "Keep capture running";
+"overview.weekly_chart.empty.path.capture_detail" = "Weekly rhythm appears after Chronicle sees activity across the selected week.";
+"overview.weekly_chart.empty.path.lanes_title" = "Shape readable lanes";
+"overview.weekly_chart.empty.path.lanes_detail" = "Broad app categories make the chart easier to scan when data arrives.";
+"overview.weekly_chart.empty.path.review_title" = "Review the week";
+"overview.weekly_chart.empty.path.review_detail" = "Return after work is captured to spot heavy days and quiet gaps.";
 "overview.weekly_chart.day_fallback" = "Day";
 "overview.weekly_chart.duration" = "%@\n%@\nDuration: %@";
 "overview.weekly_chart.accessibility_cell" = "%@ on %@, %@";
