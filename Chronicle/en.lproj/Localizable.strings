@@ -2837,6 +2837,12 @@
 "tags.review.restore_starters" = "Restore Starters";
 "tags.review.add_custom" = "Add Custom Category";
 "tags.review.default_custom_name" = "New category";
+"tags.review.starter_preview.title" = "Starter set preview";
+"tags.review.starter_preview.detail" = "These sections give daily logs a readable shape before you tune names and colors.";
+"tags.review.starter_preview.ready" = "All present";
+"tags.review.starter_preview.missing" = "%d missing";
+"tags.review.starter_preview.item_ready" = "%@ is already in the category library.";
+"tags.review.starter_preview.item_missing" = "%@ will be restored by the starter set.";
 "tags.summary.total" = "Categories";
 "tags.summary.colored" = "With color";
 "tags.summary.default_color" = "Neutral";

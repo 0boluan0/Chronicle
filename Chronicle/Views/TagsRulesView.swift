@@ -567,6 +567,7 @@ struct TagsManagementView: View {
                     )
                 }
 
+                starterCategoryPreviewStrip
                 tagReviewActions
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -574,14 +575,105 @@ struct TagsManagementView: View {
     }
 
     private var tagReviewActions: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 150), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
+        ActionButtonGrid(minimumItemWidth: 150) {
             primaryTagReviewAction
             secondaryTagReviewActions
         }
+    }
+
+    private var starterCategoryPreviewStrip: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+                    starterCategoryPreviewLead
+                    Spacer(minLength: DesignSystem.Spacing.sm)
+                    starterCategoryPreviewStatus
+                }
+
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                    starterCategoryPreviewLead
+                    starterCategoryPreviewStatus
+                }
+            }
+
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 118), spacing: DesignSystem.Spacing.xs, alignment: .leading)],
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.xs
+            ) {
+                ForEach(starterCategoryPreviewItems) { item in
+                    starterCategoryPreviewChip(item)
+                }
+            }
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(tagReviewTone.color.opacity(0.06))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(tagReviewTone.color.opacity(0.16), lineWidth: 1)
+        )
+        .accessibilityIdentifier("tags.review.starterPreview")
+    }
+
+    private var starterCategoryPreviewLead: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text("tags.review.starter_preview.title")
+                .font(.caption.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.primaryText)
+                .lineLimit(1)
+
+            Text("tags.review.starter_preview.detail")
+                .font(.caption2)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var starterCategoryPreviewStatus: some View {
+        StatusPill(
+            starterCategoryPreviewStatusText,
+            systemImage: missingStarterTags.isEmpty ? "checkmark.circle.fill" : "plus.circle.fill",
+            tone: missingStarterTags.isEmpty ? .success : .warning
+        )
+    }
+
+    private func starterCategoryPreviewChip(_ item: StarterCategoryPreviewItem) -> some View {
+        HStack(spacing: 6) {
+            Circle()
+                .fill(item.color)
+                .frame(width: 8, height: 8)
+
+            Text(item.name)
+                .font(.caption2.weight(.medium))
+                .foregroundColor(DesignSystem.Colors.primaryText)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .help(item.name)
+
+            Spacer(minLength: 0)
+
+            Image(systemName: item.isReady ? "checkmark.circle.fill" : "plus.circle")
+                .font(.caption2.weight(.semibold))
+                .foregroundColor(item.isReady ? DesignSystem.StatusTone.success.color : DesignSystem.StatusTone.warning.color)
+        }
+        .padding(.horizontal, 7)
+        .padding(.vertical, 5)
+        .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .fill(item.color.opacity(item.isReady ? 0.12 : 0.07))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .stroke(item.color.opacity(item.isReady ? 0.34 : 0.18), lineWidth: 1)
+        )
+        .opacity(item.isReady ? 1 : 0.74)
+        .accessibilityLabel(item.accessibilityLabel)
     }
 
     @ViewBuilder
@@ -885,6 +977,27 @@ struct TagsManagementView: View {
         }
     }
 
+    private var starterCategoryPreviewItems: [StarterCategoryPreviewItem] {
+        DatabaseService.defaultTags.map { tag in
+            let isReady = existingTagNameKeys.contains(normalizedTagName(tag.name))
+            return StarterCategoryPreviewItem(
+                name: tag.name,
+                colorHex: tag.color,
+                isReady: isReady,
+                accessibilityLabel: isReady
+                    ? String(format: L("tags.review.starter_preview.item_ready"), tag.name)
+                    : String(format: L("tags.review.starter_preview.item_missing"), tag.name)
+            )
+        }
+    }
+
+    private var starterCategoryPreviewStatusText: String {
+        if missingStarterTags.isEmpty {
+            return L("tags.review.starter_preview.ready")
+        }
+        return String(format: L("tags.review.starter_preview.missing"), missingStarterTags.count)
+    }
+
     private enum TagsReviewState: Equatable {
         case empty
         case missingStarters
@@ -1089,6 +1202,21 @@ struct TagsManagementView: View {
                 }
             }
         }
+    }
+}
+
+private struct StarterCategoryPreviewItem: Identifiable {
+    let name: String
+    let colorHex: String
+    let isReady: Bool
+    let accessibilityLabel: String
+
+    var id: String {
+        name.lowercased()
+    }
+
+    var color: Color {
+        Color(hex: colorHex) ?? DesignSystem.StatusTone.neutral.color
     }
 }
 
@@ -1326,11 +1454,7 @@ struct RulesManagementView: View {
     }
 
     private var rulesReviewActions: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 150), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
+        ActionButtonGrid(minimumItemWidth: 150) {
             primaryRulesReviewAction
             secondaryRulesReviewActions
         }

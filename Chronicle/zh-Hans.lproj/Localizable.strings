@@ -2835,6 +2835,12 @@
 "tags.review.restore_starters" = "恢复基础分类";
 "tags.review.add_custom" = "添加自定义分类";
 "tags.review.default_custom_name" = "新的分类";
+"tags.review.starter_preview.title" = "基础分类预览";
+"tags.review.starter_preview.detail" = "这些分区会先给今日日志一个可读结构，之后再调整名称和颜色。";
+"tags.review.starter_preview.ready" = "已全部存在";
+"tags.review.starter_preview.missing" = "缺少 %d 个";
+"tags.review.starter_preview.item_ready" = "%@ 已在分类库中。";
+"tags.review.starter_preview.item_missing" = "%@ 会由基础分类恢复。";
 "tags.summary.total" = "分类数";
 "tags.summary.colored" = "已配色";
 "tags.summary.default_color" = "中性";
