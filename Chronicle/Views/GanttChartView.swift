@@ -56,22 +56,33 @@ struct GanttChartView: View {
                 .frame(height: 24)
                 .padding(.leading, labelWidth)
 
-            ScrollView(.vertical) {
-                VStack(alignment: .leading, spacing: rowSpacing) {
-                    ForEach(rows) { row in
-                        GanttRowView(
-                            row: row,
-                            rangeStart: rangeStart,
-                            rangeEnd: rangeEnd,
-                            labelWidth: labelWidth,
-                            maxTotalSeconds: maxTotal,
-                            selection: $selection
-                        )
+            if rows.isEmpty {
+                EmptyStateView(
+                    title: L("overview.daily_chart.empty_title"),
+                    subtitle: L("overview.daily_chart.empty_detail"),
+                    systemImage: "chart.bar.doc.horizontal",
+                    tone: .neutral
+                )
+                .padding(.vertical, DesignSystem.Spacing.sm)
+            } else {
+                ScrollView(.vertical) {
+                    VStack(alignment: .leading, spacing: rowSpacing) {
+                        ForEach(rows) { row in
+                            GanttRowView(
+                                row: row,
+                                rangeStart: rangeStart,
+                                rangeEnd: rangeEnd,
+                                labelWidth: labelWidth,
+                                maxTotalSeconds: maxTotal,
+                                selection: $selection
+                            )
+                        }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
+        .accessibilityIdentifier("overview.dailyChart")
     }
 
     private let labelWidth: CGFloat = 150
@@ -127,25 +138,27 @@ struct GanttChartView: View {
                 Text(titleKey)
                     .font(.caption2.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(value)
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
                     .lineLimit(2)
-                    .minimumScaleFactor(0.86)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(detail)
                     .font(.caption2)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
+                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer(minLength: 0)
         }
         .padding(DesignSystem.Spacing.sm)
-        .frame(maxWidth: .infinity, minHeight: 82, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: 94, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
                 .fill(tone.color.opacity(0.07))
@@ -219,12 +232,17 @@ struct GanttRowView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(row.title)
                     .font(.subheadline.weight(.medium))
-                    .lineLimit(1)
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
                     .truncationMode(.tail)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(durationText(seconds: row.totalSeconds))
                     .font(.caption2)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .help(durationText(seconds: row.totalSeconds))
 
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
@@ -272,6 +290,8 @@ struct GanttRowView: View {
         .onHover { hovering in
             isRowHovering = hovering
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("overview.dailyChart.row")
     }
 
     private func segmentView(segment: GanttSegmentData, size: CGSize) -> some View {

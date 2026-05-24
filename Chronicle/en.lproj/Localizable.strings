@@ -798,6 +798,8 @@
 "overview.daily_chart.insight.read_value" = "Click a block";
 "overview.daily_chart.insight.read_detail" = "Start with the largest lane, then inspect the exact segment.";
 "overview.daily_chart.insight.none" = "None yet";
+"overview.daily_chart.empty_title" = "No daily activity yet.";
+"overview.daily_chart.empty_detail" = "Once Chronicle captures activity for this range, the timeline will show lanes and clickable work blocks.";
 "overview.weekly_chart.title" = "Weekly rhythm";
 "overview.weekly_chart.detail" = "Compare focus lanes by day, then spot the heaviest days and quiet gaps before saving a review.";
 "overview.weekly_chart.status" = "%d lanes";

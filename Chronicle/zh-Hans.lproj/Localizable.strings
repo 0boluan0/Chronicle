@@ -798,6 +798,8 @@
 "overview.daily_chart.insight.read_value" = "点击一个时间块";
 "overview.daily_chart.insight.read_detail" = "先看最大的主线，再进入具体片段。";
 "overview.daily_chart.insight.none" = "暂无";
+"overview.daily_chart.empty_title" = "还没有当天活动。";
+"overview.daily_chart.empty_detail" = "Chronicle 记录到这个时段的活动后，时间轴会显示主线和可点击的工作块。";
 "overview.weekly_chart.title" = "一周节奏";
 "overview.weekly_chart.detail" = "按天比较不同投入主线，先看本周高峰和空白，再决定是否保存复盘。";
 "overview.weekly_chart.status" = "%d 条主线";
