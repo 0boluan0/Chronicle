@@ -502,6 +502,14 @@ struct SupportPreferencesView: View {
                     .accessibilityIdentifier("support.updateChannel.openUpgradeGuide")
 
                     Button {
+                        copyUpdateChecklist()
+                    } label: {
+                        supportActionLabel(L("support.update_channel.copy_checklist"), systemImage: "doc.on.doc")
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("support.updateChannel.copyChecklist")
+
+                    Button {
                         open(
                             url: releasesPageURL,
                             target: .updateChannel,
@@ -894,6 +902,27 @@ struct SupportPreferencesView: View {
         let shortVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
         let buildVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0"
         return "\(shortVersion) (\(buildVersion))"
+    }
+
+    private func copyUpdateChecklist() {
+        TelemetryService.shared.increment("update_checklist_copied")
+
+        let checklist = [
+            String(format: L("support.update_channel.checklist.current"), versionString),
+            L("support.update_channel.checklist.source"),
+            latestReleaseURL.absoluteString,
+            L("support.update_channel.checklist.verify"),
+            L("support.update_channel.checklist.backup"),
+            L("support.update_channel.checklist.health")
+        ].joined(separator: "\n")
+
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        if pasteboard.setString(checklist, forType: .string) {
+            updateChannelStatus = StatusMessage(text: L("support.update_channel.checklist_copied"), isError: false)
+        } else {
+            updateChannelStatus = StatusMessage(text: L("support.update_channel.checklist_copy_failed"), isError: true)
+        }
     }
 
     private enum ReadinessState: Equatable {

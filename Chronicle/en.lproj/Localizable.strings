@@ -1291,6 +1291,14 @@
 "support.update_channel.open_latest" = "Open Latest Release";
 "support.update_channel.open_upgrade_guide" = "Open Upgrade Guide";
 "support.update_channel.open_release_archive" = "Open Release Archive";
+"support.update_channel.copy_checklist" = "Copy Update Checklist";
+"support.update_channel.checklist_copied" = "Copied update checklist.";
+"support.update_channel.checklist_copy_failed" = "Could not copy the update checklist.";
+"support.update_channel.checklist.current" = "Current build: %@";
+"support.update_channel.checklist.source" = "Open the latest GitHub Release and download the DMG plus matching .sha256:";
+"support.update_channel.checklist.verify" = "Verify the downloaded DMG with the matching checksum before replacing the app.";
+"support.update_channel.checklist.backup" = "Keep the previous build and local data folder reachable before replacing Chronicle.";
+"support.update_channel.checklist.health" = "After launch, run App Health and confirm daily log export still works.";
 "support.readiness.title" = "App Health";
 "support.readiness.not_run_detail" = "Run Self-Check to confirm local storage, tracking, permissions, and log saving.";
 "support.readiness.open_report" = "Review Health Details";
