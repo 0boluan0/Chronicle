@@ -674,11 +674,11 @@ struct DashboardView: View {
 
     private var sidebarQuickLogButton: some View {
         sidebarUtilityButton(
-            titleKey: "dashboard.sidebar.today_evidence.log_title",
+            titleKey: sidebarQuickLogTitleKey,
             value: sidebarLogValueText,
             systemImage: sidebarLogIconName,
             tone: sidebarLogTone,
-            helpKey: "dashboard.sidebar.today_evidence.log_help",
+            helpKey: sidebarQuickLogHelpKey,
             accessibilityIdentifier: "dashboard.sidebar.quickLog"
         ) {
             openSidebarLogEvidence()
@@ -1306,6 +1306,38 @@ struct DashboardView: View {
             return .info
         }
         return .neutral
+    }
+
+    private var sidebarQuickLogTitleKey: String {
+        if sidebarDailyExportedToday {
+            return "dashboard.sidebar.next_step.open_log_folder"
+        }
+        if sidebarDailyExportFailedToday {
+            return "dashboard.sidebar.next_step.retry_daily_log"
+        }
+        if !sidebarDailyFolderReady {
+            return "dashboard.sidebar.next_step.set_log_folder"
+        }
+        if hasRecentCaptureSignal {
+            return "dashboard.sidebar.next_step.review_daily_log"
+        }
+        return "dashboard.sidebar.quick_closeout"
+    }
+
+    private var sidebarQuickLogHelpKey: String {
+        if sidebarDailyExportedToday {
+            return "dashboard.sidebar.next_step.saved_detail"
+        }
+        if sidebarDailyExportFailedToday {
+            return "dashboard.sidebar.next_step.failed_detail"
+        }
+        if !sidebarDailyFolderReady {
+            return "dashboard.sidebar.next_step.needs_folder_detail"
+        }
+        if hasRecentCaptureSignal {
+            return "dashboard.sidebar.next_step.review_detail"
+        }
+        return "dashboard.sidebar.today_evidence.log_help"
     }
 
     private func openSidebarLogEvidence() {
