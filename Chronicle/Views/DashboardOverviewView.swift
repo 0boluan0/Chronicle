@@ -1188,15 +1188,19 @@ struct DashboardOverviewView: View {
     }
 
     private var weeklySummaryHeader: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 240), spacing: DesignSystem.Spacing.md, alignment: .leading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            weeklySummaryHeaderCopy
-                .frame(maxWidth: .infinity, alignment: .leading)
-            StatusPill(weeklySummaryStatusText, systemImage: weeklySummaryStatusIconName, tone: weeklySummaryTone)
-                .frame(maxWidth: .infinity, alignment: .leading)
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                weeklySummaryHeaderCopy
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                StatusPill(weeklySummaryStatusText, systemImage: weeklySummaryStatusIconName, tone: weeklySummaryTone)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                weeklySummaryHeaderCopy
+                StatusPill(weeklySummaryStatusText, systemImage: weeklySummaryStatusIconName, tone: weeklySummaryTone)
+            }
         }
         .accessibilityIdentifier("dashboard.overview.weeklySummaryHeader")
     }
@@ -1228,7 +1232,7 @@ struct DashboardOverviewView: View {
 
     private var weeklySummaryActionRow: some View {
         LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 160), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
+            columns: [GridItem(.adaptive(minimum: 170), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
             alignment: .leading,
             spacing: DesignSystem.Spacing.sm
         ) {
@@ -1244,7 +1248,7 @@ struct DashboardOverviewView: View {
             Button {
                 selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
             } label: {
-                Label(L("overview.weekly_summary.review_timeline"), systemImage: "clock")
+                weeklySummaryActionLabel(L("overview.weekly_summary.review_timeline"), systemImage: "clock")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -1253,7 +1257,7 @@ struct DashboardOverviewView: View {
             Button {
                 AppWindowRouter.shared.open(.settings(.export))
             } label: {
-                Label(L("overview.weekly_summary.setup_folder"), systemImage: "folder.badge.plus")
+                weeklySummaryActionLabel(L("overview.weekly_summary.setup_folder"), systemImage: "folder.badge.plus")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -1262,7 +1266,7 @@ struct DashboardOverviewView: View {
             Button {
                 generateWeeklyReportNow()
             } label: {
-                Label(L("overview.weekly_summary.generate"), systemImage: "doc.badge.plus")
+                weeklySummaryActionLabel(L("overview.weekly_summary.generate"), systemImage: "doc.badge.plus")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -1272,7 +1276,7 @@ struct DashboardOverviewView: View {
             Button {
                 openWeeklyFolder()
             } label: {
-                Label(L("overview.weekly_summary.open_folder"), systemImage: "folder")
+                weeklySummaryActionLabel(L("overview.weekly_summary.open_folder"), systemImage: "folder")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -1281,12 +1285,16 @@ struct DashboardOverviewView: View {
     }
 
     private var weeklySummarySecondaryActions: some View {
-        HStack(spacing: DesignSystem.Spacing.sm) {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 170), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
             if weeklyReviewState != .needsFolder {
                 Button {
                     AppWindowRouter.shared.open(.settings(.export))
                 } label: {
-                    Label(L("overview.weekly_summary.open_export"), systemImage: "gearshape")
+                    weeklySummaryActionLabel(L("overview.weekly_summary.open_export"), systemImage: "gearshape")
                 }
                 .buttonStyle(.bordered)
                 .accessibilityIdentifier("dashboard.overview.openExport")
@@ -1296,13 +1304,25 @@ struct DashboardOverviewView: View {
                 Button {
                     generateWeeklyReportNow()
                 } label: {
-                    Label(L("overview.weekly_summary.regenerate"), systemImage: "arrow.clockwise")
+                    weeklySummaryActionLabel(L("overview.weekly_summary.regenerate"), systemImage: "arrow.clockwise")
                 }
                 .buttonStyle(.bordered)
                 .disabled(isGeneratingWeeklyReport)
                 .accessibilityIdentifier("dashboard.overview.generateWeekly")
             }
         }
+    }
+
+    private func weeklySummaryActionLabel(_ title: String, systemImage: String) -> some View {
+        Label {
+            Text(title)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: systemImage)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
