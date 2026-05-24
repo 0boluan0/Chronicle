@@ -451,8 +451,8 @@ struct DashboardView: View {
         .padding(.vertical, 3)
         .contentShape(Rectangle())
         .help("\(L(section.titleStringKey)): \(L(section.subtitleStringKey))")
-        .accessibilityLabel(sidebarRowAccessibilityLabel(for: section))
         .accessibilityElement(children: .combine)
+        .accessibilityLabel(sidebarRowAccessibilityLabel(for: section))
     }
 
     private func sidebarFlowStep(for section: Section) -> SidebarFlowStep? {

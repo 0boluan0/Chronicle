@@ -478,6 +478,20 @@ final class ChronicleUITests: XCTestCase {
         XCTAssertEqual(app.buttons["dashboard.sidebar.flow.today"].label, "Today Current")
         XCTAssertEqual(app.buttons["dashboard.sidebar.flow.context"].label, "Notes Open")
         XCTAssertEqual(app.buttons["dashboard.sidebar.flow.log"].label, "Log Open")
+        let timelineNavSection = app.descendants(matching: .any)["dashboard.section.timeline"]
+        let markersNavSection = app.descendants(matching: .any)["dashboard.section.markers"]
+        let reportsNavSection = app.descendants(matching: .any)["dashboard.section.reports"]
+        let statsNavSection = app.descendants(matching: .any)["dashboard.section.stats"]
+        XCTAssertTrue(timelineNavSection.waitForExistence(timeout: 5))
+        XCTAssertTrue(markersNavSection.waitForExistence(timeout: 5))
+        XCTAssertTrue(reportsNavSection.waitForExistence(timeout: 5))
+        XCTAssertTrue(statsNavSection.waitForExistence(timeout: 5))
+        XCTAssertTrue(overviewSection.label.contains("Current"), overviewSection.label)
+        XCTAssertTrue(timelineNavSection.label.contains("Current"), timelineNavSection.label)
+        XCTAssertTrue(markersNavSection.label.contains("Open"), markersNavSection.label)
+        XCTAssertTrue(reportsNavSection.label.contains("Open"), reportsNavSection.label)
+        XCTAssertFalse(statsNavSection.label.contains("Current"), statsNavSection.label)
+        XCTAssertFalse(statsNavSection.label.contains("Open"), statsNavSection.label)
         XCTAssertTrue(app.staticTexts["Next step"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["dashboard.sidebar.nextStep.primary"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Today"].waitForExistence(timeout: 5))
