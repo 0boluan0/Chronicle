@@ -516,6 +516,8 @@ struct PrivacyPreferencesView: View {
 
                 captureOutcomeStrip
 
+                captureSafetyReviewRow
+
                 if appState.windowTitleCaptureEnabled && !appState.accessibilityAuthorized {
                     capturePermissionWarningRow
                 }
@@ -651,6 +653,113 @@ struct PrivacyPreferencesView: View {
             .init(id: "recall", titleKey: "privacy.capture.outcome.recall_title", detailKey: "privacy.capture.outcome.recall_detail", systemImage: "text.magnifyingglass"),
             .init(id: "mode", titleKey: "privacy.capture.outcome.mode_title", detailKey: "privacy.capture.outcome.mode_detail", systemImage: "slider.horizontal.3")
         ]
+    }
+
+    private var captureSafetyReviewRow: some View {
+        RowSurface(tone: titleSafetyTone) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                LazyVGrid(
+                    columns: adaptiveColumns(minimum: 240, spacing: DesignSystem.Spacing.md),
+                    alignment: .leading,
+                    spacing: DesignSystem.Spacing.sm
+                ) {
+                    privacyStatusLead(
+                        systemImage: "lock.shield",
+                        tone: titleSafetyTone,
+                        title: "privacy.capture.safety.title",
+                        detail: "privacy.capture.safety.detail"
+                    )
+
+                    HStack(spacing: DesignSystem.Spacing.sm) {
+                        StatusPill(titleSafetyStatusText, systemImage: titleSafetyIconName, tone: titleSafetyTone)
+
+                        Button {
+                            AppWindowRouter.shared.open(.settings(.general))
+                        } label: {
+                            Label(L("privacy.capture.safety.manage"), systemImage: "slider.horizontal.3")
+                        }
+                        .buttonStyle(.bordered)
+                        .accessibilityIdentifier("privacy.capture.safety.manageBlockedApps")
+                    }
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+
+                LazyVGrid(
+                    columns: adaptiveColumns(minimum: 170, spacing: DesignSystem.Spacing.sm),
+                    alignment: .leading,
+                    spacing: DesignSystem.Spacing.sm
+                ) {
+                    captureSafetyItem(
+                        titleKey: "privacy.capture.safety.mode_title",
+                        value: titleCaptureModeName,
+                        detail: String(format: L("privacy.capture.safety.mode_detail"), titleCaptureModeName),
+                        systemImage: appState.windowTitlePrivacyMode == .raw ? "text.viewfinder" : "eye.slash",
+                        tone: appState.windowTitlePrivacyMode == .raw ? .info : .success,
+                        accessibilityIdentifier: "privacy.capture.safety.mode"
+                    )
+
+                    captureSafetyItem(
+                        titleKey: "privacy.capture.safety.blocked_title",
+                        value: blockedTitleAppStatusText,
+                        detail: blockedTitleAppDetailText,
+                        systemImage: appState.windowTitleBlockedBundleIDs.isEmpty ? "app.badge" : "eye.slash.fill",
+                        tone: appState.windowTitleBlockedBundleIDs.isEmpty ? .neutral : .success,
+                        accessibilityIdentifier: "privacy.capture.safety.blocked"
+                    )
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityIdentifier("privacy.capture.safety")
+    }
+
+    private func captureSafetyItem(
+        titleKey: LocalizedStringKey,
+        value: String,
+        detail: String,
+        systemImage: String,
+        tone: DesignSystem.StatusTone,
+        accessibilityIdentifier: String
+    ) -> some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(tone.color)
+                .frame(width: 16, height: 18)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(titleKey)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(1)
+
+                Text(value)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
+
+                Text(detail)
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, DesignSystem.Spacing.sm)
+        .padding(.vertical, 7)
+        .frame(maxWidth: .infinity, minHeight: 62, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .fill(DesignSystem.Colors.cardBackground.opacity(0.72))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .stroke(DesignSystem.Colors.separator.opacity(0.28), lineWidth: 1)
+        )
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     private var localDataSection: some View {
@@ -1031,6 +1140,63 @@ struct PrivacyPreferencesView: View {
 
     private var telemetryTone: DesignSystem.StatusTone {
         appState.telemetryEnabled ? .info : .neutral
+    }
+
+    private var titleSafetyStatusText: String {
+        if !appState.windowTitleCaptureEnabled {
+            return L("privacy.capture.safety.status.app_only")
+        }
+        if appState.windowTitlePrivacyMode == .raw && appState.windowTitleBlockedBundleIDs.isEmpty {
+            return L("privacy.capture.safety.status.review")
+        }
+        if !appState.windowTitleBlockedBundleIDs.isEmpty {
+            let count = appState.windowTitleBlockedBundleIDs.count
+            let key = count == 1 ? "privacy.capture.safety.status.blocked_one" : "privacy.capture.safety.status.blocked_many"
+            return String(format: L(key), count)
+        }
+        return L("privacy.capture.safety.status.sanitized")
+    }
+
+    private var titleSafetyIconName: String {
+        if !appState.windowTitleCaptureEnabled {
+            return "eye.slash"
+        }
+        if appState.windowTitlePrivacyMode == .raw && appState.windowTitleBlockedBundleIDs.isEmpty {
+            return "exclamationmark.triangle.fill"
+        }
+        return "checkmark.seal.fill"
+    }
+
+    private var titleSafetyTone: DesignSystem.StatusTone {
+        if !appState.windowTitleCaptureEnabled {
+            return .neutral
+        }
+        if appState.windowTitlePrivacyMode == .raw && appState.windowTitleBlockedBundleIDs.isEmpty {
+            return .warning
+        }
+        return .success
+    }
+
+    private var titleCaptureModeName: String {
+        L(appState.windowTitlePrivacyMode.titleKey)
+    }
+
+    private var blockedTitleAppStatusText: String {
+        let count = appState.windowTitleBlockedBundleIDs.count
+        if count <= 0 {
+            return L("privacy.capture.safety.blocked_empty")
+        }
+        let key = count == 1 ? "privacy.capture.safety.blocked_one" : "privacy.capture.safety.blocked_many"
+        return String(format: L(key), count)
+    }
+
+    private var blockedTitleAppDetailText: String {
+        let count = appState.windowTitleBlockedBundleIDs.count
+        if count <= 0 {
+            return L("privacy.capture.safety.blocked_empty_detail")
+        }
+        let key = count == 1 ? "privacy.capture.safety.blocked_one_detail" : "privacy.capture.safety.blocked_many_detail"
+        return String(format: L(key), count)
     }
 
     private func openAppSupportFolder() {
