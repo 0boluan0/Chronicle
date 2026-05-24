@@ -57,6 +57,12 @@ struct AppWindowRouterCommands: Commands {
                 TelemetryService.shared.increment("support_opened")
                 AppWindowRouter.shared.open(.settings(.support))
             }
+
+            Divider()
+
+            Button(L("menu.about")) {
+                AppAboutPanelPresenter.show()
+            }
         }
     }
 }

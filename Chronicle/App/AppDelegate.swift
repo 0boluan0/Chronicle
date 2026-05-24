@@ -29,6 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var preferencesItem: NSMenuItem?
     private var appHealthItem: NSMenuItem?
     private var welcomeItem: NSMenuItem?
+    private var aboutItem: NSMenuItem?
     private var exportItem: NSMenuItem?
     private var pauseTrackingItem: NSMenuItem?
     private var checkUpdatesItem: NSMenuItem?
@@ -161,6 +162,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         appHealthItem.target = self
         let welcomeItem = NSMenuItem(title: L("menu.welcome"), action: #selector(openWelcome), keyEquivalent: "w")
         welcomeItem.target = self
+        let aboutItem = NSMenuItem(title: L("menu.about"), action: #selector(showAboutPanel), keyEquivalent: "")
+        aboutItem.target = self
         let exportItem = NSMenuItem(title: L("menu.export_now"), action: #selector(exportNow), keyEquivalent: "e")
         exportItem.target = self
         let pauseTrackingItem = NSMenuItem(
@@ -183,6 +186,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         self.preferencesItem = preferencesItem
         self.appHealthItem = appHealthItem
         self.welcomeItem = welcomeItem
+        self.aboutItem = aboutItem
         self.exportItem = exportItem
         self.pauseTrackingItem = pauseTrackingItem
         self.checkUpdatesItem = checkUpdatesItem
@@ -201,6 +205,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         statusMenu.addItem(preferencesItem)
         statusMenu.addItem(appHealthItem)
         statusMenu.addItem(welcomeItem)
+        statusMenu.addItem(aboutItem)
         statusMenu.addItem(.separator())
         statusMenu.addItem(checkUpdatesItem)
         statusMenu.addItem(openReleasesItem)
@@ -268,6 +273,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         preferencesItem?.title = L("menu.preferences")
         appHealthItem?.title = L("menu.app_health")
         welcomeItem?.title = L("menu.welcome")
+        aboutItem?.title = L("menu.about")
         updateTrackingPauseMenuTitle()
         checkUpdatesItem?.title = L("menu.check_updates")
         openReleasesItem?.title = L("menu.open_releases")
@@ -314,6 +320,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         preferencesItem?.image = menuImage(systemSymbolName: "gearshape", accessibilityKey: "menu.preferences")
         appHealthItem?.image = menuImage(systemSymbolName: "stethoscope", accessibilityKey: "menu.app_health")
         welcomeItem?.image = menuImage(systemSymbolName: "sparkles", accessibilityKey: "menu.welcome")
+        aboutItem?.image = menuImage(systemSymbolName: "info.circle", accessibilityKey: "menu.about")
         checkUpdatesItem?.image = menuImage(systemSymbolName: "arrow.down.circle", accessibilityKey: "menu.check_updates")
         openReleasesItem?.image = menuImage(systemSymbolName: "safari", accessibilityKey: "menu.open_releases")
         quitItem?.image = menuImage(systemSymbolName: "power", accessibilityKey: "menu.quit")
@@ -476,6 +483,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     @objc private func openWelcome() {
         AppWindowRouter.shared.open(.welcome)
+    }
+
+    @objc private func showAboutPanel() {
+        AppAboutPanelPresenter.show()
     }
 
     @objc private func exportNow() {

@@ -10,6 +10,7 @@
 "menu.preferences" = "Settings…";
 "menu.app_health" = "App Health…";
 "menu.welcome" = "Welcome…";
+"menu.about" = "About Chronicle…";
 "menu.export_now" = "Save Daily Log";
 "menu.exporting" = "Saving…";
 "menu.export_setup" = "Set Daily Log Folder…";
@@ -20,6 +21,7 @@
 "menu.check_updates" = "Check for Updates…";
 "menu.open_releases" = "Open Releases Page";
 "menu.quit" = "Quit";
+"about.credits" = "Offline work journal for capturing a local timeline, adding context, and saving reviewable Markdown closeouts.";
 
 "popover.open_dashboard" = "Open Today";
 "popover.open_preferences" = "Settings";
