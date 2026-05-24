@@ -298,6 +298,7 @@ struct MarkerTimelineView: View {
         Label {
             Text(title)
                 .lineLimit(2)
+                .minimumScaleFactor(0.86)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
         } icon: {

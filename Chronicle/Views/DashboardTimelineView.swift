@@ -284,6 +284,7 @@ struct DashboardTimelineView: View {
         Label {
             Text(title)
                 .lineLimit(2)
+                .minimumScaleFactor(0.86)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
         } icon: {
@@ -715,6 +716,7 @@ struct DashboardTimelineView: View {
             Label {
                 Text(titleKey)
                     .lineLimit(2)
+                    .minimumScaleFactor(0.86)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
             } icon: {
@@ -724,6 +726,7 @@ struct DashboardTimelineView: View {
         } else {
             Text(titleKey)
                 .lineLimit(2)
+                .minimumScaleFactor(0.86)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
