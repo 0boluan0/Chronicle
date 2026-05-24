@@ -10,6 +10,7 @@ import SwiftUI
 
 final class QuickMarkerPanelController: NSWindowController, NSWindowDelegate {
     static let shared = QuickMarkerPanelController()
+    private static let minimumPanelSize = NSSize(width: 700, height: 500)
 
     private init() {
         let panel = NSPanel(
@@ -18,7 +19,7 @@ final class QuickMarkerPanelController: NSWindowController, NSWindowDelegate {
             backing: .buffered,
             defer: false
         )
-        panel.minSize = NSSize(width: 700, height: 500)
+        panel.minSize = Self.minimumPanelSize
         panel.titleVisibility = .hidden
         panel.titlebarAppearsTransparent = true
         panel.isMovableByWindowBackground = true
@@ -80,6 +81,6 @@ final class QuickMarkerPanelController: NSWindowController, NSWindowDelegate {
         if window.frame.size != targetSize {
             window.setContentSize(targetSize)
         }
-        window.minSize = targetSize
+        window.minSize = Self.minimumPanelSize
     }
 }
