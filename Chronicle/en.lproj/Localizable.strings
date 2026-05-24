@@ -385,7 +385,7 @@
 "popover.daily_review.open_dashboard" = "Open Today";
 "popover.daily_review.dismiss_today" = "Dismiss Today";
 "daily_review.notification.title" = "Daily Log Reminder";
-"daily_review.notification.body" = "Today's daily log is still unsaved. Open Chronicle to save it.";
+"daily_review.notification.body" = "Today's daily log is still unsaved. Open Chronicle to finish it.";
 
 "actions.next" = "Next";
 "actions.back" = "Back";
@@ -2462,7 +2462,7 @@
 "reports.review_reminder.outcome.popover_title" = "Popover reminder";
 "reports.review_reminder.outcome.popover_detail" = "The menu bar card shows the next closeout step.";
 "reports.review_reminder.outcome.notification_title" = "Optional system alert";
-"reports.review_reminder.outcome.notification_detail" = "Use it only when you want a stronger nudge.";
+"reports.review_reminder.outcome.notification_detail" = "Clicking it opens today's log so you can finish quickly.";
 "reports.review_reminder.outcome.saved_title" = "Stops after save";
 "reports.review_reminder.outcome.saved_detail" = "Once today's log is saved, reminders stay quiet until tomorrow.";
 "reports.csv.range" = "Export Range";

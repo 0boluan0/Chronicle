@@ -385,7 +385,7 @@
 "popover.daily_review.open_dashboard" = "打开今天";
 "popover.daily_review.dismiss_today" = "今天不再提醒";
 "daily_review.notification.title" = "今日日志提醒";
-"daily_review.notification.body" = "今日日志仍未保存。打开 Chronicle 即可保存。";
+"daily_review.notification.body" = "今日日志仍未保存。打开 Chronicle 即可完成。";
 
 "actions.next" = "下一步";
 "actions.back" = "上一步";
@@ -2461,7 +2461,7 @@
 "reports.review_reminder.outcome.popover_title" = "菜单栏提醒";
 "reports.review_reminder.outcome.popover_detail" = "菜单栏卡片会显示下一步收工动作。";
 "reports.review_reminder.outcome.notification_title" = "可选系统通知";
-"reports.review_reminder.outcome.notification_detail" = "只有需要更强提醒时再开启。";
+"reports.review_reminder.outcome.notification_detail" = "点击通知会打开今日日志，方便马上完成。";
 "reports.review_reminder.outcome.saved_title" = "保存后停止";
 "reports.review_reminder.outcome.saved_detail" = "今日日志保存后，提醒会安静到明天。";
 "reports.csv.range" = "导出范围";
