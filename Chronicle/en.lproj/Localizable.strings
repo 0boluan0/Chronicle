@@ -1475,6 +1475,8 @@
 "privacy.sharing.title" = "Diagnostics and feedback";
 "privacy.sharing.heading" = "Prepare a local support package";
 "privacy.sharing.detail" = "Support files stay on this Mac first, so you can review them before sending anything.";
+"privacy.sharing.actions.title" = "Reviewable local files";
+"privacy.sharing.actions.detail" = "Save a health file or create a support package, then inspect the local folder before sending anything.";
 "privacy.export_diagnostics" = "Save Health Details";
 "privacy.diagnostics_generating" = "Saving health details…";
 "privacy.diagnostics_cancelled" = "Health details save cancelled.";

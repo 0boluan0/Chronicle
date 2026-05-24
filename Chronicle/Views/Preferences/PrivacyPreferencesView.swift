@@ -856,14 +856,48 @@ struct PrivacyPreferencesView: View {
                     accessibilityIdentifier: "privacy.sharing.header"
                 )
 
-                diagnosticsActionRow
-                feedbackBundleActionRow
+                sharingActionsGroup
 
                 StatusBannerView(status: diagnosticsStatus, accessibilityIdentifier: "privacy.diagnosticsStatus")
                 StatusBannerView(status: feedbackStatus, accessibilityIdentifier: "privacy.feedbackStatus")
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+
+    private var sharingActionsGroup: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            Label {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("privacy.sharing.actions.title")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+
+                    Text("privacy.sharing.actions.detail")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            } icon: {
+                Image(systemName: "checklist")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.accentSkyBlue)
+                    .frame(width: 16)
+            }
+            .labelStyle(.titleAndIcon)
+
+            LazyVGrid(
+                columns: adaptiveColumns(minimum: 260, spacing: DesignSystem.Spacing.md),
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                diagnosticsActionRow
+                feedbackBundleActionRow
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("privacy.sharing.actions")
     }
 
     private var diagnosticsActionRow: some View {

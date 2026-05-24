@@ -1475,6 +1475,8 @@
 "privacy.sharing.title" = "诊断与反馈";
 "privacy.sharing.heading" = "准备本地支持包";
 "privacy.sharing.detail" = "支持文件都会先保存在这台 Mac 上，你可以检查后再决定是否发送。";
+"privacy.sharing.actions.title" = "可审阅的本地文件";
+"privacy.sharing.actions.detail" = "可以保存健康详情或创建支持包，然后先在本地文件夹中检查，再决定是否发送。";
 "privacy.export_diagnostics" = "保存健康详情";
 "privacy.diagnostics_generating" = "正在保存健康详情…";
 "privacy.diagnostics_cancelled" = "已取消保存健康详情。";
