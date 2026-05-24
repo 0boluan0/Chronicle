@@ -430,17 +430,22 @@ struct PreferencesView: View {
                     )
 
                 VStack(alignment: .leading, spacing: 3) {
-                    HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.xs) {
-                        Text(titleKey)
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.primary)
-                            .lineLimit(2)
-                            .fixedSize(horizontal: false, vertical: true)
+                    ViewThatFits(in: .horizontal) {
+                        HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.xs) {
+                            setupGuideButtonTitle(titleKey)
 
-                        Spacer(minLength: DesignSystem.Spacing.xs)
+                            Spacer(minLength: DesignSystem.Spacing.xs)
 
-                        setupGuideStatusPill(readiness, identifier: "\(identifier).status")
-                            .fixedSize(horizontal: true, vertical: false)
+                            setupGuideStatusPill(readiness, identifier: "\(identifier).status")
+                                .fixedSize(horizontal: true, vertical: false)
+                        }
+
+                        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                            setupGuideButtonTitle(titleKey)
+
+                            setupGuideStatusPill(readiness, identifier: "\(identifier).status")
+                                .fixedSize(horizontal: true, vertical: false)
+                        }
                     }
 
                     if isActive {
@@ -470,6 +475,14 @@ struct PreferencesView: View {
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier(identifier)
+    }
+
+    private func setupGuideButtonTitle(_ titleKey: LocalizedStringKey) -> some View {
+        Text(titleKey)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.primary)
+            .lineLimit(2)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private func setupGuideStatusPill(
