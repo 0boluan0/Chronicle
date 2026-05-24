@@ -1194,6 +1194,7 @@ struct MarkerTimelineGroupRowView: View {
     var body: some View {
         let shouldCollapse = group.lanes.count > 3
         let visibleLanes = shouldCollapse && !isExpanded ? Array(group.lanes.prefix(2)) : group.lanes
+        let hiddenLaneCount = group.lanes.count - visibleLanes.count
 
         let laneCount = max(1, visibleLanes.count)
         let lanesHeight = CGFloat(laneCount) * laneHeight + CGFloat(max(0, laneCount - 1)) * laneSpacing
@@ -1217,12 +1218,17 @@ struct MarkerTimelineGroupRowView: View {
                         markerGroupMetadata
 
                         if shouldCollapse {
-                            Button(isExpanded ? L("markers.collapse_lanes") : String(format: L("markers.expand_lanes"), group.lanes.count - visibleLanes.count)) {
+                            Button {
                                 onToggleExpanded()
+                            } label: {
+                                markerGroupActionLabel(
+                                    isExpanded ? L("markers.collapse_lanes") : String(format: L("markers.expand_lanes"), hiddenLaneCount),
+                                    systemImage: isExpanded ? "chevron.up" : "chevron.down"
+                                )
                             }
-                            .buttonStyle(.plain)
-                            .font(.caption.weight(.medium))
-                            .foregroundColor(DesignSystem.Colors.accentSkyBlue)
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                            .accessibilityIdentifier("markers.group.toggleLanes")
                         }
                     }
                 }
@@ -1332,6 +1338,10 @@ struct MarkerTimelineGroupRowView: View {
             return .info
         }
         return .success
+    }
+
+    private func markerGroupActionLabel(_ title: String, systemImage: String) -> some View {
+        ActionButtonLabel(title, systemImage: systemImage, fillsWidth: false)
     }
 }
 
