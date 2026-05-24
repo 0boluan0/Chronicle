@@ -45,6 +45,8 @@ struct MarkerSpanRowView: View {
                         .foregroundColor(DesignSystem.Colors.primaryText)
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
+                        .textSelection(.enabled)
+                        .help(span.text)
 
                     LazyVGrid(
                         columns: adaptiveColumns(minimum: 126, spacing: DesignSystem.Spacing.xs),
@@ -84,6 +86,7 @@ struct MarkerSpanRowView: View {
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.86)
+                .help(rangeText)
         } icon: {
             Image(systemName: "clock")
         }
@@ -105,6 +108,7 @@ struct MarkerSpanRowView: View {
                 .monospacedDigit()
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
+                .help(durationText)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -120,6 +124,7 @@ struct MarkerSpanRowView: View {
                 .foregroundColor(DesignSystem.Colors.secondaryText)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
+                .help(purposeText)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

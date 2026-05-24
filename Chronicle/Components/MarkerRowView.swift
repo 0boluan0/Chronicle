@@ -31,6 +31,8 @@ struct MarkerRowView: View {
                         .foregroundColor(DesignSystem.Colors.primaryText)
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
+                        .textSelection(.enabled)
+                        .help(marker.text)
 
                     HStack(spacing: 7) {
                         Image(systemName: "doc.text.magnifyingglass")
@@ -64,13 +66,16 @@ struct MarkerRowView: View {
     }
 
     private var markerTime: some View {
-        Label {
-            Text(TimeFormatters.timeText(for: marker.timestamp, includeSeconds: true))
+        let timeText = TimeFormatters.timeText(for: marker.timestamp, includeSeconds: true)
+
+        return Label {
+            Text(timeText)
                 .font(DesignSystem.Typography.caption)
                 .foregroundColor(DesignSystem.Colors.secondaryText)
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.86)
+                .help(timeText)
         } icon: {
             Image(systemName: "clock")
         }

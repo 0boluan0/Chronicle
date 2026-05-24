@@ -77,6 +77,8 @@ struct ActivityRowView: View {
                         .foregroundColor(DesignSystem.Colors.secondaryText)
                         .lineLimit(maxTitleLines)
                         .fixedSize(horizontal: false, vertical: true)
+                        .textSelection(.enabled)
+                        .help(title)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -118,13 +120,16 @@ struct ActivityRowView: View {
     }
 
     private var activityTimeRange: some View {
-        Label {
-            Text(TimeFormatters.timeRange(start: activity.startTime, end: activity.endTime))
+        let rangeText = TimeFormatters.timeRange(start: activity.startTime, end: activity.endTime)
+
+        return Label {
+            Text(rangeText)
                 .font(.caption.weight(.medium))
                 .foregroundColor(DesignSystem.Colors.primaryText)
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.86)
+                .help(rangeText)
         } icon: {
             Image(systemName: "clock")
         }
@@ -135,7 +140,9 @@ struct ActivityRowView: View {
     }
 
     private var activityDuration: some View {
-        Label(TimeFormatters.durationText(start: activity.startTime, end: activity.endTime), systemImage: "timer")
+        let durationText = TimeFormatters.durationText(start: activity.startTime, end: activity.endTime)
+
+        return Label(durationText, systemImage: "timer")
             .font(.caption2)
             .foregroundColor(DesignSystem.Colors.secondaryText)
             .monospacedDigit()
@@ -143,6 +150,7 @@ struct ActivityRowView: View {
             .minimumScaleFactor(0.86)
             .labelStyle(.titleAndIcon)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .help(durationText)
     }
 
     private var rowTitle: some View {
@@ -152,6 +160,7 @@ struct ActivityRowView: View {
             .lineLimit(2)
             .truncationMode(.tail)
             .fixedSize(horizontal: false, vertical: true)
+            .help(activity.appName)
     }
 
     private var activityReviewCue: some View {
