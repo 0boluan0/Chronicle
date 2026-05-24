@@ -143,15 +143,15 @@ struct RowSurface<Content: View>: View {
         content
             .padding(DesignSystem.Spacing.md)
             .background(
-                RoundedRectangle(cornerRadius: DesignSystem.Radius.lg)
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
                     .fill(backgroundColor)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: DesignSystem.Radius.lg)
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
                     .stroke(borderColor, lineWidth: 1)
             )
             .shadow(color: shadowColor, radius: 4, x: 0, y: 1)
-            .contentShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.lg))
+            .contentShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.md))
     }
 
     private var backgroundColor: Color {
