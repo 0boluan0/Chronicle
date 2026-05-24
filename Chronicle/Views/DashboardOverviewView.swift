@@ -129,17 +129,24 @@ struct DashboardOverviewView: View {
     }
 
     private var markerTimelineHeader: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 240), spacing: DesignSystem.Spacing.md, alignment: .leading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            markerTimelineHeaderCopy
-                .frame(maxWidth: .infinity, alignment: .leading)
-            StatusPill(markerTimelineStatusText, systemImage: markerTimelineStatusIconName, tone: markerTimelineTone)
-                .frame(maxWidth: .infinity, alignment: .leading)
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                markerTimelineHeaderCopy
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                markerTimelineStatusPill
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                markerTimelineHeaderCopy
+                markerTimelineStatusPill
+            }
         }
         .accessibilityIdentifier("dashboard.overview.markerTimelineHeader")
+    }
+
+    private var markerTimelineStatusPill: some View {
+        StatusPill(markerTimelineStatusText, systemImage: markerTimelineStatusIconName, tone: markerTimelineTone)
+            .fixedSize(horizontal: true, vertical: false)
     }
 
     private var markerTimelineHeaderCopy: some View {
@@ -199,17 +206,24 @@ struct DashboardOverviewView: View {
     }
 
     private var activityMapHeader: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 240), spacing: DesignSystem.Spacing.md, alignment: .leading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            activityMapHeaderCopy
-                .frame(maxWidth: .infinity, alignment: .leading)
-            StatusPill(activityMapStatusText, systemImage: activityMapStatusIconName, tone: activityMapStatusTone)
-                .frame(maxWidth: .infinity, alignment: .leading)
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                activityMapHeaderCopy
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                activityMapStatusPill
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                activityMapHeaderCopy
+                activityMapStatusPill
+            }
         }
         .accessibilityIdentifier("dashboard.overview.activityMapHeader")
+    }
+
+    private var activityMapStatusPill: some View {
+        StatusPill(activityMapStatusText, systemImage: activityMapStatusIconName, tone: activityMapStatusTone)
+            .fixedSize(horizontal: true, vertical: false)
     }
 
     private var activityMapHeaderCopy: some View {
