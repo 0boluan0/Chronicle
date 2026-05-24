@@ -713,14 +713,21 @@ struct SupportPreferencesView: View {
         accessibilityIdentifier: String,
         @ViewBuilder trailing: () -> Trailing
     ) -> some View {
-        LazyVGrid(
-            columns: adaptiveColumns(minimum: 240, spacing: DesignSystem.Spacing.md),
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            supportStatusLead(systemImage: systemImage, tone: tone, title: title, detail: detail)
-            supportStatusTrailing(status: status, statusIcon: statusIcon, tone: tone, trailing: trailing)
-                .frame(maxWidth: .infinity, alignment: .trailing)
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                supportStatusLead(systemImage: systemImage, tone: tone, title: title, detail: detail)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                supportStatusTrailing(status: status, statusIcon: statusIcon, tone: tone, trailing: trailing)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                supportStatusLead(systemImage: systemImage, tone: tone, title: title, detail: detail)
+
+                supportStatusTrailing(status: status, statusIcon: statusIcon, tone: tone, trailing: trailing)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
         .accessibilityIdentifier(accessibilityIdentifier)
     }
