@@ -538,16 +538,25 @@ struct QuickMarkerEntryView: View {
     private var statusFeedbackView: some View {
         if let statusMessage, !statusMessage.isEmpty {
             RowSurface(tone: statusFeedbackTone, isHovering: false) {
-                LazyVGrid(
-                    columns: adaptiveColumns(minimum: 220, spacing: DesignSystem.Spacing.md),
-                    alignment: .leading,
-                    spacing: DesignSystem.Spacing.sm
-                ) {
-                    statusFeedbackLabel(statusMessage)
-                    statusFeedbackAction
-                }
+                statusFeedbackContent(statusMessage)
             }
             .accessibilityIdentifier("quickMarker.status")
+        }
+    }
+
+    private func statusFeedbackContent(_ message: String) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                statusFeedbackLabel(message)
+
+                statusFeedbackAction
+                    .frame(width: 176, alignment: .topLeading)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                statusFeedbackLabel(message)
+                statusFeedbackAction
+            }
         }
     }
 
@@ -561,10 +570,11 @@ struct QuickMarkerEntryView: View {
     }
 
     private var quickMarkerSuccessActions: some View {
-        ActionButtonGrid(minimumItemWidth: 118) {
+        VStack(spacing: DesignSystem.Spacing.sm) {
             quickMarkerOpenTimelineButton
             quickMarkerDailyLogButton
         }
+        .frame(maxWidth: .infinity)
         .accessibilityIdentifier("quickMarker.status.actions")
     }
 
@@ -616,7 +626,7 @@ struct QuickMarkerEntryView: View {
         }
         .buttonStyle(.bordered)
         .controlSize(.mini)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity)
         .accessibilityIdentifier("quickMarker.openHealth")
     }
 
@@ -631,7 +641,7 @@ struct QuickMarkerEntryView: View {
         }
         .buttonStyle(.bordered)
         .controlSize(.mini)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity)
         .accessibilityIdentifier("quickMarker.openTimeline")
     }
 
@@ -643,7 +653,7 @@ struct QuickMarkerEntryView: View {
         }
         .buttonStyle(.bordered)
         .controlSize(.mini)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity)
         .accessibilityIdentifier(quickMarkerDailyLogActionAccessibilityIdentifier)
     }
 
