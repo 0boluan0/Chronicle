@@ -18,6 +18,8 @@ struct TimeGridView: View {
                 let intervalSeconds = max(60, intervalMinutes * 60)
                 let duration = max(Int64(1), rangeEnd - rangeStart)
                 let count = Int(duration / Int64(intervalSeconds))
+                let minimumLabelSpacing = max(42, min(64, size.width / 5))
+                var lastLabelX = -CGFloat.infinity
 
                 for index in 0...count {
                     let seconds = Int64(index * intervalSeconds)
@@ -36,15 +38,51 @@ struct TimeGridView: View {
                         lineWidth: isMajor ? 1 : 0.5
                     )
 
-                    if let label = labelText {
+                    if let label = labelText,
+                       shouldDrawLabel(at: x, after: lastLabelX, minimumSpacing: minimumLabelSpacing, index: index) {
+                        lastLabelX = x
                         let text = Text(label)
                             .font(.caption2)
                             .foregroundColor(DesignSystem.Colors.secondaryText)
-                        context.draw(text, at: CGPoint(x: x + 4, y: size.height - 8), anchor: .leading)
+                        context.draw(
+                            text,
+                            at: labelPoint(x: x, y: size.height - 8, width: size.width),
+                            anchor: labelAnchor(x: x, width: size.width)
+                        )
                     }
                 }
             }
         }
+        .accessibilityHidden(true)
+    }
+
+    private func shouldDrawLabel(
+        at x: CGFloat,
+        after previousX: CGFloat,
+        minimumSpacing: CGFloat,
+        index: Int
+    ) -> Bool {
+        index == 0 || x - previousX >= minimumSpacing
+    }
+
+    private func labelPoint(x: CGFloat, y: CGFloat, width: CGFloat) -> CGPoint {
+        if x > width - 34 {
+            return CGPoint(x: max(0, x - 2), y: y)
+        }
+        if x < 34 {
+            return CGPoint(x: min(width, x + 2), y: y)
+        }
+        return CGPoint(x: x, y: y)
+    }
+
+    private func labelAnchor(x: CGFloat, width: CGFloat) -> UnitPoint {
+        if x > width - 34 {
+            return .trailing
+        }
+        if x < 34 {
+            return .leading
+        }
+        return .center
     }
 
     private func axisLabel(for epochSeconds: Int64, index: Int, totalCount: Int) -> String? {
