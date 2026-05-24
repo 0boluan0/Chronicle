@@ -42,8 +42,9 @@ final class QuickMarkerPanelController: NSWindowController, NSWindowDelegate {
         window?.delegate = self
     }
 
+    @available(*, unavailable, message: "Use QuickMarkerPanelController.shared instead.")
     required init?(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
+        return nil
     }
 
     func toggle() {
