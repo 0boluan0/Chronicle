@@ -404,9 +404,7 @@ struct GeneralPreferencesView: View {
                         .toggleStyle(.switch)
                 }
 
-                if appState.windowTitleCaptureEnabled {
-                    windowTitleDetailPanel
-                }
+                windowTitleDetailPanel
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
