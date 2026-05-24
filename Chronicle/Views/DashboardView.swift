@@ -444,16 +444,7 @@ struct DashboardView: View {
     }
 
     private func sidebarActionLabel(_ titleKey: LocalizedStringKey, systemImage: String) -> some View {
-        Label {
-            Text(titleKey)
-                .lineLimit(2)
-                .minimumScaleFactor(0.86)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-        } icon: {
-            Image(systemName: systemImage)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        ActionButtonLabel(titleKey, systemImage: systemImage)
     }
 
     private var sidebarTodayControlPanel: some View {

@@ -334,6 +334,50 @@ struct ErrorStateView: View {
     }
 }
 
+struct ActionButtonLabel: View {
+    private let title: Text
+    private let systemImage: String
+    private let maxLines: Int
+    private let minimumScaleFactor: CGFloat
+
+    init(
+        _ title: String,
+        systemImage: String,
+        maxLines: Int = 2,
+        minimumScaleFactor: CGFloat = 0.86
+    ) {
+        self.title = Text(verbatim: title)
+        self.systemImage = systemImage
+        self.maxLines = maxLines
+        self.minimumScaleFactor = minimumScaleFactor
+    }
+
+    init(
+        _ titleKey: LocalizedStringKey,
+        systemImage: String,
+        maxLines: Int = 2,
+        minimumScaleFactor: CGFloat = 0.86
+    ) {
+        self.title = Text(titleKey)
+        self.systemImage = systemImage
+        self.maxLines = maxLines
+        self.minimumScaleFactor = minimumScaleFactor
+    }
+
+    var body: some View {
+        Label {
+            title
+                .lineLimit(maxLines)
+                .minimumScaleFactor(minimumScaleFactor)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: systemImage)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 struct StatusPill: View {
     private static let maxTextWidth: CGFloat = 180
 

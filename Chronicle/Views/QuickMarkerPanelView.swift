@@ -98,16 +98,7 @@ struct QuickMarkerPanelView: View {
     }
 
     private func panelActionLabel(_ title: String, systemImage: String) -> some View {
-        Label {
-            Text(title)
-                .lineLimit(2)
-                .minimumScaleFactor(0.86)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-        } icon: {
-            Image(systemName: systemImage)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        ActionButtonLabel(title, systemImage: systemImage)
     }
 
     private var reviewLoopStrip: some View {
