@@ -1809,7 +1809,8 @@ struct DashboardStatsView: View {
                 Text(titleKey)
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(detailKey)
                     .font(.caption2)
@@ -1829,7 +1830,7 @@ struct DashboardStatsView: View {
             }
         }
         .padding(DesignSystem.Spacing.sm)
-        .frame(minWidth: 156, maxWidth: .infinity, minHeight: 70, alignment: .topLeading)
+        .frame(minWidth: 156, maxWidth: .infinity, minHeight: 76, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
                 .fill(tone.color.opacity(0.06))
