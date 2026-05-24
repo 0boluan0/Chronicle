@@ -75,12 +75,22 @@ struct SupportPreferencesView: View {
                         detail: L("support.identity.detail"),
                         accessibilityIdentifier: "support.identity.header"
                     ) {
-                        Button {
-                            openAppSupportFolder(target: .identity)
-                        } label: {
-                            Label(L("support.actions.open_app_support"), systemImage: "folder")
+                        HStack(spacing: DesignSystem.Spacing.sm) {
+                            Button {
+                                copyIdentitySummary()
+                            } label: {
+                                Label(L("support.identity.copy_summary"), systemImage: "doc.on.doc")
+                            }
+                            .buttonStyle(.bordered)
+                            .accessibilityIdentifier("support.identity.copySummary")
+
+                            Button {
+                                openAppSupportFolder(target: .identity)
+                            } label: {
+                                Label(L("support.actions.open_app_support"), systemImage: "folder")
+                            }
+                            .buttonStyle(.bordered)
                         }
-                        .buttonStyle(.bordered)
                     }
 
                     DisclosureGroup {
@@ -1056,6 +1066,19 @@ struct SupportPreferencesView: View {
             ),
             target: target
         )
+    }
+
+    private func copyIdentitySummary() {
+        let lines = [
+            String(format: L("support.identity.version"), versionString),
+            String(format: L("support.about.bundle_id"), Bundle.main.bundleIdentifier ?? "unknown"),
+            String(format: L("support.about.database_path"), DatabaseService.shared.databasePath)
+        ]
+
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(lines.joined(separator: "\n"), forType: .string)
+        setStatus(StatusMessage(text: L("support.status.copied_identity"), isError: false), target: .identity)
+        TelemetryService.shared.increment("support_identity_copied")
     }
 
     private func createFeedbackBundle(target: SupportStatusTarget) {

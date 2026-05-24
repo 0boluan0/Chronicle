@@ -990,6 +990,7 @@ final class ChronicleUITests: XCTestCase {
         XCTAssertTrue(app.buttons["support.path.openAppSupport"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["support.path.createBundle"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["support.identity.header"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["support.identity.copySummary"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["support.actions.header"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Keep the app and local folder easy to inspect."].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["support.actions.group"].waitForExistence(timeout: 5))

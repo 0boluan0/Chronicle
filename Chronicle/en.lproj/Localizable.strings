@@ -1235,6 +1235,7 @@
 "support.status.opened_data_folder" = "Opened the local data folder in Finder.";
 "support.status.open_failed_url" = "Could not open this page: %@";
 "support.status.open_failed_path" = "Could not open this folder: %@";
+"support.status.copied_identity" = "Copied the version, bundle ID, and local database path.";
 "support.page.description" = "Check whether Chronicle is healthy, open local data, and prepare a support package you can inspect first.";
 "support.path.title" = "If Something Looks Wrong";
 "support.path.health_title" = "Start with app health";
@@ -1300,6 +1301,7 @@
 "support.identity.version" = "Version %@";
 "support.identity.detail" = "Chronicle stores activity locally. Open the data folder only when you need backup, migration, or support.";
 "support.identity.technical_details" = "Technical details";
+"support.identity.copy_summary" = "Copy App Summary";
 "language.english" = "English";
 "language.zh_hans" = "Simplified Chinese";
 

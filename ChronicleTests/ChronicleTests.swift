@@ -2662,6 +2662,8 @@ final class ChronicleTests: XCTestCase {
             "support.identity.version",
             "support.identity.detail",
             "support.identity.technical_details",
+            "support.identity.copy_summary",
+            "support.status.copied_identity",
             "preferences.general.description",
             "preferences.readiness.title",
             "preferences.readiness.headline.ready",

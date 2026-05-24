@@ -1235,6 +1235,7 @@
 "support.status.opened_data_folder" = "已在 Finder 打开本地数据文件夹。";
 "support.status.open_failed_url" = "无法打开这个页面：%@";
 "support.status.open_failed_path" = "无法打开这个文件夹：%@";
+"support.status.copied_identity" = "已复制版本、Bundle ID 和本地数据库路径。";
 "support.page.description" = "检查 Chronicle 是否健康、打开本地数据目录，并准备一份可先检查的支持包。";
 "support.path.title" = "遇到问题时";
 "support.path.health_title" = "先看应用健康";
@@ -1300,6 +1301,7 @@
 "support.identity.version" = "版本 %@";
 "support.identity.detail" = "Chronicle 会把活动数据保存在本地。只有在备份、迁移或支持排查时，才需要打开数据目录。";
 "support.identity.technical_details" = "技术详情";
+"support.identity.copy_summary" = "复制应用摘要";
 "language.english" = "English";
 "language.zh_hans" = "简体中文";
 
