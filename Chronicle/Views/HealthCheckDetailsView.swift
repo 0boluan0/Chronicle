@@ -13,6 +13,7 @@ struct HealthCheckDetailsView: View {
     @ObservedObject private var healthCheckService = HealthCheckService.shared
 
     @State private var isCreatingFeedbackBundle = false
+    @State private var isHeaderCloseHovering = false
     @State private var statusMessage: String?
     @State private var statusIsError = false
 
@@ -58,12 +59,34 @@ struct HealthCheckDetailsView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            Button(L("actions.close")) {
-                onClose()
-            }
-            .buttonStyle(.bordered)
+            headerCloseButton
         }
         .accessibilityIdentifier("selfCheck.header")
+    }
+
+    private var headerCloseButton: some View {
+        Button {
+            onClose()
+        } label: {
+            Image(systemName: "xmark")
+                .font(.caption.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .frame(width: 28, height: 28)
+                .background(
+                    Circle()
+                        .fill(isHeaderCloseHovering ? DesignSystem.Colors.separator.opacity(0.18) : DesignSystem.Colors.cardBackground.opacity(0.68))
+                )
+                .overlay(
+                    Circle()
+                        .stroke(DesignSystem.Colors.separator.opacity(isHeaderCloseHovering ? 0.36 : 0.22), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.borderless)
+        .contentShape(Circle())
+        .onHover { isHeaderCloseHovering = $0 }
+        .help(L("actions.close"))
+        .accessibilityLabel(L("actions.close"))
+        .accessibilityIdentifier("selfCheck.headerClose")
     }
 
     private var healthHeaderCopy: some View {
