@@ -413,6 +413,8 @@ struct RatioBar: View {
 }
 
 struct TagBadge: View {
+    private static let maxLabelWidth: CGFloat = 150
+
     let tag: TagRow?
     let isManualOverride: Bool
     let popoverPresented: Binding<Bool>?
@@ -453,6 +455,9 @@ struct TagBadge: View {
                     .font(.caption2)
             }
             Text(label)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .frame(maxWidth: Self.maxLabelWidth, alignment: .leading)
             if isManualOverride {
                 Image(systemName: "hand.point.left.fill")
                     .font(.caption2)
@@ -470,10 +475,19 @@ struct TagBadge: View {
             RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
                 .stroke(borderColor, lineWidth: 1)
         )
+        .help(label)
+        .accessibilityLabel(accessibilityLabelText)
     }
 
     private var label: String {
         tag?.name ?? L("tag.badge.needs_label")
+    }
+
+    private var accessibilityLabelText: String {
+        if isManualOverride {
+            return "\(label), \(L("timeline.row.manual"))"
+        }
+        return label
     }
 
     private var backgroundColor: Color {
