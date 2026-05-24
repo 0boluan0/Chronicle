@@ -79,7 +79,7 @@ struct SupportPreferencesView: View {
                             Button {
                                 copyIdentitySummary()
                             } label: {
-                                Label(L("support.identity.copy_summary"), systemImage: "doc.on.doc")
+                                supportActionLabel(L("support.identity.copy_summary"), systemImage: "doc.on.doc")
                             }
                             .buttonStyle(.bordered)
                             .accessibilityIdentifier("support.identity.copySummary")
@@ -87,7 +87,7 @@ struct SupportPreferencesView: View {
                             Button {
                                 openAppSupportFolder(target: .identity)
                             } label: {
-                                Label(L("support.actions.open_app_support"), systemImage: "folder")
+                                supportActionLabel(L("support.actions.open_app_support"), systemImage: "folder")
                             }
                             .buttonStyle(.bordered)
                         }
@@ -133,7 +133,7 @@ struct SupportPreferencesView: View {
                                 failureKey: "support.status.open_failed_url"
                             )
                         } label: {
-                            Label(L("support.actions.check_updates"), systemImage: "arrow.down.circle")
+                            supportActionLabel(L("support.actions.check_updates"), systemImage: "arrow.down.circle")
                         }
                         .buttonStyle(.bordered)
 
@@ -146,14 +146,14 @@ struct SupportPreferencesView: View {
                                 failureKey: "support.status.open_failed_url"
                             )
                         } label: {
-                            Label(L("support.actions.open_releases"), systemImage: "safari")
+                            supportActionLabel(L("support.actions.open_releases"), systemImage: "safari")
                         }
                         .buttonStyle(.bordered)
 
                         Button {
                             openAppSupportFolder(target: .actions)
                         } label: {
-                            Label(L("support.actions.open_app_support"), systemImage: "folder")
+                            supportActionLabel(L("support.actions.open_app_support"), systemImage: "folder")
                         }
                         .buttonStyle(.bordered)
                     }
@@ -187,7 +187,7 @@ struct SupportPreferencesView: View {
                                 failureKey: "support.status.open_failed_url"
                             )
                         } label: {
-                            Label(L("privacy.open_data_safety_guide"), systemImage: "lock.shield")
+                            supportActionLabel(L("privacy.open_data_safety_guide"), systemImage: "lock.shield")
                         }
                         .buttonStyle(.bordered)
 
@@ -199,7 +199,7 @@ struct SupportPreferencesView: View {
                                 failureKey: "support.status.open_failed_url"
                             )
                         } label: {
-                            Label(L("privacy.open_migration_guide"), systemImage: "arrow.triangle.2.circlepath")
+                            supportActionLabel(L("privacy.open_migration_guide"), systemImage: "arrow.triangle.2.circlepath")
                         }
                         .buttonStyle(.bordered)
 
@@ -211,7 +211,7 @@ struct SupportPreferencesView: View {
                                 failureKey: "support.status.open_failed_url"
                             )
                         } label: {
-                            Label(L("privacy.open_privacy_permissions_guide"), systemImage: "hand.raised")
+                            supportActionLabel(L("privacy.open_privacy_permissions_guide"), systemImage: "hand.raised")
                         }
                         .buttonStyle(.bordered)
                     }
@@ -240,7 +240,7 @@ struct SupportPreferencesView: View {
                         Button {
                             createFeedbackBundle(target: .feedback)
                         } label: {
-                            Label(
+                            supportActionLabel(
                                 isCreatingFeedbackBundle ? L("support.feedback.creating") : L("support.feedback.create_bundle"),
                                 systemImage: "shippingbox"
                             )
@@ -293,7 +293,7 @@ struct SupportPreferencesView: View {
                     Button {
                         openAppSupportFolder(target: .supportPath)
                     } label: {
-                        Label(L("support.actions.open_app_support"), systemImage: "folder")
+                        supportActionLabel(L("support.actions.open_app_support"), systemImage: "folder")
                     }
                     .buttonStyle(.bordered)
                     .accessibilityIdentifier("support.path.openAppSupport")
@@ -309,7 +309,7 @@ struct SupportPreferencesView: View {
                     Button {
                         createFeedbackBundle(target: .supportPath)
                     } label: {
-                        Label(
+                        supportActionLabel(
                             isCreatingFeedbackBundle ? L("support.feedback.creating") : L("support.feedback.create_bundle"),
                             systemImage: "shippingbox"
                         )
@@ -386,7 +386,7 @@ struct SupportPreferencesView: View {
                             failureKey: "support.status.open_failed_url"
                         )
                     } label: {
-                        Label(L("support.release_safety.open_data_safety"), systemImage: "lock.shield")
+                        supportActionLabel(L("support.release_safety.open_data_safety"), systemImage: "lock.shield")
                     }
                     .buttonStyle(.bordered)
                     .accessibilityIdentifier("support.releaseSafety.openDataSafety")
@@ -400,7 +400,7 @@ struct SupportPreferencesView: View {
                             failureKey: "support.status.open_failed_url"
                         )
                     } label: {
-                        Label(L("support.release_safety.open_latest"), systemImage: "arrow.down.circle")
+                        supportActionLabel(L("support.release_safety.open_latest"), systemImage: "arrow.down.circle")
                     }
                     .buttonStyle(.bordered)
                     .accessibilityIdentifier("support.releaseSafety.openLatest")
@@ -482,7 +482,7 @@ struct SupportPreferencesView: View {
                             failureKey: "support.status.open_failed_url"
                         )
                     } label: {
-                        Label(L("support.update_channel.open_latest"), systemImage: "arrow.down.circle")
+                        supportActionLabel(L("support.update_channel.open_latest"), systemImage: "arrow.down.circle")
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(DesignSystem.Colors.accentSkyBlue)
@@ -496,7 +496,7 @@ struct SupportPreferencesView: View {
                             failureKey: "support.status.open_failed_url"
                         )
                     } label: {
-                        Label(L("support.update_channel.open_upgrade_guide"), systemImage: "arrow.triangle.2.circlepath")
+                        supportActionLabel(L("support.update_channel.open_upgrade_guide"), systemImage: "arrow.triangle.2.circlepath")
                     }
                     .buttonStyle(.bordered)
                     .accessibilityIdentifier("support.updateChannel.openUpgradeGuide")
@@ -509,7 +509,7 @@ struct SupportPreferencesView: View {
                             failureKey: "support.status.open_failed_url"
                         )
                     } label: {
-                        Label(L("support.update_channel.open_release_archive"), systemImage: "clock.arrow.circlepath")
+                        supportActionLabel(L("support.update_channel.open_release_archive"), systemImage: "clock.arrow.circlepath")
                     }
                     .buttonStyle(.bordered)
                     .accessibilityIdentifier("support.updateChannel.openReleaseArchive")
@@ -569,7 +569,7 @@ struct SupportPreferencesView: View {
             Button {
                 healthCheck.runQuickChecks()
             } label: {
-                Label(L("support.release_safety.run_check"), systemImage: "stethoscope")
+                supportActionLabel(L("support.release_safety.run_check"), systemImage: "stethoscope")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -577,7 +577,7 @@ struct SupportPreferencesView: View {
             .accessibilityIdentifier("support.releaseSafety.runCheck")
         case .running:
             Button {} label: {
-                Label(L("popover.self_check.running"), systemImage: "waveform.path.ecg")
+                supportActionLabel(L("popover.self_check.running"), systemImage: "waveform.path.ecg")
             }
             .buttonStyle(.borderedProminent)
             .disabled(true)
@@ -585,7 +585,7 @@ struct SupportPreferencesView: View {
             Button {
                 showHealthReport = true
             } label: {
-                Label(L("support.release_safety.open_health"), systemImage: "doc.text.magnifyingglass")
+                supportActionLabel(L("support.release_safety.open_health"), systemImage: "doc.text.magnifyingglass")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -614,14 +614,14 @@ struct SupportPreferencesView: View {
             Button {
                 healthCheck.runQuickChecks()
             } label: {
-                Label(L("popover.self_check.run"), systemImage: "stethoscope")
+                supportActionLabel(L("popover.self_check.run"), systemImage: "stethoscope")
             }
             .buttonStyle(.bordered)
             .disabled(healthCheck.isRunning)
             .accessibilityIdentifier("support.path.runSelfCheck")
         case .running:
             Button {} label: {
-                Label(L("popover.self_check.running"), systemImage: "waveform.path.ecg")
+                supportActionLabel(L("popover.self_check.running"), systemImage: "waveform.path.ecg")
             }
                 .buttonStyle(.bordered)
                 .disabled(true)
@@ -629,7 +629,7 @@ struct SupportPreferencesView: View {
             Button {
                 showHealthReport = true
             } label: {
-                Label(L("support.readiness.open_report"), systemImage: "doc.text.magnifyingglass")
+                supportActionLabel(L("support.readiness.open_report"), systemImage: "doc.text.magnifyingglass")
             }
             .buttonStyle(.bordered)
             .accessibilityIdentifier("support.path.openHealthReport")
@@ -805,7 +805,7 @@ struct SupportPreferencesView: View {
             Button {
                 healthCheck.runQuickChecks()
             } label: {
-                Label(L("popover.self_check.run"), systemImage: "stethoscope")
+                supportActionLabel(L("popover.self_check.run"), systemImage: "stethoscope")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -813,7 +813,7 @@ struct SupportPreferencesView: View {
             .accessibilityIdentifier("support.runSelfCheck")
         case .running:
             Button {} label: {
-                Label(L("popover.self_check.running"), systemImage: "waveform.path.ecg")
+                supportActionLabel(L("popover.self_check.running"), systemImage: "waveform.path.ecg")
             }
                 .buttonStyle(.borderedProminent)
                 .disabled(true)
@@ -821,7 +821,7 @@ struct SupportPreferencesView: View {
             Button {
                 showHealthReport = true
             } label: {
-                Label(L("support.readiness.review_fixes"), systemImage: "wrench.and.screwdriver")
+                supportActionLabel(L("support.readiness.review_fixes"), systemImage: "wrench.and.screwdriver")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -830,7 +830,7 @@ struct SupportPreferencesView: View {
             Button {
                 showHealthReport = true
             } label: {
-                Label(L("support.readiness.open_report"), systemImage: "doc.text.magnifyingglass")
+                supportActionLabel(L("support.readiness.open_report"), systemImage: "doc.text.magnifyingglass")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -846,7 +846,7 @@ struct SupportPreferencesView: View {
                 Button {
                     showHealthReport = true
                 } label: {
-                    Label(L("support.readiness.open_report"), systemImage: "doc.text.magnifyingglass")
+                    supportActionLabel(L("support.readiness.open_report"), systemImage: "doc.text.magnifyingglass")
                 }
                 .buttonStyle(.bordered)
                 .accessibilityIdentifier("support.openHealthReport")
@@ -855,7 +855,7 @@ struct SupportPreferencesView: View {
             Button {
                 openAppSupportFolder(target: .readiness)
             } label: {
-                Label(L("support.actions.open_app_support"), systemImage: "folder")
+                supportActionLabel(L("support.actions.open_app_support"), systemImage: "folder")
             }
             .buttonStyle(.bordered)
 
@@ -867,13 +867,25 @@ struct SupportPreferencesView: View {
         Button {
             createFeedbackBundle(target: target)
         } label: {
-            Label(
+            supportActionLabel(
                 isCreatingFeedbackBundle ? L("support.feedback.creating") : L("support.feedback.create_bundle"),
                 systemImage: "shippingbox"
             )
         }
         .buttonStyle(.bordered)
         .disabled(isCreatingFeedbackBundle)
+    }
+
+    private func supportActionLabel(_ title: String, systemImage: String) -> some View {
+        Label {
+            Text(title)
+                .lineLimit(2)
+                .minimumScaleFactor(0.86)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: systemImage)
+        }
     }
 
     private func responsiveActionGroup<Content: View>(@ViewBuilder content: () -> Content) -> some View {
