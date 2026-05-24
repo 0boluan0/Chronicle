@@ -1036,6 +1036,7 @@
 "preferences.readiness.status.ready" = "Ready";
 "preferences.readiness.status.permission" = "Permission";
 "preferences.readiness.status.review" = "Review";
+"preferences.readiness.status.manual" = "Manual start";
 "preferences.readiness.action.startup" = "Start Automatically";
 "preferences.readiness.action.recommended" = "Use Recommended";
 "preferences.readiness.action.permission" = "Open Permission Settings";

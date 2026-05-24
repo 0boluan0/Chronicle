@@ -1036,6 +1036,7 @@
 "preferences.readiness.status.ready" = "就绪";
 "preferences.readiness.status.permission" = "需权限";
 "preferences.readiness.status.review" = "需确认";
+"preferences.readiness.status.manual" = "手动启动";
 "preferences.readiness.action.startup" = "自动启动";
 "preferences.readiness.action.recommended" = "使用推荐";
 "preferences.readiness.action.permission" = "打开权限设置";

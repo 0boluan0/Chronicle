@@ -2639,6 +2639,7 @@ final class ChronicleTests: XCTestCase {
             "preferences.readiness.status.ready",
             "preferences.readiness.status.permission",
             "preferences.readiness.status.review",
+            "preferences.readiness.status.manual",
             "preferences.readiness.action.startup",
             "preferences.readiness.action.recommended",
             "preferences.readiness.action.permission",

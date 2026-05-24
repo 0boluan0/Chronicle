@@ -1178,7 +1178,10 @@ struct GeneralPreferencesView: View {
         if appState.windowTitleCaptureEnabled && !appState.accessibilityAuthorized {
             return L("preferences.readiness.status.permission")
         }
-        return L("preferences.readiness.status.review")
+        if !usesCleanTimelineDefaults {
+            return L("preferences.readiness.status.review")
+        }
+        return L("preferences.readiness.status.manual")
     }
 
     private var readinessTone: DesignSystem.StatusTone {
