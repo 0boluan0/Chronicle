@@ -447,6 +447,7 @@ struct DashboardView: View {
         Label {
             Text(titleKey)
                 .lineLimit(2)
+                .minimumScaleFactor(0.86)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
         } icon: {
@@ -596,6 +597,7 @@ struct DashboardView: View {
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
+                        .minimumScaleFactor(0.86)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
@@ -603,6 +605,7 @@ struct DashboardView: View {
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.primary)
                     .lineLimit(2)
+                    .minimumScaleFactor(0.86)
                     .fixedSize(horizontal: false, vertical: true)
                     .monospacedDigit()
                     .help(value)
@@ -858,12 +861,14 @@ struct DashboardView: View {
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
+                        .minimumScaleFactor(0.86)
                         .fixedSize(horizontal: false, vertical: true)
 
                     Text(value)
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.primary)
                         .lineLimit(2)
+                        .minimumScaleFactor(0.86)
                         .fixedSize(horizontal: false, vertical: true)
                         .monospacedDigit()
                         .help(value)
