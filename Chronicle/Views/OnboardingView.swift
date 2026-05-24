@@ -900,11 +900,7 @@ struct OnboardingView: View {
                         .foregroundColor(DesignSystem.Colors.secondaryText)
                         .textSelection(.enabled)
 
-                    LazyVGrid(
-                        columns: adaptiveColumns(minimum: 170, spacing: DesignSystem.Spacing.sm),
-                        alignment: .leading,
-                        spacing: DesignSystem.Spacing.sm
-                    ) {
+                    ActionButtonGrid(minimumItemWidth: 170) {
                         Button {
                             chooseDailyFolder()
                         } label: {
@@ -1111,11 +1107,7 @@ struct OnboardingView: View {
                     permissionStatusRow
 
                     if appState.windowTitleCaptureEnabled && !appState.accessibilityAuthorized {
-                        LazyVGrid(
-                            columns: adaptiveColumns(minimum: 170, spacing: DesignSystem.Spacing.sm),
-                            alignment: .leading,
-                            spacing: DesignSystem.Spacing.sm
-                        ) {
+                        ActionButtonGrid(minimumItemWidth: 170) {
                             Button {
                                 AccessibilityPermissionManager.shared.openSystemSettings()
                             } label: {
