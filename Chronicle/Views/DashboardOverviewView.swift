@@ -723,25 +723,29 @@ struct DashboardOverviewView: View {
                 title: "overview.review.main_focus",
                 value: reviewFocusValue,
                 systemImage: mode == .apps ? "app.fill" : "rectangle.split.3x1",
-                tone: primaryFocusItem == nil ? .neutral : .info
+                tone: primaryFocusItem == nil ? .neutral : .info,
+                accessibilityIdentifier: "dashboard.overview.metric.focus"
             )
             reviewMetric(
                 title: "overview.review.unclassified",
                 value: formatDuration(reviewUntaggedSeconds),
                 systemImage: "exclamationmark.triangle.fill",
-                tone: reviewUntaggedSeconds == 0 ? .success : .warning
+                tone: reviewUntaggedSeconds == 0 ? .success : .warning,
+                accessibilityIdentifier: "dashboard.overview.metric.unclassified"
             )
             reviewMetric(
                 title: "overview.review.markers",
                 value: "\(reviewMarkerCount)",
                 systemImage: "note.text",
-                tone: reviewMarkerCount == 0 ? .neutral : .info
+                tone: reviewMarkerCount == 0 ? .neutral : .info,
+                accessibilityIdentifier: "dashboard.overview.metric.markers"
             )
             reviewMetric(
                 title: "overview.review.work_block",
                 value: reviewWorkBlockValue,
                 systemImage: reviewTopWorkBlock == nil ? "square.split.2x2" : "rectangle.stack.fill",
-                tone: reviewWorkBlockTone
+                tone: reviewWorkBlockTone,
+                accessibilityIdentifier: "dashboard.overview.metric.workBlock"
             )
         }
     }
@@ -1049,7 +1053,8 @@ struct DashboardOverviewView: View {
         title: LocalizedStringKey,
         value: String,
         systemImage: String,
-        tone: DesignSystem.StatusTone
+        tone: DesignSystem.StatusTone,
+        accessibilityIdentifier: String
     ) -> some View {
         HStack(spacing: DesignSystem.Spacing.sm) {
             Image(systemName: systemImage)
@@ -1068,7 +1073,22 @@ struct DashboardOverviewView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
             }
+
+            Spacer(minLength: 0)
         }
+        .padding(.horizontal, DesignSystem.Spacing.sm)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .fill(tone.color.opacity(0.07))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .stroke(tone.color.opacity(0.16), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     private var controlsView: some View {
