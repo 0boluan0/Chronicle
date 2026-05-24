@@ -10,6 +10,9 @@ import SwiftUI
 
 final class PreferencesWindowController {
     static let shared = PreferencesWindowController()
+    private static let frameAutosaveName = "ChroniclePreferencesWindow"
+    private static let defaultContentSize = NSSize(width: 860, height: 640)
+    private static let minimumContentSize = NSSize(width: 760, height: 560)
 
     typealias Destination = PreferencesNavigationDestination
 
@@ -47,12 +50,12 @@ final class PreferencesWindowController {
             let hostingController = NSHostingController(rootView: rootView)
             let window = NSWindow(contentViewController: hostingController)
             window.title = L("preferences.title")
-            window.setContentSize(NSSize(width: 860, height: 640))
-            window.minSize = NSSize(width: 760, height: 560)
+            window.setContentSize(Self.defaultContentSize)
+            window.minSize = Self.minimumContentSize
             window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
             window.isReleasedWhenClosed = false
-            window.setFrameAutosaveName("ChroniclePreferencesWindow")
-            window.center()
+            window.setFrameAutosaveName(Self.frameAutosaveName)
+            prepareInitialFrame(for: window)
             self.window = window
         }
 
@@ -74,6 +77,12 @@ final class PreferencesWindowController {
 
     private func applyDestination(_ destination: Destination) {
         destination.apply()
+    }
+
+    private func prepareInitialFrame(for window: NSWindow) {
+        if !window.setFrameUsingName(Self.frameAutosaveName) {
+            window.center()
+        }
     }
 
     private static func nativeSettingsWindow() -> NSWindow? {
