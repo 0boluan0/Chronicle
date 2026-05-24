@@ -1164,6 +1164,15 @@
 "preferences.capture_profiles.detailed.title" = "详细复盘";
 "preferences.capture_profiles.detailed.short" = "详细";
 "preferences.capture_profiles.detailed.detail" = "保留更多短切换和语境，适合需要更细审计线索的时候。";
+"preferences.capture_profiles.guidance.title" = "如何选择";
+"preferences.capture_profiles.guidance.detail.balanced" = "平衡档是发布默认值：复盘可读、离开判断正常，后台工作量也保持适中。";
+"preferences.capture_profiles.guidance.detail.battery" = "省电档会降低检查频率并合并细碎切换，适合电量比分钟级细节更重要的工作日。";
+"preferences.capture_profiles.guidance.detail.detailed" = "详细档会保留更多短会话，适合诊断问题或需要精确还原路径的工作日。";
+"preferences.capture_profiles.guidance.detail.custom" = "当前启用了自定义设置。先对照下方影响摘要，再决定是否回到某个档案。";
+"preferences.capture_profiles.guidance.status.balanced" = "日常使用";
+"preferences.capture_profiles.guidance.status.battery" = "长时笔记本";
+"preferences.capture_profiles.guidance.status.detailed" = "细节审计";
+"preferences.capture_profiles.guidance.status.custom" = "手动调校";
 "preferences.capture_profiles.impact.title" = "这个档案会改变什么";
 "preferences.capture_profiles.impact.detail" = "这些当前设置会影响时间线噪声、离开判定反应速度和电量取向。";
 "preferences.capture_profiles.impact.sampling_title" = "检查频率";

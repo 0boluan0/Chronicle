@@ -1164,6 +1164,15 @@
 "preferences.capture_profiles.detailed.title" = "Detailed Review";
 "preferences.capture_profiles.detailed.short" = "Detailed";
 "preferences.capture_profiles.detailed.detail" = "Keeps more short switches and context when you need a closer audit trail.";
+"preferences.capture_profiles.guidance.title" = "How to choose";
+"preferences.capture_profiles.guidance.detail.balanced" = "Balanced is the release default: readable reviews, normal away detection, and moderate background work.";
+"preferences.capture_profiles.guidance.detail.battery" = "Battery Saver reduces check cadence and merges tiny switches when power matters more than minute-level detail.";
+"preferences.capture_profiles.guidance.detail.detailed" = "Detailed Review keeps more short sessions, useful for diagnosis or days where the exact path matters.";
+"preferences.capture_profiles.guidance.detail.custom" = "Custom settings are active. Compare the impact strip below before deciding whether to return to a profile.";
+"preferences.capture_profiles.guidance.status.balanced" = "Everyday";
+"preferences.capture_profiles.guidance.status.battery" = "Long laptop day";
+"preferences.capture_profiles.guidance.status.detailed" = "Close audit";
+"preferences.capture_profiles.guidance.status.custom" = "Manual tuning";
 "preferences.capture_profiles.impact.title" = "What this profile changes";
 "preferences.capture_profiles.impact.detail" = "These live settings shape timeline noise, away-time responsiveness, and battery posture.";
 "preferences.capture_profiles.impact.sampling_title" = "Check cadence";

@@ -556,6 +556,8 @@ struct GeneralPreferencesView: View {
                 }
             }
 
+            captureProfileGuidanceCard
+
             StatusBannerView(
                 status: captureProfileStatus,
                 accessibilityIdentifier: "preferences.captureProfiles.status"
@@ -626,6 +628,49 @@ struct GeneralPreferencesView: View {
         .buttonStyle(.plain)
         .accessibilityLabel("\(L(captureProfileTitleKey(profile))) \(isSelected ? L("preferences.capture_profiles.applied") : L("preferences.capture_profiles.apply"))")
         .accessibilityIdentifier("preferences.captureProfiles.\(profile.rawValue)")
+    }
+
+    private var captureProfileGuidanceCard: some View {
+        RowSurface(tone: activeCaptureProfileTone) {
+            LazyVGrid(
+                columns: adaptiveColumns(minimum: 220, spacing: DesignSystem.Spacing.md),
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                    IconWell(
+                        systemImage: captureProfileGuidanceIconName,
+                        tone: activeCaptureProfileTone,
+                        accessibilityLabel: L("preferences.capture_profiles.guidance.title")
+                    )
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("preferences.capture_profiles.guidance.title")
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        Text(captureProfileGuidanceDetailKey)
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .lineLimit(4)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                preferenceResponsiveActions {
+                    StatusPill(
+                        captureProfileGuidanceStatusText,
+                        systemImage: captureProfileGuidanceIconName,
+                        tone: activeCaptureProfileTone
+                    )
+                }
+                .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+        }
+        .accessibilityIdentifier("preferences.captureProfiles.guidance")
     }
 
     private func applyCaptureProfile(_ profile: CaptureTuningProfile) {
@@ -1449,6 +1494,41 @@ struct GeneralPreferencesView: View {
             return .warning
         }
         return captureProfileTone(profile, isSelected: true)
+    }
+
+    private var captureProfileGuidanceDetailKey: LocalizedStringKey {
+        guard let profile = appState.currentCaptureTuningProfile else {
+            return "preferences.capture_profiles.guidance.detail.custom"
+        }
+        switch profile {
+        case .balanced:
+            return "preferences.capture_profiles.guidance.detail.balanced"
+        case .batterySaver:
+            return "preferences.capture_profiles.guidance.detail.battery"
+        case .detailedReview:
+            return "preferences.capture_profiles.guidance.detail.detailed"
+        }
+    }
+
+    private var captureProfileGuidanceStatusText: String {
+        guard let profile = appState.currentCaptureTuningProfile else {
+            return L("preferences.capture_profiles.guidance.status.custom")
+        }
+        switch profile {
+        case .balanced:
+            return L("preferences.capture_profiles.guidance.status.balanced")
+        case .batterySaver:
+            return L("preferences.capture_profiles.guidance.status.battery")
+        case .detailedReview:
+            return L("preferences.capture_profiles.guidance.status.detailed")
+        }
+    }
+
+    private var captureProfileGuidanceIconName: String {
+        guard let profile = appState.currentCaptureTuningProfile else {
+            return "slider.horizontal.3"
+        }
+        return captureProfileIconName(profile)
     }
 
     private var captureProfileSamplingValue: String {
