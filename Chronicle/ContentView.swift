@@ -175,38 +175,7 @@ struct ContentView: View {
     private var todayCommandCenterView: some View {
         SectionCard {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-                    IconWell(
-                        systemImage: nextActionKind.systemImage,
-                        tone: nextActionKind.tone,
-                        accessibilityLabel: L(nextActionKind.titleKey)
-                    )
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(LocalizedStringKey("popover.command_center.title"))
-                            .font(.caption.weight(.semibold))
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
-                            .textCase(.uppercase)
-
-                        Text(LocalizedStringKey(nextActionKind.titleKey))
-                            .font(.title3.weight(.semibold))
-                            .foregroundColor(DesignSystem.Colors.primaryText)
-                            .fixedSize(horizontal: false, vertical: true)
-
-                        Text(LocalizedStringKey(nextActionKind.detailKey))
-                            .font(DesignSystem.Typography.caption)
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-
-                    Spacer(minLength: DesignSystem.Spacing.sm)
-
-                    StatusPill(
-                        L(nextActionKind.statusKey),
-                        systemImage: nextActionKind.statusIcon,
-                        tone: nextActionKind.tone
-                    )
-                }
+                commandCenterHeader
 
                 commandCenterActions
                 ExportStatusLine(
@@ -225,6 +194,58 @@ struct ContentView: View {
                 trackDailyReviewReminderShown(referenceDate: now)
             }
         }
+    }
+
+    private var commandCenterHeader: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                commandCenterHeaderCopy
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                commandCenterStatusPill
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                commandCenterHeaderCopy
+                commandCenterStatusPill
+            }
+        }
+    }
+
+    private var commandCenterHeaderCopy: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            IconWell(
+                systemImage: nextActionKind.systemImage,
+                tone: nextActionKind.tone,
+                accessibilityLabel: L(nextActionKind.titleKey)
+            )
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(LocalizedStringKey("popover.command_center.title"))
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .textCase(.uppercase)
+
+                Text(LocalizedStringKey(nextActionKind.titleKey))
+                    .font(.title3.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(LocalizedStringKey(nextActionKind.detailKey))
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private var commandCenterStatusPill: some View {
+        StatusPill(
+            L(nextActionKind.statusKey),
+            systemImage: nextActionKind.statusIcon,
+            tone: nextActionKind.tone
+        )
     }
 
     private var commandCenterMetrics: some View {
