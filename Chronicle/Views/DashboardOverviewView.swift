@@ -258,39 +258,18 @@ struct DashboardOverviewView: View {
     }
 
     private var activityMapEmptyState: some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.lg) {
-            IconWell(
-                systemImage: "tray",
-                tone: .neutral,
-                accessibilityLabel: L("overview.activity_map.empty_title")
-            )
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.lg) {
+                activityMapEmptyIcon
+                activityMapEmptyBody
 
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                Text("overview.activity_map.empty_title")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-
-                Text(LocalizedStringKey(activityMapEmptyDetailKey))
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                activityMapEmptyPath
-                    .padding(.top, DesignSystem.Spacing.xs)
-
-                LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 160), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
-                    alignment: .leading,
-                    spacing: DesignSystem.Spacing.sm
-                ) {
-                    activityMapEmptyPrimaryButton
-                    activityMapEmptySecondaryButton
-                }
-                .padding(.top, DesignSystem.Spacing.xs)
+                Spacer(minLength: 0)
             }
 
-            Spacer(minLength: 0)
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                activityMapEmptyIcon
+                activityMapEmptyBody
+            }
         }
         .padding(DesignSystem.Spacing.lg)
         .frame(maxWidth: .infinity, minHeight: 160, alignment: .center)
@@ -303,6 +282,42 @@ struct DashboardOverviewView: View {
                 .stroke(DesignSystem.Colors.separator.opacity(0.36), lineWidth: 1)
         )
         .accessibilityIdentifier("dashboard.overview.activityMap.empty")
+    }
+
+    private var activityMapEmptyIcon: some View {
+        IconWell(
+            systemImage: "tray",
+            tone: .neutral,
+            accessibilityLabel: L("overview.activity_map.empty_title")
+        )
+    }
+
+    private var activityMapEmptyBody: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            Text("overview.activity_map.empty_title")
+                .font(.subheadline.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.primaryText)
+
+            Text(LocalizedStringKey(activityMapEmptyDetailKey))
+                .font(DesignSystem.Typography.caption)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .lineLimit(3)
+                .fixedSize(horizontal: false, vertical: true)
+
+            activityMapEmptyPath
+                .padding(.top, DesignSystem.Spacing.xs)
+
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 160), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                activityMapEmptyPrimaryButton
+                activityMapEmptySecondaryButton
+            }
+            .padding(.top, DesignSystem.Spacing.xs)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var activityMapEmptyPath: some View {
@@ -357,7 +372,8 @@ struct DashboardOverviewView: View {
                 Text(LocalizedStringKey(titleKey))
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(LocalizedStringKey(detailKey))
                     .font(DesignSystem.Typography.caption)
