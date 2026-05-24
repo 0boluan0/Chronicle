@@ -9,6 +9,9 @@ import AppKit
 import SwiftUI
 
 private let statsReadableContentWidth: CGFloat = 1040
+private let statsWorkBlockMinimumSeconds: Int64 = 25 * 60
+private let statsWorkBlockMergeGapSeconds: Int64 = 60
+private let statsWorkBlockDisplayLimit = 3
 
 struct DashboardStatsView: View {
     private enum CapturePipelineState {
@@ -779,6 +782,8 @@ struct DashboardStatsView: View {
 
                 dataQualityView(stats: stats)
 
+                workBlocksView(stats: stats)
+
                 statsFocusPanels(stats: stats)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -1134,6 +1139,167 @@ struct DashboardStatsView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func workBlocksView(stats: RangeStats) -> some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            Divider()
+
+            workBlocksHeader(stats: stats)
+
+            if stats.workBlocks.isEmpty {
+                workBlocksEmptyState(stats: stats)
+            } else {
+                workBlocksMetrics(stats: stats)
+
+                LazyVStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    ForEach(Array(stats.workBlocks.prefix(statsWorkBlockDisplayLimit).enumerated()), id: \.element.id) { index, block in
+                        workBlockRow(block, rank: index + 1)
+                    }
+                }
+
+                if stats.workBlocks.count > statsWorkBlockDisplayLimit {
+                    Text(
+                        String(
+                            format: L("dashboard.stats.work_blocks.more"),
+                            stats.workBlocks.count - statsWorkBlockDisplayLimit
+                        )
+                    )
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                }
+
+                Text("dashboard.stats.work_blocks.basis")
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .accessibilityIdentifier("dashboard.stats.workBlocks")
+    }
+
+    private func workBlocksHeader(stats: RangeStats) -> some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                IconWell(
+                    systemImage: workBlocksIconName(stats),
+                    tone: workBlocksTone(stats),
+                    accessibilityLabel: L("dashboard.stats.work_blocks.title")
+                )
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("dashboard.stats.work_blocks.title")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+
+                    Text("dashboard.stats.work_blocks.detail")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            StatusPill(
+                workBlocksStatusText(stats),
+                systemImage: workBlocksStatusIconName(stats),
+                tone: workBlocksTone(stats)
+            )
+        }
+        .accessibilityIdentifier("dashboard.stats.workBlocks.header")
+    }
+
+    private func workBlocksMetrics(stats: RangeStats) -> some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 132), spacing: DesignSystem.Spacing.md)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            MetricValueView(
+                title: "dashboard.stats.work_blocks.metric.longest",
+                value: formatDuration(stats.workBlocks.first?.durationSeconds ?? 0),
+                systemImage: "timer",
+                tone: .success
+            )
+            MetricValueView(
+                title: "dashboard.stats.work_blocks.metric.count",
+                value: "\(stats.workBlocks.count)",
+                systemImage: "rectangle.stack",
+                tone: .info
+            )
+            MetricValueView(
+                title: "dashboard.stats.work_blocks.metric.coverage",
+                value: workBlocksCoverageValue(stats),
+                systemImage: "chart.pie",
+                tone: .neutral
+            )
+        }
+        .accessibilityIdentifier("dashboard.stats.workBlocks.metrics")
+    }
+
+    private func workBlocksEmptyState(stats: RangeStats) -> some View {
+        EmptyStateView(
+            title: L("dashboard.stats.work_blocks.empty.title"),
+            subtitle: L(workBlocksEmptyDetailKey(stats)),
+            systemImage: workBlocksIconName(stats),
+            tone: workBlocksTone(stats)
+        )
+        .padding(.vertical, DesignSystem.Spacing.xs)
+        .accessibilityIdentifier("dashboard.stats.workBlocks.empty")
+    }
+
+    private func workBlockRow(_ block: WorkBlockInsight, rank: Int) -> some View {
+        Button {
+            openTimeline(filteredByWorkBlock: block)
+        } label: {
+            RowSurface(tone: workBlockTone(block)) {
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 190), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
+                    alignment: .leading,
+                    spacing: DesignSystem.Spacing.sm
+                ) {
+                    HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                        RankBadge(rank: rank)
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(block.title)
+                                .font(.caption.weight(.semibold))
+                                .foregroundColor(DesignSystem.Colors.primaryText)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.85)
+
+                            Text(workBlockTimeRange(block))
+                                .font(.caption2)
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
+                                .lineLimit(1)
+                                .monospacedDigit()
+                        }
+                    }
+
+                    LazyVGrid(
+                        columns: [GridItem(.adaptive(minimum: 92), spacing: DesignSystem.Spacing.xs, alignment: .leading)],
+                        alignment: .leading,
+                        spacing: DesignSystem.Spacing.xs
+                    ) {
+                        StatusPill(formatDuration(block.durationSeconds), systemImage: "timer", tone: .success)
+                        StatusPill(String(format: L("dashboard.stats.work_blocks.row.sessions"), block.sessionCount), systemImage: "list.bullet.rectangle", tone: .info)
+                        StatusPill(String(format: L("dashboard.stats.work_blocks.row.apps"), block.appNames.count), systemImage: "app", tone: .neutral)
+                    }
+
+                    Label(L("dashboard.stats.work_blocks.row.open"), systemImage: "arrow.right.circle")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .help(L("dashboard.stats.work_blocks.row.open"))
+        .accessibilityIdentifier("dashboard.stats.workBlocks.row.\(rank)")
     }
 
     private func statsFocusPanels(stats: RangeStats) -> some View {
@@ -1738,6 +1904,166 @@ struct DashboardStatsView: View {
         return L("dashboard.stats.data_quality.pipeline_compaction_off")
     }
 
+    private func workBlocksStatusText(_ stats: RangeStats) -> String {
+        if stats.summary.totalSeconds == 0 {
+            return L("dashboard.stats.work_blocks.status.waiting")
+        }
+        if stats.summary.activeSeconds < statsWorkBlockMinimumSeconds {
+            return L("dashboard.stats.work_blocks.status.short")
+        }
+        if stats.workBlocks.isEmpty {
+            return L("dashboard.stats.work_blocks.status.empty")
+        }
+        return String(format: L("dashboard.stats.work_blocks.status.ready"), stats.workBlocks.count)
+    }
+
+    private func workBlocksStatusIconName(_ stats: RangeStats) -> String {
+        if stats.summary.totalSeconds == 0 {
+            return "circle"
+        }
+        if stats.workBlocks.isEmpty {
+            return "square.split.2x2"
+        }
+        return "rectangle.stack.fill"
+    }
+
+    private func workBlocksIconName(_ stats: RangeStats) -> String {
+        if stats.summary.totalSeconds == 0 {
+            return "square.stack.3d.up"
+        }
+        if stats.workBlocks.isEmpty {
+            return "square.split.2x2"
+        }
+        return "rectangle.stack.fill"
+    }
+
+    private func workBlocksTone(_ stats: RangeStats) -> DesignSystem.StatusTone {
+        if stats.summary.totalSeconds == 0 {
+            return .neutral
+        }
+        if stats.workBlocks.isEmpty {
+            return stats.summary.activeSeconds < statsWorkBlockMinimumSeconds ? .neutral : .warning
+        }
+        return .success
+    }
+
+    private func workBlockTone(_ block: WorkBlockInsight) -> DesignSystem.StatusTone {
+        block.tagId == nil ? .info : .success
+    }
+
+    private func workBlocksEmptyDetailKey(_ stats: RangeStats) -> String {
+        if stats.summary.totalSeconds == 0 {
+            return "dashboard.stats.work_blocks.empty.detail_waiting"
+        }
+        if stats.summary.activeSeconds < statsWorkBlockMinimumSeconds {
+            return "dashboard.stats.work_blocks.empty.detail_short"
+        }
+        return "dashboard.stats.work_blocks.empty.detail_fragmented"
+    }
+
+    private func workBlocksCoverageValue(_ stats: RangeStats) -> String {
+        guard stats.summary.activeSeconds > 0 else {
+            return "0%"
+        }
+        let blockSeconds = stats.workBlocks.reduce(Int64(0)) { $0 + $1.durationSeconds }
+        let percent = Int((Double(blockSeconds) / Double(stats.summary.activeSeconds) * 100).rounded())
+        return "\(min(100, max(0, percent)))%"
+    }
+
+    private func workBlockTimeRange(_ block: WorkBlockInsight) -> String {
+        String(
+            format: L("dashboard.stats.work_blocks.row.time_range"),
+            Self.blockTimeFormatter.string(from: Date(timeIntervalSince1970: TimeInterval(block.startTime))),
+            Self.blockTimeFormatter.string(from: Date(timeIntervalSince1970: TimeInterval(block.endTime)))
+        )
+    }
+
+    private func openTimeline(filteredByWorkBlock block: WorkBlockInsight) {
+        appState.searchQuery = ""
+        appState.includeIdleInTimeline = false
+
+        if let tagId = block.tagId {
+            appState.selectedTagFilterId = tagId
+            appState.selectedAppFilterName = "All Apps"
+        } else if !block.primaryAppName.isEmpty {
+            appState.selectedTagFilterId = -1
+            appState.selectedAppFilterName = block.primaryAppName
+        } else {
+            appState.selectedTagFilterId = -1
+            appState.selectedAppFilterName = "All Apps"
+        }
+
+        selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
+    }
+
+    private func buildWorkBlockInsights(
+        activities: [ActivityRow],
+        tagRows: [TagRow],
+        rangeStart: Int64,
+        rangeEnd: Int64
+    ) -> [WorkBlockInsight] {
+        let tagLookup = Dictionary(uniqueKeysWithValues: tagRows.map { ($0.id, $0.name) })
+        let normalizedRows = activities
+            .filter { !$0.isIdle }
+            .compactMap { activity -> WorkBlockSeed? in
+                let start = max(activity.startTime, rangeStart)
+                let end = min(activity.endTime, rangeEnd)
+                guard end > start else { return nil }
+
+                let appName = activity.appName.trimmingCharacters(in: .whitespacesAndNewlines)
+                let effectiveTagId = activity.effectiveTagId
+                let title = effectiveTagId.flatMap { tagLookup[$0] }
+                    ?? (appName.isEmpty ? L("dashboard.stats.work_blocks.untagged") : appName)
+                let identity = effectiveTagId.map { "tag:\($0)" } ?? "app:\(appName.lowercased())"
+
+                return WorkBlockSeed(
+                    identity: identity,
+                    title: title,
+                    tagId: effectiveTagId,
+                    primaryAppName: appName,
+                    startTime: start,
+                    endTime: end
+                )
+            }
+            .sorted { $0.startTime < $1.startTime }
+
+        var drafts: [WorkBlockDraft] = []
+        var current: WorkBlockDraft?
+
+        for row in normalizedRows {
+            if var draft = current {
+                let gap = row.startTime - draft.endTime
+                if row.identity == draft.identity && gap <= statsWorkBlockMergeGapSeconds {
+                    draft.endTime = max(draft.endTime, row.endTime)
+                    draft.sessionCount += 1
+                    if !row.primaryAppName.isEmpty {
+                        draft.appNames.insert(row.primaryAppName)
+                    }
+                    current = draft
+                } else {
+                    drafts.append(draft)
+                    current = WorkBlockDraft(seed: row)
+                }
+            } else {
+                current = WorkBlockDraft(seed: row)
+            }
+        }
+
+        if let current {
+            drafts.append(current)
+        }
+
+        return drafts
+            .filter { $0.durationSeconds >= statsWorkBlockMinimumSeconds }
+            .map { $0.insight }
+            .sorted {
+                if $0.durationSeconds == $1.durationSeconds {
+                    return $0.startTime < $1.startTime
+                }
+                return $0.durationSeconds > $1.durationSeconds
+            }
+    }
+
     private var rangeTitle: String {
         L(rangeTitleKey)
     }
@@ -1770,6 +2096,7 @@ struct DashboardStatsView: View {
         var topApps: [TopItem] = []
         var topTags: [TopItem] = []
         var tagRows: [TagRow] = []
+        var activities: [ActivityRow] = []
         var rawEventCount = 0
         var errorMessage: String?
 
@@ -1840,7 +2167,24 @@ struct DashboardStatsView: View {
             group.leave()
         }
 
+        group.enter()
+        DatabaseService.shared.fetchActivitiesOverlappingRange(start: bounds.start, end: bounds.end) { result in
+            switch result {
+            case .success(let rows):
+                activities = rows
+            case .failure(let error):
+                errorMessage = error.localizedDescription
+            }
+            group.leave()
+        }
+
         group.notify(queue: .main) {
+            let workBlocks = self.buildWorkBlockInsights(
+                activities: activities,
+                tagRows: tagRows,
+                rangeStart: bounds.start,
+                rangeEnd: bounds.end
+            )
             let rangeStats = RangeStats(
                 summary: SummaryMetrics(
                     totalSeconds: summary?.totalSeconds ?? 0,
@@ -1856,7 +2200,8 @@ struct DashboardStatsView: View {
                 },
                 markerNotesCount: summary?.markerNotesCount ?? 0,
                 markerSessionsCount: summary?.markerSessionsCount ?? 0,
-                rawEventCount: rawEventCount
+                rawEventCount: rawEventCount,
+                workBlocks: workBlocks
             )
 
             self.rangeStats = rangeStats
@@ -1910,6 +2255,14 @@ struct DashboardStatsView: View {
     private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm:ss"
+        formatter.locale = Locale.current
+        formatter.timeZone = TimeZone.current
+        return formatter
+    }()
+
+    private static let blockTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
         formatter.locale = Locale.current
         formatter.timeZone = TimeZone.current
         return formatter
@@ -2264,6 +2617,7 @@ private struct RangeStats {
     let markerNotesCount: Int
     let markerSessionsCount: Int
     let rawEventCount: Int
+    let workBlocks: [WorkBlockInsight]
 
     static let empty = RangeStats(
         summary: SummaryMetrics(totalSeconds: 0, activeSeconds: 0, idleSeconds: 0, sessions: 0),
@@ -2271,7 +2625,8 @@ private struct RangeStats {
         topTags: [],
         markerNotesCount: 0,
         markerSessionsCount: 0,
-        rawEventCount: 0
+        rawEventCount: 0,
+        workBlocks: []
     )
 }
 
@@ -2304,6 +2659,67 @@ private struct TagDuration: Identifiable {
     let name: String
     let color: String?
     let seconds: Int64
+}
+
+private struct WorkBlockInsight: Identifiable {
+    let id: String
+    let title: String
+    let tagId: Int64?
+    let primaryAppName: String
+    let appNames: [String]
+    let startTime: Int64
+    let endTime: Int64
+    let durationSeconds: Int64
+    let sessionCount: Int
+}
+
+private struct WorkBlockSeed {
+    let identity: String
+    let title: String
+    let tagId: Int64?
+    let primaryAppName: String
+    let startTime: Int64
+    let endTime: Int64
+}
+
+private struct WorkBlockDraft {
+    let identity: String
+    let title: String
+    let tagId: Int64?
+    let primaryAppName: String
+    let startTime: Int64
+    var endTime: Int64
+    var appNames: Set<String>
+    var sessionCount: Int
+
+    init(seed: WorkBlockSeed) {
+        identity = seed.identity
+        title = seed.title
+        tagId = seed.tagId
+        primaryAppName = seed.primaryAppName
+        startTime = seed.startTime
+        endTime = seed.endTime
+        appNames = seed.primaryAppName.isEmpty ? [] : [seed.primaryAppName]
+        sessionCount = 1
+    }
+
+    var durationSeconds: Int64 {
+        max(0, endTime - startTime)
+    }
+
+    var insight: WorkBlockInsight {
+        WorkBlockInsight(
+            id: "\(identity)-\(startTime)-\(endTime)",
+            title: title,
+            tagId: tagId,
+            primaryAppName: primaryAppName,
+            appNames: appNames.sorted(),
+            startTime: startTime,
+            endTime: endTime,
+            durationSeconds: durationSeconds,
+            sessionCount: sessionCount
+        )
+    }
 }
 
 private struct RankBadge: View {
