@@ -151,13 +151,25 @@ struct GeneralPreferencesView: View {
             .fixedSize(horizontal: false, vertical: true)
     }
 
+    private func generalActionLabel(_ title: String, systemImage: String) -> some View {
+        Label {
+            Text(title)
+                .lineLimit(2)
+                .minimumScaleFactor(0.86)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: systemImage)
+        }
+    }
+
     @ViewBuilder
     private var readinessAction: some View {
         if !appState.launchAtLoginEnabled {
             Button {
                 setLaunchAtLogin(true)
             } label: {
-                Label(L("preferences.readiness.action.startup"), systemImage: "power")
+                generalActionLabel(L("preferences.readiness.action.startup"), systemImage: "power")
             }
             .buttonStyle(.borderedProminent)
             .accessibilityIdentifier("preferences.readiness.action.startup")
@@ -165,7 +177,7 @@ struct GeneralPreferencesView: View {
             Button {
                 restoreCleanTimelineDefaults()
             } label: {
-                Label(L("preferences.readiness.action.recommended"), systemImage: "wand.and.stars")
+                generalActionLabel(L("preferences.readiness.action.recommended"), systemImage: "wand.and.stars")
             }
             .buttonStyle(.borderedProminent)
             .accessibilityIdentifier("preferences.readiness.action.recommended")
@@ -173,7 +185,7 @@ struct GeneralPreferencesView: View {
             Button {
                 AccessibilityPermissionManager.shared.openSystemSettings()
             } label: {
-                Label(L("preferences.readiness.action.permission"), systemImage: "gearshape")
+                generalActionLabel(L("preferences.readiness.action.permission"), systemImage: "gearshape")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.StatusTone.warning.color)
@@ -270,7 +282,7 @@ struct GeneralPreferencesView: View {
                         Button {
                             setLaunchAtLogin(true)
                         } label: {
-                            Label(L("preferences.daily_use.enable_startup"), systemImage: "power")
+                            generalActionLabel(L("preferences.daily_use.enable_startup"), systemImage: "power")
                         }
                         .buttonStyle(.bordered)
                         .accessibilityIdentifier("preferences.dailyUse.enableStartup")
@@ -291,7 +303,7 @@ struct GeneralPreferencesView: View {
                         Button {
                             restoreCleanTimelineDefaults()
                         } label: {
-                            Label(L("preferences.daily_use.use_clean_timeline"), systemImage: "wand.and.stars")
+                            generalActionLabel(L("preferences.daily_use.use_clean_timeline"), systemImage: "wand.and.stars")
                         }
                         .buttonStyle(.bordered)
                         .accessibilityIdentifier("preferences.dailyUse.cleanTimeline")
@@ -311,7 +323,7 @@ struct GeneralPreferencesView: View {
                     Button {
                         AppWindowRouter.shared.open(.settings(.privacy))
                     } label: {
-                        Label(L("preferences.daily_use.review_privacy"), systemImage: "hand.raised")
+                        generalActionLabel(L("preferences.daily_use.review_privacy"), systemImage: "hand.raised")
                     }
                     .buttonStyle(.bordered)
                     .accessibilityIdentifier("preferences.dailyUse.reviewPrivacy")
@@ -794,7 +806,7 @@ struct GeneralPreferencesView: View {
             Button {
                 appState.restoreRecommendedTrackingSettings()
             } label: {
-                Label(L("preferences.advanced_tracking.restore"), systemImage: "arrow.counterclockwise")
+                generalActionLabel(L("preferences.advanced_tracking.restore"), systemImage: "arrow.counterclockwise")
             }
             .buttonStyle(.bordered)
             .disabled(appState.usesRecommendedTrackingSettings)
@@ -862,7 +874,7 @@ struct GeneralPreferencesView: View {
                 Button {
                     AccessibilityPermissionManager.shared.openSystemSettings()
                 } label: {
-                    Label(L("preferences.window_titles.open_settings"), systemImage: "gearshape")
+                    generalActionLabel(L("preferences.window_titles.open_settings"), systemImage: "gearshape")
                 }
                 .buttonStyle(.bordered)
                 .frame(maxWidth: .infinity, alignment: .trailing)
@@ -894,7 +906,7 @@ struct GeneralPreferencesView: View {
                 Button {
                     addWindowTitleBlockedApp()
                 } label: {
-                    Label(L("preferences.window_titles.blocklist.add"), systemImage: "plus")
+                    generalActionLabel(L("preferences.window_titles.blocklist.add"), systemImage: "plus")
                 }
                 .buttonStyle(.bordered)
 
@@ -2032,7 +2044,7 @@ struct GeneralPreferencesView: View {
         Button {
             addAllowlistApp()
         } label: {
-            Label(L("preferences.advanced_tracking.allowlist.add"), systemImage: "plus")
+            generalActionLabel(L("preferences.advanced_tracking.allowlist.add"), systemImage: "plus")
         }
         .buttonStyle(.bordered)
     }
