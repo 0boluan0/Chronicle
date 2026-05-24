@@ -29,6 +29,7 @@ struct DashboardOverviewView: View {
         case needsMarkers
         case needsFolder
         case ready
+        case saveFailed
         case saved
     }
 
@@ -795,7 +796,7 @@ struct DashboardOverviewView: View {
                 systemImage: reviewPathCloseoutIconName,
                 tone: reviewCloseoutTone,
                 isComplete: reviewActionState == .saved,
-                isCurrent: reviewActionState == .needsFolder || reviewActionState == .ready,
+                isCurrent: reviewActionState == .needsFolder || reviewActionState == .ready || reviewActionState == .saveFailed,
                 accessibilityIdentifier: "dashboard.overview.path.closeout"
             )
         }
@@ -916,6 +917,8 @@ struct DashboardOverviewView: View {
             return "overview.review.setup_log_folder"
         case .ready:
             return "overview.review.closeout_today"
+        case .saveFailed:
+            return "overview.review.retry_daily_log"
         case .saved:
             return "overview.review.open_saved_log"
         }
@@ -936,6 +939,8 @@ struct DashboardOverviewView: View {
             return "folder.badge.plus"
         case .ready:
             return "checkmark.seal"
+        case .saveFailed:
+            return "arrow.clockwise"
         case .saved:
             return "doc.text.magnifyingglass"
         }
@@ -956,6 +961,8 @@ struct DashboardOverviewView: View {
             return "dashboard.overview.setupLogFolder"
         case .ready:
             return "dashboard.overview.closeoutToday"
+        case .saveFailed:
+            return "dashboard.overview.retryDailyLog"
         case .saved:
             return "dashboard.overview.openSavedLog"
         }
@@ -977,7 +984,7 @@ struct DashboardOverviewView: View {
             AppWindowRouter.shared.open(.quickMarker)
         case .needsFolder:
             AppWindowRouter.shared.open(.settings(.export))
-        case .ready, .saved:
+        case .ready, .saveFailed, .saved:
             selectedDashboardSectionRaw = DashboardView.Section.reports.rawValue
         }
     }
@@ -993,6 +1000,9 @@ struct DashboardOverviewView: View {
     }
 
     private var secondaryReviewActionTitleKey: String {
+        if reviewActionState == .saveFailed {
+            return "overview.review.open_export"
+        }
         guard reviewActionState == .empty else {
             return "overview.review.open_timeline"
         }
@@ -1000,6 +1010,9 @@ struct DashboardOverviewView: View {
     }
 
     private var secondaryReviewActionIconName: String {
+        if reviewActionState == .saveFailed {
+            return "gearshape"
+        }
         guard reviewActionState == .empty else {
             return "clock"
         }
@@ -1007,6 +1020,9 @@ struct DashboardOverviewView: View {
     }
 
     private var secondaryReviewActionAccessibilityIdentifier: String {
+        if reviewActionState == .saveFailed {
+            return "dashboard.overview.openLogSettings"
+        }
         guard reviewActionState == .empty else {
             return "dashboard.overview.openTimeline"
         }
@@ -1014,6 +1030,10 @@ struct DashboardOverviewView: View {
     }
 
     private func performSecondaryReviewAction() {
+        if reviewActionState == .saveFailed {
+            AppWindowRouter.shared.open(.settings(.export))
+            return
+        }
         guard reviewActionState == .empty else {
             selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
             return
@@ -2033,6 +2053,10 @@ struct DashboardOverviewView: View {
         reportSettings.dailyExportSucceeded(for: appState.selectedDate)
     }
 
+    private var dailyLogSaveFailedForSelectedDay: Bool {
+        reportSettings.dailyExportFailed(for: appState.selectedDate)
+    }
+
     private var weeklyTopFocusValue: String {
         guard let topRow = weeklyRows.max(by: { $0.totalSeconds < $1.totalSeconds }) else {
             return L("overview.weekly_summary.none")
@@ -2164,6 +2188,9 @@ struct DashboardOverviewView: View {
     }
 
     private var reviewActionState: ReviewActionState {
+        if dailyLogSaveFailedForSelectedDay {
+            return .saveFailed
+        }
         if reviewActiveSeconds == 0 {
             return .empty
         }
@@ -2183,7 +2210,10 @@ struct DashboardOverviewView: View {
     }
 
     private var reviewContextReady: Bool {
-        reviewActionState == .needsFolder || reviewActionState == .ready || reviewActionState == .saved
+        reviewActionState == .needsFolder
+            || reviewActionState == .ready
+            || reviewActionState == .saveFailed
+            || reviewActionState == .saved
     }
 
     private var reviewReadinessReadyCount: Int {
@@ -2238,6 +2268,8 @@ struct DashboardOverviewView: View {
             return "overview.review.readiness.folder_title"
         case .ready:
             return "overview.review.readiness.ready_title"
+        case .saveFailed:
+            return "overview.review.readiness.failed_title"
         case .saved:
             return "overview.review.readiness.saved_title"
         }
@@ -2258,6 +2290,8 @@ struct DashboardOverviewView: View {
             return "overview.review.readiness.folder_detail"
         case .ready:
             return "overview.review.readiness.ready_detail"
+        case .saveFailed:
+            return "overview.review.readiness.failed_detail"
         case .saved:
             return "overview.review.readiness.saved_detail"
         }
@@ -2278,6 +2312,8 @@ struct DashboardOverviewView: View {
             return "folder.badge.plus"
         case .ready:
             return "doc.badge.plus"
+        case .saveFailed:
+            return "exclamationmark.triangle.fill"
         case .saved:
             return "checkmark.seal.fill"
         }
@@ -2305,6 +2341,8 @@ struct DashboardOverviewView: View {
             return .success
         case .ready:
             return .success
+        case .saveFailed:
+            return .success
         case .saved:
             return .success
         }
@@ -2312,6 +2350,8 @@ struct DashboardOverviewView: View {
 
     private var reviewCloseoutTone: DesignSystem.StatusTone {
         switch reviewActionState {
+        case .saveFailed:
+            return .critical
         case .saved:
             return .success
         case .needsFolder:
@@ -2342,6 +2382,8 @@ struct DashboardOverviewView: View {
             return "overview.review.path.context_done"
         case .ready:
             return "overview.review.path.context_done"
+        case .saveFailed:
+            return "overview.review.path.context_done"
         case .saved:
             return "overview.review.path.context_done"
         }
@@ -2351,6 +2393,8 @@ struct DashboardOverviewView: View {
         switch reviewActionState {
         case .saved:
             return "overview.review.path.closeout_done"
+        case .saveFailed:
+            return "overview.review.path.closeout_failed"
         case .needsFolder:
             return "overview.review.path.closeout_needs_folder"
         case .ready:
@@ -2364,6 +2408,8 @@ struct DashboardOverviewView: View {
         switch reviewActionState {
         case .needsFolder:
             return "folder.badge.plus"
+        case .saveFailed:
+            return "exclamationmark.triangle.fill"
         case .saved:
             return "checkmark.seal.fill"
         default:
@@ -2383,6 +2429,8 @@ struct DashboardOverviewView: View {
             return "overview.review.folder_title"
         case .ready:
             return "overview.review.ready_title"
+        case .saveFailed:
+            return "overview.review.failed_title"
         case .saved:
             return "overview.review.saved_title"
         }
@@ -2400,6 +2448,8 @@ struct DashboardOverviewView: View {
             return "overview.review.folder_detail"
         case .ready:
             return "overview.review.ready_detail"
+        case .saveFailed:
+            return "overview.review.failed_detail"
         case .saved:
             return "overview.review.saved_detail"
         }
@@ -2417,6 +2467,8 @@ struct DashboardOverviewView: View {
             return "overview.review.suggested.folder_detail"
         case .ready:
             return "overview.review.suggested.ready_detail"
+        case .saveFailed:
+            return "overview.review.suggested.failed_detail"
         case .saved:
             return "overview.review.suggested.saved_detail"
         }
@@ -2434,6 +2486,8 @@ struct DashboardOverviewView: View {
             return .warning
         case .ready:
             return .success
+        case .saveFailed:
+            return .critical
         case .saved:
             return .success
         }
@@ -2451,6 +2505,8 @@ struct DashboardOverviewView: View {
             return "folder.badge.questionmark"
         case .ready:
             return "checkmark.seal.fill"
+        case .saveFailed:
+            return "exclamationmark.triangle.fill"
         case .saved:
             return "checkmark.seal.fill"
         }
@@ -2468,6 +2524,8 @@ struct DashboardOverviewView: View {
             return "folder"
         case .ready:
             return "checkmark.circle"
+        case .saveFailed:
+            return "exclamationmark.triangle.fill"
         case .saved:
             return "checkmark.circle"
         }
@@ -2485,6 +2543,8 @@ struct DashboardOverviewView: View {
             return L("overview.review.status.needs_folder")
         case .ready:
             return L("overview.review.status.ready")
+        case .saveFailed:
+            return L("overview.review.status.failed")
         case .saved:
             return L("overview.review.status.saved")
         }

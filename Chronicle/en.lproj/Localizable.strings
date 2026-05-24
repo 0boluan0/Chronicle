@@ -862,6 +862,8 @@
 "overview.review.folder_detail" = "Today has enough context to save, but Chronicle still needs a local folder for the Markdown log.";
 "overview.review.ready_title" = "Ready to close out today.";
 "overview.review.ready_detail" = "The timeline has categories and context, so you can inspect it or review today's log.";
+"overview.review.failed_title" = "Daily log save failed.";
+"overview.review.failed_detail" = "The last attempt did not write the Markdown log. Open Daily Log to retry or refresh the folder permission.";
 "overview.review.saved_title" = "Today's log is saved.";
 "overview.review.saved_detail" = "The day is closed out. Open the saved log, or add more notes and review it again.";
 "overview.review.suggested_next" = "Suggested next";
@@ -871,6 +873,7 @@
 "overview.review.suggested.markers_detail" = "The timeline has activity, but it still needs a note explaining what mattered.";
 "overview.review.suggested.folder_detail" = "Set the folder once so the next save can happen without another setup stop.";
 "overview.review.suggested.ready_detail" = "Today has enough structure to save the daily log; preview remains available if you want one more check.";
+"overview.review.suggested.failed_detail" = "Retry from Daily Log first; if the folder changed, open log settings before saving again.";
 "overview.review.suggested.saved_detail" = "The day is already closed out; open the saved log if you want to inspect the result.";
 "overview.review.readiness.value" = "%d of %d ready";
 "overview.review.readiness.paused_title" = "Capture is paused.";
@@ -887,6 +890,8 @@
 "overview.review.readiness.folder_detail" = "The day has evidence and context; set the folder before the first closeout.";
 "overview.review.readiness.ready_title" = "Ready for closeout.";
 "overview.review.readiness.ready_detail" = "Today has activity and context; save the daily log when work ends.";
+"overview.review.readiness.failed_title" = "Save failed.";
+"overview.review.readiness.failed_detail" = "The review has enough context, but the Markdown file was not written.";
 "overview.review.readiness.saved_title" = "Today is closed out.";
 "overview.review.readiness.saved_detail" = "The saved log is ready to inspect or reuse in your review workflow.";
 "overview.review.status.empty" = "Waiting";
@@ -894,6 +899,7 @@
 "overview.review.status.needs_markers" = "Needs notes";
 "overview.review.status.needs_folder" = "Needs folder";
 "overview.review.status.ready" = "Ready";
+"overview.review.status.failed" = "Save failed";
 "overview.review.status.saved" = "Saved";
 "overview.review.active_time" = "Active time";
 "overview.review.main_focus" = "Main focus";
@@ -912,6 +918,7 @@
 "overview.review.add_marker" = "Add Note";
 "overview.review.setup_log_folder" = "Set Log Folder";
 "overview.review.closeout_today" = "Review Daily Log";
+"overview.review.retry_daily_log" = "Retry Daily Log";
 "overview.review.open_saved_log" = "Open Daily Log";
 "overview.review.path.capture_title" = "Capture";
 "overview.review.path.capture_done" = "Chronicle has activity to review.";
@@ -926,6 +933,7 @@
 "overview.review.path.closeout_ready" = "Save today's log when the check looks right.";
 "overview.review.path.closeout_needs_folder" = "Choose a folder before the first save.";
 "overview.review.path.closeout_waiting" = "Ready after capture and context.";
+"overview.review.path.closeout_failed" = "The last save did not complete.";
 "overview.review.path.closeout_done" = "Today's log has been saved.";
 "overview.review.path.step_complete" = "Step complete";
 "overview.review.path.step_number" = "Step %d";

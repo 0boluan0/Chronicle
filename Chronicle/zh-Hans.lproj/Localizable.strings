@@ -862,6 +862,8 @@
 "overview.review.folder_detail" = "今天已经有足够语境可以保存，但 Chronicle 还需要一个本地文件夹来写入 Markdown 日志。";
 "overview.review.ready_title" = "可以收尾今日日志。";
 "overview.review.ready_detail" = "时间线已有分类和语境，可以查看细节或进入今日日志。";
+"overview.review.failed_title" = "今日日志保存失败。";
+"overview.review.failed_detail" = "上一次没有写出 Markdown 日志。打开今日日志重试，或刷新文件夹权限。";
 "overview.review.saved_title" = "今日日志已保存。";
 "overview.review.saved_detail" = "今天已经收尾。可以打开日志检查，或补充笔记后再次复盘。";
 "overview.review.suggested_next" = "建议下一步";
@@ -871,6 +873,7 @@
 "overview.review.suggested.markers_detail" = "时间线已经有活动，但还缺一条说明重点的笔记。";
 "overview.review.suggested.folder_detail" = "先设置一次保存位置，下一次保存今日日志时就不会再被配置打断。";
 "overview.review.suggested.ready_detail" = "今天已有足够结构，可以保存今日日志；如果还想确认，仍可先预览。";
+"overview.review.suggested.failed_detail" = "先从今日日志重试；如果文件夹变过，保存前先打开日志设置。";
 "overview.review.suggested.saved_detail" = "今天已经收尾；需要检查结果时打开已保存日志。";
 "overview.review.readiness.value" = "%d/%d 项就绪";
 "overview.review.readiness.paused_title" = "记录已暂停。";
@@ -887,6 +890,8 @@
 "overview.review.readiness.folder_detail" = "今天已有证据和语境；第一次收尾前先设置文件夹。";
 "overview.review.readiness.ready_title" = "可以收尾。";
 "overview.review.readiness.ready_detail" = "今天已有活动和语境；工作结束时保存今日日志。";
+"overview.review.readiness.failed_title" = "保存失败。";
+"overview.review.readiness.failed_detail" = "复盘内容已经足够，但 Markdown 文件没有写出。";
 "overview.review.readiness.saved_title" = "今天已经收尾。";
 "overview.review.readiness.saved_detail" = "已保存的日志可以直接检查，或进入你的复盘流程。";
 "overview.review.status.empty" = "等待记录";
@@ -894,6 +899,7 @@
 "overview.review.status.needs_markers" = "需要笔记";
 "overview.review.status.needs_folder" = "需要目录";
 "overview.review.status.ready" = "就绪";
+"overview.review.status.failed" = "保存失败";
 "overview.review.status.saved" = "已保存";
 "overview.review.active_time" = "活跃时间";
 "overview.review.main_focus" = "主要投入";
@@ -912,6 +918,7 @@
 "overview.review.add_marker" = "添加笔记";
 "overview.review.setup_log_folder" = "设置日志目录";
 "overview.review.closeout_today" = "查看今日日志";
+"overview.review.retry_daily_log" = "重试今日日志";
 "overview.review.open_saved_log" = "打开今日日志";
 "overview.review.path.capture_title" = "记录";
 "overview.review.path.capture_done" = "Chronicle 已有可复盘活动。";
@@ -926,6 +933,7 @@
 "overview.review.path.closeout_ready" = "检查结果没问题时，保存今日日志。";
 "overview.review.path.closeout_needs_folder" = "第一次保存前先选择文件夹。";
 "overview.review.path.closeout_waiting" = "完成记录和语境后可收工。";
+"overview.review.path.closeout_failed" = "上次保存没有完成。";
 "overview.review.path.closeout_done" = "今日日志已经保存。";
 "overview.review.path.step_complete" = "这一步已完成";
 "overview.review.path.step_number" = "第 %d 步";
