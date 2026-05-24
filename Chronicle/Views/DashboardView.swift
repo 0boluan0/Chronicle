@@ -325,10 +325,12 @@ struct DashboardView: View {
                 Text(step.titleKey)
                     .font(.caption2.weight(isSelected || isCurrent || isComplete ? .semibold : .regular))
                     .foregroundStyle(isSelected || isCurrent || isComplete ? .primary : .secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.82)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.center)
+                    .minimumScaleFactor(0.86)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .frame(maxWidth: .infinity, minHeight: 42)
+            .frame(maxWidth: .infinity, minHeight: 46)
             .padding(.horizontal, 4)
             .background(
                 RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
