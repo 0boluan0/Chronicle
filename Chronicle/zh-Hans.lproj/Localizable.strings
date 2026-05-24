@@ -2322,6 +2322,9 @@
 "reports.closeout.step.export_done" = "今天已有保存的日志。";
 "reports.closeout.step.export_blocked" = "文件夹就绪后可使用。";
 "reports.closeout.step.export_failed" = "上次保存失败。检查文件夹后重试。";
+"reports.closeout.path.title" = "日终收尾路径";
+"reports.closeout.path.detail" = "先设置文件夹，再补有用语境，最后预览或保存。";
+"reports.closeout.path.progress" = "%d/%d 就绪";
 "reports.closeout.brief.title" = "收工检查";
 "reports.closeout.brief.detail" = "保存前先确认时间线是否足够还原今天。";
 "reports.closeout.brief.captured_title" = "已捕获工作";

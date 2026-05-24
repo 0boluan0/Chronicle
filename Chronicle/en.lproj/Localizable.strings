@@ -2323,6 +2323,9 @@
 "reports.closeout.step.export_done" = "Today already has a saved log.";
 "reports.closeout.step.export_blocked" = "Available after the folder is ready.";
 "reports.closeout.step.export_failed" = "Last save failed. Retry after checking the folder.";
+"reports.closeout.path.title" = "Daily closeout path";
+"reports.closeout.path.detail" = "Set the folder, add useful context, then preview or save.";
+"reports.closeout.path.progress" = "%d/%d ready";
 "reports.closeout.brief.title" = "Closeout brief";
 "reports.closeout.brief.detail" = "Before saving, check whether the timeline has enough story.";
 "reports.closeout.brief.captured_title" = "Captured work";

@@ -700,45 +700,93 @@ struct ReportsWorkspaceView: View {
     }
 
     private var closeoutStepsView: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 190), spacing: DesignSystem.Spacing.sm)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            closeoutStepCard(
-                stepNumber: 1,
-                titleKey: "reports.closeout.step.destination_title",
-                detailKey: closeoutDestinationStepDetailKey,
-                systemImage: "folder",
-                tone: dailyFolderReady ? .success : .warning,
-                isComplete: dailyFolderReady,
-                isCurrent: !dailyFolderReady,
-                accessibilityIdentifier: "reports.closeout.step.destination"
-            )
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            closeoutStepsHeader
 
-            closeoutStepCard(
-                stepNumber: 2,
-                titleKey: "reports.closeout.step.notes_title",
-                detailKey: closeoutNotesStepDetailKey,
-                systemImage: "text.badge.checkmark",
-                tone: hasDailyCloseoutNotes ? .success : .info,
-                isComplete: hasDailyCloseoutNotes,
-                isCurrent: closeoutNotesStepIsCurrent,
-                accessibilityIdentifier: "reports.closeout.step.notes"
-            )
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 190), spacing: DesignSystem.Spacing.sm)],
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                closeoutStepCard(
+                    stepNumber: 1,
+                    titleKey: "reports.closeout.step.destination_title",
+                    detailKey: closeoutDestinationStepDetailKey,
+                    systemImage: "folder",
+                    tone: dailyFolderReady ? .success : .warning,
+                    isComplete: dailyFolderReady,
+                    isCurrent: !dailyFolderReady,
+                    accessibilityIdentifier: "reports.closeout.step.destination"
+                )
 
-            closeoutStepCard(
-                stepNumber: 3,
-                titleKey: "reports.closeout.step.export_title",
-                detailKey: closeoutExportStepDetailKey,
-                systemImage: closeoutExportStepIconName,
-                tone: closeoutExportStepTone,
-                isComplete: dailyExportedToday,
-                isCurrent: closeoutExportStepIsCurrent,
-                accessibilityIdentifier: "reports.closeout.step.export"
-            )
+                closeoutStepCard(
+                    stepNumber: 2,
+                    titleKey: "reports.closeout.step.notes_title",
+                    detailKey: closeoutNotesStepDetailKey,
+                    systemImage: "text.badge.checkmark",
+                    tone: hasDailyCloseoutNotes ? .success : .info,
+                    isComplete: hasDailyCloseoutNotes,
+                    isCurrent: closeoutNotesStepIsCurrent,
+                    accessibilityIdentifier: "reports.closeout.step.notes"
+                )
+
+                closeoutStepCard(
+                    stepNumber: 3,
+                    titleKey: "reports.closeout.step.export_title",
+                    detailKey: closeoutExportStepDetailKey,
+                    systemImage: closeoutExportStepIconName,
+                    tone: closeoutExportStepTone,
+                    isComplete: dailyExportedToday,
+                    isCurrent: closeoutExportStepIsCurrent,
+                    accessibilityIdentifier: "reports.closeout.step.export"
+                )
+            }
         }
         .accessibilityIdentifier("reports.closeout.steps")
+    }
+
+    private var closeoutStepsHeader: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                closeoutStepsHeaderCopy
+
+                StatusPill(closeoutStepProgressText, systemImage: closeoutStepProgressIconName, tone: closeoutStepProgressTone)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .accessibilityIdentifier("reports.closeout.steps.progress")
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                closeoutStepsHeaderCopy
+
+                StatusPill(closeoutStepProgressText, systemImage: closeoutStepProgressIconName, tone: closeoutStepProgressTone)
+                    .accessibilityIdentifier("reports.closeout.steps.progress")
+            }
+        }
+        .accessibilityIdentifier("reports.closeout.steps.header")
+    }
+
+    private var closeoutStepsHeaderCopy: some View {
+        Label {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("reports.closeout.path.title")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+
+                Text("reports.closeout.path.detail")
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        } icon: {
+            Image(systemName: "checklist")
+                .font(.caption.weight(.semibold))
+                .foregroundColor(closeoutStepProgressTone.color)
+                .frame(width: 16)
+        }
+        .labelStyle(.titleAndIcon)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var closeoutIncludedView: some View {
@@ -4706,6 +4754,44 @@ struct ReportsWorkspaceView: View {
             return .info
         }
         return .success
+    }
+
+    private var closeoutStepProgressText: String {
+        String(format: L("reports.closeout.path.progress"), closeoutStepReadyCount, 3)
+    }
+
+    private var closeoutStepReadyCount: Int {
+        var readyCount = 0
+        if dailyFolderReady {
+            readyCount += 1
+        }
+        if hasDailyCloseoutNotes {
+            readyCount += 1
+        }
+        if dailyExportedToday {
+            readyCount += 1
+        }
+        return readyCount
+    }
+
+    private var closeoutStepProgressIconName: String {
+        if dailyExportedToday {
+            return "checkmark.seal.fill"
+        }
+        if dailyFolderReady {
+            return "arrow.triangle.branch"
+        }
+        return "folder.badge.plus"
+    }
+
+    private var closeoutStepProgressTone: DesignSystem.StatusTone {
+        if dailyExportedToday {
+            return .success
+        }
+        if dailyFolderReady {
+            return hasDailyCloseoutNotes ? .info : .warning
+        }
+        return .warning
     }
 
     private var closeoutConfidenceTimelineValue: String {
