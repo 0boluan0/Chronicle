@@ -132,7 +132,7 @@ struct DashboardMarkersView: View {
     private var cueCaptureProgressView: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
             ViewThatFits(in: .horizontal) {
-                HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+                HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
                     cueCaptureProgressLabel
 
                     Spacer(minLength: DesignSystem.Spacing.sm)
@@ -168,7 +168,7 @@ struct DashboardMarkersView: View {
     }
 
     private var cueCaptureProgressLabel: some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.xs) {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.xs) {
             Image(systemName: cueCaptureStatusIconName)
                 .font(.caption.weight(.semibold))
                 .foregroundColor(cueCaptureProgressTone.color)
@@ -230,13 +230,17 @@ struct DashboardMarkersView: View {
                     Text(message)
                         .font(DesignSystem.Typography.caption)
                         .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .lineLimit(4)
+                        .fixedSize(horizontal: false, vertical: true)
                         .textSelection(.enabled)
+                        .help(message)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.top, DesignSystem.Spacing.xs)
                 } label: {
                     Text("markers.capture.support_details")
                         .font(DesignSystem.Typography.caption)
                         .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .lineLimit(2)
                 }
             }
         }
@@ -280,12 +284,16 @@ struct DashboardMarkersView: View {
                 Text("markers.capture.error_headline")
                     .font(.headline.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text("markers.capture.error_detail")
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -345,12 +353,16 @@ struct DashboardMarkersView: View {
                 Text(LocalizedStringKey(cueCaptureHeadlineKey))
                     .font(.headline.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(LocalizedStringKey(cueCaptureDetailKey))
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -421,9 +433,10 @@ struct DashboardMarkersView: View {
                 Text(detailKey)
                     .font(.caption2)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
+                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer(minLength: 0)
         }
