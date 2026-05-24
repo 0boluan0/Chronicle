@@ -136,28 +136,7 @@ struct DebugPreferencesView: View {
                     )
                 }
 
-                LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 160), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
-                    alignment: .leading,
-                    spacing: DesignSystem.Spacing.sm
-                ) {
-                    Button {
-                        AppWindowRouter.shared.open(.settings(.support))
-                    } label: {
-                        Label(L("preferences.debug.action.open_support"), systemImage: "stethoscope")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(DesignSystem.Colors.accentSkyBlue)
-                    .accessibilityIdentifier("preferences.debug.openSupport")
-
-                    Button {
-                        appState.debugLoggingEnabled.toggle()
-                    } label: {
-                        Label(L(debugLoggingActionKey), systemImage: appState.debugLoggingEnabled ? "stop.circle" : "record.circle")
-                    }
-                    .buttonStyle(.bordered)
-                    .accessibilityIdentifier("preferences.debug.toggleLogging")
-                }
+                troubleshootingActions
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -223,6 +202,56 @@ struct DebugPreferencesView: View {
                 .stroke(tone.color.opacity(0.18), lineWidth: 1)
         )
         .accessibilityIdentifier(accessibilityIdentifier)
+    }
+
+    private var troubleshootingActions: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                openSupportAction
+                toggleLoggingAction
+                Spacer(minLength: 0)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                openSupportAction
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                toggleLoggingAction
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .accessibilityIdentifier("preferences.debug.flow.actions")
+    }
+
+    private var openSupportAction: some View {
+        Button {
+            AppWindowRouter.shared.open(.settings(.support))
+        } label: {
+            debugActionLabel(L("preferences.debug.action.open_support"), systemImage: "stethoscope")
+        }
+        .buttonStyle(.borderedProminent)
+        .tint(DesignSystem.Colors.accentSkyBlue)
+        .accessibilityIdentifier("preferences.debug.openSupport")
+    }
+
+    private var toggleLoggingAction: some View {
+        Button {
+            appState.debugLoggingEnabled.toggle()
+        } label: {
+            debugActionLabel(L(debugLoggingActionKey), systemImage: appState.debugLoggingEnabled ? "stop.circle" : "record.circle")
+        }
+        .buttonStyle(.bordered)
+        .accessibilityIdentifier("preferences.debug.toggleLogging")
+    }
+
+    private func debugActionLabel(_ title: String, systemImage: String) -> some View {
+        Label {
+            Text(title)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: systemImage)
+        }
     }
 
     private var debugStatusTitleKey: String {
