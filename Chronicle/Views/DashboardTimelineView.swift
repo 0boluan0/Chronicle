@@ -187,35 +187,31 @@ struct DashboardTimelineView: View {
     private func timelineIssueBanner(message: String) -> some View {
         SectionCard {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-                    IconWell(
-                        systemImage: "exclamationmark.triangle.fill",
-                        tone: .warning,
-                        accessibilityLabel: L("timeline.error.title")
-                    )
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                        timelineIssueCopy
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("timeline.error.title")
-                            .font(.headline.weight(.semibold))
-                            .foregroundColor(DesignSystem.Colors.primaryText)
-
-                        Text("timeline.error.detail")
-                            .font(DesignSystem.Typography.caption)
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
-                            .fixedSize(horizontal: false, vertical: true)
+                        StatusPill(
+                            L("timeline.error.status"),
+                            systemImage: "stethoscope",
+                            tone: .warning
+                        )
+                        .fixedSize(horizontal: true, vertical: false)
                     }
 
-                    Spacer(minLength: DesignSystem.Spacing.md)
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                        timelineIssueCopy
 
-                    StatusPill(
-                        L("timeline.error.status"),
-                        systemImage: "stethoscope",
-                        tone: .warning
-                    )
+                        StatusPill(
+                            L("timeline.error.status"),
+                            systemImage: "stethoscope",
+                            tone: .warning
+                        )
+                    }
                 }
 
                 LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 156), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
+                    columns: [GridItem(.adaptive(minimum: 170), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
                     alignment: .leading,
                     spacing: DesignSystem.Spacing.sm
                 ) {
@@ -239,12 +235,34 @@ struct DashboardTimelineView: View {
         .accessibilityIdentifier("dashboard.timeline.issueBanner")
     }
 
+    private var timelineIssueCopy: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            IconWell(
+                systemImage: "exclamationmark.triangle.fill",
+                tone: .warning,
+                accessibilityLabel: L("timeline.error.title")
+            )
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("timeline.error.title")
+                    .font(.headline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+
+                Text("timeline.error.detail")
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     private var timelineIssueActions: some View {
         Group {
             Button {
                 refreshData(reason: "timeline issue retry")
             } label: {
-                Label(L("timeline.error.retry"), systemImage: "arrow.clockwise")
+                timelineActionLabel(L("timeline.error.retry"), systemImage: "arrow.clockwise")
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
@@ -254,12 +272,24 @@ struct DashboardTimelineView: View {
             Button {
                 AppWindowRouter.shared.open(.settings(.support))
             } label: {
-                Label(L("timeline.error.open_health"), systemImage: "stethoscope")
+                timelineActionLabel(L("timeline.error.open_health"), systemImage: "stethoscope")
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
             .accessibilityIdentifier("dashboard.timeline.openHealth")
         }
+    }
+
+    private func timelineActionLabel(_ title: String, systemImage: String) -> some View {
+        Label {
+            Text(title)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: systemImage)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var reviewFocusCard: some View {
@@ -328,15 +358,19 @@ struct DashboardTimelineView: View {
     }
 
     private var reviewFocusHeader: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 240), spacing: DesignSystem.Spacing.md, alignment: .leading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            reviewFocusCopy
-                .frame(maxWidth: .infinity, alignment: .leading)
-            StatusPill(timelineFocusStatusText, systemImage: timelineFocusStatusIconName, tone: timelineFocusTone)
-                .frame(maxWidth: .infinity, alignment: .leading)
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                reviewFocusCopy
+
+                StatusPill(timelineFocusStatusText, systemImage: timelineFocusStatusIconName, tone: timelineFocusTone)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                reviewFocusCopy
+
+                StatusPill(timelineFocusStatusText, systemImage: timelineFocusStatusIconName, tone: timelineFocusTone)
+            }
         }
         .accessibilityIdentifier("dashboard.timeline.reviewFocusHeader")
     }
@@ -391,8 +425,7 @@ struct DashboardTimelineView: View {
         Button {
             performTimelineNextAction()
         } label: {
-            Label(L(timelineNextActionButtonKey), systemImage: timelineNextActionButtonIconName)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            timelineActionLabel(L(timelineNextActionButtonKey), systemImage: timelineNextActionButtonIconName)
         }
         .buttonStyle(.borderedProminent)
         .controlSize(.small)
@@ -431,7 +464,8 @@ struct DashboardTimelineView: View {
                 Text("timeline.start.label")
                     .font(.caption2.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(recommendation.title)
                     .font(.subheadline.weight(.semibold))
@@ -450,24 +484,45 @@ struct DashboardTimelineView: View {
 
     private func timelineStartHereEvidence(_ recommendation: TimelineStartRecommendation) -> some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
-                StatusPill(
-                    recommendation.status,
-                    systemImage: recommendation.systemImage,
-                    tone: recommendation.tone
-                )
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+                    StatusPill(
+                        recommendation.status,
+                        systemImage: recommendation.systemImage,
+                        tone: recommendation.tone
+                    )
+                    .fixedSize(horizontal: true, vertical: false)
 
-                Spacer(minLength: 0)
+                    Spacer(minLength: 0)
 
-                Button {
-                    performTimelineStartAction(for: recommendation.reason)
-                } label: {
-                    Label(recommendation.actionTitle, systemImage: recommendation.actionIcon)
+                    Button {
+                        performTimelineStartAction(for: recommendation.reason)
+                    } label: {
+                        timelineActionLabel(recommendation.actionTitle, systemImage: recommendation.actionIcon)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .disabled(recommendation.reason == .loading)
+                    .accessibilityIdentifier("dashboard.timeline.startHere.action")
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .disabled(recommendation.reason == .loading)
-                .accessibilityIdentifier("dashboard.timeline.startHere.action")
+
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                    StatusPill(
+                        recommendation.status,
+                        systemImage: recommendation.systemImage,
+                        tone: recommendation.tone
+                    )
+
+                    Button {
+                        performTimelineStartAction(for: recommendation.reason)
+                    } label: {
+                        timelineActionLabel(recommendation.actionTitle, systemImage: recommendation.actionIcon)
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .disabled(recommendation.reason == .loading)
+                    .accessibilityIdentifier("dashboard.timeline.startHere.action")
+                }
             }
 
             LazyVGrid(
@@ -516,6 +571,7 @@ struct DashboardTimelineView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var timelineHandoffActions: some View {
@@ -547,23 +603,22 @@ struct DashboardTimelineView: View {
         Button {
             AppWindowRouter.shared.open(.quickMarker)
         } label: {
-            Label(L("timeline.focus.add_cue"), systemImage: "square.and.pencil")
+            timelineActionLabel(L("timeline.focus.add_cue"), systemImage: "square.and.pencil")
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityIdentifier("dashboard.timeline.addCue")
 
         Button {
             performTimelineCloseoutHandoff()
         } label: {
-            Label(
-                timelineCloseoutHandoffTitle,
-                systemImage: timelineCloseoutHandoffIconName
-            )
+            timelineActionLabel(timelineCloseoutHandoffTitle, systemImage: timelineCloseoutHandoffIconName)
         }
         .buttonStyle(.borderedProminent)
         .controlSize(.small)
         .tint(DesignSystem.Colors.accentSkyBlue)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityIdentifier("dashboard.timeline.closeout")
     }
 
@@ -584,23 +639,21 @@ struct DashboardTimelineView: View {
         secondaryAction: (() -> Void)? = nil
     ) -> some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
-                Label {
-                    Text(titleKey)
-                        .font(.callout.weight(.semibold))
-                        .foregroundColor(DesignSystem.Colors.primaryText)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.85)
-                } icon: {
-                    Image(systemName: systemImage)
-                        .font(.caption.weight(.semibold))
-                        .foregroundColor(tone.color)
-                        .frame(width: 16)
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                    reviewFocusBlockTitle(titleKey, systemImage: systemImage, tone: tone)
+
+                    Spacer(minLength: DesignSystem.Spacing.sm)
+
+                    StatusPill(status, systemImage: statusIcon, tone: tone)
+                        .fixedSize(horizontal: true, vertical: false)
                 }
 
-                Spacer(minLength: DesignSystem.Spacing.sm)
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                    reviewFocusBlockTitle(titleKey, systemImage: systemImage, tone: tone)
 
-                StatusPill(status, systemImage: statusIcon, tone: tone)
+                    StatusPill(status, systemImage: statusIcon, tone: tone)
+                }
             }
 
             Text(detail)
@@ -609,7 +662,11 @@ struct DashboardTimelineView: View {
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
 
-            HStack(spacing: DesignSystem.Spacing.sm) {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 170), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
                 if let primaryActionTitle {
                     Button(action: primaryAction) {
                         reviewFocusActionLabel(primaryActionTitle, systemImage: primaryActionIcon)
@@ -627,19 +684,49 @@ struct DashboardTimelineView: View {
                         .controlSize(.small)
                         .accessibilityIdentifier(secondaryActionIdentifier ?? "")
                 }
-
-                Spacer(minLength: 0)
             }
         }
         .frame(minWidth: 190, maxWidth: .infinity, alignment: .leading)
     }
 
+    private func reviewFocusBlockTitle(
+        _ titleKey: LocalizedStringKey,
+        systemImage: String,
+        tone: DesignSystem.StatusTone
+    ) -> some View {
+        Label {
+            Text(titleKey)
+                .font(.callout.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.primaryText)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(tone.color)
+                .frame(width: 16)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     @ViewBuilder
     private func reviewFocusActionLabel(_ titleKey: LocalizedStringKey, systemImage: String?) -> some View {
         if let systemImage {
-            Label(titleKey, systemImage: systemImage)
+            Label {
+                Text(titleKey)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            } icon: {
+                Image(systemName: systemImage)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         } else {
             Text(titleKey)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
