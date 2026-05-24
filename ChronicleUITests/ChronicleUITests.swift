@@ -399,6 +399,9 @@ final class ChronicleUITests: XCTestCase {
 
         let overviewSection = app.descendants(matching: .any)["dashboard.section.overview"]
         XCTAssertTrue(overviewSection.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["dashboard.toolbar.quickCapture"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["dashboard.toolbar.reviewToday"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["dashboard.openPreferences"].waitForExistence(timeout: 5))
 
         XCTAssertTrue(app.staticTexts["Today workspace"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.descendants(matching: .any)["dashboard.overview.reviewBrief"].waitForExistence(timeout: 5))

@@ -211,12 +211,29 @@ struct DashboardView: View {
             contentView
         }
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button {
+                    AppWindowRouter.shared.open(.quickMarker)
+                } label: {
+                    Label("menu.quick_marker", systemImage: "square.and.pencil")
+                }
+                .help(L("menu.quick_marker"))
+                .accessibilityIdentifier("dashboard.toolbar.quickCapture")
+
+                Button {
+                    selectedSectionRaw = Section.reports.rawValue
+                } label: {
+                    Label("menu.closeout_today", systemImage: "doc.badge.plus")
+                }
+                .help(L("menu.closeout_today"))
+                .accessibilityIdentifier("dashboard.toolbar.reviewToday")
+
                 Button {
                     AppWindowRouter.shared.open(.settings())
                 } label: {
                     Label("preferences.title", systemImage: "gearshape")
                 }
+                .help(L("preferences.title"))
                 .accessibilityIdentifier("dashboard.openPreferences")
             }
         }
