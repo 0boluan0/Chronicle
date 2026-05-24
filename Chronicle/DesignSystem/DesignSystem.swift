@@ -416,6 +416,26 @@ struct ActionButtonGrid<Content: View>: View {
     }
 }
 
+struct ActionButtonStack<Content: View>: View {
+    private let spacing: CGFloat
+    private let content: Content
+
+    init(
+        spacing: CGFloat = DesignSystem.Spacing.sm,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.spacing = spacing
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: spacing) {
+            content
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 struct StatusPill: View {
     private static let maxTextWidth: CGFloat = 180
 

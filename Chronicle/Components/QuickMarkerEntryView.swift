@@ -177,7 +177,7 @@ struct QuickMarkerEntryView: View {
     }
 
     private func activeFocusReminderActions(_ span: MarkerSpanRow) -> some View {
-        VStack(spacing: DesignSystem.Spacing.sm) {
+        ActionButtonStack {
             Button {
                 stopOpenSpan(span)
             } label: {
@@ -200,7 +200,6 @@ struct QuickMarkerEntryView: View {
             .frame(maxWidth: .infinity)
             .accessibilityIdentifier("quickMarker.activeReminder.openIntervalMode")
         }
-        .frame(maxWidth: .infinity)
     }
 
     private var modeSelector: some View {
@@ -570,11 +569,10 @@ struct QuickMarkerEntryView: View {
     }
 
     private var quickMarkerSuccessActions: some View {
-        VStack(spacing: DesignSystem.Spacing.sm) {
+        ActionButtonStack {
             quickMarkerOpenTimelineButton
             quickMarkerDailyLogButton
         }
-        .frame(maxWidth: .infinity)
         .accessibilityIdentifier("quickMarker.status.actions")
     }
 

@@ -695,10 +695,9 @@ struct ContentView: View {
     private func popoverResponsiveActionStack<Content: View>(
         @ViewBuilder content: () -> Content
     ) -> some View {
-        VStack(spacing: DesignSystem.Spacing.sm) {
+        ActionButtonStack {
             content()
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func popoverActionLabel(_ title: String, systemImage: String) -> some View {
