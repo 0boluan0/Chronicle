@@ -31,6 +31,10 @@ struct DashboardView: View {
         var id: String { rawValue }
 
         var titleKey: LocalizedStringKey {
+            LocalizedStringKey(titleStringKey)
+        }
+
+        var titleStringKey: String {
             switch self {
             case .timeline:
                 return "dashboard.timeline"
@@ -69,6 +73,10 @@ struct DashboardView: View {
         }
 
         var subtitleKey: LocalizedStringKey {
+            LocalizedStringKey(subtitleStringKey)
+        }
+
+        var subtitleStringKey: String {
             switch self {
             case .timeline:
                 return "dashboard.sidebar.timeline"
@@ -417,8 +425,10 @@ struct DashboardView: View {
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.vertical, 2)
+        .help("\(L(section.titleStringKey)): \(L(section.subtitleStringKey))")
         .accessibilityElement(children: .combine)
     }
 
@@ -491,7 +501,8 @@ struct DashboardView: View {
         Text("dashboard.sidebar.control_title")
             .font(.caption.weight(.semibold))
             .foregroundStyle(.primary)
-            .lineLimit(1)
+            .lineLimit(2)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private var sidebarTodayControlStatus: some View {
@@ -584,8 +595,9 @@ struct DashboardView: View {
                     Text(LocalizedStringKey(titleKey))
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                        .lineLimit(2)
                         .minimumScaleFactor(0.82)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 Text(value)
@@ -594,6 +606,7 @@ struct DashboardView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.78)
                     .monospacedDigit()
+                    .help(value)
             }
             .padding(.horizontal, DesignSystem.Spacing.sm)
             .padding(.vertical, 7)
@@ -678,13 +691,16 @@ struct DashboardView: View {
                             .foregroundStyle(.primary)
                             .lineLimit(2)
                             .fixedSize(horizontal: false, vertical: true)
+                            .help(L(sidebarNextStepHeadlineStringKey))
 
                         Text(sidebarNextStepDetailKey)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                             .lineLimit(3)
                             .fixedSize(horizontal: false, vertical: true)
+                            .help(L(sidebarNextStepDetailStringKey))
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
                     Spacer(minLength: 0)
                 }
@@ -704,7 +720,7 @@ struct DashboardView: View {
     }
 
     private var sidebarTodayStatus: some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
             IconWell(
                 systemImage: sidebarTodayStatusIconName,
                 tone: sidebarTodayStatusTone,
@@ -716,14 +732,17 @@ struct DashboardView: View {
                 Text(sidebarTodayStatusTitleKey)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.primary)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(sidebarTodayStatusDetailText)
                     .font(.caption2)
                     .foregroundStyle(.secondary)
-                    .lineLimit(2)
+                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
+                    .help(sidebarTodayStatusDetailText)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer(minLength: 0)
         }
@@ -823,14 +842,17 @@ struct DashboardView: View {
                     Text(LocalizedStringKey(titleKey))
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     Text(value)
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
+                        .help(value)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 Spacer(minLength: 0)
             }
@@ -877,6 +899,10 @@ struct DashboardView: View {
     }
 
     private var sidebarNextStepDetailKey: LocalizedStringKey {
+        LocalizedStringKey(sidebarNextStepDetailStringKey)
+    }
+
+    private var sidebarNextStepDetailStringKey: String {
         switch sidebarNextStepState {
         case .paused:
             return "dashboard.sidebar.next_step.paused_detail"
