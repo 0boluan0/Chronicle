@@ -590,7 +590,7 @@ struct PreferencesView: View {
             return PreferencesSetupReadiness(titleKey: "preferences.sidebar.guide.status.issues", systemImage: "xmark.octagon.fill", tone: .critical)
         }
         guard let report = healthCheck.lastReport else {
-            return PreferencesSetupReadiness(titleKey: "preferences.sidebar.guide.status.not_checked", systemImage: "questionmark.circle", tone: .neutral)
+            return PreferencesSetupReadiness(titleKey: "preferences.sidebar.guide.status.not_checked", systemImage: "stethoscope", tone: .warning)
         }
         let counts = healthIssueCounts(for: report)
         if counts.errors > 0 {
@@ -814,6 +814,7 @@ private struct PreferencesSetupReadiness {
             "preferences.sidebar.guide.status.needs_permission",
             "preferences.sidebar.guide.status.needs_review",
             "preferences.sidebar.guide.status.needs_folder",
+            "preferences.sidebar.guide.status.not_checked",
             "preferences.sidebar.guide.status.issues":
             return true
         default:
