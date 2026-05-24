@@ -75,6 +75,10 @@ echo "Computing SHA-256 checksum..."
   cd "${OUTPUT_DIR}"
   shasum -a 256 "${DMG_NAME}" > "${DMG_NAME}.sha256"
 )
+CHECKSUM_VALUE="$(awk '{print $1}' "${DMG_PATH}.sha256")"
+DMG_SIZE_BYTES="$(stat -f%z "${DMG_PATH}")"
 
 echo "DMG ready: ${DMG_PATH}"
 echo "Checksum ready: ${DMG_PATH}.sha256"
+echo "SHA-256: ${CHECKSUM_VALUE}"
+echo "Size bytes: ${DMG_SIZE_BYTES}"
