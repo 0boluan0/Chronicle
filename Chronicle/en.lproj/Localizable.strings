@@ -8,6 +8,7 @@
 "menu.status.recording" = "Recording";
 "menu.status.paused" = "Paused";
 "menu.preferences" = "Settings…";
+"menu.app_health" = "App Health…";
 "menu.welcome" = "Welcome…";
 "menu.export_now" = "Save Daily Log";
 "menu.exporting" = "Saving…";

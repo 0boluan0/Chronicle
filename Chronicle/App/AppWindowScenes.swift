@@ -52,6 +52,11 @@ struct AppWindowRouterCommands: Commands {
                 TelemetryService.shared.increment("preferences_opened")
                 AppWindowRouter.shared.open(.settings())
             }
+
+            Button(L("menu.app_health")) {
+                TelemetryService.shared.increment("support_opened")
+                AppWindowRouter.shared.open(.settings(.support))
+            }
         }
     }
 }

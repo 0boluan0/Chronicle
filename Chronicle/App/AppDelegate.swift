@@ -26,6 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var quickMarkerItem: NSMenuItem?
     private var closeoutItem: NSMenuItem?
     private var preferencesItem: NSMenuItem?
+    private var appHealthItem: NSMenuItem?
     private var welcomeItem: NSMenuItem?
     private var exportItem: NSMenuItem?
     private var pauseTrackingItem: NSMenuItem?
@@ -156,6 +157,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         closeoutItem.target = self
         let preferencesItem = NSMenuItem(title: L("menu.preferences"), action: #selector(openPreferences), keyEquivalent: ",")
         preferencesItem.target = self
+        let appHealthItem = NSMenuItem(title: L("menu.app_health"), action: #selector(openAppHealth), keyEquivalent: "")
+        appHealthItem.target = self
         let welcomeItem = NSMenuItem(title: L("menu.welcome"), action: #selector(openWelcome), keyEquivalent: "w")
         welcomeItem.target = self
         let exportItem = NSMenuItem(title: L("menu.export_now"), action: #selector(exportNow), keyEquivalent: "e")
@@ -178,6 +181,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         self.quickMarkerItem = quickMarkerItem
         self.closeoutItem = closeoutItem
         self.preferencesItem = preferencesItem
+        self.appHealthItem = appHealthItem
         self.welcomeItem = welcomeItem
         self.exportItem = exportItem
         self.pauseTrackingItem = pauseTrackingItem
@@ -195,6 +199,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         statusMenu.addItem(.separator())
         statusMenu.addItem(pauseTrackingItem)
         statusMenu.addItem(preferencesItem)
+        statusMenu.addItem(appHealthItem)
         statusMenu.addItem(welcomeItem)
         statusMenu.addItem(.separator())
         statusMenu.addItem(checkUpdatesItem)
@@ -261,6 +266,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         quickMarkerItem?.title = L("menu.quick_marker")
         closeoutItem?.title = L("menu.closeout_today")
         preferencesItem?.title = L("menu.preferences")
+        appHealthItem?.title = L("menu.app_health")
         welcomeItem?.title = L("menu.welcome")
         updateTrackingPauseMenuTitle()
         checkUpdatesItem?.title = L("menu.check_updates")
@@ -306,6 +312,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             accessibilityKey: appState.trackingPaused ? "menu.resume_tracking" : "menu.pause_tracking"
         )
         preferencesItem?.image = menuImage(systemSymbolName: "gearshape", accessibilityKey: "menu.preferences")
+        appHealthItem?.image = menuImage(systemSymbolName: "stethoscope", accessibilityKey: "menu.app_health")
         welcomeItem?.image = menuImage(systemSymbolName: "sparkles", accessibilityKey: "menu.welcome")
         checkUpdatesItem?.image = menuImage(systemSymbolName: "arrow.down.circle", accessibilityKey: "menu.check_updates")
         openReleasesItem?.image = menuImage(systemSymbolName: "safari", accessibilityKey: "menu.open_releases")
@@ -445,6 +452,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     @objc private func openPreferences() {
         TelemetryService.shared.increment("preferences_opened")
         AppWindowRouter.shared.open(.settings())
+    }
+
+    @objc private func openAppHealth() {
+        TelemetryService.shared.increment("support_opened")
+        AppWindowRouter.shared.open(.settings(.support))
     }
 
     @objc private func openDashboard() {

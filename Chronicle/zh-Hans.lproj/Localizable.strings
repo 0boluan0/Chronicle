@@ -8,6 +8,7 @@
 "menu.status.recording" = "正在记录";
 "menu.status.paused" = "已暂停";
 "menu.preferences" = "设置…";
+"menu.app_health" = "应用健康…";
 "menu.welcome" = "欢迎…";
 "menu.export_now" = "保存今日日志";
 "menu.exporting" = "保存中…";
