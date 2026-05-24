@@ -482,93 +482,134 @@ struct OnboardingView: View {
     }
 
     private var footer: some View {
-        HStack(spacing: DesignSystem.Spacing.sm) {
-            if let first = flowSteps.first, step != first {
-                Button(L("actions.back")) {
-                    goBack()
-                }
-                .buttonStyle(.bordered)
-                .accessibilityIdentifier("onboarding.back")
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+                backButton
+
+                Spacer(minLength: DesignSystem.Spacing.md)
+
+                footerActions
             }
 
-            Spacer()
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                footerActions
 
-            switch step {
-            case .value:
-                Button(L("onboarding.skip_setup")) {
-                    useDefaults()
+                backButton
+            }
+        }
+        .padding(.top, DesignSystem.Spacing.sm)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("onboarding.footer")
+    }
+
+    @ViewBuilder
+    private var backButton: some View {
+        if let first = flowSteps.first, step != first {
+            Button {
+                goBack()
+            } label: {
+                footerButtonLabel("actions.back", systemImage: "chevron.left")
+            }
+            .buttonStyle(.bordered)
+            .accessibilityIdentifier("onboarding.back")
+        }
+    }
+
+    private var footerActions: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+                footerActionButtons
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                footerActionButtons
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var footerActionButtons: some View {
+        switch step {
+        case .value:
+            Button {
+                useDefaults()
+            } label: {
+                footerButtonLabel("onboarding.skip_setup", systemImage: "forward.end")
+            }
+            .buttonStyle(.bordered)
+            .accessibilityIdentifier("onboarding.skipSetup")
+
+            primaryNextButton(
+                titleKey: "onboarding.next.log_folder",
+                systemImage: "folder.badge.plus",
+                id: "onboarding.next.value"
+            )
+
+        case .exports:
+            if !hasDailyExportFolderConfigured {
+                Button {
+                    goNext()
+                } label: {
+                    footerButtonLabel("onboarding.next.skip_folder", systemImage: "forward.end")
                 }
                 .buttonStyle(.bordered)
-                .accessibilityIdentifier("onboarding.skipSetup")
+                .accessibilityIdentifier("onboarding.skipExports")
+            }
 
+            if hasDailyExportFolderConfigured {
                 primaryNextButton(
-                    titleKey: "onboarding.next.log_folder",
-                    systemImage: "folder.badge.plus",
-                    id: "onboarding.next.value"
+                    titleKey: "onboarding.next.privacy",
+                    systemImage: "hand.raised",
+                    id: "onboarding.next.exports",
+                    tone: .success
                 )
-
-            case .exports:
-                if !hasDailyExportFolderConfigured {
-                    Button(L("onboarding.next.skip_folder")) {
-                        goNext()
-                    }
-                    .buttonStyle(.bordered)
-                    .accessibilityIdentifier("onboarding.skipExports")
-                }
-
-                if hasDailyExportFolderConfigured {
-                    primaryNextButton(
-                        titleKey: "onboarding.next.privacy",
-                        systemImage: "hand.raised",
-                        id: "onboarding.next.exports",
-                        tone: .success
-                    )
-                } else {
-                    Button {
-                        chooseDailyFolder()
-                    } label: {
-                        Label(L("onboarding.next.choose_folder"), systemImage: "folder.badge.plus")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(DesignSystem.Colors.accentSkyBlue)
-                    .accessibilityIdentifier("onboarding.next.exports")
-                }
-
-            case .privacy:
-                if appState.windowTitleCaptureEnabled && !appState.accessibilityAuthorized {
-                    Button(L("onboarding.next.continue_for_now")) {
-                        goNext()
-                    }
-                    .buttonStyle(.bordered)
-                    .accessibilityIdentifier("onboarding.next.privacy")
-
-                    Button {
-                        AccessibilityPermissionManager.shared.openSystemSettings()
-                    } label: {
-                        Label(L("onboarding.privacy.open_settings"), systemImage: "gearshape")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(DesignSystem.Colors.accentSkyBlue)
-                    .accessibilityIdentifier("onboarding.openAccessibility")
-                } else {
-                    primaryNextButton(
-                        titleKey: "onboarding.next.finish",
-                        systemImage: "checkmark.seal",
-                        id: "onboarding.next.privacy",
-                        tone: titleCaptureTone
-                    )
-                }
-
-            case .finish:
+            } else {
                 Button {
-                    finish()
+                    chooseDailyFolder()
                 } label: {
-                    Label(L("onboarding.finish.start"), systemImage: "play.fill")
+                    footerButtonLabel("onboarding.next.choose_folder", systemImage: "folder.badge.plus")
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(DesignSystem.Colors.accentSkyBlue)
-                .accessibilityIdentifier("onboarding.finish")
+                .accessibilityIdentifier("onboarding.next.exports")
             }
+
+        case .privacy:
+            if appState.windowTitleCaptureEnabled && !appState.accessibilityAuthorized {
+                Button {
+                    goNext()
+                } label: {
+                    footerButtonLabel("onboarding.next.continue_for_now", systemImage: "arrow.forward")
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("onboarding.next.privacy")
+
+                Button {
+                    AccessibilityPermissionManager.shared.openSystemSettings()
+                } label: {
+                    footerButtonLabel("onboarding.privacy.open_settings", systemImage: "gearshape")
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(DesignSystem.Colors.accentSkyBlue)
+                .accessibilityIdentifier("onboarding.openAccessibility")
+            } else {
+                primaryNextButton(
+                    titleKey: "onboarding.next.finish",
+                    systemImage: "checkmark.seal",
+                    id: "onboarding.next.privacy",
+                    tone: titleCaptureTone
+                )
+            }
+
+        case .finish:
+            Button {
+                finish()
+            } label: {
+                footerButtonLabel("onboarding.finish.start", systemImage: "play.fill")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(DesignSystem.Colors.accentSkyBlue)
+            .accessibilityIdentifier("onboarding.finish")
         }
     }
 
@@ -581,11 +622,22 @@ struct OnboardingView: View {
         Button {
             goNext()
         } label: {
-            Label(L(titleKey), systemImage: systemImage)
+            footerButtonLabel(titleKey, systemImage: systemImage)
         }
         .buttonStyle(.borderedProminent)
         .tint(tone.color)
         .accessibilityIdentifier(id)
+    }
+
+    private func footerButtonLabel(_ titleKey: String, systemImage: String) -> some View {
+        Label {
+            Text(L(titleKey))
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: systemImage)
+        }
     }
 
     private var valueContent: some View {
