@@ -230,7 +230,8 @@ struct TaggingSetupWizardView: View {
                 Text(LocalizedStringKey(titleKey))
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(LocalizedStringKey(detailKey))
                     .font(.caption2)
@@ -238,6 +239,7 @@ struct TaggingSetupWizardView: View {
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer(minLength: 0)
         }
@@ -266,31 +268,39 @@ struct TaggingSetupWizardView: View {
                     .foregroundColor(DesignSystem.Colors.secondaryText)
             }
         } else if let statusMessage, !statusMessage.isEmpty {
-            HStack(spacing: 8) {
+            HStack(alignment: .top, spacing: 8) {
                 Image(systemName: statusIsError ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
                     .foregroundColor(statusIsError ? Color(nsColor: .systemRed) : DesignSystem.StatusTone.success.color)
+                    .frame(width: 16, height: 16)
                 Text(statusMessage)
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(statusIsError ? .red : DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
+                    .help(statusMessage)
                     .accessibilityIdentifier("wizard.status")
             }
         }
     }
 
     private var wizardIntro: some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
             IconWell(systemImage: "checklist.checked", tone: .info, accessibilityLabel: L("wizard.title"))
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("wizard.subtitle")
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
                 Text("wizard.user_goal")
                     .font(.caption2)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer(minLength: 0)
 
@@ -376,12 +386,15 @@ struct TaggingSetupWizardView: View {
                 Text("wizard.outcome.title")
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(LocalizedStringKey(wizardOutcomeDetailKey))
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
+                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -404,7 +417,8 @@ struct TaggingSetupWizardView: View {
                 Text(LocalizedStringKey(item.titleKey))
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(LocalizedStringKey(item.detailKey))
                     .font(.caption2)
@@ -412,6 +426,7 @@ struct TaggingSetupWizardView: View {
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer(minLength: 0)
         }
@@ -587,6 +602,8 @@ struct TaggingSetupWizardView: View {
                     .foregroundColor(DesignSystem.Colors.primaryText)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
+                    .help(item.appName)
 
                 Text(String(format: L("wizard.row.activity_detail"), formatDuration(item.durationSeconds)))
                     .font(.caption2)
@@ -607,6 +624,7 @@ struct TaggingSetupWizardView: View {
                     }
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer(minLength: 0)
         }
@@ -620,6 +638,8 @@ struct TaggingSetupWizardView: View {
             Text(titleKey)
                 .font(.caption2.weight(.semibold))
                 .foregroundColor(DesignSystem.Colors.secondaryText)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
 
             content()
         }
