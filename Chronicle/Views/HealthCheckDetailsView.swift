@@ -23,9 +23,7 @@ struct HealthCheckDetailsView: View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
             header
 
-            if let message = statusMessage, !message.isEmpty {
-                statusBanner(message)
-            }
+            StatusBannerView(status: actionStatus, accessibilityIdentifier: "selfCheck.statusMessage")
 
             Divider()
 
@@ -148,6 +146,13 @@ struct HealthCheckDetailsView: View {
             return L("popover.self_check.not_run")
         }
         return String(format: L("popover.self_check.checked_at"), Self.timeFormatter.string(from: report.checkedAt))
+    }
+
+    private var actionStatus: StatusMessage? {
+        guard let message = statusMessage?.trimmingCharacters(in: .whitespacesAndNewlines), !message.isEmpty else {
+            return nil
+        }
+        return StatusMessage(text: message, isError: statusIsError)
     }
 
     private var actions: some View {
@@ -349,34 +354,6 @@ struct HealthCheckDetailsView: View {
             Image(systemName: systemImage)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func statusBanner(_ message: String) -> some View {
-        Label {
-            Text(message)
-                .font(DesignSystem.Typography.caption)
-                .foregroundColor(statusIsError ? Color(nsColor: .systemRed) : DesignSystem.Colors.secondaryText)
-                .lineLimit(3)
-                .fixedSize(horizontal: false, vertical: true)
-                .textSelection(.enabled)
-                .help(message)
-        } icon: {
-            Image(systemName: statusIsError ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
-                .font(.caption.weight(.semibold))
-                .foregroundColor(statusIsError ? Color(nsColor: .systemRed) : Color(nsColor: .systemGreen))
-        }
-        .labelStyle(.titleAndIcon)
-        .padding(DesignSystem.Spacing.sm)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill((statusIsError ? Color(nsColor: .systemRed) : Color(nsColor: .systemGreen)).opacity(0.08))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .stroke((statusIsError ? Color(nsColor: .systemRed) : Color(nsColor: .systemGreen)).opacity(0.22), lineWidth: 1)
-        )
-        .accessibilityIdentifier("selfCheck.statusMessage")
     }
 
     private var readinessSummarySection: some View {
