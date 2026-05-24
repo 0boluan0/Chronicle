@@ -106,7 +106,7 @@ struct TimelineRowView: View {
             }
 
             if activity.isIdle {
-                StatusPill(L("Idle"), systemImage: "moon.zzz", tone: .warning)
+                StatusPill(L("timeline.row.idle"), systemImage: "moon.zzz", tone: .warning)
             }
 
             if showsManualIndicator {
@@ -143,7 +143,7 @@ struct TimelineRowView: View {
 
     private var appIcon: NSImage {
         if activity.isIdle {
-            return NSImage(systemSymbolName: "moon.zzz", accessibilityDescription: L("Idle")) ?? NSImage()
+            return NSImage(systemSymbolName: "moon.zzz", accessibilityDescription: L("timeline.row.idle")) ?? NSImage()
         }
         if let cached = IconCache.icons[activity.appName] {
             return cached

@@ -3276,6 +3276,7 @@
 "timeline.group.hint.idle" = "Mostly idle time. Skim this block unless it explains a gap.";
 "timeline.marker.point" = "Note";
 "timeline.marker.interval" = "Focus block";
+"timeline.row.idle" = "Idle";
 "timeline.row.manual" = "Manual";
 "timeline.row.cue.needs_label_title" = "Needs category";
 "timeline.row.cue.needs_label_detail" = "Pick a category so this activity lands in the right daily log section.";

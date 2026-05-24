@@ -3268,6 +3268,7 @@
 "timeline.group.hint.idle" = "这一段主要是空闲时间；除非它能解释断档，否则可以快速略过。";
 "timeline.marker.point" = "笔记";
 "timeline.marker.interval" = "专注区间";
+"timeline.row.idle" = "空闲";
 "timeline.row.manual" = "手动";
 "timeline.row.cue.needs_label_title" = "需要分类";
 "timeline.row.cue.needs_label_detail" = "补上分类后，这段活动会进入正确的今日日志部分。";

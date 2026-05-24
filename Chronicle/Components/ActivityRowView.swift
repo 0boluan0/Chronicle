@@ -218,7 +218,7 @@ struct ActivityRowView: View {
     @ViewBuilder
     private var rowStatusPillContent: some View {
         if activity.isIdle {
-            StatusPill(L("Idle"), systemImage: "moon.zzz", tone: .warning)
+            StatusPill(L("timeline.row.idle"), systemImage: "moon.zzz", tone: .warning)
         }
         if needsLabel {
             StatusPill(L("tag.badge.needs_label"), systemImage: "exclamationmark.triangle.fill", tone: .warning)
@@ -304,7 +304,7 @@ struct ActivityRowView: View {
 
     private var appIcon: NSImage {
         if activity.isIdle {
-            return NSImage(systemSymbolName: "moon.zzz", accessibilityDescription: L("Idle")) ?? NSImage()
+            return NSImage(systemSymbolName: "moon.zzz", accessibilityDescription: L("timeline.row.idle")) ?? NSImage()
         }
         if let cached = ActivityIconCache.icons[activity.appName] {
             return cached
