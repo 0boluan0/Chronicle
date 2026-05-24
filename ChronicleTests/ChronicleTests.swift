@@ -1369,6 +1369,7 @@ final class ChronicleTests: XCTestCase {
             "self_check.details.issue.severity.warning",
             "self_check.details.issue.action.run_check",
             "self_check.details.issue.action.open_preferences",
+            "self_check.details.issue.action.open_export_settings",
             "self_check.details.issue.action.grant_permission",
             "self_check.details.issue.action.open_data",
             "self_check.details.issue.action.create_bundle",
