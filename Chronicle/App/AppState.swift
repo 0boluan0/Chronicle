@@ -747,6 +747,7 @@ nonisolated final class TelemetryService: @unchecked Sendable {
         "daily_review_reminder_shown",
         "daily_review_notification_sent",
         "daily_review_notification_opened",
+        "support_identity_copied",
         "diagnostics_export_success",
         "diagnostics_export_failure",
         "feedback_bundle_success",

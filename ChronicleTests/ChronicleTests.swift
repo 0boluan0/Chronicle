@@ -114,6 +114,8 @@ final class ChronicleTests: XCTestCase {
         "accessibility_permission_granted",
         "daily_review_reminder_shown",
         "daily_review_notification_sent",
+        "daily_review_notification_opened",
+        "support_identity_copied",
         "diagnostics_export_success",
         "diagnostics_export_failure",
         "feedback_bundle_success",
@@ -3060,6 +3062,7 @@ final class ChronicleTests: XCTestCase {
 
         TelemetryService.shared.increment("export_daily_success")
         TelemetryService.shared.increment("diagnostics_export_failure", by: 2)
+        TelemetryService.shared.increment("support_identity_copied")
 
         let expectation = XCTestExpectation(description: "export telemetry json")
         var payload: [String: Any] = [:]
@@ -3081,6 +3084,7 @@ final class ChronicleTests: XCTestCase {
         let counters = payload["counters"] as? [String: Any]
         XCTAssertEqual(counters?["export_daily_success"] as? Int, 1)
         XCTAssertEqual(counters?["diagnostics_export_failure"] as? Int, 2)
+        XCTAssertEqual(counters?["support_identity_copied"] as? Int, 1)
         XCTAssertEqual(payload["telemetryEnabled"] as? Bool, true)
     }
 
