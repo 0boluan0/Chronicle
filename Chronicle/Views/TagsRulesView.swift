@@ -16,6 +16,10 @@ struct TagsRulesView: View {
         var id: String { rawValue }
 
         var titleKey: LocalizedStringKey {
+            LocalizedStringKey(titleStringKey)
+        }
+
+        var titleStringKey: String {
             switch self {
             case .tags:
                 return "tags_rules.tab.tags"
@@ -25,6 +29,10 @@ struct TagsRulesView: View {
         }
 
         var detailKey: LocalizedStringKey {
+            LocalizedStringKey(detailStringKey)
+        }
+
+        var detailStringKey: String {
             switch self {
             case .tags:
                 return "tags_rules.mode.categories_detail"
@@ -122,13 +130,18 @@ struct TagsRulesView: View {
                 Text(LocalizedStringKey(classificationOutcomeTitleKey))
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .help(L(classificationOutcomeTitleKey))
 
                 Text(LocalizedStringKey(classificationOutcomeDetailKey))
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
+                    .help(L(classificationOutcomeDetailKey))
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -143,14 +156,18 @@ struct TagsRulesView: View {
                 Text(LocalizedStringKey(item.titleKey))
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .help(L(item.titleKey))
 
                 Text(LocalizedStringKey(item.detailKey))
                     .font(.caption2)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
+                    .help(L(item.detailKey))
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer(minLength: 0)
         }
@@ -295,14 +312,18 @@ struct TagsRulesView: View {
                 Text(section.titleKey)
                     .font(.caption.weight(.semibold))
                     .foregroundColor(isSelected ? DesignSystem.Colors.primaryText : DesignSystem.Colors.secondaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .help(L(section.titleStringKey))
 
                 Text(section.detailKey)
                     .font(.caption2)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
+                    .help(L(section.detailStringKey))
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer(minLength: 0)
         }
@@ -364,14 +385,18 @@ struct TagsRulesView: View {
                 Text(selection.titleKey)
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .help(L(selection.titleStringKey))
 
                 Text(selection.detailKey)
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
+                    .help(L(selection.detailStringKey))
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.horizontal, DesignSystem.Spacing.sm)
         .padding(.vertical, 7)
@@ -399,8 +424,8 @@ private func notifyTaggingSetupDidChange() {
 }
 
 private func setupLibraryPathItem(
-    titleKey: LocalizedStringKey,
-    detailKey: LocalizedStringKey,
+    titleKey: String,
+    detailKey: String,
     systemImage: String,
     tone: DesignSystem.StatusTone,
     accessibilityIdentifier: String
@@ -416,17 +441,21 @@ private func setupLibraryPathItem(
             )
 
         VStack(alignment: .leading, spacing: 2) {
-            Text(titleKey)
+            Text(LocalizedStringKey(titleKey))
                 .font(.caption.weight(.semibold))
                 .foregroundColor(DesignSystem.Colors.primaryText)
-                .lineLimit(1)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+                .help(L(titleKey))
 
-            Text(detailKey)
+            Text(LocalizedStringKey(detailKey))
                 .font(DesignSystem.Typography.caption)
                 .foregroundColor(DesignSystem.Colors.secondaryText)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
+                .help(L(detailKey))
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
 
         Spacer(minLength: 0)
     }
@@ -1248,8 +1277,8 @@ struct RulesManagementView: View {
     }
 
     private func rulesAutomationPathItem(
-        titleKey: LocalizedStringKey,
-        detailKey: LocalizedStringKey,
+        titleKey: String,
+        detailKey: String,
         systemImage: String,
         tone: DesignSystem.StatusTone,
         accessibilityIdentifier: String
@@ -1261,17 +1290,21 @@ struct RulesManagementView: View {
                 .frame(width: 18, height: 18)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(titleKey)
+                Text(LocalizedStringKey(titleKey))
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .help(L(titleKey))
 
-                Text(detailKey)
+                Text(LocalizedStringKey(detailKey))
                     .font(.caption2)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
+                    .help(L(detailKey))
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer(minLength: 0)
         }
