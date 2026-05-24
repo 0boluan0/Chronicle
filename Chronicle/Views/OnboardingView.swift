@@ -1693,29 +1693,61 @@ struct OnboardingView: View {
     }
 
     private var finishHealthActions: some View {
-        HStack(spacing: DesignSystem.Spacing.sm) {
-            StatusPill(finishHealthStatusText, systemImage: finishHealthStatusIconName, tone: finishHealthTone)
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+                finishHealthStatusPill
+                finishHealthActionButtons
+            }
 
+            VStack(alignment: .trailing, spacing: DesignSystem.Spacing.sm) {
+                finishHealthStatusPill
+                finishHealthActionButtons
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .trailing)
+    }
+
+    private var finishHealthStatusPill: some View {
+        StatusPill(finishHealthStatusText, systemImage: finishHealthStatusIconName, tone: finishHealthTone)
+    }
+
+    private var finishHealthActionButtons: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                finishHealthCheckButton
+                finishHealthDetailsButton
+            }
+
+            VStack(alignment: .trailing, spacing: DesignSystem.Spacing.xs) {
+                finishHealthCheckButton
+                finishHealthDetailsButton
+            }
+        }
+    }
+
+    private var finishHealthCheckButton: some View {
+        Button {
+            healthCheckService.runQuickChecks()
+        } label: {
+            Label(L("onboarding.finish.check_health"), systemImage: "checkmark.shield")
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+        .disabled(healthCheckService.isRunning)
+        .accessibilityIdentifier("onboarding.finish.checkHealth")
+    }
+
+    @ViewBuilder
+    private var finishHealthDetailsButton: some View {
+        if finishHealthCanShowDetails {
             Button {
-                healthCheckService.runQuickChecks()
+                showHealthDetails = true
             } label: {
-                Label(L("onboarding.finish.check_health"), systemImage: "checkmark.shield")
+                Label(L("onboarding.finish.health_details"), systemImage: "doc.text.magnifyingglass")
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
-            .disabled(healthCheckService.isRunning)
-            .accessibilityIdentifier("onboarding.finish.checkHealth")
-
-            if finishHealthCanShowDetails {
-                Button {
-                    showHealthDetails = true
-                } label: {
-                    Label(L("onboarding.finish.health_details"), systemImage: "doc.text.magnifyingglass")
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .accessibilityIdentifier("onboarding.finish.healthDetails")
-            }
+            .accessibilityIdentifier("onboarding.finish.healthDetails")
         }
     }
 
