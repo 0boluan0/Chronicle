@@ -42,6 +42,10 @@ struct StatsView: View {
         ActionButtonLabel(title, systemImage: systemImage)
     }
 
+    private func statsCompactActionLabel(_ title: String, systemImage: String) -> some View {
+        ActionButtonLabel(title, systemImage: systemImage, fillsWidth: false)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
             headerView
@@ -1589,6 +1593,18 @@ struct StatsView: View {
     }
 
     private var idleSuppressionStatusText: String {
+        let reasons = idleSuppressionReasonLabels
+        if reasons.isEmpty {
+            return ""
+        }
+        return String(format: L("stats.idle_suppression.active"), reasons.joined(separator: ", "))
+    }
+
+    private var idleSuppressionTone: DesignSystem.StatusTone {
+        isIdleSuppressionVisible ? .warning : .neutral
+    }
+
+    private var idleSuppressionReasonLabels: [String] {
         var reasons: [String] = []
         if appState.idleSuppressionMediaPlaying {
             reasons.append(L("stats.idle_suppression.media"))
@@ -1599,73 +1615,103 @@ struct StatsView: View {
         if appState.idleSuppressionResumeGrace {
             reasons.append(L("stats.idle_suppression.grace"))
         }
-        if reasons.isEmpty {
-            return ""
-        }
-        return String(format: L("stats.idle_suppression.active"), reasons.joined(separator: ", "))
+        return reasons
     }
 
     private var idleSuppressionExplanationSheet: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            Text(L("stats.idle_suppression.sheet_title"))
-                .font(.headline)
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                IconWell(
+                    systemImage: isIdleSuppressionVisible ? "shield.lefthalf.filled" : "checkmark.shield",
+                    tone: idleSuppressionTone,
+                    accessibilityLabel: L("stats.idle_suppression.sheet_title")
+                )
 
-            Text(L("stats.idle_suppression.sheet_subtitle"))
-                .font(.caption)
-                .foregroundColor(DesignSystem.Colors.secondaryText)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(L("stats.idle_suppression.sheet_title"))
+                        .font(.headline.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
 
-            suppressionReasonRow(
-                title: L("stats.idle_suppression.media"),
-                active: appState.idleSuppressionMediaPlaying,
-                detail: L("stats.idle_suppression.media_detail")
-            )
-            suppressionReasonRow(
-                title: L("stats.idle_suppression.allowlist"),
-                active: appState.idleSuppressionFrontmostAllowed,
-                detail: L("stats.idle_suppression.allowlist_detail")
-            )
-            suppressionReasonRow(
-                title: L("stats.idle_suppression.grace"),
-                active: appState.idleSuppressionResumeGrace,
-                detail: L("stats.idle_suppression.grace_detail")
-            )
+                    Text(L("stats.idle_suppression.sheet_subtitle"))
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                suppressionReasonRow(
+                    title: L("stats.idle_suppression.media"),
+                    active: appState.idleSuppressionMediaPlaying,
+                    detail: L("stats.idle_suppression.media_detail")
+                )
+                suppressionReasonRow(
+                    title: L("stats.idle_suppression.allowlist"),
+                    active: appState.idleSuppressionFrontmostAllowed,
+                    detail: L("stats.idle_suppression.allowlist_detail")
+                )
+                suppressionReasonRow(
+                    title: L("stats.idle_suppression.grace"),
+                    active: appState.idleSuppressionResumeGrace,
+                    detail: L("stats.idle_suppression.grace_detail")
+                )
+            }
 
             HStack {
                 Spacer()
-                Button(L("stats.idle_suppression.open_preferences")) {
+                Button {
+                    showIdleSuppressionExplanation = false
                     AppWindowRouter.shared.open(.settings())
+                } label: {
+                    statsCompactActionLabel(L("stats.idle_suppression.open_preferences"), systemImage: "slider.horizontal.3")
                 }
                 .buttonStyle(.bordered)
+                .accessibilityIdentifier("stats.idleSuppression.openPreferences")
 
-                Button(L("actions.close")) {
+                Button {
                     showIdleSuppressionExplanation = false
+                } label: {
+                    statsCompactActionLabel(L("actions.close"), systemImage: "xmark")
                 }
                 .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("stats.idleSuppression.close")
             }
         }
         .padding(20)
-        .frame(minWidth: 420, minHeight: 260)
+        .frame(minWidth: 440, minHeight: 300)
     }
 
     @ViewBuilder
     private func suppressionReasonRow(title: String, active: Bool, detail: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(active ? Color(nsColor: .systemGreen) : DesignSystem.Colors.secondaryText.opacity(0.5))
-                    .frame(width: 8, height: 8)
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                Spacer()
-                Text(active ? L("stats.idle_suppression.state_active") : L("stats.idle_suppression.state_inactive"))
-                    .font(.caption)
-                    .foregroundColor(active ? Color(nsColor: .systemGreen) : DesignSystem.Colors.secondaryText)
+        RowSurface(tone: active ? .warning : .neutral) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                Image(systemName: active ? "checkmark.circle.fill" : "circle")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(active ? DesignSystem.StatusTone.warning.color : DesignSystem.Colors.secondaryText)
+                    .frame(width: 16, height: 18)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.sm) {
+                        Text(title)
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+
+                        Spacer(minLength: 0)
+
+                        StatusPill(
+                            active ? L("stats.idle_suppression.state_active") : L("stats.idle_suppression.state_inactive"),
+                            systemImage: active ? "pause.circle" : "circle",
+                            tone: active ? .warning : .neutral
+                        )
+                    }
+
+                    Text(detail)
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
-            Text(detail)
-                .font(.caption)
-                .foregroundColor(DesignSystem.Colors.secondaryText)
         }
-        .padding(.vertical, 2)
     }
 
     private let dateFormatter: DateFormatter = {
