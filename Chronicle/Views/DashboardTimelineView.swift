@@ -1201,38 +1201,55 @@ struct DashboardTimelineView: View {
     }
 
     private var timelineRhythmHeader: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 240), spacing: DesignSystem.Spacing.md, alignment: .leading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
+        ViewThatFits(in: .horizontal) {
             HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-                IconWell(
-                    systemImage: "waveform.path.ecg",
-                    tone: timelineSummaryTone,
-                    accessibilityLabel: L("timeline.rhythm.title")
+                timelineRhythmCopy
+
+                Spacer(minLength: DesignSystem.Spacing.sm)
+
+                StatusPill(
+                    String(format: L("timeline.rhythm.status"), groupedItems.count),
+                    systemImage: "square.grid.3x3",
+                    tone: timelineSummaryTone
                 )
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(LocalizedStringKey(timelineRhythmHeadlineKey))
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundColor(DesignSystem.Colors.primaryText)
-
-                    Text(LocalizedStringKey(timelineRhythmDetailKey))
-                        .font(DesignSystem.Typography.caption)
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+                .fixedSize(horizontal: true, vertical: false)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
 
-            StatusPill(
-                String(format: L("timeline.rhythm.status"), groupedItems.count),
-                systemImage: "square.grid.3x3",
-                tone: timelineSummaryTone
-            )
-            .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                timelineRhythmCopy
+
+                StatusPill(
+                    String(format: L("timeline.rhythm.status"), groupedItems.count),
+                    systemImage: "square.grid.3x3",
+                    tone: timelineSummaryTone
+                )
+            }
         }
+    }
+
+    private var timelineRhythmCopy: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            IconWell(
+                systemImage: "waveform.path.ecg",
+                tone: timelineSummaryTone,
+                accessibilityLabel: L("timeline.rhythm.title")
+            )
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(LocalizedStringKey(timelineRhythmHeadlineKey))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(LocalizedStringKey(timelineRhythmDetailKey))
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func timelineRhythmBlock(_ group: TimelineGroup) -> some View {
@@ -1240,17 +1257,18 @@ struct DashboardTimelineView: View {
         let tone = timelineRhythmTone(for: summary)
 
         return VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-            HStack(alignment: .center, spacing: DesignSystem.Spacing.xs) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.xs) {
                 Image(systemName: timelineRhythmIconName(for: summary))
                     .font(.caption.weight(.semibold))
                     .foregroundColor(tone.color)
                     .frame(width: 16)
+                    .padding(.top, 1)
 
                 Text(group.label)
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.82)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Spacer(minLength: 0)
             }
@@ -1258,13 +1276,14 @@ struct DashboardTimelineView: View {
             Text(timelineRhythmValue(for: summary, itemCount: group.items.count))
                 .font(.caption2.weight(.medium))
                 .foregroundColor(DesignSystem.Colors.secondaryText)
-                .lineLimit(1)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
 
             timelineRhythmIndicators(for: summary)
         }
         .padding(.horizontal, DesignSystem.Spacing.sm)
         .padding(.vertical, 7)
-        .frame(maxWidth: .infinity, minHeight: 76, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: 82, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
                 .fill(tone.color.opacity(0.07))
@@ -1368,15 +1387,21 @@ struct DashboardTimelineView: View {
     }
 
     private var timelineSummaryHeader: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 240), spacing: DesignSystem.Spacing.md, alignment: .leading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            timelineSummaryCopy
-                .frame(maxWidth: .infinity, alignment: .leading)
-            StatusPill(timelineSummaryStatusText, systemImage: "list.bullet.rectangle", tone: timelineSummaryTone)
-                .frame(maxWidth: .infinity, alignment: .leading)
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                timelineSummaryCopy
+
+                Spacer(minLength: DesignSystem.Spacing.sm)
+
+                StatusPill(timelineSummaryStatusText, systemImage: "list.bullet.rectangle", tone: timelineSummaryTone)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                timelineSummaryCopy
+
+                StatusPill(timelineSummaryStatusText, systemImage: "list.bullet.rectangle", tone: timelineSummaryTone)
+            }
         }
     }
 
@@ -1392,13 +1417,17 @@ struct DashboardTimelineView: View {
                 Text(LocalizedStringKey(timelineSummaryHeadlineKey))
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(LocalizedStringKey(timelineSummaryDetailKey))
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var timelineList: some View {
@@ -1463,7 +1492,7 @@ struct DashboardTimelineView: View {
             displayLimit += 200
             refreshData(reason: "load more", resetLimit: false)
         } label: {
-            Label(L("common.load_more"), systemImage: "arrow.down.circle")
+            timelineActionLabel(L("common.load_more"), systemImage: "arrow.down.circle")
         }
         .buttonStyle(.bordered)
         .accessibilityIdentifier("dashboard.timeline.loadMore")
@@ -1472,38 +1501,12 @@ struct DashboardTimelineView: View {
     private var emptyTimelineCard: some View {
         SectionCard {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 240), spacing: DesignSystem.Spacing.md, alignment: .leading)],
-                    alignment: .leading,
-                    spacing: DesignSystem.Spacing.sm
-                ) {
-                    HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
-                        IconWell(
-                            systemImage: emptyTimelineIconName,
-                            tone: emptyTimelineTone,
-                            accessibilityLabel: L(emptyTimelineTitleKey)
-                        )
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(LocalizedStringKey(emptyTimelineTitleKey))
-                                .font(.headline.weight(.semibold))
-                                .foregroundColor(DesignSystem.Colors.primaryText)
-                            Text(LocalizedStringKey(emptyTimelineDetailKey))
-                                .font(DesignSystem.Typography.caption)
-                                .foregroundColor(DesignSystem.Colors.secondaryText)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                    StatusPill(emptyTimelineStatusText, systemImage: emptyTimelineStatusIconName, tone: emptyTimelineTone)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
+                emptyTimelineHeader
 
                 emptyTimelineGuidancePath
 
                 LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 160), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
+                    columns: [GridItem(.adaptive(minimum: 170), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
                     alignment: .leading,
                     spacing: DesignSystem.Spacing.sm
                 ) {
@@ -1511,6 +1514,49 @@ struct DashboardTimelineView: View {
                 }
             }
         }
+    }
+
+    private var emptyTimelineHeader: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                emptyTimelineCopy
+
+                Spacer(minLength: DesignSystem.Spacing.sm)
+
+                StatusPill(emptyTimelineStatusText, systemImage: emptyTimelineStatusIconName, tone: emptyTimelineTone)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                emptyTimelineCopy
+
+                StatusPill(emptyTimelineStatusText, systemImage: emptyTimelineStatusIconName, tone: emptyTimelineTone)
+            }
+        }
+    }
+
+    private var emptyTimelineCopy: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            IconWell(
+                systemImage: emptyTimelineIconName,
+                tone: emptyTimelineTone,
+                accessibilityLabel: L(emptyTimelineTitleKey)
+            )
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(LocalizedStringKey(emptyTimelineTitleKey))
+                    .font(.headline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(LocalizedStringKey(emptyTimelineDetailKey))
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var emptyTimelineGuidancePath: some View {
@@ -1580,12 +1626,14 @@ struct DashboardTimelineView: View {
                 .font(.caption.weight(.semibold))
                 .foregroundColor(tone.color)
                 .frame(width: 16)
+                .padding(.top, 1)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(titleKey)
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(detailKey)
                     .font(.caption2)
@@ -1616,7 +1664,7 @@ struct DashboardTimelineView: View {
             Button {
                 resetTimelineFilters()
             } label: {
-                Label(L("timeline.focus.reset_filters"), systemImage: "line.3.horizontal.decrease.circle")
+                timelineActionLabel(L("timeline.focus.reset_filters"), systemImage: "line.3.horizontal.decrease.circle")
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
@@ -1625,7 +1673,7 @@ struct DashboardTimelineView: View {
             Button {
                 AppWindowRouter.shared.open(.quickMarker)
             } label: {
-                Label(L("overview.review.add_marker"), systemImage: "square.and.pencil")
+                timelineActionLabel(L("overview.review.add_marker"), systemImage: "square.and.pencil")
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
@@ -1645,7 +1693,7 @@ struct DashboardTimelineView: View {
         Button {
             selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
         } label: {
-            Label(L("timeline.empty.open_today"), systemImage: "sun.max")
+            timelineActionLabel(L("timeline.empty.open_today"), systemImage: "sun.max")
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
@@ -1657,7 +1705,7 @@ struct DashboardTimelineView: View {
             appState.trackingPaused = false
             selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
         } label: {
-            Label(L("timeline.empty.resume_capture"), systemImage: "play.fill")
+            timelineActionLabel(L("timeline.empty.resume_capture"), systemImage: "play.fill")
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
@@ -1668,7 +1716,7 @@ struct DashboardTimelineView: View {
         Button {
             AppWindowRouter.shared.open(.settings(.support))
         } label: {
-            Label(L("timeline.empty.check_capture"), systemImage: "checkmark.shield")
+            timelineActionLabel(L("timeline.empty.check_capture"), systemImage: "checkmark.shield")
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
