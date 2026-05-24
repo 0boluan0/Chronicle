@@ -28,15 +28,7 @@ struct DebugPreferencesView: View {
     private var diagnosticStatusSection: some View {
         SectionCard(title: "preferences.debug.status.title") {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
-                    alignment: .leading,
-                    spacing: DesignSystem.Spacing.sm
-                ) {
-                    diagnosticStatusCopy
-                    debugLoggingControls
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
+                diagnosticStatusHeader
 
                 RowSurface(tone: appState.debugLoggingEnabled ? .warning : .neutral) {
                     diagnosticSafetyNote
@@ -45,6 +37,24 @@ struct DebugPreferencesView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("preferences.debug.logging")
         }
+    }
+
+    private var diagnosticStatusHeader: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                diagnosticStatusCopy
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                debugLoggingControls
+                    .frame(minWidth: 220, idealWidth: 260, maxWidth: 280, alignment: .leading)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                diagnosticStatusCopy
+                debugLoggingControls
+            }
+        }
+        .accessibilityIdentifier("preferences.debug.statusHeader")
     }
 
     private var diagnosticStatusCopy: some View {
@@ -59,10 +69,13 @@ struct DebugPreferencesView: View {
                 Text(LocalizedStringKey(debugStatusTitleKey))
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(LocalizedStringKey(debugStatusDetailKey))
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -159,10 +172,13 @@ struct DebugPreferencesView: View {
                 Text("preferences.debug.flow.heading")
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text("preferences.debug.flow.detail")
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
