@@ -1533,19 +1533,7 @@ struct ReportsWorkspaceView: View {
                     )
 
                     VStack(alignment: .leading, spacing: 4) {
-                        HStack(spacing: DesignSystem.Spacing.xs) {
-                            Text("reports.readiness.compatibility.title")
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundColor(DesignSystem.Colors.primaryText)
-                                .lineLimit(2)
-                                .fixedSize(horizontal: false, vertical: true)
-
-                            StatusPill(
-                                L("reports.readiness.compatibility.status"),
-                                systemImage: "checkmark.shield",
-                                tone: .info
-                            )
-                        }
+                        exportCompatibilityHeading
 
                         Text("reports.readiness.compatibility.detail")
                             .font(DesignSystem.Typography.caption)
@@ -1585,6 +1573,37 @@ struct ReportsWorkspaceView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityIdentifier("reports.readiness.compatibility")
+    }
+
+    private var exportCompatibilityHeading: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.xs) {
+                exportCompatibilityTitle
+                exportCompatibilityStatusPill
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                exportCompatibilityTitle
+                exportCompatibilityStatusPill
+            }
+        }
+    }
+
+    private var exportCompatibilityTitle: some View {
+        Text("reports.readiness.compatibility.title")
+            .font(.subheadline.weight(.semibold))
+            .foregroundColor(DesignSystem.Colors.primaryText)
+            .lineLimit(2)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var exportCompatibilityStatusPill: some View {
+        StatusPill(
+            L("reports.readiness.compatibility.status"),
+            systemImage: "checkmark.shield",
+            tone: .info
+        )
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     private func exportCompatibilityItem(
