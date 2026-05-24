@@ -497,17 +497,23 @@ struct DashboardDebugView: View {
                         systemImage: "sun.max",
                         tone: .info
                     ) {
-                        Button(L("debug.maintenance.rebuild_today")) {
+                        Button {
                             let bounds = todayBounds
                             maintenance.enqueueRebuild(rangeStart: bounds.start, rangeEnd: bounds.end)
+                        } label: {
+                            debugActionLabel(L("debug.maintenance.rebuild_today"), systemImage: "arrow.triangle.2.circlepath")
                         }
                         .buttonStyle(.bordered)
+                        .accessibilityIdentifier("dashboard.debug.maintenance.rebuildToday")
 
-                        Button(L("debug.maintenance.recompute_today")) {
+                        Button {
                             let bounds = todayBounds
                             maintenance.enqueueRecompute(rangeStart: bounds.start, rangeEnd: bounds.end)
+                        } label: {
+                            debugActionLabel(L("debug.maintenance.recompute_today"), systemImage: "tag")
                         }
                         .buttonStyle(.bordered)
+                        .accessibilityIdentifier("dashboard.debug.maintenance.recomputeToday")
                     }
 
                     maintenanceActionGroup(
@@ -516,17 +522,23 @@ struct DashboardDebugView: View {
                         systemImage: "calendar",
                         tone: .success
                     ) {
-                        Button(L("debug.maintenance.rebuild_week")) {
+                        Button {
                             let bounds = weekBounds
                             maintenance.enqueueRebuild(rangeStart: bounds.start, rangeEnd: bounds.end)
+                        } label: {
+                            debugActionLabel(L("debug.maintenance.rebuild_week"), systemImage: "arrow.triangle.2.circlepath")
                         }
                         .buttonStyle(.bordered)
+                        .accessibilityIdentifier("dashboard.debug.maintenance.rebuildWeek")
 
-                        Button(L("debug.maintenance.recompute_week")) {
+                        Button {
                             let bounds = weekBounds
                             maintenance.enqueueRecompute(rangeStart: bounds.start, rangeEnd: bounds.end)
+                        } label: {
+                            debugActionLabel(L("debug.maintenance.recompute_week"), systemImage: "tag")
                         }
                         .buttonStyle(.bordered)
+                        .accessibilityIdentifier("dashboard.debug.maintenance.recomputeWeek")
                     }
                 }
 
@@ -574,22 +586,31 @@ struct DashboardDebugView: View {
                     alignment: .leading,
                     spacing: DesignSystem.Spacing.sm
                 ) {
-                    Button(L("debug.maintenance.rebuild_custom")) {
+                    Button {
                         let bounds = customBounds
                         maintenance.enqueueRebuild(rangeStart: bounds.start, rangeEnd: bounds.end)
+                    } label: {
+                        debugActionLabel(L("debug.maintenance.rebuild_custom"), systemImage: "arrow.triangle.2.circlepath")
                     }
                     .buttonStyle(.bordered)
+                    .accessibilityIdentifier("dashboard.debug.maintenance.rebuildCustom")
 
-                    Button(L("debug.maintenance.recompute_custom")) {
+                    Button {
                         let bounds = customBounds
                         maintenance.enqueueRecompute(rangeStart: bounds.start, rangeEnd: bounds.end)
+                    } label: {
+                        debugActionLabel(L("debug.maintenance.recompute_custom"), systemImage: "tag")
                     }
                     .buttonStyle(.bordered)
+                    .accessibilityIdentifier("dashboard.debug.maintenance.recomputeCustom")
 
-                    Button(L("debug.maintenance.compact_recent")) {
+                    Button {
                         maintenance.enqueueCompaction(days: appState.compactionLookbackDays)
+                    } label: {
+                        debugActionLabel(L("debug.maintenance.compact_recent"), systemImage: "line.3.horizontal.decrease.circle")
                     }
                     .buttonStyle(.bordered)
+                    .accessibilityIdentifier("dashboard.debug.maintenance.compactRecent")
                 }
             }
         }
@@ -658,12 +679,15 @@ struct DashboardDebugView: View {
                         ErrorStateView(title: L("debug.maintenance.last_error"), message: error)
                     }
 
-                    Button(L("debug.maintenance.cancel_current")) {
+                    Button {
                         maintenance.cancelCurrent()
+                    } label: {
+                        debugActionLabel(L("debug.maintenance.cancel_current"), systemImage: "xmark.circle")
                     }
                     .buttonStyle(.bordered)
                     .tint(DesignSystem.StatusTone.critical.color)
                     .disabled(maintenance.currentJob == nil)
+                    .accessibilityIdentifier("dashboard.debug.maintenance.cancelCurrent")
                 }
             }
         }
