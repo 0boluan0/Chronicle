@@ -99,11 +99,37 @@ jobs:
         run: |
           mkdir -p build
           NOTES_PATH="docs/releases/${RELEASE_TAG}.md"
+          awk '{print $1}' dist/*.dmg.sha256 | tr 'A-F' 'a-f' | sort -u > build/release-asset-hashes.txt
           if [ -f "$NOTES_PATH" ]; then
+            grep -Eio '[0-9a-f]{64}' "$NOTES_PATH" | tr 'A-F' 'a-f' | sort -u > build/release-note-hashes.txt || true
+            if [ -s build/release-note-hashes.txt ]; then
+              while read -r note_hash; do
+                if ! grep -qx "$note_hash" build/release-asset-hashes.txt; then
+                  echo "Release notes checksum ${note_hash} does not match built DMG checksum(s):" >&2
+                  cat build/release-asset-hashes.txt >&2
+                  exit 1
+                fi
+              done < build/release-note-hashes.txt
+            fi
             cp "$NOTES_PATH" build/release-notes.md
           else
             printf '# %s\n' "$RELEASE_TAG" > build/release-notes.md
           fi
+          {
+            printf '\n## Workflow-Built Assets\n\n'
+            printf 'Generated from this release workflow run before upload.\n\n'
+            for dmg_path in dist/*.dmg; do
+              dmg_name="$(basename "$dmg_path")"
+              checksum_path="${dmg_path}.sha256"
+              checksum_name="$(basename "$checksum_path")"
+              checksum_value="$(awk '{print $1}' "$checksum_path")"
+              size_bytes="$(stat -f%z "$dmg_path")"
+              printf -- '- `%s`\n' "$dmg_name"
+              printf -- '  - Size: %s bytes\n' "$size_bytes"
+              printf -- '  - SHA-256: `%s`\n' "$checksum_value"
+              printf -- '  - Checksum asset: `%s`\n' "$checksum_name"
+            done
+          } >> build/release-notes.md
 
       - name: Upload Release
         uses: softprops/action-gh-release@v2
