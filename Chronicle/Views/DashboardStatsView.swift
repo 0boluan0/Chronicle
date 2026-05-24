@@ -1996,74 +1996,6 @@ struct DashboardStatsView: View {
         selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
     }
 
-    private func buildWorkBlockInsights(
-        activities: [ActivityRow],
-        tagRows: [TagRow],
-        rangeStart: Int64,
-        rangeEnd: Int64
-    ) -> [WorkBlockInsight] {
-        let tagLookup = Dictionary(uniqueKeysWithValues: tagRows.map { ($0.id, $0.name) })
-        let normalizedRows = activities
-            .filter { !$0.isIdle }
-            .compactMap { activity -> WorkBlockSeed? in
-                let start = max(activity.startTime, rangeStart)
-                let end = min(activity.endTime, rangeEnd)
-                guard end > start else { return nil }
-
-                let appName = activity.appName.trimmingCharacters(in: .whitespacesAndNewlines)
-                let effectiveTagId = activity.effectiveTagId
-                let title = effectiveTagId.flatMap { tagLookup[$0] }
-                    ?? (appName.isEmpty ? L("dashboard.stats.work_blocks.untagged") : appName)
-                let identity = effectiveTagId.map { "tag:\($0)" } ?? "app:\(appName.lowercased())"
-
-                return WorkBlockSeed(
-                    identity: identity,
-                    title: title,
-                    tagId: effectiveTagId,
-                    primaryAppName: appName,
-                    startTime: start,
-                    endTime: end
-                )
-            }
-            .sorted { $0.startTime < $1.startTime }
-
-        var drafts: [WorkBlockDraft] = []
-        var current: WorkBlockDraft?
-
-        for row in normalizedRows {
-            if var draft = current {
-                let gap = row.startTime - draft.endTime
-                if row.identity == draft.identity && gap <= statsWorkBlockMergeGapSeconds {
-                    draft.endTime = max(draft.endTime, row.endTime)
-                    draft.sessionCount += 1
-                    if !row.primaryAppName.isEmpty {
-                        draft.appNames.insert(row.primaryAppName)
-                    }
-                    current = draft
-                } else {
-                    drafts.append(draft)
-                    current = WorkBlockDraft(seed: row)
-                }
-            } else {
-                current = WorkBlockDraft(seed: row)
-            }
-        }
-
-        if let current {
-            drafts.append(current)
-        }
-
-        return drafts
-            .filter { $0.durationSeconds >= statsWorkBlockMinimumSeconds }
-            .map { $0.insight }
-            .sorted {
-                if $0.durationSeconds == $1.durationSeconds {
-                    return $0.startTime < $1.startTime
-                }
-                return $0.durationSeconds > $1.durationSeconds
-            }
-    }
-
     private var rangeTitle: String {
         L(rangeTitleKey)
     }
@@ -2179,11 +2111,14 @@ struct DashboardStatsView: View {
         }
 
         group.notify(queue: .main) {
-            let workBlocks = self.buildWorkBlockInsights(
+            let workBlocks = WorkBlockInsightBuilder.build(
                 activities: activities,
-                tagRows: tagRows,
+                tags: tagRows,
                 rangeStart: bounds.start,
-                rangeEnd: bounds.end
+                rangeEnd: bounds.end,
+                minDurationSeconds: statsWorkBlockMinimumSeconds,
+                mergeGapSeconds: statsWorkBlockMergeGapSeconds,
+                untaggedTitle: L("dashboard.stats.work_blocks.untagged")
             )
             let rangeStats = RangeStats(
                 summary: SummaryMetrics(
@@ -2659,67 +2594,6 @@ private struct TagDuration: Identifiable {
     let name: String
     let color: String?
     let seconds: Int64
-}
-
-private struct WorkBlockInsight: Identifiable {
-    let id: String
-    let title: String
-    let tagId: Int64?
-    let primaryAppName: String
-    let appNames: [String]
-    let startTime: Int64
-    let endTime: Int64
-    let durationSeconds: Int64
-    let sessionCount: Int
-}
-
-private struct WorkBlockSeed {
-    let identity: String
-    let title: String
-    let tagId: Int64?
-    let primaryAppName: String
-    let startTime: Int64
-    let endTime: Int64
-}
-
-private struct WorkBlockDraft {
-    let identity: String
-    let title: String
-    let tagId: Int64?
-    let primaryAppName: String
-    let startTime: Int64
-    var endTime: Int64
-    var appNames: Set<String>
-    var sessionCount: Int
-
-    init(seed: WorkBlockSeed) {
-        identity = seed.identity
-        title = seed.title
-        tagId = seed.tagId
-        primaryAppName = seed.primaryAppName
-        startTime = seed.startTime
-        endTime = seed.endTime
-        appNames = seed.primaryAppName.isEmpty ? [] : [seed.primaryAppName]
-        sessionCount = 1
-    }
-
-    var durationSeconds: Int64 {
-        max(0, endTime - startTime)
-    }
-
-    var insight: WorkBlockInsight {
-        WorkBlockInsight(
-            id: "\(identity)-\(startTime)-\(endTime)",
-            title: title,
-            tagId: tagId,
-            primaryAppName: primaryAppName,
-            appNames: appNames.sorted(),
-            startTime: startTime,
-            endTime: endTime,
-            durationSeconds: durationSeconds,
-            sessionCount: sessionCount
-        )
-    }
 }
 
 private struct RankBadge: View {

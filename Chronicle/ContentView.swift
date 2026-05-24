@@ -792,6 +792,8 @@ struct ContentView: View {
                 } else {
                     dailySnapshotMetrics
                 }
+
+                snapshotWorkBlockStrip
             }
         }
     }
@@ -1109,6 +1111,55 @@ struct ContentView: View {
         }
     }
 
+    private var snapshotWorkBlockStrip: some View {
+        let block = dailySnapshot.topWorkBlock
+        let tone: DesignSystem.StatusTone = block == nil ? .neutral : .success
+
+        return RowSurface(tone: tone) {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 190), spacing: DesignSystem.Spacing.md, alignment: .leading)],
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                    Image(systemName: block == nil ? "square.split.2x2" : "rectangle.stack.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(tone.color)
+                        .frame(width: 16)
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("popover.daily_snapshot.work_block.title")
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+                            .lineLimit(1)
+
+                        Text(snapshotWorkBlockDetailText)
+                            .font(.caption2)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+
+                StatusPill(
+                    snapshotWorkBlockStatusText,
+                    systemImage: block == nil ? "circle" : "timer",
+                    tone: tone
+                )
+
+                Button {
+                    openDashboardStats()
+                } label: {
+                    Label(L("popover.daily_snapshot.work_block.open"), systemImage: "chart.bar")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .accessibilityIdentifier("popover.dailySnapshot.workBlock.openStats")
+            }
+        }
+        .accessibilityIdentifier("popover.dailySnapshot.workBlock")
+    }
+
     private var snapshotReviewGuidanceView: some View {
         let guidance = dailySnapshotGuidance
 
@@ -1411,6 +1462,11 @@ struct ContentView: View {
 
     private func openDashboardMarkers() {
         UserDefaults.standard.set(DashboardView.Section.markers.rawValue, forKey: "dashboard.selectedSection")
+        AppWindowRouter.shared.open(.dashboard)
+    }
+
+    private func openDashboardStats() {
+        UserDefaults.standard.set(DashboardView.Section.stats.rawValue, forKey: "dashboard.selectedSection")
         AppWindowRouter.shared.open(.dashboard)
     }
 
@@ -2025,6 +2081,35 @@ struct ContentView: View {
         snapshotTopLabelsNeedsReview ? "exclamationmark.triangle.fill" : "checkmark"
     }
 
+    private var snapshotWorkBlockDetailText: String {
+        guard let block = dailySnapshot.topWorkBlock else {
+            return L("popover.daily_snapshot.work_block.empty_detail")
+        }
+        return String(
+            format: L("popover.daily_snapshot.work_block.ready_detail"),
+            block.title,
+            snapshotWorkBlockTimeRange(block)
+        )
+    }
+
+    private var snapshotWorkBlockStatusText: String {
+        guard let block = dailySnapshot.topWorkBlock else {
+            return L("popover.daily_snapshot.work_block.empty_status")
+        }
+        return String(
+            format: L("popover.daily_snapshot.work_block.status"),
+            formatDuration(block.durationSeconds)
+        )
+    }
+
+    private func snapshotWorkBlockTimeRange(_ block: WorkBlockInsight) -> String {
+        String(
+            format: L("popover.daily_snapshot.work_block.time_range"),
+            Self.blockTimeFormatter.string(from: Date(timeIntervalSince1970: TimeInterval(block.startTime))),
+            Self.blockTimeFormatter.string(from: Date(timeIntervalSince1970: TimeInterval(block.endTime)))
+        )
+    }
+
     private func refreshDailySnapshot(reason: String) {
         isSnapshotLoading = true
         AppLogger.log("Refresh daily snapshot reason=\(reason)", category: "ui")
@@ -2058,6 +2143,8 @@ struct ContentView: View {
         var topApp = L("popover.daily_snapshot.no_data")
         var topTag = L("popover.daily_snapshot.untagged")
         var topTags: [DailySnapshotTag] = []
+        var tagRows: [TagRow] = []
+        var activities: [ActivityRow] = []
 
         group.enter()
         AggregationService.shared.computeSummary(
@@ -2124,6 +2211,22 @@ struct ContentView: View {
             group.leave()
         }
 
+        group.enter()
+        AggregationService.shared.fetchTags { result in
+            if case .success(let rows) = result {
+                tagRows = rows
+            }
+            group.leave()
+        }
+
+        group.enter()
+        DatabaseService.shared.fetchActivitiesOverlappingRange(start: todayBounds.start, end: todayBounds.end) { result in
+            if case .success(let rows) = result {
+                activities = rows
+            }
+            group.leave()
+        }
+
         group.notify(queue: .main) {
             let today = todaySummary ?? .init(
                 totalSeconds: 0,
@@ -2134,6 +2237,13 @@ struct ContentView: View {
                 markerSessionsCount: 0
             )
             let delta = today.activeSeconds - (yesterdaySummary?.activeSeconds ?? 0)
+            let workBlocks = WorkBlockInsightBuilder.build(
+                activities: activities,
+                tags: tagRows,
+                rangeStart: todayBounds.start,
+                rangeEnd: todayBounds.end,
+                untaggedTitle: L("popover.daily_snapshot.untagged")
+            )
             self.dailySnapshot = DailySnapshot(
                 activeSeconds: today.activeSeconds,
                 idleSeconds: today.idleSeconds,
@@ -2143,7 +2253,8 @@ struct ContentView: View {
                 activeDeltaVsYesterday: delta,
                 markerNotesCount: today.markerNotesCount,
                 markerSessionsCount: today.markerSessionsCount,
-                topTags: topTags
+                topTags: topTags,
+                workBlocks: workBlocks
             )
             self.isSnapshotLoading = false
         }
@@ -2221,6 +2332,14 @@ struct ContentView: View {
         formatter.timeZone = .current
         return formatter
     }()
+
+    private static let blockTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        return formatter
+    }()
 }
 
 private struct DailySnapshot {
@@ -2233,6 +2352,7 @@ private struct DailySnapshot {
     let markerNotesCount: Int
     let markerSessionsCount: Int
     let topTags: [DailySnapshotTag]
+    let workBlocks: [WorkBlockInsight]
 
     var totalTrackedSeconds: Int64 {
         activeSeconds + idleSeconds
@@ -2252,6 +2372,10 @@ private struct DailySnapshot {
         return Double(idleSeconds) / Double(totalTrackedSeconds)
     }
 
+    var topWorkBlock: WorkBlockInsight? {
+        workBlocks.first
+    }
+
     static let empty = DailySnapshot(
         activeSeconds: 0,
         idleSeconds: 0,
@@ -2261,7 +2385,8 @@ private struct DailySnapshot {
         activeDeltaVsYesterday: nil,
         markerNotesCount: 0,
         markerSessionsCount: 0,
-        topTags: []
+        topTags: [],
+        workBlocks: []
     )
 }
 

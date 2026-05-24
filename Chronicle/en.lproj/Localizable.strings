@@ -302,6 +302,13 @@
 "popover.daily_snapshot.top_labels.status.ready" = "%d categories";
 "popover.daily_snapshot.top_labels.status.review" = "Needs categories";
 "popover.daily_snapshot.top_labels.review" = "Classify Apps";
+"popover.daily_snapshot.work_block.title" = "Longest work block";
+"popover.daily_snapshot.work_block.empty_detail" = "No 25-minute continuous block yet. Keep working or review Stats when the day has more shape.";
+"popover.daily_snapshot.work_block.ready_detail" = "%@ · %@";
+"popover.daily_snapshot.work_block.empty_status" = "No block yet";
+"popover.daily_snapshot.work_block.status" = "%@ block";
+"popover.daily_snapshot.work_block.open" = "Review Stats";
+"popover.daily_snapshot.work_block.time_range" = "%@-%@";
 "popover.daily_snapshot.guidance.setup_title" = "Daily log needs a home.";
 "popover.daily_snapshot.guidance.setup_detail" = "Choose a folder once so today can become a saved log instead of just a timeline.";
 "popover.daily_snapshot.guidance.saved_title" = "Today is already saved.";

@@ -302,6 +302,13 @@
 "popover.daily_snapshot.top_labels.status.ready" = "%d 个分类";
 "popover.daily_snapshot.top_labels.status.review" = "需分类";
 "popover.daily_snapshot.top_labels.review" = "整理应用";
+"popover.daily_snapshot.work_block.title" = "最长工作块";
+"popover.daily_snapshot.work_block.empty_detail" = "还没有连续 25 分钟工作块。继续工作，或稍后到统计页复盘。";
+"popover.daily_snapshot.work_block.ready_detail" = "%@ · %@";
+"popover.daily_snapshot.work_block.empty_status" = "暂无区间";
+"popover.daily_snapshot.work_block.status" = "%@ 区间";
+"popover.daily_snapshot.work_block.open" = "查看统计";
+"popover.daily_snapshot.work_block.time_range" = "%@-%@";
 "popover.daily_snapshot.guidance.setup_title" = "今日日志还需要保存位置。";
 "popover.daily_snapshot.guidance.setup_detail" = "先选一次文件夹，今天的记录才能从时间线变成可保存的日志。";
 "popover.daily_snapshot.guidance.saved_title" = "今天已经保存过日志。";
