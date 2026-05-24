@@ -3545,18 +3545,7 @@ struct ReportsWorkspaceView: View {
                 )
 
                 VStack(alignment: .leading, spacing: 5) {
-                    HStack(spacing: DesignSystem.Spacing.sm) {
-                        Text(title)
-                            .font(.headline.weight(.semibold))
-                            .foregroundColor(DesignSystem.Colors.primaryText)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.82)
-
-                        if isLoading {
-                            ProgressView()
-                                .controlSize(.small)
-                        }
-                    }
+                    previewTitleRow
 
                     Text(previewHeaderDetail)
                         .font(DesignSystem.Typography.caption)
@@ -3570,14 +3559,50 @@ struct ReportsWorkspaceView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
 
+        private var previewTitleRow: some View {
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.sm) {
+                    previewTitleText(lineLimit: 1)
+
+                    if isLoading {
+                        previewLoadingIndicator
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                    previewTitleText(lineLimit: 2)
+
+                    if isLoading {
+                        previewLoadingIndicator
+                    }
+                }
+            }
+        }
+
+        private func previewTitleText(lineLimit: Int) -> some View {
+            Text(title)
+                .font(.headline.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.primaryText)
+                .lineLimit(lineLimit)
+                .minimumScaleFactor(0.86)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+
+        private var previewLoadingIndicator: some View {
+            ProgressView()
+                .controlSize(.small)
+                .accessibilityHidden(true)
+        }
+
         private var previewActionButtons: some View {
             LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 132), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
+                columns: [GridItem(.adaptive(minimum: 154), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
                 alignment: .leading,
                 spacing: DesignSystem.Spacing.sm
             ) {
                 if copyFeedbackVisible {
                     StatusPill(L("reports.preview.copied"), systemImage: "checkmark", tone: .success)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .accessibilityIdentifier("reports.preview.copyStatus")
                 }
 
@@ -3585,7 +3610,7 @@ struct ReportsWorkspaceView: View {
                     onCopy()
                     copyFeedbackVisible = true
                 } label: {
-                    Label(L("reports.copy"), systemImage: "doc.on.doc")
+                    previewActionLabel(L("reports.copy"), systemImage: "doc.on.doc")
                 }
                 .buttonStyle(.bordered)
                 .disabled(content.isEmpty)
@@ -3596,7 +3621,7 @@ struct ReportsWorkspaceView: View {
                     onExport()
                     dismiss()
                 } label: {
-                    Label(exportTitle, systemImage: "square.and.arrow.down")
+                    previewActionLabel(exportTitle, systemImage: "square.and.arrow.down")
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(content.isEmpty || isLoading || error != nil)
@@ -3606,13 +3631,25 @@ struct ReportsWorkspaceView: View {
                 Button {
                     dismiss()
                 } label: {
-                    Label(L("actions.close"), systemImage: "xmark")
+                    previewActionLabel(L("actions.close"), systemImage: "xmark")
                 }
                 .buttonStyle(.bordered)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityIdentifier("reports.preview.close")
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+        }
+
+        private func previewActionLabel(_ title: String, systemImage: String) -> some View {
+            Label {
+                Text(title)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.86)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            } icon: {
+                Image(systemName: systemImage)
+            }
         }
 
         private func previewIssueCard(error: String) -> some View {
