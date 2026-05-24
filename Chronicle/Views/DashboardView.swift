@@ -411,13 +411,25 @@ struct DashboardView: View {
     }
 
     private func sidebarRow(for section: Section) -> some View {
-        HStack(spacing: 10) {
+        let isSelected = selectedSection == section
+        let step = sidebarFlowStep(for: section)
+        let isComplete = step.map { sidebarFlowStepIsComplete($0) } ?? false
+        let isCurrent = step.map { sidebarCurrentFlowStep == $0 && !isComplete } ?? false
+        let iconColor = sidebarRowIconColor(
+            isSelected: isSelected,
+            isComplete: isComplete,
+            isCurrent: isCurrent
+        )
+
+        return HStack(spacing: 10) {
             Image(systemName: section.systemImage)
-                .foregroundStyle(.secondary)
+                .font(.body.weight(isSelected || isCurrent ? .semibold : .regular))
+                .foregroundStyle(iconColor)
                 .frame(width: 18)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(section.titleKey)
+                    .fontWeight(isSelected || isCurrent ? .semibold : .regular)
                     .lineLimit(1)
                 Text(section.subtitleKey)
                     .font(.caption)
@@ -426,10 +438,78 @@ struct DashboardView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+
+            if let step {
+                Image(systemName: sidebarRowStatusIconName(isComplete: isComplete, isCurrent: isCurrent))
+                    .font(.caption2.weight(isComplete || isCurrent ? .semibold : .regular))
+                    .foregroundStyle(sidebarRowStatusColor(isComplete: isComplete, isCurrent: isCurrent))
+                    .frame(width: 16)
+                    .help(sidebarFlowStepStatusText(step))
+                    .accessibilityHidden(true)
+            }
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 3)
+        .contentShape(Rectangle())
         .help("\(L(section.titleStringKey)): \(L(section.subtitleStringKey))")
+        .accessibilityLabel(sidebarRowAccessibilityLabel(for: section))
         .accessibilityElement(children: .combine)
+    }
+
+    private func sidebarFlowStep(for section: Section) -> SidebarFlowStep? {
+        switch section {
+        case .overview, .timeline:
+            return .today
+        case .markers:
+            return .context
+        case .reports:
+            return .log
+        case .stats:
+            return nil
+#if DEBUG
+        case .debug:
+            return nil
+#endif
+        }
+    }
+
+    private func sidebarRowIconColor(isSelected: Bool, isComplete: Bool, isCurrent: Bool) -> Color {
+        if isSelected || isCurrent {
+            return DesignSystem.Colors.accentSkyBlue
+        }
+        if isComplete {
+            return DesignSystem.StatusTone.success.color
+        }
+        return DesignSystem.Colors.secondaryText
+    }
+
+    private func sidebarRowStatusIconName(isComplete: Bool, isCurrent: Bool) -> String {
+        if isComplete {
+            return "checkmark.circle.fill"
+        }
+        if isCurrent {
+            return "record.circle"
+        }
+        return "circle"
+    }
+
+    private func sidebarRowStatusColor(isComplete: Bool, isCurrent: Bool) -> Color {
+        if isComplete {
+            return DesignSystem.StatusTone.success.color
+        }
+        if isCurrent {
+            return DesignSystem.Colors.accentSkyBlue
+        }
+        return DesignSystem.Colors.secondaryText.opacity(0.55)
+    }
+
+    private func sidebarRowAccessibilityLabel(for section: Section) -> String {
+        let baseLabel = "\(L(section.titleStringKey)): \(L(section.subtitleStringKey))"
+
+        guard let step = sidebarFlowStep(for: section) else {
+            return baseLabel
+        }
+
+        return "\(baseLabel). \(sidebarFlowStepStatusText(step))"
     }
 
     private var sidebarQuickActions: some View {
