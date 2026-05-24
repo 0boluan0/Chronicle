@@ -1037,6 +1037,15 @@ final class ChronicleTests: XCTestCase {
         let reloaded = AppState.makeTestInstance(defaults: defaults)
         XCTAssertFalse(reloaded.dailyReviewReminderEnabled)
         XCTAssertEqual(reloaded.dailyReviewReminderTimeMinutes, 9 * 60 + 30)
+
+        state.dailyReviewReminderTimeMinutes = -15
+        XCTAssertEqual(state.dailyReviewReminderTimeMinutes, 0)
+
+        state.dailyReviewReminderTimeMinutes = 24 * 60 + 30
+        XCTAssertEqual(state.dailyReviewReminderTimeMinutes, 23 * 60 + 59)
+
+        let clampedReloaded = AppState.makeTestInstance(defaults: defaults)
+        XCTAssertEqual(clampedReloaded.dailyReviewReminderTimeMinutes, 23 * 60 + 59)
     }
 
     func testDockFallbackAndTrackingPauseDefaultsAndPersists() {

@@ -213,7 +213,13 @@ final class AppState: ObservableObject {
         didSet { defaults.set(dailyReviewReminderEnabled, forKey: Keys.dailyReviewReminderEnabled) }
     }
     @Published var dailyReviewReminderTimeMinutes: Int {
-        didSet { defaults.set(Self.clampMinutesOfDay(dailyReviewReminderTimeMinutes), forKey: Keys.dailyReviewReminderTimeMinutes) }
+        didSet {
+            let clampedValue = Self.clampMinutesOfDay(dailyReviewReminderTimeMinutes)
+            if dailyReviewReminderTimeMinutes != clampedValue {
+                dailyReviewReminderTimeMinutes = clampedValue
+            }
+            defaults.set(clampedValue, forKey: Keys.dailyReviewReminderTimeMinutes)
+        }
     }
     @Published var dailyReviewSystemNotificationEnabled: Bool {
         didSet { defaults.set(dailyReviewSystemNotificationEnabled, forKey: Keys.dailyReviewSystemNotificationEnabled) }
