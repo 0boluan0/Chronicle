@@ -1347,6 +1347,14 @@
 "privacy.trust.optional_detail" = "窗口标题始终可选，并遵循你选择的隐私模式。";
 "privacy.trust.review_title" = "分享前先检查";
 "privacy.trust.review_detail" = "支持文件和导出都会先保存在本地，方便你检查后再决定是否发送。";
+"privacy.guardrails.title" = "发布隐私防线";
+"privacy.guardrails.detail" = "这些检查会在公开版本前，把存储、导出和支持文件保持在同一套隐私边界内。";
+"privacy.guardrails.mode_title" = "当前标题模式";
+"privacy.guardrails.mode_detail" = "新记录会使用所选模式；被屏蔽的应用会直接丢弃标题。";
+"privacy.guardrails.export_title" = "导出前再次清理";
+"privacy.guardrails.export_detail" = "Markdown 和 CSV 写入文件前，会再次应用当前标题策略。";
+"privacy.guardrails.support_title" = "支持资料可先检查";
+"privacy.guardrails.support_detail" = "诊断只在本地汇总设置，分享前可以先自行查看。";
 "privacy.next.title" = "建议下一步";
 "privacy.next.app_only.title" = "应用级历史已可用";
 "privacy.next.app_only.detail" = "即使不记录窗口标题，Chronicle 也能保持可用；只有当复盘或搜索不够清楚时，再增加标题细节。";

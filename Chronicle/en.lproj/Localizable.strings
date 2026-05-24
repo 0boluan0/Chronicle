@@ -1347,6 +1347,14 @@
 "privacy.trust.optional_detail" = "Window titles stay optional and follow the privacy mode you choose.";
 "privacy.trust.review_title" = "Review before sharing";
 "privacy.trust.review_detail" = "Support files and exports are saved locally so you can inspect them first.";
+"privacy.guardrails.title" = "Privacy release guardrails";
+"privacy.guardrails.detail" = "These checks keep storage, exports, and support files aligned before a public build.";
+"privacy.guardrails.mode_title" = "Current title mode";
+"privacy.guardrails.mode_detail" = "New captures use the selected mode, and blocked apps drop titles entirely.";
+"privacy.guardrails.export_title" = "Exports sanitize again";
+"privacy.guardrails.export_detail" = "Markdown and CSV exports apply the current title policy before writing files.";
+"privacy.guardrails.support_title" = "Support stays reviewable";
+"privacy.guardrails.support_detail" = "Diagnostics summarize settings locally so you can inspect them before sharing.";
 "privacy.next.title" = "Recommended next step";
 "privacy.next.app_only.title" = "App-only history is ready";
 "privacy.next.app_only.detail" = "Chronicle can stay useful without window titles. Add title detail later only if review or search feels too vague.";

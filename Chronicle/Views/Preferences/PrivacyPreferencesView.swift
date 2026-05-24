@@ -98,6 +98,10 @@ struct PrivacyPreferencesView: View {
                 Divider()
 
                 privacyTrustPath
+
+                Divider()
+
+                privacyReleaseGuardrails
             }
         }
     }
@@ -131,6 +135,77 @@ struct PrivacyPreferencesView: View {
             )
         }
         .accessibilityIdentifier("privacy.trust.path")
+    }
+
+    private var privacyReleaseGuardrails: some View {
+        RowSurface(tone: .info) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                LazyVGrid(
+                    columns: adaptiveColumns(minimum: 230, spacing: DesignSystem.Spacing.md),
+                    alignment: .leading,
+                    spacing: DesignSystem.Spacing.sm
+                ) {
+                    HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                        IconWell(
+                            systemImage: "checkmark.shield",
+                            tone: .info,
+                            accessibilityLabel: L("privacy.guardrails.title")
+                        )
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("privacy.guardrails.title")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundColor(DesignSystem.Colors.primaryText)
+                                .lineLimit(2)
+                                .fixedSize(horizontal: false, vertical: true)
+
+                            Text("privacy.guardrails.detail")
+                                .font(DesignSystem.Typography.caption)
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
+                                .lineLimit(3)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+
+                    StatusPill(
+                        titleCaptureSummaryText,
+                        systemImage: titleCaptureIconName,
+                        tone: titleCaptureTone
+                    )
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                LazyVGrid(
+                    columns: adaptiveColumns(minimum: 180, spacing: DesignSystem.Spacing.sm),
+                    alignment: .leading,
+                    spacing: DesignSystem.Spacing.sm
+                ) {
+                    privacyGuardrailItem(
+                        systemImage: "text.viewfinder",
+                        titleKey: "privacy.guardrails.mode_title",
+                        detailKey: "privacy.guardrails.mode_detail",
+                        tone: titleCaptureTone,
+                        accessibilityIdentifier: "privacy.guardrails.mode"
+                    )
+                    privacyGuardrailItem(
+                        systemImage: "square.and.arrow.down",
+                        titleKey: "privacy.guardrails.export_title",
+                        detailKey: "privacy.guardrails.export_detail",
+                        tone: .success,
+                        accessibilityIdentifier: "privacy.guardrails.export"
+                    )
+                    privacyGuardrailItem(
+                        systemImage: "shippingbox",
+                        titleKey: "privacy.guardrails.support_title",
+                        detailKey: "privacy.guardrails.support_detail",
+                        tone: .info,
+                        accessibilityIdentifier: "privacy.guardrails.support"
+                    )
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityIdentifier("privacy.guardrails")
     }
 
     private var privacyNextStepSection: some View {
@@ -195,6 +270,37 @@ struct PrivacyPreferencesView: View {
                 .stroke(privacyReadinessStep.tone.color.opacity(0.18), lineWidth: 1)
         )
         .accessibilityIdentifier("privacy.next.reason")
+    }
+
+    private func privacyGuardrailItem(
+        systemImage: String,
+        titleKey: LocalizedStringKey,
+        detailKey: LocalizedStringKey,
+        tone: DesignSystem.StatusTone,
+        accessibilityIdentifier: String
+    ) -> some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(tone.color)
+                .frame(width: 16, height: 18)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(titleKey)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(detailKey)
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 62, alignment: .topLeading)
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     @ViewBuilder
