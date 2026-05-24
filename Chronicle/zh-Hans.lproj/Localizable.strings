@@ -2490,6 +2490,9 @@
 "apps.review.path.assign_detail" = "选择分类，让未来会话进入更清晰的日志。";
 "apps.review.path.backfill_title" = "谨慎更新已保存日志";
 "apps.review.path.backfill_detail" = "只有旧日志需要清理时，再应用到今天或全部时间。";
+"apps.review.impact.title" = "整理后会影响什么";
+"apps.review.impact.detail" = "应用默认分类会先影响未来会话；只有你选择回填时，已保存日志才会改变。";
+"apps.review.impact.status" = "可控清理";
 "apps.review.impact.future_title" = "未来会话";
 "apps.review.impact.future_detail" = "修改分类后，新活动会立即使用这个结果。";
 "apps.review.impact.today_title" = "今日日志";

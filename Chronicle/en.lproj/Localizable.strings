@@ -2491,6 +2491,9 @@
 "apps.review.path.assign_detail" = "Choose a category so future sessions land in readable daily logs.";
 "apps.review.path.backfill_title" = "Update saved logs carefully";
 "apps.review.path.backfill_detail" = "Apply changes to today or all time only when older logs need cleanup.";
+"apps.review.impact.title" = "What changes after review";
+"apps.review.impact.detail" = "App defaults affect future sessions first. Saved logs change only when you choose a backfill.";
+"apps.review.impact.status" = "Controlled cleanup";
 "apps.review.impact.future_title" = "Future sessions";
 "apps.review.impact.future_detail" = "Category changes affect new activity right away.";
 "apps.review.impact.today_title" = "Today's log";

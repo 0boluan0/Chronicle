@@ -377,30 +377,73 @@ struct AppMappingsView: View {
     }
 
     private var mappingImpactStrip: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 168), spacing: DesignSystem.Spacing.sm)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            mappingImpactItem(
-                titleKey: "apps.review.impact.future_title",
-                detailKey: "apps.review.impact.future_detail",
-                systemImage: "arrow.forward.circle",
-                tone: .success
-            )
-            mappingImpactItem(
-                titleKey: "apps.review.impact.today_title",
-                detailKey: "apps.review.impact.today_detail",
-                systemImage: "calendar.badge.clock",
-                tone: .info
-            )
-            mappingImpactItem(
-                titleKey: "apps.review.impact.rules_title",
-                detailKey: "apps.review.impact.rules_detail",
-                systemImage: "slider.horizontal.3",
-                tone: .neutral
-            )
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                IconWell(
+                    systemImage: "arrow.triangle.branch",
+                    tone: .info,
+                    accessibilityLabel: L("apps.review.impact.title")
+                )
+                .frame(width: 34, height: 34)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("apps.review.impact.title")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+
+                    Text("apps.review.impact.detail")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 0)
+
+                StatusPill(
+                    L("apps.review.impact.status"),
+                    systemImage: "checkmark.shield",
+                    tone: .info
+                )
+            }
+
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 168), spacing: DesignSystem.Spacing.sm)],
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                mappingImpactItem(
+                    titleKey: "apps.review.impact.future_title",
+                    detailKey: "apps.review.impact.future_detail",
+                    systemImage: "arrow.forward.circle",
+                    tone: .success,
+                    accessibilityIdentifier: "appMappings.impact.future"
+                )
+                mappingImpactItem(
+                    titleKey: "apps.review.impact.today_title",
+                    detailKey: "apps.review.impact.today_detail",
+                    systemImage: "calendar.badge.clock",
+                    tone: .info,
+                    accessibilityIdentifier: "appMappings.impact.today"
+                )
+                mappingImpactItem(
+                    titleKey: "apps.review.impact.rules_title",
+                    detailKey: "apps.review.impact.rules_detail",
+                    systemImage: "slider.horizontal.3",
+                    tone: .neutral,
+                    accessibilityIdentifier: "appMappings.impact.rules"
+                )
+            }
         }
+        .padding(DesignSystem.Spacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(DesignSystem.StatusTone.info.color.opacity(0.07))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(DesignSystem.StatusTone.info.color.opacity(0.18), lineWidth: 1)
+        )
         .accessibilityIdentifier("appMappings.impactStrip")
     }
 
@@ -408,7 +451,8 @@ struct AppMappingsView: View {
         titleKey: LocalizedStringKey,
         detailKey: LocalizedStringKey,
         systemImage: String,
-        tone: DesignSystem.StatusTone
+        tone: DesignSystem.StatusTone,
+        accessibilityIdentifier: String
     ) -> some View {
         HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
             Image(systemName: systemImage)
@@ -441,6 +485,7 @@ struct AppMappingsView: View {
             RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
                 .stroke(tone.color.opacity(0.16), lineWidth: 1)
         )
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     private var mappingReviewActions: some View {
