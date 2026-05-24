@@ -251,6 +251,7 @@ struct EmptyStateView: View {
                     .foregroundColor(DesignSystem.Colors.primaryText)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
+                    .help(title)
 
                 if let subtitle {
                     Text(subtitle)
@@ -258,8 +259,10 @@ struct EmptyStateView: View {
                         .foregroundColor(DesignSystem.Colors.secondaryText)
                         .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
+                        .help(subtitle)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer(minLength: 0)
         }
