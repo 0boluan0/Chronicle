@@ -2093,7 +2093,7 @@ struct OnboardingView: View {
     private var finishHealthStatusIconName: String {
         switch finishHealthState {
         case .notRun:
-            return "circle"
+            return "stethoscope"
         case .running:
             return "arrow.clockwise"
         case .failed, .blocked:
@@ -2108,7 +2108,7 @@ struct OnboardingView: View {
     private var finishHealthTone: DesignSystem.StatusTone {
         switch finishHealthState {
         case .notRun:
-            return .neutral
+            return .warning
         case .running:
             return .info
         case .failed, .blocked:
