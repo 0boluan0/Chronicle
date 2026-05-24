@@ -2319,42 +2319,71 @@ struct DashboardTimelineView: View {
                 }
                 .labelStyle(.titleAndIcon)
 
-                HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
-                    TextField(L("timeline.row.note_placeholder"), text: $inlineNoteText)
-                        .textFieldStyle(.roundedBorder)
-                        .focused($focusedInlineNoteActivityId, equals: activity.id)
-                        .onSubmit {
-                            submitInlineNote(for: activity)
-                        }
-                        .disabled(inlineNoteIsSubmitting)
-                        .accessibilityIdentifier("dashboard.timeline.row.noteText")
-
-                    Button {
-                        submitInlineNote(for: activity)
-                    } label: {
-                        Label(
-                            inlineNoteIsSubmitting ? L("timeline.row.saving_note") : L("timeline.row.save_note"),
-                            systemImage: inlineNoteIsSubmitting ? "hourglass" : "checkmark"
-                        )
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
-                    .disabled(inlineNoteIsSubmitting || inlineNoteText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    .accessibilityIdentifier("dashboard.timeline.row.saveNote")
-
-                    Button {
-                        closeInlineNote()
-                    } label: {
-                        Label(L("actions.close"), systemImage: "xmark")
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .disabled(inlineNoteIsSubmitting)
-                    .accessibilityIdentifier("dashboard.timeline.row.closeNote")
-                }
+                inlineNoteInputRow(for: activity)
 
                 StatusBannerView(status: inlineNoteStatus, accessibilityIdentifier: "dashboard.timeline.row.noteStatus")
             }
+        }
+    }
+
+    private func inlineNoteInputRow(for activity: ActivityRow) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+                inlineNoteTextField(for: activity)
+                    .frame(minWidth: 220, maxWidth: .infinity, alignment: .leading)
+
+                inlineNoteActions(for: activity)
+                    .frame(width: 220, alignment: .leading)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                inlineNoteTextField(for: activity)
+
+                inlineNoteActions(for: activity)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    private func inlineNoteTextField(for activity: ActivityRow) -> some View {
+        TextField(L("timeline.row.note_placeholder"), text: $inlineNoteText)
+            .textFieldStyle(.roundedBorder)
+            .focused($focusedInlineNoteActivityId, equals: activity.id)
+            .onSubmit {
+                submitInlineNote(for: activity)
+            }
+            .disabled(inlineNoteIsSubmitting)
+            .accessibilityIdentifier("dashboard.timeline.row.noteText")
+    }
+
+    private func inlineNoteActions(for activity: ActivityRow) -> some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 96), spacing: DesignSystem.Spacing.xs, alignment: .leading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.xs
+        ) {
+            Button {
+                submitInlineNote(for: activity)
+            } label: {
+                timelineActionLabel(
+                    inlineNoteIsSubmitting ? L("timeline.row.saving_note") : L("timeline.row.save_note"),
+                    systemImage: inlineNoteIsSubmitting ? "hourglass" : "checkmark"
+                )
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+            .disabled(inlineNoteIsSubmitting || inlineNoteText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .accessibilityIdentifier("dashboard.timeline.row.saveNote")
+
+            Button {
+                closeInlineNote()
+            } label: {
+                timelineActionLabel(L("actions.close"), systemImage: "xmark")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .disabled(inlineNoteIsSubmitting)
+            .accessibilityIdentifier("dashboard.timeline.row.closeNote")
         }
     }
 
