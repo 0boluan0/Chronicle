@@ -2030,16 +2030,19 @@
 "quick_marker.context.log_saved" = "Saved";
 "quick_marker.context.log_ready" = "Ready";
 "quick_marker.context.log_needs_folder" = "Needs folder";
+"quick_marker.context.log_failed" = "Save failed";
 "quick_marker.loop.title" = "Today loop";
 "quick_marker.loop.progress" = "%d/%d ready";
 "quick_marker.loop.status.needs_folder" = "Needs folder";
 "quick_marker.loop.status.needs_context" = "Add context";
 "quick_marker.loop.status.ready" = "Ready to save";
 "quick_marker.loop.status.saved" = "Log saved";
+"quick_marker.loop.status.failed" = "Save failed";
 "quick_marker.loop.detail.needs_folder" = "This capture will still be local, but daily logs need a folder before closeout.";
 "quick_marker.loop.detail.needs_context" = "Type one useful note or focus name so today's review has human context.";
 "quick_marker.loop.detail.ready" = "This capture has context and the daily log destination is ready.";
 "quick_marker.loop.detail.saved" = "Today's log is already saved; add context only if the day changed.";
+"quick_marker.loop.detail.failed" = "The note will still save locally, but the last Markdown daily log save failed. Retry the log after capturing this context.";
 "quick_marker.loop.step.time_title" = "Time";
 "quick_marker.loop.step.context_title" = "Context";
 "quick_marker.loop.step.log_title" = "Log";
@@ -2055,6 +2058,8 @@
 "quick_marker.route.closeout_saved_detail" = "Add only if today changed.";
 "quick_marker.route.closeout_setup_title" = "Set folder";
 "quick_marker.route.closeout_setup_detail" = "Choose one before saving.";
+"quick_marker.route.closeout_failed_title" = "Retry daily log";
+"quick_marker.route.closeout_failed_detail" = "The last Markdown save failed. Keep this context, then retry the daily log.";
 "quick_marker.placeholder" = "What are you doing?";
 "quick_marker.placeholder.point" = "Decision, blocker, handoff, or context to remember";
 "quick_marker.placeholder.interval" = "Focus block name, meeting, reading, or writing";
@@ -2177,6 +2182,7 @@
 "quick_marker.status.review_daily_log" = "Review daily log";
 "quick_marker.status.open_daily_log" = "Open daily log";
 "quick_marker.status.set_log_folder" = "Set log folder";
+"quick_marker.status.retry_daily_log" = "Retry daily log";
 "Top Apps" = "Top Apps";
 "No tracked activity yet." = "No tracked activity yet.";
 "Top Tags" = "Top Categories";

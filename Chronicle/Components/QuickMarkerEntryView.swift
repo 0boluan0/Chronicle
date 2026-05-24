@@ -670,6 +670,9 @@ struct QuickMarkerEntryView: View {
         if reportSettings.dailyFolderBookmark == nil {
             return "quick_marker.status.set_log_folder"
         }
+        if quickMarkerDailyLogFailedToday {
+            return "quick_marker.status.retry_daily_log"
+        }
         if quickMarkerDailyLogSavedToday {
             return "quick_marker.status.open_daily_log"
         }
@@ -679,6 +682,9 @@ struct QuickMarkerEntryView: View {
     private var quickMarkerDailyLogActionIconName: String {
         if reportSettings.dailyFolderBookmark == nil {
             return "folder.badge.plus"
+        }
+        if quickMarkerDailyLogFailedToday {
+            return "arrow.clockwise"
         }
         if quickMarkerDailyLogSavedToday {
             return "doc.text.magnifyingglass"
@@ -690,6 +696,9 @@ struct QuickMarkerEntryView: View {
         if reportSettings.dailyFolderBookmark == nil {
             return "quickMarker.setLogFolder"
         }
+        if quickMarkerDailyLogFailedToday {
+            return "quickMarker.retryDailyLog"
+        }
         if quickMarkerDailyLogSavedToday {
             return "quickMarker.openDailyLog"
         }
@@ -698,6 +707,10 @@ struct QuickMarkerEntryView: View {
 
     private var quickMarkerDailyLogSavedToday: Bool {
         reportSettings.dailyExportSucceeded(for: Date())
+    }
+
+    private var quickMarkerDailyLogFailedToday: Bool {
+        reportSettings.dailyExportFailed(for: Date())
     }
 
     @ViewBuilder

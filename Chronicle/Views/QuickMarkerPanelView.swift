@@ -593,7 +593,7 @@ struct QuickMarkerPanelView: View {
         if draftHasContext {
             count += 1
         }
-        if dailyLogSavedToday || reportSettings.dailyFolderBookmark != nil {
+        if dailyLogSavedToday || (reportSettings.dailyFolderBookmark != nil && !dailyLogFailedToday) {
             count += 1
         }
         return count
@@ -608,6 +608,9 @@ struct QuickMarkerPanelView: View {
     }
 
     private var reviewLoopStatusText: String {
+        if dailyLogFailedToday {
+            return L("quick_marker.loop.status.failed")
+        }
         if reportSettings.dailyFolderBookmark == nil {
             return L("quick_marker.loop.status.needs_folder")
         }
@@ -621,6 +624,9 @@ struct QuickMarkerPanelView: View {
     }
 
     private var reviewLoopDetailKey: String {
+        if dailyLogFailedToday {
+            return "quick_marker.loop.detail.failed"
+        }
         if reportSettings.dailyFolderBookmark == nil {
             return "quick_marker.loop.detail.needs_folder"
         }
@@ -634,6 +640,9 @@ struct QuickMarkerPanelView: View {
     }
 
     private var reviewLoopStatusIconName: String {
+        if dailyLogFailedToday {
+            return "exclamationmark.triangle.fill"
+        }
         if reportSettings.dailyFolderBookmark == nil {
             return "folder.badge.plus"
         }
@@ -647,6 +656,9 @@ struct QuickMarkerPanelView: View {
     }
 
     private var reviewLoopIconName: String {
+        if dailyLogFailedToday {
+            return "exclamationmark.triangle.fill"
+        }
         if reportSettings.dailyFolderBookmark == nil {
             return "folder.badge.plus"
         }
@@ -657,6 +669,9 @@ struct QuickMarkerPanelView: View {
     }
 
     private var reviewLoopTone: DesignSystem.StatusTone {
+        if dailyLogFailedToday {
+            return .critical
+        }
         if reportSettings.dailyFolderBookmark == nil || !draftHasContext {
             return .warning
         }
@@ -664,6 +679,9 @@ struct QuickMarkerPanelView: View {
     }
 
     private var dailyLogContextDetail: String {
+        if dailyLogFailedToday {
+            return L("quick_marker.context.log_failed")
+        }
         if dailyLogSavedToday {
             return L("quick_marker.context.log_saved")
         }
@@ -674,6 +692,9 @@ struct QuickMarkerPanelView: View {
     }
 
     private var dailyLogContextIconName: String {
+        if dailyLogFailedToday {
+            return "exclamationmark.triangle.fill"
+        }
         if dailyLogSavedToday {
             return "checkmark.seal"
         }
@@ -684,6 +705,9 @@ struct QuickMarkerPanelView: View {
     }
 
     private var dailyLogContextTone: DesignSystem.StatusTone {
+        if dailyLogFailedToday {
+            return .critical
+        }
         if dailyLogSavedToday {
             return .success
         }
@@ -694,6 +718,9 @@ struct QuickMarkerPanelView: View {
     }
 
     private var dailyLogRouteTitleKey: LocalizedStringKey {
+        if dailyLogFailedToday {
+            return "quick_marker.route.closeout_failed_title"
+        }
         if dailyLogSavedToday {
             return "quick_marker.route.closeout_saved_title"
         }
@@ -704,6 +731,9 @@ struct QuickMarkerPanelView: View {
     }
 
     private var dailyLogRouteDetailKey: LocalizedStringKey {
+        if dailyLogFailedToday {
+            return "quick_marker.route.closeout_failed_detail"
+        }
         if dailyLogSavedToday {
             return "quick_marker.route.closeout_saved_detail"
         }
@@ -714,6 +744,9 @@ struct QuickMarkerPanelView: View {
     }
 
     private var dailyLogRouteIconName: String {
+        if dailyLogFailedToday {
+            return "exclamationmark.triangle.fill"
+        }
         if dailyLogSavedToday {
             return "checkmark.seal.fill"
         }
@@ -727,6 +760,9 @@ struct QuickMarkerPanelView: View {
         if reportSettings.dailyFolderBookmark == nil {
             return "quick_marker.status.set_log_folder"
         }
+        if dailyLogFailedToday {
+            return "quick_marker.status.retry_daily_log"
+        }
         if dailyLogSavedToday {
             return "quick_marker.status.open_daily_log"
         }
@@ -737,6 +773,9 @@ struct QuickMarkerPanelView: View {
         if reportSettings.dailyFolderBookmark == nil {
             return "folder.badge.plus"
         }
+        if dailyLogFailedToday {
+            return "arrow.clockwise"
+        }
         if dailyLogSavedToday {
             return "doc.text.magnifyingglass"
         }
@@ -745,6 +784,10 @@ struct QuickMarkerPanelView: View {
 
     private var dailyLogSavedToday: Bool {
         reportSettings.dailyExportSucceeded(for: contextDate)
+    }
+
+    private var dailyLogFailedToday: Bool {
+        reportSettings.dailyExportFailed(for: contextDate)
     }
 
     private func performDailyLogRouteAction() {
