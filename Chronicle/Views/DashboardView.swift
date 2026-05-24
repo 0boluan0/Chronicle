@@ -515,15 +515,16 @@ struct DashboardView: View {
             }
             .labelStyle(.titleAndIcon)
 
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 76), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.sm
-            ) {
-                sidebarQuickTimelineButton
-                sidebarQuickAddNoteButton
+            VStack(spacing: DesignSystem.Spacing.sm) {
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    sidebarQuickTimelineButton
+                    sidebarQuickAddNoteButton
+                }
+                .frame(maxWidth: .infinity)
+
                 sidebarQuickLogButton
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityIdentifier("dashboard.sidebar.utilityActions")
     }
