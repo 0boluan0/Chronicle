@@ -72,59 +72,9 @@ final class ChronicleTests: XCTestCase {
         return DatabaseService.makeTestInstance(databaseURL: url)
     }
 
-    private let telemetryCounterKeys: [String] = [
-        "app_launch",
-        "onboarding_started",
-        "popover_opened",
-        "dashboard_opened",
-        "preferences_opened",
-        "support_opened",
-        "onboarding_completed",
-        "onboarding_skipped",
-        "menu_export_daily_success",
-        "menu_export_daily_failure",
-        "menu_export_daily_clicked",
-        "export_daily_success",
-        "export_daily_failure",
-        "export_daily_clicked",
-        "export_daily_copy_clicked",
-        "export_weekly_success",
-        "export_weekly_failure",
-        "export_weekly_clicked",
-        "export_weekly_copy_clicked",
-        "export_csv_success",
-        "export_csv_failure",
-        "export_csv_clicked",
-        "export_timesheet_success",
-        "export_timesheet_failure",
-        "export_timesheet_clicked",
-        "export_folder_set_daily",
-        "export_folder_set_weekly",
-        "export_folder_set_csv",
-        "quick_marker_opened",
-        "marker_point_created",
-        "marker_span_started",
-        "marker_span_stopped",
-        "tag_created",
-        "wizard_opened",
-        "wizard_applied",
-        "rule_created_from_context",
-        "window_title_capture_enabled",
-        "accessibility_permission_prompted",
-        "accessibility_permission_granted",
-        "daily_review_reminder_shown",
-        "daily_review_notification_sent",
-        "daily_review_notification_opened",
-        "support_identity_copied",
-        "diagnostics_export_success",
-        "diagnostics_export_failure",
-        "feedback_bundle_success",
-        "feedback_bundle_failure",
-        "telemetry_export_success",
-        "telemetry_export_failure",
-        "check_updates_opened",
-        "releases_page_opened"
-    ]
+    private var telemetryCounterKeys: [String] {
+        TelemetryService.counterKeysForTesting
+    }
 
     private func clearTelemetryCounters() {
         let defaults = UserDefaults.standard

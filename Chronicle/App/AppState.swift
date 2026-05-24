@@ -757,6 +757,12 @@ nonisolated final class TelemetryService: @unchecked Sendable {
         "check_updates_opened",
         "releases_page_opened"
     ]
+
+#if DEBUG
+    static var counterKeysForTesting: [String] {
+        counterKeys
+    }
+#endif
 }
 
 final class RuntimePerformanceMonitor {
