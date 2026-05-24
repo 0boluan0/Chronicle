@@ -97,6 +97,18 @@ struct QuickMarkerPanelView: View {
         .accessibilityIdentifier("quickMarker.sideRail")
     }
 
+    private func panelActionLabel(_ title: String, systemImage: String) -> some View {
+        Label {
+            Text(title)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: systemImage)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     private var reviewLoopStrip: some View {
         RowSurface(tone: reviewLoopTone) {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
@@ -124,17 +136,7 @@ struct QuickMarkerPanelView: View {
                     Spacer(minLength: 0)
                 }
 
-                HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.xs) {
-                    Text(String(format: L("quick_marker.loop.progress"), reviewLoopReadyCount, reviewLoopTotalCount))
-                        .font(.caption2.weight(.semibold))
-                        .foregroundColor(reviewLoopTone.color)
-                        .monospacedDigit()
-                        .lineLimit(1)
-
-                    Spacer(minLength: 0)
-
-                    StatusPill(reviewLoopStatusText, systemImage: reviewLoopStatusIconName, tone: reviewLoopTone)
-                }
+                reviewLoopProgressHeader
 
                 RatioBar(
                     filledFraction: reviewLoopProgressFraction,
@@ -171,25 +173,17 @@ struct QuickMarkerPanelView: View {
     }
 
     private var panelHeaderCopy: some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
             IconWell(systemImage: "square.and.pencil", tone: .info, accessibilityLabel: L("quick_marker.title"))
             panelHeaderText
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
     }
 
     private var panelHeaderText: some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.sm) {
-                Text(L("quick_marker.title"))
-                    .font(DesignSystem.Typography.title)
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.86)
-
-                StatusPill(reviewLoopStatusText, systemImage: reviewLoopStatusIconName, tone: reviewLoopTone)
-                    .accessibilityIdentifier("quickMarker.headerStatus")
-            }
+            panelHeaderTitleRow
 
             Text(L("quick_marker.subtitle"))
                 .font(DesignSystem.Typography.caption)
@@ -199,8 +193,35 @@ struct QuickMarkerPanelView: View {
         }
     }
 
+    private var panelHeaderTitleRow: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.sm) {
+                panelHeaderTitle
+
+                StatusPill(reviewLoopStatusText, systemImage: reviewLoopStatusIconName, tone: reviewLoopTone)
+                    .accessibilityIdentifier("quickMarker.headerStatus")
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                panelHeaderTitle
+
+                StatusPill(reviewLoopStatusText, systemImage: reviewLoopStatusIconName, tone: reviewLoopTone)
+                    .accessibilityIdentifier("quickMarker.headerStatus")
+            }
+        }
+    }
+
+    private var panelHeaderTitle: some View {
+        Text(L("quick_marker.title"))
+            .font(DesignSystem.Typography.title)
+            .foregroundColor(DesignSystem.Colors.primaryText)
+            .lineLimit(2)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
     private var panelHeaderProgressRail: some View {
-        HStack(spacing: DesignSystem.Spacing.sm) {
+        HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
             Image(systemName: reviewLoopIconName)
                 .font(.caption.weight(.semibold))
                 .foregroundColor(reviewLoopTone.color)
@@ -218,6 +239,7 @@ struct QuickMarkerPanelView: View {
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.82)
+                .fixedSize(horizontal: true, vertical: false)
         }
         .padding(.horizontal, DesignSystem.Spacing.sm)
         .padding(.vertical, 7)
@@ -260,7 +282,7 @@ struct QuickMarkerPanelView: View {
 
     private var contextStrip: some View {
         LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 142), spacing: DesignSystem.Spacing.sm)],
+            columns: [GridItem(.adaptive(minimum: 150), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
             alignment: .leading,
             spacing: DesignSystem.Spacing.sm
         ) {
@@ -345,7 +367,7 @@ struct QuickMarkerPanelView: View {
             Button {
                 performDailyLogRouteAction()
             } label: {
-                Label(L(dailyLogRouteActionTitleKey), systemImage: dailyLogRouteActionIconName)
+                panelActionLabel(L(dailyLogRouteActionTitleKey), systemImage: dailyLogRouteActionIconName)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
@@ -356,7 +378,7 @@ struct QuickMarkerPanelView: View {
             Button {
                 openTodayTimeline()
             } label: {
-                Label(L("quick_marker.status.open_timeline"), systemImage: "clock")
+                panelActionLabel(L("quick_marker.status.open_timeline"), systemImage: "clock")
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
@@ -378,12 +400,14 @@ struct QuickMarkerPanelView: View {
                 .font(.caption.weight(.semibold))
                 .foregroundColor(tone.color)
                 .frame(width: 14)
+                .padding(.top, 1)
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(titleKey)
                     .font(.caption2.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(detailKey)
                     .font(.caption2)
@@ -394,7 +418,7 @@ struct QuickMarkerPanelView: View {
 
             Spacer(minLength: 0)
         }
-        .frame(minWidth: 132, maxWidth: .infinity, alignment: .topLeading)
+        .frame(minWidth: 132, maxWidth: .infinity, minHeight: 46, alignment: .topLeading)
         .accessibilityIdentifier(accessibilityIdentifier)
     }
 
@@ -405,31 +429,33 @@ struct QuickMarkerPanelView: View {
         tone: DesignSystem.StatusTone,
         accessibilityIdentifier: String
     ) -> some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.xs) {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.xs) {
             Image(systemName: systemImage)
                 .font(.caption.weight(.semibold))
                 .foregroundColor(tone.color)
                 .frame(width: 14)
+                .padding(.top, 1)
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(titleKey)
                     .font(.caption2.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(detail)
                     .font(.caption2)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
                     .truncationMode(.tail)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Spacer(minLength: 0)
         }
         .padding(.horizontal, DesignSystem.Spacing.sm)
         .padding(.vertical, 6)
-        .frame(minWidth: 116, maxWidth: .infinity, alignment: .leading)
+        .frame(minWidth: 116, maxWidth: .infinity, minHeight: 48, alignment: .topLeading)
         .background(
             Capsule()
                 .fill(tone.color.opacity(0.06))
@@ -449,25 +475,19 @@ struct QuickMarkerPanelView: View {
         tone: DesignSystem.StatusTone,
         accessibilityIdentifier: String
     ) -> some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.xs) {
-            Image(systemName: systemImage)
-                .font(.caption2.weight(.semibold))
-                .foregroundColor(tone.color)
-                .frame(width: 13)
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.xs) {
+                reviewLoopStepLabel(titleKey: titleKey, systemImage: systemImage, tone: tone)
 
-            Text(titleKey)
-                .font(.caption2.weight(.semibold))
-                .foregroundColor(DesignSystem.Colors.primaryText)
-                .lineLimit(1)
+                Spacer(minLength: DesignSystem.Spacing.xs)
 
-            Spacer(minLength: DesignSystem.Spacing.xs)
+                reviewLoopStepValue(value, tone: tone)
+            }
 
-            Text(value)
-                .font(.caption2.weight(.semibold))
-                .foregroundColor(tone.color)
-                .lineLimit(1)
-                .truncationMode(.middle)
-                .minimumScaleFactor(0.82)
+            VStack(alignment: .leading, spacing: 2) {
+                reviewLoopStepLabel(titleKey: titleKey, systemImage: systemImage, tone: tone)
+                reviewLoopStepValue(value, tone: tone)
+            }
         }
         .padding(.horizontal, DesignSystem.Spacing.sm)
         .padding(.vertical, 5)
@@ -481,6 +501,60 @@ struct QuickMarkerPanelView: View {
         )
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier(accessibilityIdentifier)
+    }
+
+    private func reviewLoopStepLabel(
+        titleKey: LocalizedStringKey,
+        systemImage: String,
+        tone: DesignSystem.StatusTone
+    ) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.xs) {
+            Image(systemName: systemImage)
+                .font(.caption2.weight(.semibold))
+                .foregroundColor(tone.color)
+                .frame(width: 13)
+
+            Text(titleKey)
+                .font(.caption2.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.primaryText)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func reviewLoopStepValue(_ value: String, tone: DesignSystem.StatusTone) -> some View {
+        Text(value)
+            .font(.caption2.weight(.semibold))
+            .foregroundColor(tone.color)
+            .lineLimit(2)
+            .truncationMode(.middle)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var reviewLoopProgressHeader: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.xs) {
+                reviewLoopProgressText
+
+                Spacer(minLength: 0)
+
+                StatusPill(reviewLoopStatusText, systemImage: reviewLoopStatusIconName, tone: reviewLoopTone)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                reviewLoopProgressText
+                StatusPill(reviewLoopStatusText, systemImage: reviewLoopStatusIconName, tone: reviewLoopTone)
+            }
+        }
+    }
+
+    private var reviewLoopProgressText: some View {
+        Text(String(format: L("quick_marker.loop.progress"), reviewLoopReadyCount, reviewLoopTotalCount))
+            .font(.caption2.weight(.semibold))
+            .foregroundColor(reviewLoopTone.color)
+            .monospacedDigit()
+            .lineLimit(1)
     }
 
     private var currentAppName: String {
