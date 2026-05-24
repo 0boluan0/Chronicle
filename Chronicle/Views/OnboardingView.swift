@@ -846,9 +846,83 @@ struct OnboardingView: View {
                     .foregroundColor(DesignSystem.Colors.secondaryText)
                     .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
+
+                onboardingFirstDayStrip
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var onboardingFirstDayStrip: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+            onboardingFirstDayPoint(
+                systemImage: "record.circle",
+                title: "onboarding.first_day.capture",
+                detail: "onboarding.first_day.capture_detail",
+                tone: .info,
+                identifier: "onboarding.firstDay.capture"
+            )
+            onboardingFirstDayPoint(
+                systemImage: "quote.bubble",
+                title: "onboarding.first_day.context",
+                detail: "onboarding.first_day.context_detail",
+                tone: .success,
+                identifier: "onboarding.firstDay.context"
+            )
+            onboardingFirstDayPoint(
+                systemImage: "doc.text.magnifyingglass",
+                title: "onboarding.first_day.closeout",
+                detail: "onboarding.first_day.closeout_detail",
+                tone: .warning,
+                identifier: "onboarding.firstDay.closeout"
+            )
+
+            Text("onboarding.first_day.footer")
+                .font(.caption2.weight(.medium))
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 2)
+        }
+        .padding(.top, DesignSystem.Spacing.xs)
+        .accessibilityIdentifier("onboarding.firstDayStrip")
+    }
+
+    private func onboardingFirstDayPoint(
+        systemImage: String,
+        title: LocalizedStringKey,
+        detail: LocalizedStringKey,
+        tone: DesignSystem.StatusTone,
+        identifier: String
+    ) -> some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+            ZStack {
+                Circle()
+                    .fill(tone.color.opacity(0.13))
+                Image(systemName: systemImage)
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundColor(tone.color)
+            }
+            .frame(width: 20, height: 20)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(1)
+
+                Text(detail)
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Spacer(minLength: 0)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier(identifier)
     }
 
     private var onboardingHeroTimeline: some View {
