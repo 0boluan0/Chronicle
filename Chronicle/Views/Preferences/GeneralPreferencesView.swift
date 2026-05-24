@@ -23,6 +23,7 @@ struct GeneralPreferencesView: View {
     @State private var trackingQualityExpanded = false
     @State private var idleSettingsExpanded = false
     @State private var launchAtLoginMessage: String?
+    @State private var captureProfileStatus: StatusMessage?
     @State private var windowTitleBlocklistStatus: StatusMessage?
     @State private var pendingWindowTitleBlocklistRemoval: WindowTitleBlocklistRemoval?
 
@@ -516,6 +517,11 @@ struct GeneralPreferencesView: View {
                 }
             }
 
+            StatusBannerView(
+                status: captureProfileStatus,
+                accessibilityIdentifier: "preferences.captureProfiles.status"
+            )
+
             Divider()
 
             captureProfileImpactStrip
@@ -537,7 +543,7 @@ struct GeneralPreferencesView: View {
         let tone = captureProfileTone(profile, isSelected: isSelected)
 
         return Button {
-            appState.applyCaptureTuningProfile(profile)
+            applyCaptureProfile(profile)
         } label: {
             RowSurface(tone: tone, isSelected: isSelected) {
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
@@ -581,6 +587,17 @@ struct GeneralPreferencesView: View {
         .buttonStyle(.plain)
         .accessibilityLabel("\(L(captureProfileTitleKey(profile))) \(isSelected ? L("preferences.capture_profiles.applied") : L("preferences.capture_profiles.apply"))")
         .accessibilityIdentifier("preferences.captureProfiles.\(profile.rawValue)")
+    }
+
+    private func applyCaptureProfile(_ profile: CaptureTuningProfile) {
+        appState.applyCaptureTuningProfile(profile)
+        captureProfileStatus = StatusMessage(
+            text: String(
+                format: L("preferences.capture_profiles.status.applied_message"),
+                L(captureProfileShortTitleKey(profile))
+            ),
+            isError: false
+        )
     }
 
     private var captureProfileImpactStrip: some View {

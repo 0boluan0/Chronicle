@@ -1085,6 +1085,10 @@ final class ChronicleUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["preferences.captureProfiles.impact"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["preferences.captureProfiles.impact.sampling"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["preferences.captureProfiles.impact.cleanup"].waitForExistence(timeout: 5))
+        let batteryProfile = app.buttons["preferences.captureProfiles.batterySaver"]
+        XCTAssertTrue(batteryProfile.waitForExistence(timeout: 5))
+        batteryProfile.click()
+        XCTAssertTrue(app.descendants(matching: .any)["preferences.captureProfiles.status"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["preferences.dailyUse.reviewPrivacy"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.radioGroups["preferences.language"].waitForExistence(timeout: 5))
 

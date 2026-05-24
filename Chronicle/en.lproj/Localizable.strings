@@ -1094,6 +1094,7 @@
 "preferences.capture_profiles.status.custom" = "Custom";
 "preferences.capture_profiles.apply" = "Apply";
 "preferences.capture_profiles.applied" = "Applied";
+"preferences.capture_profiles.status.applied_message" = "%@ profile applied. The advanced controls now match this baseline.";
 "preferences.capture_profiles.balanced.title" = "Balanced Daily Log";
 "preferences.capture_profiles.balanced.short" = "Balanced";
 "preferences.capture_profiles.balanced.detail" = "Conservative cleanup for a readable daily review without hiding normal context.";

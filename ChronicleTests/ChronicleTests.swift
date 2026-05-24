@@ -2668,6 +2668,7 @@ final class ChronicleTests: XCTestCase {
             "preferences.capture_profiles.status.custom",
             "preferences.capture_profiles.apply",
             "preferences.capture_profiles.applied",
+            "preferences.capture_profiles.status.applied_message",
             "preferences.capture_profiles.balanced.title",
             "preferences.capture_profiles.balanced.short",
             "preferences.capture_profiles.balanced.detail",
