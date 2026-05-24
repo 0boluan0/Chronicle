@@ -62,6 +62,8 @@ struct PrivacyPreferencesView: View {
                 Text("privacy.overview.body")
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(4)
+                    .fixedSize(horizontal: false, vertical: true)
                     .textSelection(.enabled)
 
                 LazyVGrid(
@@ -165,6 +167,7 @@ struct PrivacyPreferencesView: View {
                                 .lineLimit(3)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
                     StatusPill(
@@ -249,6 +252,7 @@ struct PrivacyPreferencesView: View {
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
                     .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(LocalizedStringKey(privacyReadinessStep.reasonDetailKey))
                     .font(.caption2)
@@ -256,6 +260,7 @@ struct PrivacyPreferencesView: View {
                     .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer(minLength: 0)
         }
@@ -298,6 +303,7 @@ struct PrivacyPreferencesView: View {
                     .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, minHeight: 62, alignment: .topLeading)
         .accessibilityIdentifier(accessibilityIdentifier)
@@ -363,14 +369,16 @@ struct PrivacyPreferencesView: View {
                 Text(titleKey)
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(detailKey)
                     .font(.caption2)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
+                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer(minLength: 0)
         }
@@ -441,7 +449,7 @@ struct PrivacyPreferencesView: View {
         title: LocalizedStringKey,
         detail: LocalizedStringKey
     ) -> some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
             IconWell(systemImage: systemImage, tone: tone)
 
             VStack(alignment: .leading, spacing: 3) {
@@ -449,6 +457,7 @@ struct PrivacyPreferencesView: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
                     .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(detail)
                     .font(DesignSystem.Typography.caption)
@@ -456,6 +465,7 @@ struct PrivacyPreferencesView: View {
                     .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -602,13 +612,16 @@ struct PrivacyPreferencesView: View {
                 Text("privacy.capture.outcome.title")
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text("privacy.capture.outcome.detail")
                     .font(.caption2)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
+                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -623,14 +636,16 @@ struct PrivacyPreferencesView: View {
                 Text(LocalizedStringKey(item.titleKey))
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(LocalizedStringKey(item.detailKey))
                     .font(.caption2)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
+                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer(minLength: 0)
         }
@@ -731,20 +746,24 @@ struct PrivacyPreferencesView: View {
                 Text(titleKey)
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(value)
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.82)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
+                    .help(value)
 
                 Text(detail)
                     .font(.caption2)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
+                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer(minLength: 0)
         }
@@ -872,6 +891,8 @@ struct PrivacyPreferencesView: View {
                     Text("privacy.sharing.actions.title")
                         .font(.caption.weight(.semibold))
                         .foregroundColor(DesignSystem.Colors.primaryText)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     Text("privacy.sharing.actions.detail")
                         .font(DesignSystem.Typography.caption)
@@ -879,6 +900,7 @@ struct PrivacyPreferencesView: View {
                         .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             } icon: {
                 Image(systemName: "checklist")
                     .font(.caption.weight(.semibold))
@@ -1054,6 +1076,8 @@ struct PrivacyPreferencesView: View {
                 Text("privacy.docs.subtitle")
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 LazyVGrid(
                     columns: adaptiveColumns(minimum: 190, spacing: DesignSystem.Spacing.sm),
