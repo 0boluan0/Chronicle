@@ -386,11 +386,7 @@ struct QuickMarkerEntryView: View {
         Button {
             submit()
         } label: {
-            Label {
-                Text(submitButtonLabel)
-            } icon: {
-                Image(systemName: submitButtonIconName)
-            }
+            captureSubmitLabel
         }
         .buttonStyle(.borderedProminent)
         .controlSize(.regular)
@@ -398,6 +394,19 @@ struct QuickMarkerEntryView: View {
         .disabled(isSubmitting || trimmedMarkerText.isEmpty)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityIdentifier("quickMarker.submit")
+    }
+
+    private var captureSubmitLabel: some View {
+        Label {
+            Text(submitButtonLabel)
+                .lineLimit(2)
+                .minimumScaleFactor(0.85)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: submitButtonIconName)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var clearTextButton: some View {
