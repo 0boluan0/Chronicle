@@ -434,6 +434,11 @@
 "onboarding.next.continue_for_now" = "Continue for Now";
 "onboarding.welcome.title" = "Your First Day";
 "onboarding.welcome.body" = "Let Chronicle run quietly, add notes when a moment matters, then end the day with a readable daily log.";
+"onboarding.positioning.title" = "Offline work journal";
+"onboarding.positioning.detail" = "Turn local app activity into a timeline you can annotate and save as Markdown.";
+"onboarding.positioning.local" = "Local timeline";
+"onboarding.positioning.context" = "Context notes";
+"onboarding.positioning.export" = "Markdown closeout";
 "onboarding.first_day.title" = "Today's rhythm";
 "onboarding.first_day.capture" = "Capture";
 "onboarding.first_day.capture_detail" = "Menu bar stays quiet.";

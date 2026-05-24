@@ -693,6 +693,8 @@ struct OnboardingView: View {
 
     private var workdayHero: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            onboardingPositioningStrip
+
             LazyVGrid(
                 columns: adaptiveColumns(minimum: 260, spacing: DesignSystem.Spacing.xl),
                 alignment: .leading,
@@ -720,6 +722,59 @@ struct OnboardingView: View {
                 .frame(width: 4)
         }
         .accessibilityIdentifier("onboarding.workdayHero")
+    }
+
+    private var onboardingPositioningStrip: some View {
+        RowSurface(tone: .info, isHovering: false) {
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+                    onboardingPositioningCopy
+
+                    Spacer(minLength: DesignSystem.Spacing.sm)
+
+                    onboardingPositioningPills
+                }
+
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    onboardingPositioningCopy
+                    onboardingPositioningPills
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("onboarding.positioning")
+    }
+
+    private var onboardingPositioningCopy: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: "lock.doc")
+                .font(.caption.weight(.semibold))
+                .foregroundColor(DesignSystem.StatusTone.info.color)
+                .frame(width: 16)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("onboarding.positioning.title")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(1)
+
+                Text("onboarding.positioning.detail")
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var onboardingPositioningPills: some View {
+        HStack(spacing: DesignSystem.Spacing.xs) {
+            StatusPill(L("onboarding.positioning.local"), systemImage: "internaldrive", tone: .success)
+            StatusPill(L("onboarding.positioning.context"), systemImage: "note.text", tone: .info)
+            StatusPill(L("onboarding.positioning.export"), systemImage: "doc.text", tone: .warning)
+        }
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     private var onboardingHeroCopy: some View {

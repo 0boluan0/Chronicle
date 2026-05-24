@@ -434,6 +434,11 @@
 "onboarding.next.continue_for_now" = "暂时继续";
 "onboarding.welcome.title" = "你的第一天";
 "onboarding.welcome.body" = "让 Chronicle 安静运行，遇到重要时刻就补一条笔记，收工前保存一份可读的今日日志。";
+"onboarding.positioning.title" = "离线工作日志";
+"onboarding.positioning.detail" = "把本机应用活动变成可标注、可保存为 Markdown 的时间线。";
+"onboarding.positioning.local" = "本地时间线";
+"onboarding.positioning.context" = "语境笔记";
+"onboarding.positioning.export" = "Markdown 复盘";
 "onboarding.first_day.title" = "今天的节奏";
 "onboarding.first_day.capture" = "记录";
 "onboarding.first_day.capture_detail" = "菜单栏安静运行。";
