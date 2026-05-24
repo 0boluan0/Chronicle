@@ -367,19 +367,22 @@ struct HealthCheckDetailsView: View {
                         title: "self_check.details.errors_metric",
                         value: "\(issueCounts.errors)",
                         systemImage: "xmark.octagon.fill",
-                        tone: issueCounts.errors > 0 ? .critical : .neutral
+                        tone: issueCounts.errors > 0 ? .critical : .neutral,
+                        accessibilityIdentifier: "selfCheck.readiness.metric.errors"
                     )
                     readinessMetric(
                         title: "self_check.details.warnings_metric",
                         value: "\(issueCounts.warnings)",
                         systemImage: "exclamationmark.triangle.fill",
-                        tone: issueCounts.warnings > 0 ? .warning : .neutral
+                        tone: issueCounts.warnings > 0 ? .warning : .neutral,
+                        accessibilityIdentifier: "selfCheck.readiness.metric.warnings"
                     )
                     readinessMetric(
                         title: "self_check.details.evidence_metric",
                         value: "\(evidenceItems.count)",
                         systemImage: "checklist",
-                        tone: evidenceItems.isEmpty ? .neutral : .info
+                        tone: evidenceItems.isEmpty ? .neutral : .info,
+                        accessibilityIdentifier: "selfCheck.readiness.metric.evidence"
                     )
                 }
 
@@ -653,25 +656,46 @@ struct HealthCheckDetailsView: View {
         title: LocalizedStringKey,
         value: String,
         systemImage: String,
-        tone: DesignSystem.StatusTone
+        tone: DesignSystem.StatusTone,
+        accessibilityIdentifier: String
     ) -> some View {
         HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
-            Image(systemName: systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(tone.color)
-                .frame(width: 16)
+            ZStack {
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                    .fill(tone.color.opacity(0.10))
+
+                Image(systemName: systemImage)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(tone.color)
+            }
+            .frame(width: 30, height: 30)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(DesignSystem.Typography.caption)
+                    .font(.caption2.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
                 Text(value)
                     .font(.title3.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
                     .monospacedDigit()
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(DesignSystem.Spacing.sm)
+        .frame(maxWidth: .infinity, minHeight: 62, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(tone.color.opacity(0.055))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(tone.color.opacity(0.16), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     private var supportBriefSection: some View {

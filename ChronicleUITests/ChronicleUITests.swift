@@ -1126,6 +1126,9 @@ final class ChronicleUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Support"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["App Health Details"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["Current Status"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["selfCheck.readiness.metric.errors"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["selfCheck.readiness.metric.warnings"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["selfCheck.readiness.metric.evidence"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["selfCheck.actions"].waitForExistence(timeout: 5))
 
         app.terminate()
