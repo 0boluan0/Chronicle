@@ -94,6 +94,8 @@ struct DateNavigationHeader: View {
             if availableRangeModes.count > 1 {
                 rangeControl
             }
+
+            rangeContextStrip
         }
         .padding(.horizontal, DesignSystem.Spacing.sm)
         .padding(.vertical, 6)
@@ -109,6 +111,62 @@ struct DateNavigationHeader: View {
         .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("\(accessibilityPrefix).dateControls")
+    }
+
+    private var rangeContextStrip: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                rangeContextCopy
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                StatusPill(rangeModeText, systemImage: "calendar.badge.clock", tone: dateStatusTone)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .accessibilityIdentifier("\(accessibilityPrefix).rangeContext.status")
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                rangeContextCopy
+
+                StatusPill(rangeModeText, systemImage: "calendar.badge.clock", tone: dateStatusTone)
+                    .accessibilityIdentifier("\(accessibilityPrefix).rangeContext.status")
+            }
+        }
+        .padding(.horizontal, DesignSystem.Spacing.sm)
+        .padding(.vertical, 7)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .fill(dateStatusTone.color.opacity(0.07))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .stroke(dateStatusTone.color.opacity(0.18), lineWidth: 1)
+        )
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("\(accessibilityPrefix).rangeContext")
+    }
+
+    private var rangeContextCopy: some View {
+        Label {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(displaySubtitle)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(LocalizedStringKey(rangeContextDetailKey))
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        } icon: {
+            Image(systemName: dateStatusIconName)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(dateStatusTone.color)
+                .frame(width: 16)
+        }
+        .labelStyle(.titleAndIcon)
     }
 
     private var dateControlRow: some View {
@@ -234,6 +292,27 @@ struct DateNavigationHeader: View {
 
     private var rangeControlWidth: CGFloat {
         availableRangeModes.count > 2 ? 210 : 150
+    }
+
+    private var rangeModeText: String {
+        switch dateRangeMode {
+        case .day:
+            return L("range.day")
+        case .week:
+            return L("range.week")
+        case .month:
+            return L("range.month")
+        }
+    }
+
+    private var rangeContextDetailKey: String {
+        if selectedDateIsFuture {
+            return "date_navigation.context.future_detail"
+        }
+        if selectedRangeContainsToday {
+            return "date_navigation.context.current_detail"
+        }
+        return "date_navigation.context.history_detail"
     }
 
     private var displaySubtitle: String {

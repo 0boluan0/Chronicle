@@ -567,6 +567,9 @@ final class ChronicleUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["Review Focus"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.descendants(matching: .any)["dashboard.timeline.dateControls"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["dashboard.timeline.rangeContext"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["dashboard.timeline.rangeContext.status"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["This view includes today, so it is the best place to decide what needs attention now."].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["dashboard.timeline.previous"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["dashboard.timeline.date"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["dashboard.timeline.next"].waitForExistence(timeout: 5))

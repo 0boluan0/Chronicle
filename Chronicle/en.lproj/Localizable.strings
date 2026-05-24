@@ -1617,6 +1617,9 @@
 "date_navigation.status.this_month" = "This month";
 "date_navigation.status.past_month" = "Past month";
 "date_navigation.status.future_month" = "Future month";
+"date_navigation.context.current_detail" = "This view includes today, so it is the best place to decide what needs attention now.";
+"date_navigation.context.history_detail" = "Use this range for comparison without moving today's workspace.";
+"date_navigation.context.future_detail" = "Choose today or an earlier range before reviewing activity.";
 "Add marker" = "Add Note";
 "Add" = "Add";
 "No activity recorded for this range yet." = "No activity recorded for this range yet.";
