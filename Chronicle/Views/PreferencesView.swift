@@ -569,7 +569,7 @@ struct PreferencesView: View {
             }
             return PreferencesSetupReadiness(titleKey: "preferences.sidebar.guide.status.ready", systemImage: "checkmark", tone: .success)
         case .export:
-            if reportSettings.dailyFolderBookmark != nil && reportSettings.weeklyFolderBookmark != nil {
+            if reportSettings.allExportFoldersConfigured {
                 return PreferencesSetupReadiness(titleKey: "preferences.sidebar.guide.status.ready", systemImage: "checkmark", tone: .success)
             }
             return PreferencesSetupReadiness(titleKey: "preferences.sidebar.guide.status.needs_folder", systemImage: "folder.badge.plus", tone: .warning)

@@ -983,7 +983,7 @@
 "preferences.sidebar.guide.current.tags_title" = "让未来日志更容易读。";
 "preferences.sidebar.guide.current.tags_detail" = "把应用和规则分配到日志分区，复盘时就不再像原始活动列表。";
 "preferences.sidebar.guide.current.logs_title" = "决定完成后的日志保存到哪里。";
-"preferences.sidebar.guide.current.logs_detail" = "提前选好文件夹，收尾一天时就像复盘，而不是再次配置。";
+"preferences.sidebar.guide.current.logs_detail" = "提前选好文件夹，让今日日志、周总结和工时表不再打断复盘。";
 "preferences.sidebar.guide.current.health_title" = "准备安全升级。";
 "preferences.sidebar.guide.current.health_detail" = "替换版本前，先检查应用健康、本地数据位置和发布说明。";
 "preferences.sidebar.guide.current.debug_title" = "只在需要时排查。";
@@ -1001,7 +1001,7 @@
 "preferences.sidebar.guide.categories_title" = "分类";
 "preferences.sidebar.guide.categories_detail" = "分配应用和规则，让今日日志更容易读。";
 "preferences.sidebar.guide.logs_title" = "日志输出";
-"preferences.sidebar.guide.logs_detail" = "决定今日日志和周总结保存到哪里。";
+"preferences.sidebar.guide.logs_detail" = "决定日志、总结和工时表保存到哪里。";
 "preferences.sidebar.guide.health_title" = "升级安全";
 "preferences.sidebar.guide.health_detail" = "升级前确认健康和数据位置。";
 "preferences.sidebar.guide.status.ready" = "已就绪";

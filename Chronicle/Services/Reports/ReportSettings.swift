@@ -413,9 +413,21 @@ final class ReportSettings: ObservableObject {
             return nil
         }
     }
+
+    var configuredExportFolderKinds: [ReportFolderKind] {
+        ReportFolderKind.allCases.filter { bookmarkData(for: $0) != nil }
+    }
+
+    var missingExportFolderKinds: [ReportFolderKind] {
+        ReportFolderKind.allCases.filter { bookmarkData(for: $0) == nil }
+    }
+
+    var allExportFoldersConfigured: Bool {
+        missingExportFolderKinds.isEmpty
+    }
 }
 
-enum ReportFolderKind {
+enum ReportFolderKind: CaseIterable, Equatable {
     case daily
     case weekly
     case csv

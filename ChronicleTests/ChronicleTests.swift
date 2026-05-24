@@ -3251,6 +3251,32 @@ final class ChronicleTests: XCTestCase {
         XCTAssertTrue(defaults.bool(forKey: "reports.lastDailyExportIsError"))
     }
 
+    func testReportSettingsExportFolderReadinessRequiresCsvFolder() {
+        let suiteName = "chronicle-tests-report-folder-readiness-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = ReportSettings.makeTestInstance(defaults: defaults)
+
+        XCTAssertEqual(settings.configuredExportFolderKinds, [])
+        XCTAssertEqual(settings.missingExportFolderKinds, [.daily, .weekly, .csv])
+        XCTAssertFalse(settings.allExportFoldersConfigured)
+
+        settings.dailyFolderBookmark = Data([1])
+        settings.weeklyFolderBookmark = Data([2])
+
+        XCTAssertEqual(settings.configuredExportFolderKinds, [.daily, .weekly])
+        XCTAssertEqual(settings.missingExportFolderKinds, [.csv])
+        XCTAssertFalse(settings.allExportFoldersConfigured)
+
+        settings.csvFolderBookmark = Data([3])
+
+        XCTAssertEqual(settings.configuredExportFolderKinds, [.daily, .weekly, .csv])
+        XCTAssertEqual(settings.missingExportFolderKinds, [])
+        XCTAssertTrue(settings.allExportFoldersConfigured)
+
+        defaults.removePersistentDomain(forName: suiteName)
+    }
+
     func testReportSettingsExportSuccessHelpersHonorFailureStateAndFallbackTimestamps() {
         let suiteName = "chronicle-tests-report-export-success-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!

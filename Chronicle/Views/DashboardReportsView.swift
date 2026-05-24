@@ -4074,15 +4074,15 @@ struct ReportsWorkspaceView: View {
     }
 
     private var readyExportFolderCount: Int {
-        [ReportFolderKind.daily, .weekly, .csv].filter { !folderStatusLine(for: $0).isError }.count
+        ReportFolderKind.allCases.filter { !folderStatusLine(for: $0).isError }.count
     }
 
     private var allExportFoldersReady: Bool {
-        readyExportFolderCount == 3
+        readyExportFolderCount == ReportFolderKind.allCases.count
     }
 
     private var nextMissingExportFolderKind: ReportFolderKind? {
-        [ReportFolderKind.daily, .weekly, .csv].first { folderStatusLine(for: $0).isError }
+        ReportFolderKind.allCases.first { folderStatusLine(for: $0).isError }
     }
 
     private var planExportFolderKinds: [ReportFolderKind] {

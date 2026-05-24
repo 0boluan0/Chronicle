@@ -983,7 +983,7 @@
 "preferences.sidebar.guide.current.tags_title" = "Make future logs readable.";
 "preferences.sidebar.guide.current.tags_detail" = "Assign apps and rules to log sections so reviews stop looking like a raw activity list.";
 "preferences.sidebar.guide.current.logs_title" = "Pick where finished logs go.";
-"preferences.sidebar.guide.current.logs_detail" = "Choose folders once so closing out the day feels like review, not setup.";
+"preferences.sidebar.guide.current.logs_detail" = "Choose folders once so daily logs, weekly summaries, and timesheets do not interrupt review.";
 "preferences.sidebar.guide.current.health_title" = "Prepare safe updates.";
 "preferences.sidebar.guide.current.health_detail" = "Check app health, local data, and release notes before replacing a build.";
 "preferences.sidebar.guide.current.debug_title" = "Troubleshoot only when needed.";
@@ -1001,7 +1001,7 @@
 "preferences.sidebar.guide.categories_title" = "Categories";
 "preferences.sidebar.guide.categories_detail" = "Make daily logs readable by assigning apps and rules.";
 "preferences.sidebar.guide.logs_title" = "Log output";
-"preferences.sidebar.guide.logs_detail" = "Pick where daily and weekly summaries go.";
+"preferences.sidebar.guide.logs_detail" = "Pick where logs, summaries, and timesheets go.";
 "preferences.sidebar.guide.health_title" = "Upgrade safety";
 "preferences.sidebar.guide.health_detail" = "Check health and data before updating.";
 "preferences.sidebar.guide.status.ready" = "Ready";
