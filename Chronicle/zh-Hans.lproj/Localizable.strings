@@ -2131,6 +2131,7 @@
 "quick_marker.outcome.report_title" = "今日日志";
 "quick_marker.outcome.report_detail" = "可用于今天的复盘。";
 "quick_marker.starters.title" = "常用开头";
+"quick_marker.starters.count" = "%d 个模板";
 "quick_marker.starters.decision" = "决策";
 "quick_marker.starters.takeaway" = "要点";
 "quick_marker.starters.question" = "疑问";

@@ -916,13 +916,7 @@ struct QuickMarkerEntryView: View {
         let columns = [GridItem(.adaptive(minimum: 176), spacing: DesignSystem.Spacing.sm)]
         if !prompts.isEmpty {
             VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 6) {
-                    Image(systemName: "lightbulb")
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                    Text(L("quick_marker.starters.title"))
-                        .font(DesignSystem.Typography.caption)
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                }
+                quickStarterHeader(promptCount: prompts.count)
 
                 LazyVGrid(columns: columns, alignment: .leading, spacing: DesignSystem.Spacing.sm) {
                     ForEach(prompts) { starter in
@@ -932,6 +926,48 @@ struct QuickMarkerEntryView: View {
             }
             .accessibilityIdentifier("quickMarker.starters")
         }
+    }
+
+    private func quickStarterHeader(promptCount: Int) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+                quickStarterHeaderLabel
+
+                Spacer(minLength: DesignSystem.Spacing.xs)
+
+                quickStarterCountPill(promptCount)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                quickStarterHeaderLabel
+                quickStarterCountPill(promptCount)
+            }
+        }
+        .accessibilityIdentifier("quickMarker.startersHeader")
+    }
+
+    private var quickStarterHeaderLabel: some View {
+        Label {
+            Text(L("quick_marker.starters.title"))
+                .font(DesignSystem.Typography.caption.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.primaryText)
+                .lineLimit(1)
+        } icon: {
+            Image(systemName: "lightbulb")
+                .font(.caption.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+        }
+        .labelStyle(.titleAndIcon)
+    }
+
+    private func quickStarterCountPill(_ promptCount: Int) -> some View {
+        StatusPill(
+            String(format: L("quick_marker.starters.count"), promptCount),
+            systemImage: "square.grid.2x2",
+            tone: modeTone
+        )
+        .fixedSize(horizontal: true, vertical: false)
+        .accessibilityIdentifier("quickMarker.starters.count")
     }
 
     private func starterPromptButton(_ starter: StarterPrompt) -> some View {

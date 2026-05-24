@@ -2131,6 +2131,7 @@
 "quick_marker.outcome.report_title" = "Daily log";
 "quick_marker.outcome.report_detail" = "Ready for today's review.";
 "quick_marker.starters.title" = "Common starters";
+"quick_marker.starters.count" = "%d prompts";
 "quick_marker.starters.decision" = "Decision";
 "quick_marker.starters.takeaway" = "Takeaway";
 "quick_marker.starters.question" = "Question";
