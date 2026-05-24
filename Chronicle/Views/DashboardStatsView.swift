@@ -93,35 +93,31 @@ struct DashboardStatsView: View {
     private func statsIssueCard(message: String) -> some View {
         SectionCard {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-                    IconWell(
-                        systemImage: "chart.bar.xaxis",
-                        tone: .warning,
-                        accessibilityLabel: L("dashboard.stats.load_failed")
-                    )
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                        statsIssueCopy
 
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("dashboard.stats.load_failed")
-                            .font(.headline.weight(.semibold))
-                            .foregroundColor(DesignSystem.Colors.primaryText)
-
-                        Text("dashboard.stats.error.detail")
-                            .font(DesignSystem.Typography.caption)
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
-                            .fixedSize(horizontal: false, vertical: true)
+                        StatusPill(
+                            L("dashboard.stats.error.status"),
+                            systemImage: "stethoscope",
+                            tone: .warning
+                        )
+                        .fixedSize(horizontal: true, vertical: false)
                     }
 
-                    Spacer(minLength: DesignSystem.Spacing.md)
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                        statsIssueCopy
 
-                    StatusPill(
-                        L("dashboard.stats.error.status"),
-                        systemImage: "stethoscope",
-                        tone: .warning
-                    )
+                        StatusPill(
+                            L("dashboard.stats.error.status"),
+                            systemImage: "stethoscope",
+                            tone: .warning
+                        )
+                    }
                 }
 
                 LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 150), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
+                    columns: [GridItem(.adaptive(minimum: 170), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
                     alignment: .leading,
                     spacing: DesignSystem.Spacing.sm
                 ) {
@@ -145,12 +141,34 @@ struct DashboardStatsView: View {
         .accessibilityIdentifier("dashboard.stats.issueCard")
     }
 
+    private var statsIssueCopy: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            IconWell(
+                systemImage: "chart.bar.xaxis",
+                tone: .warning,
+                accessibilityLabel: L("dashboard.stats.load_failed")
+            )
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("dashboard.stats.load_failed")
+                    .font(.headline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+
+                Text("dashboard.stats.error.detail")
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     private var statsIssueActions: some View {
         Group {
             Button {
                 refreshStats(reason: "stats issue retry")
             } label: {
-                Label(L("dashboard.stats.error.retry"), systemImage: "arrow.clockwise")
+                statsActionLabel(L("dashboard.stats.error.retry"), systemImage: "arrow.clockwise")
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
@@ -161,13 +179,25 @@ struct DashboardStatsView: View {
             Button {
                 AppWindowRouter.shared.open(.settings(.support))
             } label: {
-                Label(L("dashboard.stats.error.open_health"), systemImage: "stethoscope")
+                statsActionLabel(L("dashboard.stats.error.open_health"), systemImage: "stethoscope")
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("dashboard.stats.openHealth")
         }
+    }
+
+    private func statsActionLabel(_ title: String, systemImage: String) -> some View {
+        Label {
+            Text(title)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: systemImage)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var statsScopeCard: some View {
@@ -204,13 +234,19 @@ struct DashboardStatsView: View {
     }
 
     private var statsScopeHeader: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            statsScopeCopy
-            StatusPill(chartBasisText, systemImage: statsScopeStatusIconName, tone: statsScopeTone)
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                statsScopeCopy
+
+                StatusPill(chartBasisText, systemImage: statsScopeStatusIconName, tone: statsScopeTone)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                statsScopeCopy
+
+                StatusPill(chartBasisText, systemImage: statsScopeStatusIconName, tone: statsScopeTone)
+            }
         }
         .accessibilityIdentifier("dashboard.stats.scopeHeader")
     }
@@ -234,6 +270,7 @@ struct DashboardStatsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var statsRangePicker: some View {
@@ -267,7 +304,7 @@ struct DashboardStatsView: View {
                 Button {
                     showIdleSuppressionExplanation = true
                 } label: {
-                    Label(L("stats.idle_suppression.explain"), systemImage: "info.circle")
+                    statsActionLabel(L("stats.idle_suppression.explain"), systemImage: "info.circle")
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
@@ -289,6 +326,8 @@ struct DashboardStatsView: View {
                 Text("stats.idle_suppression.sheet_title")
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(idleSuppressionStatusText)
                     .font(.caption2)
@@ -344,13 +383,19 @@ struct DashboardStatsView: View {
     }
 
     private var statsReviewHeader: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            statsReviewCopy
-            StatusPill(statsReviewStatusText, systemImage: statsReviewStatusIconName, tone: statsReviewTone)
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                statsReviewCopy
+
+                StatusPill(statsReviewStatusText, systemImage: statsReviewStatusIconName, tone: statsReviewTone)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                statsReviewCopy
+
+                StatusPill(statsReviewStatusText, systemImage: statsReviewStatusIconName, tone: statsReviewTone)
+            }
         }
         .accessibilityIdentifier("dashboard.stats.reviewHeader")
     }
@@ -374,6 +419,7 @@ struct DashboardStatsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func statsReviewBlock(
@@ -393,13 +439,14 @@ struct DashboardStatsView: View {
                 Text(title)
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(value)
                     .font(.headline.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(detail)
                     .font(DesignSystem.Typography.caption)
@@ -413,24 +460,29 @@ struct DashboardStatsView: View {
 
     private var statsReviewProgressView: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
-                Image(systemName: statsReviewStatusIconName)
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(statsReviewProgressTone.color)
-                    .frame(width: 16)
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+                    statsReviewProgressLabel
 
-                Text("dashboard.stats.review.progress.title")
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
+                    Spacer(minLength: DesignSystem.Spacing.sm)
 
-                Spacer(minLength: DesignSystem.Spacing.sm)
+                    StatusPill(
+                        statsReviewProgressText,
+                        systemImage: statsReviewProgressIconName,
+                        tone: statsReviewProgressTone
+                    )
+                    .fixedSize(horizontal: true, vertical: false)
+                }
 
-                StatusPill(
-                    statsReviewProgressText,
-                    systemImage: statsReviewProgressIconName,
-                    tone: statsReviewProgressTone
-                )
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                    statsReviewProgressLabel
+
+                    StatusPill(
+                        statsReviewProgressText,
+                        systemImage: statsReviewProgressIconName,
+                        tone: statsReviewProgressTone
+                    )
+                }
             }
 
             RatioBar(
@@ -450,6 +502,22 @@ struct DashboardStatsView: View {
         )
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("dashboard.stats.reviewProgress")
+    }
+
+    private var statsReviewProgressLabel: some View {
+        HStack(alignment: .center, spacing: DesignSystem.Spacing.xs) {
+            Image(systemName: statsReviewStatusIconName)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(statsReviewProgressTone.color)
+                .frame(width: 16)
+
+            Text("dashboard.stats.review.progress.title")
+                .font(.caption.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.primaryText)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var statsInterpretationPath: some View {
@@ -500,7 +568,8 @@ struct DashboardStatsView: View {
                 Text(titleKey)
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(detailKey)
                     .font(.caption2)
@@ -558,7 +627,8 @@ struct DashboardStatsView: View {
                 Text("dashboard.stats.review.next_step")
                     .font(.caption2.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(LocalizedStringKey(statsReviewNextStepTitleKey))
                     .font(.subheadline.weight(.semibold))
@@ -578,7 +648,7 @@ struct DashboardStatsView: View {
 
     private var statsReviewActionsGrid: some View {
         LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 142), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
+            columns: [GridItem(.adaptive(minimum: 170), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
             alignment: .leading,
             spacing: DesignSystem.Spacing.sm
         ) {
@@ -603,7 +673,7 @@ struct DashboardStatsView: View {
             Button {
                 showUnlabeledTimeline()
             } label: {
-                Label(L("dashboard.stats.review.review_labels"), systemImage: "rectangle.split.3x1")
+                statsActionLabel(L("dashboard.stats.review.review_labels"), systemImage: "rectangle.split.3x1")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -613,7 +683,7 @@ struct DashboardStatsView: View {
             Button {
                 AppWindowRouter.shared.open(.quickMarker)
             } label: {
-                Label(L("dashboard.stats.review.add_cue"), systemImage: "square.and.pencil")
+                statsActionLabel(L("dashboard.stats.review.add_cue"), systemImage: "square.and.pencil")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -653,7 +723,7 @@ struct DashboardStatsView: View {
             Button {
                 selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
             } label: {
-                Label(L("dashboard.stats.review.open_today"), systemImage: "sun.max")
+                statsActionLabel(L("dashboard.stats.review.open_today"), systemImage: "sun.max")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -663,7 +733,7 @@ struct DashboardStatsView: View {
             Button {
                 selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
             } label: {
-                Label(L("dashboard.stats.review.open_today"), systemImage: "sun.max")
+                statsActionLabel(L("dashboard.stats.review.open_today"), systemImage: "sun.max")
             }
             .buttonStyle(.bordered)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -677,7 +747,7 @@ struct DashboardStatsView: View {
             Button {
                 AppWindowRouter.shared.open(.settings(.support))
             } label: {
-                Label(L("dashboard.stats.review.check_capture"), systemImage: "stethoscope")
+                statsActionLabel(L("dashboard.stats.review.check_capture"), systemImage: "stethoscope")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -687,7 +757,7 @@ struct DashboardStatsView: View {
             Button {
                 AppWindowRouter.shared.open(.settings(.support))
             } label: {
-                Label(L("dashboard.stats.review.check_capture"), systemImage: "stethoscope")
+                statsActionLabel(L("dashboard.stats.review.check_capture"), systemImage: "stethoscope")
             }
             .buttonStyle(.bordered)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -702,7 +772,7 @@ struct DashboardStatsView: View {
                 appState.trackingPaused = false
                 selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
             } label: {
-                Label(L("dashboard.stats.review.resume_capture"), systemImage: "play.fill")
+                statsActionLabel(L("dashboard.stats.review.resume_capture"), systemImage: "play.fill")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -713,7 +783,7 @@ struct DashboardStatsView: View {
                 appState.trackingPaused = false
                 selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
             } label: {
-                Label(L("dashboard.stats.review.resume_capture"), systemImage: "play.fill")
+                statsActionLabel(L("dashboard.stats.review.resume_capture"), systemImage: "play.fill")
             }
             .buttonStyle(.bordered)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -725,7 +795,7 @@ struct DashboardStatsView: View {
         Button {
             AppWindowRouter.shared.open(.quickMarker)
         } label: {
-            Label(L("dashboard.stats.review.add_cue"), systemImage: "square.and.pencil")
+            statsActionLabel(L("dashboard.stats.review.add_cue"), systemImage: "square.and.pencil")
         }
         .buttonStyle(.bordered)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -736,7 +806,7 @@ struct DashboardStatsView: View {
         Button {
             selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
         } label: {
-            Label(L("dashboard.stats.review.open_timeline"), systemImage: "clock")
+            statsActionLabel(L("dashboard.stats.review.open_timeline"), systemImage: "clock")
         }
         .buttonStyle(.bordered)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -747,7 +817,7 @@ struct DashboardStatsView: View {
         Button {
             selectedDashboardSectionRaw = DashboardView.Section.markers.rawValue
         } label: {
-            Label(L("dashboard.stats.review.open_markers"), systemImage: "note.text")
+            statsActionLabel(L("dashboard.stats.review.open_markers"), systemImage: "note.text")
         }
         .buttonStyle(.bordered)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -758,7 +828,7 @@ struct DashboardStatsView: View {
         Button {
             performStatsPrepareReportAction()
         } label: {
-            Label(statsPrepareReportTitle, systemImage: statsPrepareReportIconName)
+            statsActionLabel(statsPrepareReportTitle, systemImage: statsPrepareReportIconName)
         }
         .buttonStyle(.bordered)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -769,7 +839,7 @@ struct DashboardStatsView: View {
         Button {
             performStatsPrepareReportAction()
         } label: {
-            Label(statsPrepareReportTitle, systemImage: statsPrepareReportIconName)
+            statsActionLabel(statsPrepareReportTitle, systemImage: statsPrepareReportIconName)
         }
         .buttonStyle(.borderedProminent)
         .tint(DesignSystem.Colors.accentSkyBlue)
