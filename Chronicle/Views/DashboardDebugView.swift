@@ -40,25 +40,42 @@ struct DashboardDebugView: View {
     }
 
     private var diagnosticsHeader: some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                diagnosticsHeaderLead
+
+                Spacer(minLength: DesignSystem.Spacing.md)
+
+                StatusPill(runtimeStatusText, systemImage: runtimeStatusIcon, tone: runtimeTone)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                diagnosticsHeaderLead
+                StatusPill(runtimeStatusText, systemImage: runtimeStatusIcon, tone: runtimeTone)
+            }
+        }
+        .accessibilityIdentifier("dashboard.debug.header")
+    }
+
+    private var diagnosticsHeaderLead: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
             IconWell(systemImage: "stethoscope", tone: runtimeTone, accessibilityLabel: L("dashboard.debug"))
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("dashboard.debug")
                     .font(DesignSystem.Typography.title)
                     .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text("dashboard.debug.description")
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
-
-            Spacer(minLength: DesignSystem.Spacing.md)
-
-            StatusPill(runtimeStatusText, systemImage: runtimeStatusIcon, tone: runtimeTone)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .accessibilityIdentifier("dashboard.debug.header")
     }
 
     private func runtimeIssueCard(message: String) -> some View {
@@ -71,12 +88,16 @@ struct DashboardDebugView: View {
                         Text("debug.issue.title")
                             .font(.headline.weight(.semibold))
                             .foregroundColor(DesignSystem.Colors.primaryText)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
 
                         Text("debug.issue.detail")
                             .font(DesignSystem.Typography.caption)
                             .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .lineLimit(3)
                             .fixedSize(horizontal: false, vertical: true)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
                     Spacer(minLength: 0)
                 }
@@ -86,11 +107,12 @@ struct DashboardDebugView: View {
                     .foregroundColor(DesignSystem.Colors.secondaryText)
                     .textSelection(.enabled)
                     .lineLimit(4)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Button {
                     AppWindowRouter.shared.open(.settings(.support))
                 } label: {
-                    Label(L("debug.issue.open_support"), systemImage: "stethoscope")
+                    debugActionLabel(L("debug.issue.open_support"), systemImage: "stethoscope")
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(DesignSystem.Colors.accentSkyBlue)
@@ -201,7 +223,7 @@ struct DashboardDebugView: View {
                     Button {
                         healthCheck.runQuickChecks()
                     } label: {
-                        Label(L("debug.handoff.run_health"), systemImage: "checkmark.shield")
+                        debugActionLabel(L("debug.handoff.run_health"), systemImage: "checkmark.shield")
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(DesignSystem.Colors.accentSkyBlue)
@@ -211,7 +233,7 @@ struct DashboardDebugView: View {
                     Button {
                         AppWindowRouter.shared.open(.settings(.support))
                     } label: {
-                        Label(L("debug.handoff.open_support"), systemImage: "lifepreserver")
+                        debugActionLabel(L("debug.handoff.open_support"), systemImage: "lifepreserver")
                     }
                     .buttonStyle(.bordered)
                     .accessibilityIdentifier("dashboard.debug.handoff.openSupport")
@@ -219,7 +241,7 @@ struct DashboardDebugView: View {
                     Button {
                         openLocalDataFolder()
                     } label: {
-                        Label(L("debug.handoff.open_data_folder"), systemImage: "folder")
+                        debugActionLabel(L("debug.handoff.open_data_folder"), systemImage: "folder")
                     }
                     .buttonStyle(.bordered)
                     .accessibilityIdentifier("dashboard.debug.handoff.openDataFolder")
@@ -276,6 +298,7 @@ struct DashboardDebugView: View {
                         .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
             .frame(maxWidth: .infinity, minHeight: 76, alignment: .topLeading)
         }
@@ -308,6 +331,7 @@ struct DashboardDebugView: View {
                     .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer(minLength: 0)
         }
@@ -391,10 +415,14 @@ struct DashboardDebugView: View {
                     Text("debug.runtime.path_title")
                         .font(.caption.weight(.semibold))
                         .foregroundColor(DesignSystem.Colors.primaryText)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     Text("debug.runtime.path_detail")
                         .font(DesignSystem.Typography.caption)
                         .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     Text(DatabaseService.shared.databasePath)
                         .font(.system(.caption, design: .monospaced))
@@ -402,7 +430,9 @@ struct DashboardDebugView: View {
                         .lineLimit(1)
                         .truncationMode(.middle)
                         .textSelection(.enabled)
+                        .help(DatabaseService.shared.databasePath)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             } icon: {
                 Image(systemName: "folder")
                     .font(.caption.weight(.semibold))
@@ -435,6 +465,7 @@ struct DashboardDebugView: View {
                                 Text("debug.maintenance.recompute_prompt")
                                     .font(DesignSystem.Typography.caption)
                                     .foregroundColor(DesignSystem.Colors.secondaryText)
+                                    .lineLimit(3)
                                     .fixedSize(horizontal: false, vertical: true)
                             } icon: {
                                 Image(systemName: "tag")
@@ -446,7 +477,7 @@ struct DashboardDebugView: View {
                                 maintenance.enqueueRecompute(rangeStart: bounds.start, rangeEnd: bounds.end)
                                 maintenance.needsRecomputePrompt = false
                             } label: {
-                                Label(L("debug.maintenance.recompute_today"), systemImage: "tag")
+                                debugActionLabel(L("debug.maintenance.recompute_today"), systemImage: "tag")
                             }
                             .buttonStyle(.borderedProminent)
                             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -514,11 +545,16 @@ struct DashboardDebugView: View {
                         Text("debug.maintenance.range_title")
                             .font(.caption.weight(.semibold))
                             .foregroundColor(DesignSystem.Colors.primaryText)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
 
                         Text("debug.maintenance.range_detail")
                             .font(DesignSystem.Typography.caption)
                             .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .lineLimit(3)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 } icon: {
                     Image(systemName: "calendar.badge.clock")
                         .foregroundColor(DesignSystem.Colors.secondaryText)
@@ -581,6 +617,8 @@ struct DashboardDebugView: View {
                         Text(String(format: L("debug.maintenance.current_job"), job.title, job.status.rawValue))
                             .font(DesignSystem.Typography.caption)
                             .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .lineLimit(3)
+                            .fixedSize(horizontal: false, vertical: true)
                         ProgressView(value: job.progress)
                             .frame(maxWidth: 260)
                         if let message = job.message {
@@ -588,23 +626,32 @@ struct DashboardDebugView: View {
                                 .font(.caption2)
                                 .foregroundColor(DesignSystem.Colors.secondaryText)
                                 .textSelection(.enabled)
+                                .lineLimit(3)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                     } else {
                         Text("debug.maintenance.current_idle")
                             .font(DesignSystem.Typography.caption)
                             .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
 
                     Text(String(format: L("debug.maintenance.queued"), maintenance.queuedJobs.count))
                         .font(DesignSystem.Typography.caption)
                         .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     if let last = maintenance.lastCompletedAt {
                         Text(String(format: L("debug.maintenance.last_completed"), dateFormatter.string(from: last)))
                             .font(DesignSystem.Typography.caption)
                             .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
                     if let error = maintenance.lastError {
@@ -641,7 +688,7 @@ struct DashboardDebugView: View {
                     Button {
                         healthCheck.runQuickChecks()
                     } label: {
-                        Label(L("debug.health.run"), systemImage: "checkmark.shield")
+                        debugActionLabel(L("debug.health.run"), systemImage: "checkmark.shield")
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(DesignSystem.Colors.accentSkyBlue)
@@ -651,7 +698,7 @@ struct DashboardDebugView: View {
                     Button {
                         AppWindowRouter.shared.open(.settings(.support))
                     } label: {
-                        Label(L("debug.health.open_support"), systemImage: "stethoscope")
+                        debugActionLabel(L("debug.health.open_support"), systemImage: "stethoscope")
                     }
                     .buttonStyle(.bordered)
                     .accessibilityIdentifier("dashboard.debug.openSupportFromHealth")
@@ -678,16 +725,7 @@ struct DashboardDebugView: View {
         } else if let report = healthCheck.lastReport {
             RowSurface(tone: report.issues.isEmpty ? .success : .warning) {
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    HStack(spacing: DesignSystem.Spacing.sm) {
-                        StatusPill(
-                            report.issues.isEmpty ? L("debug.health.status.ok") : String(format: L("debug.health.status.issues"), report.issues.count),
-                            systemImage: report.issues.isEmpty ? "checkmark" : "exclamationmark.triangle.fill",
-                            tone: report.issues.isEmpty ? .success : .warning
-                        )
-                        Text(String(format: L("debug.health.last_run"), dateFormatter.string(from: report.checkedAt)))
-                            .font(DesignSystem.Typography.caption)
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
-                    }
+                    healthReportHeader(report)
 
                     ForEach(Array(report.issues.prefix(5))) { issue in
                         healthIssueInlineRow(issue)
@@ -705,6 +743,36 @@ struct DashboardDebugView: View {
         }
     }
 
+    private func healthReportHeader(_ report: HealthCheckReport) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.sm) {
+                healthReportStatus(report)
+                healthReportTimestamp(report)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                healthReportStatus(report)
+                healthReportTimestamp(report)
+            }
+        }
+    }
+
+    private func healthReportStatus(_ report: HealthCheckReport) -> some View {
+        StatusPill(
+            report.issues.isEmpty ? L("debug.health.status.ok") : String(format: L("debug.health.status.issues"), report.issues.count),
+            systemImage: report.issues.isEmpty ? "checkmark" : "exclamationmark.triangle.fill",
+            tone: report.issues.isEmpty ? .success : .warning
+        )
+    }
+
+    private func healthReportTimestamp(_ report: HealthCheckReport) -> some View {
+        Text(String(format: L("debug.health.last_run"), dateFormatter.string(from: report.checkedAt)))
+            .font(DesignSystem.Typography.caption)
+            .foregroundColor(DesignSystem.Colors.secondaryText)
+            .lineLimit(2)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
     private func healthIssueInlineRow(_ issue: HealthCheckIssue) -> some View {
         let tone = healthIssueTone(issue)
         return HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
@@ -717,13 +785,16 @@ struct DashboardDebugView: View {
                 Text(healthIssueSeverityText(issue))
                     .font(.caption2.weight(.semibold))
                     .foregroundColor(tone.color)
+                    .lineLimit(1)
 
                 Text(issue.message)
                     .font(.caption2)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
                     .textSelection(.enabled)
+                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityIdentifier("dashboard.debug.health.issue")
@@ -753,11 +824,16 @@ struct DashboardDebugView: View {
                         Text(titleKey)
                             .font(.caption.weight(.semibold))
                             .foregroundColor(DesignSystem.Colors.primaryText)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
 
                         Text(detailKey)
                             .font(DesignSystem.Typography.caption)
                             .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .lineLimit(3)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 } icon: {
                     Image(systemName: systemImage)
                         .foregroundColor(tone.color)
@@ -787,12 +863,27 @@ struct DashboardDebugView: View {
                 Text(titleKey)
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(detailKey)
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func debugActionLabel(_ title: String, systemImage: String) -> some View {
+        Label {
+            Text(title)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: systemImage)
         }
     }
 
