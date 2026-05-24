@@ -2603,6 +2603,12 @@
 "reports.csv.fields_detail" = "Keep only the columns you need. Chronicle keeps at least one selected.";
 "reports.csv.fields.selected" = "%d fields selected";
 "reports.csv.fields.minimum_one" = "At least one CSV field must be selected.";
+"reports.csv.fields.presets" = "Quick presets";
+"reports.csv.fields.preset.review" = "Review columns";
+"reports.csv.fields.preset.review_detail" = "Time, duration, app, category, and idle state for readable handoff files.";
+"reports.csv.fields.preset.full" = "Full audit";
+"reports.csv.fields.preset.full_detail" = "Every stored CSV field, including IDs and rule metadata for deeper checks.";
+"reports.csv.fields.preset.selected" = "Selected";
 "reports.csv.field.start_time" = "Start Time";
 "reports.csv.field.end_time" = "End Time";
 "reports.csv.field.duration" = "Duration";

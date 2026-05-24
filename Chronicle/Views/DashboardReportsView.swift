@@ -49,6 +49,49 @@ private enum CloseoutNextActionState {
     case saved
 }
 
+private enum CSVFieldPreset: String, CaseIterable, Identifiable {
+    case review
+    case full
+
+    var id: String { rawValue }
+
+    var titleKey: String {
+        switch self {
+        case .review:
+            return "reports.csv.fields.preset.review"
+        case .full:
+            return "reports.csv.fields.preset.full"
+        }
+    }
+
+    var detailKey: String {
+        switch self {
+        case .review:
+            return "reports.csv.fields.preset.review_detail"
+        case .full:
+            return "reports.csv.fields.preset.full_detail"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .review:
+            return "doc.text.magnifyingglass"
+        case .full:
+            return "tablecells"
+        }
+    }
+
+    var columns: [CSVExportColumn] {
+        switch self {
+        case .review:
+            return [.startTime, .endTime, .duration, .appName, .effectiveTagName, .isIdle]
+        case .full:
+            return CSVExportColumn.defaultColumns
+        }
+    }
+}
+
 struct ReportsWorkspaceView: View {
     var showTitle: Bool = true
     var useScrollView: Bool = true
@@ -2313,6 +2356,8 @@ struct ReportsWorkspaceView: View {
     private var csvFieldsGroup: some View {
         DisclosureGroup {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                csvFieldPresetGroup
+
                 LazyVGrid(
                     columns: [
                         GridItem(.flexible(minimum: 180), spacing: 8, alignment: .leading),
@@ -2344,6 +2389,94 @@ struct ReportsWorkspaceView: View {
             }
         }
         .accessibilityIdentifier("reports.csv.fields")
+    }
+
+    private var csvFieldPresetGroup: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+            Text("reports.csv.fields.presets")
+                .font(.caption2.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .lineLimit(1)
+
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 190), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                ForEach(CSVFieldPreset.allCases) { preset in
+                    csvFieldPresetButton(preset)
+                }
+            }
+        }
+        .padding(.bottom, DesignSystem.Spacing.xs)
+        .accessibilityIdentifier("reports.csv.fields.presets")
+    }
+
+    private func csvFieldPresetButton(_ preset: CSVFieldPreset) -> some View {
+        let isSelected = csvFieldPresetIsSelected(preset)
+        let tone: DesignSystem.StatusTone = isSelected ? .success : .info
+
+        return Button {
+            applyCSVFieldPreset(preset)
+        } label: {
+            RowSurface(tone: tone, isSelected: isSelected) {
+                HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : preset.systemImage)
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(tone.color)
+                        .frame(width: 16)
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        ViewThatFits(in: .horizontal) {
+                            HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.xs) {
+                                csvFieldPresetTitle(preset)
+
+                                if isSelected {
+                                    StatusPill(
+                                        L("reports.csv.fields.preset.selected"),
+                                        systemImage: "checkmark",
+                                        tone: .success
+                                    )
+                                    .fixedSize(horizontal: true, vertical: false)
+                                }
+                            }
+
+                            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                                csvFieldPresetTitle(preset)
+
+                                if isSelected {
+                                    StatusPill(
+                                        L("reports.csv.fields.preset.selected"),
+                                        systemImage: "checkmark",
+                                        tone: .success
+                                    )
+                                }
+                            }
+                        }
+
+                        Text(LocalizedStringKey(preset.detailKey))
+                            .font(.caption2)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .lineLimit(3)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    Spacer(minLength: 0)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .help(L(preset.detailKey))
+        .accessibilityIdentifier("reports.csv.fields.preset.\(preset.rawValue)")
+    }
+
+    private func csvFieldPresetTitle(_ preset: CSVFieldPreset) -> some View {
+        Text(LocalizedStringKey(preset.titleKey))
+            .font(.caption.weight(.semibold))
+            .foregroundColor(DesignSystem.Colors.primaryText)
+            .lineLimit(2)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private var csvFieldsLabel: some View {
@@ -4101,6 +4234,17 @@ struct ReportsWorkspaceView: View {
                 }
             }
         )
+    }
+
+    private func csvFieldPresetIsSelected(_ preset: CSVFieldPreset) -> Bool {
+        selectedCSVColumns == preset.columns
+    }
+
+    private func applyCSVFieldPreset(_ preset: CSVFieldPreset) {
+        csvSelectedColumnsRaw = CSVExportColumn.encodeStorageValue(preset.columns)
+        if let status = csvStatus, status.isError {
+            csvStatus = nil
+        }
     }
 
     private func csvExportRange() -> CSVExportRange {

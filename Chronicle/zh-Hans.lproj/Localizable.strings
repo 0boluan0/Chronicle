@@ -2602,6 +2602,12 @@
 "reports.csv.fields_detail" = "只保留需要的列；Chronicle 会保证至少选择一列。";
 "reports.csv.fields.selected" = "已选 %d 个字段";
 "reports.csv.fields.minimum_one" = "至少需要选择一个 CSV 字段。";
+"reports.csv.fields.presets" = "快速预设";
+"reports.csv.fields.preset.review" = "复盘字段";
+"reports.csv.fields.preset.review_detail" = "包含时间、时长、应用、分类和离开状态，适合交接或复盘。";
+"reports.csv.fields.preset.full" = "完整审计";
+"reports.csv.fields.preset.full_detail" = "导出所有已保存 CSV 字段，包括 ID 和规则元数据，方便深入检查。";
+"reports.csv.fields.preset.selected" = "已选择";
 "reports.csv.field.start_time" = "开始时间";
 "reports.csv.field.end_time" = "结束时间";
 "reports.csv.field.duration" = "时长";
