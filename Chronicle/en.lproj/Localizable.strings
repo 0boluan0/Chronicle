@@ -11,6 +11,9 @@
 "menu.welcome" = "Welcome…";
 "menu.export_now" = "Save Daily Log";
 "menu.exporting" = "Saving…";
+"menu.export_setup" = "Set Daily Log Folder…";
+"menu.export_saved_today" = "Daily Log Saved - Save Again";
+"menu.export_retry" = "Retry Daily Log Save";
 "menu.pause_tracking" = "Pause Tracking";
 "menu.resume_tracking" = "Resume Tracking";
 "menu.check_updates" = "Check for Updates…";

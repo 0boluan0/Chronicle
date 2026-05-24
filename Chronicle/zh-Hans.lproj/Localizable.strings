@@ -11,6 +11,9 @@
 "menu.welcome" = "欢迎…";
 "menu.export_now" = "保存今日日志";
 "menu.exporting" = "保存中…";
+"menu.export_setup" = "设置日志文件夹…";
+"menu.export_saved_today" = "今日日志已保存 - 再保存";
+"menu.export_retry" = "重试保存今日日志";
 "menu.pause_tracking" = "暂停追踪";
 "menu.resume_tracking" = "恢复追踪";
 "menu.check_updates" = "检查更新…";

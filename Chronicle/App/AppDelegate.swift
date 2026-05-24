@@ -262,7 +262,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         closeoutItem?.title = L("menu.closeout_today")
         preferencesItem?.title = L("menu.preferences")
         welcomeItem?.title = L("menu.welcome")
-        exportItem?.title = L("menu.export_now")
         updateTrackingPauseMenuTitle()
         checkUpdatesItem?.title = L("menu.check_updates")
         openReleasesItem?.title = L("menu.open_releases")
@@ -301,7 +300,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         dashboardItem?.image = menuImage(systemSymbolName: "rectangle.3.group", accessibilityKey: "menu.open_dashboard")
         quickMarkerItem?.image = menuImage(systemSymbolName: "square.and.pencil", accessibilityKey: "menu.quick_marker")
         closeoutItem?.image = menuImage(systemSymbolName: "doc.text.magnifyingglass", accessibilityKey: "menu.closeout_today")
-        exportItem?.image = menuImage(systemSymbolName: "doc.badge.plus", accessibilityKey: "menu.export_now")
+        updateExportMenuItem()
         pauseTrackingItem?.image = menuImage(
             systemSymbolName: appState.trackingPaused ? "play.fill" : "pause.fill",
             accessibilityKey: appState.trackingPaused ? "menu.resume_tracking" : "menu.pause_tracking"
@@ -314,9 +313,56 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     private func menuImage(systemSymbolName: String, accessibilityKey: String) -> NSImage? {
-        let image = NSImage(systemSymbolName: systemSymbolName, accessibilityDescription: L(accessibilityKey))
+        menuImage(systemSymbolName: systemSymbolName, accessibilityText: L(accessibilityKey))
+    }
+
+    private func menuImage(systemSymbolName: String, accessibilityText: String) -> NSImage? {
+        let image = NSImage(systemSymbolName: systemSymbolName, accessibilityDescription: accessibilityText)
         image?.isTemplate = true
         return image
+    }
+
+    private func updateExportMenuItem() {
+        let title = exportMenuTitle
+        exportItem?.title = title
+        exportItem?.image = menuImage(systemSymbolName: exportMenuSymbolName, accessibilityText: title)
+    }
+
+    private var exportMenuTitle: String {
+        let settings = ReportSettings.shared
+        if settings.dailyFolderBookmark == nil {
+            return L("menu.export_setup")
+        }
+        if dailyExportFailedToday {
+            return L("menu.export_retry")
+        }
+        if settings.dailyExportSucceeded(for: Date()) {
+            return L("menu.export_saved_today")
+        }
+        return L("menu.export_now")
+    }
+
+    private var exportMenuSymbolName: String {
+        let settings = ReportSettings.shared
+        if settings.dailyFolderBookmark == nil {
+            return "folder.badge.plus"
+        }
+        if dailyExportFailedToday {
+            return "exclamationmark.triangle"
+        }
+        if settings.dailyExportSucceeded(for: Date()) {
+            return "checkmark.seal"
+        }
+        return "doc.badge.plus"
+    }
+
+    private var dailyExportFailedToday: Bool {
+        let settings = ReportSettings.shared
+        guard settings.lastDailyExportIsError, settings.lastDailyExportAt > 0 else {
+            return false
+        }
+        let exportAttemptDate = Date(timeIntervalSince1970: settings.lastDailyExportAt)
+        return Calendar.current.isDate(exportAttemptDate, inSameDayAs: Date())
     }
 
     private func updateStatusItemAppearance() {
@@ -349,6 +395,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
 
         if event.type == .rightMouseUp || event.type == .rightMouseDown || event.modifierFlags.contains(.control) {
+            updateExportMenuItem()
             statusMenu.popUp(positioning: nil, at: NSPoint(x: 0, y: button.bounds.height + 4), in: button)
         } else {
             togglePopover()
@@ -423,6 +470,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         TelemetryService.shared.increment("menu_export_daily_clicked")
         guard ReportSettings.shared.dailyFolderBookmark != nil else {
             setExportFeedback(message: L("reports.folder.not_set"), isError: true)
+            updateExportMenuItem()
             AppWindowRouter.shared.open(.settings(.export))
             return
         }
@@ -436,11 +484,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                     ReportSettings.shared.recordExportResult(kind: .daily, message: message, isError: false)
                     TelemetryService.shared.increment("menu_export_daily_success")
                     self.setExportFeedback(message: message, isError: false)
+                    self.updateExportMenuItem()
                 case .failure(let error):
                     let message = String(format: L("export.now.failed"), error.localizedDescription)
                     ReportSettings.shared.recordExportResult(kind: .daily, message: message, isError: true)
                     TelemetryService.shared.increment("menu_export_daily_failure")
                     self.setExportFeedback(message: message, isError: true)
+                    self.updateExportMenuItem()
                     AppLogger.log("Export now failed: \(error.localizedDescription)", category: "report")
                 }
             }
