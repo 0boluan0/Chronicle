@@ -2210,6 +2210,15 @@
 "reports.readiness.next.ready_detail" = "今日日志、每周总结和 CSV 导出现在都可以直接生成，不用再次选择文件夹。";
 "reports.readiness.next.choose" = "选择文件夹";
 "reports.readiness.next.open_daily" = "打开今日日志文件夹";
+"reports.readiness.compatibility.title" = "导出兼容性检查";
+"reports.readiness.compatibility.detail" = "Chronicle 使用本地文件夹授权；如果 macOS 失去访问权限，重新选择同一文件夹即可，不会改变已有导出。";
+"reports.readiness.compatibility.status" = "发布防线";
+"reports.readiness.compatibility.bookmark_title" = "可复用授权";
+"reports.readiness.compatibility.bookmark_detail" = "每个保存位置都会通过本地文件夹书签记住。";
+"reports.readiness.compatibility.recovery_title" = "恢复路径";
+"reports.readiness.compatibility.recovery_detail" = "文件移动、恢复或权限重置后，重新选择同一文件夹即可修复访问。";
+"reports.readiness.compatibility.status_title" = "共享状态";
+"reports.readiness.compatibility.status_detail" = "设置页和仪表盘保存文件前使用同一套检查。";
 "reports.preview" = "预览";
 "reports.copy" = "复制";
 "reports.preview.copied" = "已复制到剪贴板";

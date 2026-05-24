@@ -1437,6 +1437,8 @@ struct ReportsWorkspaceView: View {
 
                 exportReadinessNextActionView
 
+                exportCompatibilityStrip
+
                 LazyVGrid(
                     columns: [GridItem(.adaptive(minimum: 220), spacing: DesignSystem.Spacing.md)],
                     alignment: .leading,
@@ -1478,6 +1480,101 @@ struct ReportsWorkspaceView: View {
             }
         }
         .accessibilityIdentifier("reports.readiness.nextAction")
+    }
+
+    private var exportCompatibilityStrip: some View {
+        RowSurface(tone: .info, isHovering: false) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+                    IconWell(
+                        systemImage: "checkmark.shield",
+                        tone: .info,
+                        accessibilityLabel: L("reports.readiness.compatibility.title")
+                    )
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: DesignSystem.Spacing.xs) {
+                            Text("reports.readiness.compatibility.title")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundColor(DesignSystem.Colors.primaryText)
+                                .lineLimit(2)
+                                .fixedSize(horizontal: false, vertical: true)
+
+                            StatusPill(
+                                L("reports.readiness.compatibility.status"),
+                                systemImage: "checkmark.shield",
+                                tone: .info
+                            )
+                        }
+
+                        Text("reports.readiness.compatibility.detail")
+                            .font(DesignSystem.Typography.caption)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .lineLimit(3)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 190), spacing: DesignSystem.Spacing.sm)],
+                    alignment: .leading,
+                    spacing: DesignSystem.Spacing.sm
+                ) {
+                    exportCompatibilityItem(
+                        systemImage: "externaldrive",
+                        titleKey: "reports.readiness.compatibility.bookmark_title",
+                        detailKey: "reports.readiness.compatibility.bookmark_detail",
+                        accessibilityIdentifier: "reports.readiness.compatibility.bookmark"
+                    )
+
+                    exportCompatibilityItem(
+                        systemImage: "folder.badge.questionmark",
+                        titleKey: "reports.readiness.compatibility.recovery_title",
+                        detailKey: "reports.readiness.compatibility.recovery_detail",
+                        accessibilityIdentifier: "reports.readiness.compatibility.recovery"
+                    )
+
+                    exportCompatibilityItem(
+                        systemImage: "checkmark.seal",
+                        titleKey: "reports.readiness.compatibility.status_title",
+                        detailKey: "reports.readiness.compatibility.status_detail",
+                        accessibilityIdentifier: "reports.readiness.compatibility.statusItem"
+                    )
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityIdentifier("reports.readiness.compatibility")
+    }
+
+    private func exportCompatibilityItem(
+        systemImage: String,
+        titleKey: LocalizedStringKey,
+        detailKey: LocalizedStringKey,
+        accessibilityIdentifier: String
+    ) -> some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(DesignSystem.StatusTone.info.color)
+                .frame(width: 16, height: 18)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(titleKey)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(detailKey)
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 58, alignment: .topLeading)
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     private var exportReadinessNextActionCopy: some View {

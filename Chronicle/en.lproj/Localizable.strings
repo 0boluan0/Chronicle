@@ -2211,6 +2211,15 @@
 "reports.readiness.next.ready_detail" = "Daily logs, weekly summaries, and CSV exports can now be generated without choosing folders again.";
 "reports.readiness.next.choose" = "Choose Folder";
 "reports.readiness.next.open_daily" = "Open Daily Folder";
+"reports.readiness.compatibility.title" = "Export compatibility check";
+"reports.readiness.compatibility.detail" = "Chronicle uses local folder permissions. If macOS loses access, reselect the folder without changing existing exports.";
+"reports.readiness.compatibility.status" = "Release guardrail";
+"reports.readiness.compatibility.bookmark_title" = "Reusable permission";
+"reports.readiness.compatibility.bookmark_detail" = "Each save location is remembered through a local folder bookmark.";
+"reports.readiness.compatibility.recovery_title" = "Recovery path";
+"reports.readiness.compatibility.recovery_detail" = "Reselecting the same folder repairs access after moves, restores, or permission resets.";
+"reports.readiness.compatibility.status_title" = "Shared status";
+"reports.readiness.compatibility.status_detail" = "Settings and dashboard saves use the same checks before writing files.";
 "reports.preview" = "Preview";
 "reports.copy" = "Copy";
 "reports.preview.copied" = "Copied to clipboard";
