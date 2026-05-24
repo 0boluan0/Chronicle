@@ -351,6 +351,15 @@ struct TaggingSetupWizardView: View {
                 }
             }
         }
+        .padding(DesignSystem.Spacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(wizardOutcomeTone.color.opacity(0.07))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(wizardOutcomeTone.color.opacity(0.18), lineWidth: 1)
+        )
         .accessibilityIdentifier("wizard.outcomeStrip")
     }
 
@@ -417,6 +426,7 @@ struct TaggingSetupWizardView: View {
             RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
                 .stroke(item.tone.color.opacity(0.14), lineWidth: 1)
         )
+        .accessibilityIdentifier("wizard.outcome.item.\(item.id)")
     }
 
     private var wizardControls: some View {
