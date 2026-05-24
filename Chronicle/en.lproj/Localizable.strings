@@ -546,6 +546,8 @@
 "onboarding.privacy.outcome.recall_detail" = "Titles improve search and categories.";
 "onboarding.privacy.outcome.permission_title" = "Permission is optional";
 "onboarding.privacy.outcome.permission_detail" = "macOS asks only if titles are on.";
+"onboarding.privacy.outcome.reversible_title" = "Easy to change later";
+"onboarding.privacy.outcome.reversible_detail" = "Turn titles off in Settings whenever app-level history is enough.";
 "onboarding.privacy.permissions_title" = "Accessibility";
 "onboarding.privacy.open_settings" = "Open System Settings";
 "onboarding.window_titles.title" = "Window Titles";

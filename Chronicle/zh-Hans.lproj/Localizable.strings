@@ -546,6 +546,8 @@
 "onboarding.privacy.outcome.recall_detail" = "标题会改善搜索和分类。";
 "onboarding.privacy.outcome.permission_title" = "权限可选";
 "onboarding.privacy.outcome.permission_detail" = "只有开启标题时才需要。";
+"onboarding.privacy.outcome.reversible_title" = "之后可随时调整";
+"onboarding.privacy.outcome.reversible_detail" = "如果应用级历史已经足够，可以随时在设置里关闭标题采集。";
 "onboarding.privacy.permissions_title" = "辅助功能权限";
 "onboarding.privacy.open_settings" = "打开系统设置";
 "onboarding.window_titles.title" = "窗口标题";

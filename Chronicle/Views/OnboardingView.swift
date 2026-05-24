@@ -1522,6 +1522,11 @@ struct OnboardingView: View {
                     title: "onboarding.privacy.outcome.permission_title",
                     detail: "onboarding.privacy.outcome.permission_detail"
                 )
+                privacyOutcomeItem(
+                    systemImage: "arrow.uturn.backward.circle",
+                    title: "onboarding.privacy.outcome.reversible_title",
+                    detail: "onboarding.privacy.outcome.reversible_detail"
+                )
             }
         }
         .padding(DesignSystem.Spacing.sm)

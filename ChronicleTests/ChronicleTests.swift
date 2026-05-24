@@ -1290,6 +1290,8 @@ final class ChronicleTests: XCTestCase {
             "onboarding.privacy.outcome.recall_detail",
             "onboarding.privacy.outcome.permission_title",
             "onboarding.privacy.outcome.permission_detail",
+            "onboarding.privacy.outcome.reversible_title",
+            "onboarding.privacy.outcome.reversible_detail",
             "onboarding.permissions.recheck",
             "onboarding.finish.next_title",
             "onboarding.finish.checklist.running_title",
