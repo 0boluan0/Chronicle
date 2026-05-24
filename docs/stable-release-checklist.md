@@ -14,7 +14,7 @@ This checklist is for preparing a stable `v0.x` release with low upgrade risk.
   - `./script/run_ui_smoke.sh full` before promoting an RC, including the English surface checks for quick capture, dashboard, reports, App Health deep links, preferences, and onboarding.
   - Set `UI_SMOKE_TIMEOUT_SECONDS=<seconds>` if the dedicated runner is expected to take longer than the default 30-minute per-run watchdog.
 - For a remote release dry run, trigger the CI workflow manually with `run_ui_smoke=true` and `ui_smoke_scope=full`.
-- Confirm the UI runner machine reports Automation Mode can run without per-run authentication.
+- Confirm the UI runner machine reports Automation Mode is enabled and can run without per-run authentication; `./script/run_ui_smoke.sh` should fail fast with setup instructions if this is not true.
 - Verify no unplanned schema migration is included.
 
 ## 2. Database Safety

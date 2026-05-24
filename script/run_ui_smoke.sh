@@ -48,6 +48,19 @@ require_automation_mode() {
   local status
   status="$(automation_status)"
 
+  if [[ "$status" == *"Automation Mode is disabled"* ]]; then
+    cat >&2 <<EOF
+UI smoke tests require Automation Mode to be enabled on the dedicated test machine.
+
+Current status:
+$status
+
+Enable Automation Mode before running UI smoke:
+  sudo automationmodetool enable-automationmode-without-authentication
+EOF
+    exit 2
+  fi
+
   if [[ "$status" == *"requires user authentication"* ]]; then
     cat >&2 <<EOF
 UI smoke tests require Automation Mode to be available without per-run authentication.
