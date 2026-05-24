@@ -2488,10 +2488,7 @@ struct OnboardingView: View {
     }
 
     private func runFinishHealthCheckIfNeeded() {
-        guard !healthCheckService.isRunning else { return }
-        if healthCheckService.lastReport == nil && healthCheckService.lastError == nil {
-            healthCheckService.runQuickChecks()
-        }
+        healthCheckService.runQuickChecksIfNeeded()
     }
 
     private func finish() {

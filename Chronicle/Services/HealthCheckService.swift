@@ -10,6 +10,11 @@ final class HealthCheckService: ObservableObject {
 
     private init() {}
 
+    func runQuickChecksIfNeeded() {
+        guard !isRunning, lastReport == nil, lastError == nil else { return }
+        runQuickChecks()
+    }
+
     func runQuickChecks() {
         guard !isRunning else { return }
         isRunning = true

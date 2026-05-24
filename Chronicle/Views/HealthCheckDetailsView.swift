@@ -42,6 +42,9 @@ struct HealthCheckDetailsView: View {
         .padding(DesignSystem.Spacing.xl)
         .frame(width: 720, height: 720, alignment: .topLeading)
         .background(DesignSystem.Colors.background)
+        .onAppear {
+            healthCheckService.runQuickChecksIfNeeded()
+        }
         .onExitCommand(perform: onClose)
     }
 
