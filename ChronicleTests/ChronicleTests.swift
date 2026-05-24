@@ -3418,6 +3418,43 @@ final class ChronicleTests: XCTestCase {
         defaults.removePersistentDomain(forName: suiteName)
     }
 
+    func testDailyLogMenuPresentationTracksExportState() {
+        let suiteName = "chronicle-tests-daily-log-menu-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        let settings = ReportSettings.makeTestInstance(defaults: defaults)
+        let selectedDate = Date(timeIntervalSince1970: 1_800_000_000)
+        let laterSameDay = selectedDate.addingTimeInterval(3_600)
+
+        var presentation = DailyLogExportAction.presentation(settings: settings, now: selectedDate)
+        XCTAssertEqual(presentation.titleKey, "menu.export_setup")
+        XCTAssertEqual(presentation.symbolName, "folder.badge.plus")
+
+        settings.dailyFolderBookmark = Data([1])
+        presentation = DailyLogExportAction.presentation(settings: settings, now: selectedDate)
+        XCTAssertEqual(presentation.titleKey, "menu.export_now")
+        XCTAssertEqual(presentation.symbolName, "doc.badge.plus")
+
+        settings.lastDailyExportAt = laterSameDay.timeIntervalSince1970
+        settings.lastDailyExportIsError = true
+        presentation = DailyLogExportAction.presentation(settings: settings, now: selectedDate)
+        XCTAssertEqual(presentation.titleKey, "menu.export_retry")
+        XCTAssertEqual(presentation.symbolName, "exclamationmark.triangle")
+
+        settings.lastDailyExportIsError = false
+        settings.lastExportedDay = ReportService.dayKey(for: selectedDate)
+        presentation = DailyLogExportAction.presentation(settings: settings, now: selectedDate)
+        XCTAssertEqual(presentation.titleKey, "menu.export_saved_today")
+        XCTAssertEqual(presentation.symbolName, "checkmark.seal")
+
+        settings.lastExportedDay = ReportService.dayKey(for: selectedDate.addingTimeInterval(86_400))
+        presentation = DailyLogExportAction.presentation(settings: settings, now: selectedDate)
+        XCTAssertEqual(presentation.titleKey, "menu.export_now")
+        XCTAssertEqual(presentation.symbolName, "doc.badge.plus")
+
+        defaults.removePersistentDomain(forName: suiteName)
+    }
+
     func testBatchUserTagOverrideUpdatesAndClears() {
         let db = makeTestDatabase("batch-override")
 

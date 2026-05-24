@@ -35,7 +35,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var checkUpdatesItem: NSMenuItem?
     private var openReleasesItem: NSMenuItem?
     private var quitItem: NSMenuItem?
-    private var exportFeedbackToken: UUID?
     private var trackingPausedCancellable: AnyCancellable?
     private var dockIconCancellable: AnyCancellable?
     private var reviewReminderTimer: Timer?
@@ -337,46 +336,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     private func updateExportMenuItem() {
-        let title = exportMenuTitle
+        let presentation = DailyLogExportAction.presentation()
+        let title = L(presentation.titleKey)
         exportItem?.title = title
-        exportItem?.image = menuImage(systemSymbolName: exportMenuSymbolName, accessibilityText: title)
-    }
-
-    private var exportMenuTitle: String {
-        let settings = ReportSettings.shared
-        if settings.dailyFolderBookmark == nil {
-            return L("menu.export_setup")
-        }
-        if dailyExportFailedToday {
-            return L("menu.export_retry")
-        }
-        if settings.dailyExportSucceeded(for: Date()) {
-            return L("menu.export_saved_today")
-        }
-        return L("menu.export_now")
-    }
-
-    private var exportMenuSymbolName: String {
-        let settings = ReportSettings.shared
-        if settings.dailyFolderBookmark == nil {
-            return "folder.badge.plus"
-        }
-        if dailyExportFailedToday {
-            return "exclamationmark.triangle"
-        }
-        if settings.dailyExportSucceeded(for: Date()) {
-            return "checkmark.seal"
-        }
-        return "doc.badge.plus"
-    }
-
-    private var dailyExportFailedToday: Bool {
-        let settings = ReportSettings.shared
-        guard settings.lastDailyExportIsError, settings.lastDailyExportAt > 0 else {
-            return false
-        }
-        let exportAttemptDate = Date(timeIntervalSince1970: settings.lastDailyExportAt)
-        return Calendar.current.isDate(exportAttemptDate, inSameDayAs: Date())
+        exportItem?.image = menuImage(systemSymbolName: presentation.symbolName, accessibilityText: title)
     }
 
     private func updateStatusItemAppearance() {
@@ -490,33 +453,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     @objc private func exportNow() {
-        TelemetryService.shared.increment("menu_export_daily_clicked")
-        guard ReportSettings.shared.dailyFolderBookmark != nil else {
-            setExportFeedback(message: L("reports.folder.not_set"), isError: true)
-            updateExportMenuItem()
-            AppWindowRouter.shared.open(.settings(.export))
-            return
-        }
-        setExportFeedback(message: L("menu.exporting"), isError: false)
-        ReportService.shared.generateDailyReport(date: Date()) { [weak self] result in
-            DispatchQueue.main.async {
-                guard let self else { return }
-                switch result {
-                case .success(let info):
-                    let message = String(format: L("export.now.success"), info.fileName)
-                    ReportSettings.shared.recordExportResult(kind: .daily, message: message, isError: false)
-                    TelemetryService.shared.increment("menu_export_daily_success")
-                    self.setExportFeedback(message: message, isError: false)
-                    self.updateExportMenuItem()
-                case .failure(let error):
-                    let message = String(format: L("export.now.failed"), error.localizedDescription)
-                    ReportSettings.shared.recordExportResult(kind: .daily, message: message, isError: true)
-                    TelemetryService.shared.increment("menu_export_daily_failure")
-                    self.setExportFeedback(message: message, isError: true)
-                    self.updateExportMenuItem()
-                    AppLogger.log("Export now failed: \(error.localizedDescription)", category: "report")
-                }
-            }
+        DailyLogExportAction.perform {
+            self.updateExportMenuItem()
         }
     }
 
@@ -571,19 +509,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         appState.isPopoverShown = false
         appState.lastPopoverToggle = Date()
         AppLogger.log("Popover closed", category: "ui")
-    }
-
-    private func setExportFeedback(message: String, isError: Bool) {
-        let token = UUID()
-        exportFeedbackToken = token
-        appState.exportNowMessage = message
-        appState.exportNowMessageIsError = isError
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self] in
-            guard let self, self.exportFeedbackToken == token else { return }
-            self.appState.exportNowMessage = nil
-            self.appState.exportNowMessageIsError = false
-        }
     }
 
     private func open(url: URL) {
@@ -661,6 +586,72 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             return .quickMarker
         default:
             return nil
+        }
+    }
+}
+
+enum DailyLogExportAction {
+    struct Presentation {
+        let titleKey: String
+        let symbolName: String
+    }
+
+    private static var feedbackToken: UUID?
+
+    static func presentation(settings: ReportSettings = .shared, now: Date = Date()) -> Presentation {
+        if settings.dailyFolderBookmark == nil {
+            return Presentation(titleKey: "menu.export_setup", symbolName: "folder.badge.plus")
+        }
+        if settings.dailyExportFailed(for: now) {
+            return Presentation(titleKey: "menu.export_retry", symbolName: "exclamationmark.triangle")
+        }
+        if settings.dailyExportSucceeded(for: now) {
+            return Presentation(titleKey: "menu.export_saved_today", symbolName: "checkmark.seal")
+        }
+        return Presentation(titleKey: "menu.export_now", symbolName: "doc.badge.plus")
+    }
+
+    static func perform(onStateChanged: (() -> Void)? = nil) {
+        TelemetryService.shared.increment("menu_export_daily_clicked")
+        guard ReportSettings.shared.dailyFolderBookmark != nil else {
+            presentFeedback(message: L("reports.folder.not_set"), isError: true)
+            onStateChanged?()
+            AppWindowRouter.shared.open(.settings(.export))
+            return
+        }
+
+        presentFeedback(message: L("menu.exporting"), isError: false)
+        ReportService.shared.generateDailyReport(date: Date()) { result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success(let info):
+                    let message = String(format: L("export.now.success"), info.fileName)
+                    ReportSettings.shared.recordExportResult(kind: .daily, message: message, isError: false)
+                    TelemetryService.shared.increment("menu_export_daily_success")
+                    presentFeedback(message: message, isError: false)
+                    onStateChanged?()
+                case .failure(let error):
+                    let message = String(format: L("export.now.failed"), error.localizedDescription)
+                    ReportSettings.shared.recordExportResult(kind: .daily, message: message, isError: true)
+                    TelemetryService.shared.increment("menu_export_daily_failure")
+                    presentFeedback(message: message, isError: true)
+                    onStateChanged?()
+                    AppLogger.log("Export now failed: \(error.localizedDescription)", category: "report")
+                }
+            }
+        }
+    }
+
+    private static func presentFeedback(message: String, isError: Bool) {
+        let token = UUID()
+        feedbackToken = token
+        AppState.shared.exportNowMessage = message
+        AppState.shared.exportNowMessageIsError = isError
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+            guard feedbackToken == token else { return }
+            AppState.shared.exportNowMessage = nil
+            AppState.shared.exportNowMessageIsError = false
         }
     }
 }

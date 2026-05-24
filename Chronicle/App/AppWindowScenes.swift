@@ -17,6 +17,7 @@ enum AppWindowSceneID {
 struct AppWindowRouterCommands: Commands {
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
+    @ObservedObject private var reportSettings = ReportSettings.shared
 
     var body: some Commands {
         AppWindowRouter.shared.registerSceneHandlers(
@@ -45,6 +46,11 @@ struct AppWindowRouterCommands: Commands {
                 AppWindowRouter.shared.openDashboard(destination: .reports)
             }
             .keyboardShortcut("r", modifiers: [.command, .shift])
+
+            Button(L(DailyLogExportAction.presentation(settings: reportSettings).titleKey)) {
+                DailyLogExportAction.perform()
+            }
+            .keyboardShortcut("e", modifiers: [.command])
 
             Divider()
 
