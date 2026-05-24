@@ -150,47 +150,19 @@ struct ReportsWorkspaceView: View {
 
     private var reportsWorkspaceHeader: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.sm
-            ) {
+            ViewThatFits(in: .horizontal) {
                 HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
-                    IconWell(
-                        systemImage: mode == .dashboard ? "checklist" : "doc.text.magnifyingglass",
-                        tone: planExportReadinessTone,
-                        accessibilityLabel: L("preferences.export")
-                    )
+                    reportsWorkspaceHeaderLead
+                        .frame(maxWidth: .infinity, alignment: .leading)
 
-                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-                        Text("preferences.export")
-                            .font(DesignSystem.Typography.title)
-                            .foregroundColor(DesignSystem.Colors.primaryText)
-                            .lineLimit(1)
-
-                        Text(LocalizedStringKey(reportPlanDetailKey))
-                            .font(DesignSystem.Typography.caption)
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
-                            .lineLimit(3)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
+                    reportsWorkspaceHeaderStatus
+                        .fixedSize(horizontal: true, vertical: false)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
 
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-                    StatusPill(
-                        planExportReadinessHeadline,
-                        systemImage: planExportReadinessStatusIconName,
-                        tone: planExportReadinessTone
-                    )
-
-                    Text(String(format: L("reports.readiness.ready_count"), planReadyExportFolderCount, planExportFolderKinds.count))
-                        .font(.caption2.weight(.medium))
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.82)
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    reportsWorkspaceHeaderLead
+                    reportsWorkspaceHeaderStatus
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             Rectangle()
@@ -199,6 +171,47 @@ struct ReportsWorkspaceView: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("reports.workspace.header")
+    }
+
+    private var reportsWorkspaceHeaderLead: some View {
+        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+            IconWell(
+                systemImage: mode == .dashboard ? "checklist" : "doc.text.magnifyingglass",
+                tone: planExportReadinessTone,
+                accessibilityLabel: L("preferences.export")
+            )
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                Text("preferences.export")
+                    .font(DesignSystem.Typography.title)
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(LocalizedStringKey(reportPlanDetailKey))
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private var reportsWorkspaceHeaderStatus: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+            StatusPill(
+                planExportReadinessHeadline,
+                systemImage: planExportReadinessStatusIconName,
+                tone: planExportReadinessTone
+            )
+
+            Text(String(format: L("reports.readiness.ready_count"), planReadyExportFolderCount, planExportFolderKinds.count))
+                .font(.caption2.weight(.medium))
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityIdentifier("reports.workspace.status")
     }
 
     private var closeoutSection: some View {
