@@ -13,6 +13,7 @@ struct QuickMarkerPanelView: View {
 
     @EnvironmentObject private var appState: AppState
     @ObservedObject private var reportSettings = ReportSettings.shared
+    @AppStorage("dashboard.selectedSection") private var selectedDashboardSectionRaw = DashboardView.Section.defaultSelection.rawValue
     @State private var contextDate = Date()
     @State private var draftText = ""
     @State private var isCloseHovering = false
@@ -90,6 +91,7 @@ struct QuickMarkerPanelView: View {
             reviewLoopStrip
             contextStrip
             captureRouteStrip
+            captureRouteActions
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .accessibilityIdentifier("quickMarker.sideRail")
@@ -332,6 +334,36 @@ struct QuickMarkerPanelView: View {
                 .stroke(DesignSystem.Colors.separator.opacity(0.28), lineWidth: 1)
         )
         .accessibilityIdentifier("quickMarker.route")
+    }
+
+    private var captureRouteActions: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 112), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            Button {
+                performDailyLogRouteAction()
+            } label: {
+                Label(L(dailyLogRouteActionTitleKey), systemImage: dailyLogRouteActionIconName)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+            .tint(DesignSystem.Colors.accentSkyBlue)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("quickMarker.route.dailyLogAction")
+
+            Button {
+                openTodayTimeline()
+            } label: {
+                Label(L("quick_marker.status.open_timeline"), systemImage: "clock")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("quickMarker.route.openTimeline")
+        }
+        .accessibilityIdentifier("quickMarker.route.actions")
     }
 
     private func captureRouteItem(
@@ -608,8 +640,46 @@ struct QuickMarkerPanelView: View {
         return "doc.badge.plus"
     }
 
+    private var dailyLogRouteActionTitleKey: String {
+        if reportSettings.dailyFolderBookmark == nil {
+            return "quick_marker.status.set_log_folder"
+        }
+        if dailyLogSavedToday {
+            return "quick_marker.status.open_daily_log"
+        }
+        return "quick_marker.status.review_daily_log"
+    }
+
+    private var dailyLogRouteActionIconName: String {
+        if reportSettings.dailyFolderBookmark == nil {
+            return "folder.badge.plus"
+        }
+        if dailyLogSavedToday {
+            return "doc.text.magnifyingglass"
+        }
+        return "doc.text"
+    }
+
     private var dailyLogSavedToday: Bool {
         reportSettings.dailyExportSucceeded(for: contextDate)
+    }
+
+    private func performDailyLogRouteAction() {
+        if reportSettings.dailyFolderBookmark == nil {
+            AppWindowRouter.shared.open(.settings(.export))
+        } else {
+            appState.selectedDate = Date()
+            selectedDashboardSectionRaw = DashboardView.Section.reports.rawValue
+            AppWindowRouter.shared.open(.dashboard)
+        }
+        onClose()
+    }
+
+    private func openTodayTimeline() {
+        appState.selectedDate = Date()
+        selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
+        AppWindowRouter.shared.open(.dashboard)
+        onClose()
     }
 
     private static let contextClock = Timer
