@@ -740,6 +740,7 @@ nonisolated final class TelemetryService: @unchecked Sendable {
         "accessibility_permission_granted",
         "daily_review_reminder_shown",
         "daily_review_notification_sent",
+        "daily_review_notification_opened",
         "diagnostics_export_success",
         "diagnostics_export_failure",
         "feedback_bundle_success",

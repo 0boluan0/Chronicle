@@ -8,6 +8,7 @@
 import AppKit
 import Combine
 import SwiftUI
+import UserNotifications
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private let appState = AppState.shared
@@ -429,6 +430,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     private func configureAppNotifications() {
+        UNUserNotificationCenter.current().delegate = self
         openPopoverObserver = NotificationCenter.default.addObserver(
             forName: .chronicleRequestOpenPopover,
             object: nil,
@@ -646,5 +648,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         default:
             return nil
         }
+    }
+}
+
+extension AppDelegate: UNUserNotificationCenterDelegate {
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        defer { completionHandler() }
+
+        guard response.notification.request.content.userInfo[DailyReviewReminderNotificationService.routeUserInfoKey] as? String == DailyReviewReminderNotificationService.dailyReviewRouteValue else {
+            return
+        }
+
+        TelemetryService.shared.increment("daily_review_notification_opened")
+        AppWindowRouter.shared.openDashboard(destination: .reports)
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        guard notification.request.content.userInfo[DailyReviewReminderNotificationService.routeUserInfoKey] as? String == DailyReviewReminderNotificationService.dailyReviewRouteValue else {
+            completionHandler([])
+            return
+        }
+
+        completionHandler([.banner, .sound])
     }
 }

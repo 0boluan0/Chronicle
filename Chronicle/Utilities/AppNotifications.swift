@@ -70,6 +70,7 @@ final class DailyReviewReminderNotificationService {
             content.title = L("daily_review.notification.title")
             content.body = L("daily_review.notification.body")
             content.sound = .default
+            content.userInfo = [Self.routeUserInfoKey: Self.dailyReviewRouteValue]
 
             let request = UNNotificationRequest(
                 identifier: "chronicle-daily-review-\(dayKey)",
@@ -85,5 +86,7 @@ final class DailyReviewReminderNotificationService {
         }
     }
 
+    static let routeUserInfoKey = "chronicleRoute"
+    static let dailyReviewRouteValue = "dailyReview"
     private static let lastNotifiedDayKey = "notifications.dailyReview.lastNotifiedDay"
 }
