@@ -196,6 +196,10 @@ struct DashboardStatsView: View {
         ActionButtonLabel(title, systemImage: systemImage)
     }
 
+    private func statsCompactActionLabel(_ title: String, systemImage: String) -> some View {
+        ActionButtonLabel(title, systemImage: systemImage, fillsWidth: false)
+    }
+
     private var statsScopeCard: some View {
         SectionCard(title: "dashboard.stats.scope.title") {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
@@ -2926,16 +2930,22 @@ struct DashboardStatsView: View {
 
             HStack {
                 Spacer()
-                Button(L("stats.idle_suppression.open_preferences")) {
+                Button {
                     showIdleSuppressionExplanation = false
                     AppWindowRouter.shared.open(.settings(.general))
+                } label: {
+                    statsCompactActionLabel(L("stats.idle_suppression.open_preferences"), systemImage: "slider.horizontal.3")
                 }
                 .buttonStyle(.bordered)
+                .accessibilityIdentifier("dashboard.stats.idleSuppression.openPreferences")
 
-                Button(L("actions.close")) {
+                Button {
                     showIdleSuppressionExplanation = false
+                } label: {
+                    statsCompactActionLabel(L("actions.close"), systemImage: "xmark")
                 }
                 .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("dashboard.stats.idleSuppression.close")
             }
         }
         .padding(20)
