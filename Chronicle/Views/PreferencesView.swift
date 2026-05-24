@@ -390,16 +390,7 @@ struct PreferencesView: View {
 
     private var setupGuideCurrentStep: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-            Label {
-                Text("preferences.sidebar.guide.current_label")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-            } icon: {
-                Image(systemName: selectedSection.systemImage)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(DesignSystem.Colors.accentSkyBlue)
-            }
-            .labelStyle(.titleAndIcon)
+            setupGuideCurrentStepHeader
 
             Text(currentSetupGuideTitleKey)
                 .font(.caption.weight(.semibold))
@@ -430,8 +421,47 @@ struct PreferencesView: View {
             .padding(.top, 2)
             .accessibilityIdentifier("preferences.sidebar.guide.next")
         }
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("preferences.sidebar.guide.current")
+    }
+
+    private var setupGuideCurrentStepHeader: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .center, spacing: DesignSystem.Spacing.xs) {
+                setupGuideCurrentLabel
+
+                Spacer(minLength: DesignSystem.Spacing.xs)
+
+                setupGuideStatusPill(
+                    setupGuideReadiness(for: selectedSection),
+                    identifier: "preferences.sidebar.guide.current.status"
+                )
+                .fixedSize(horizontal: true, vertical: false)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                setupGuideCurrentLabel
+
+                setupGuideStatusPill(
+                    setupGuideReadiness(for: selectedSection),
+                    identifier: "preferences.sidebar.guide.current.status"
+                )
+                .fixedSize(horizontal: true, vertical: false)
+            }
+        }
+    }
+
+    private var setupGuideCurrentLabel: some View {
+        Label {
+            Text("preferences.sidebar.guide.current_label")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.secondary)
+        } icon: {
+            Image(systemName: selectedSection.systemImage)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(DesignSystem.Colors.accentSkyBlue)
+        }
+        .labelStyle(.titleAndIcon)
     }
 
     private func setupGuideButton(
