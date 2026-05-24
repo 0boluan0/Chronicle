@@ -529,7 +529,7 @@ struct ContentView: View {
             Button {
                 healthCheckService.runQuickChecks()
             } label: {
-                Label(L("popover.self_check.run"), systemImage: "checkmark.shield")
+                popoverActionLabel(L("popover.self_check.run"), systemImage: "checkmark.shield")
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
@@ -540,7 +540,7 @@ struct ContentView: View {
                 Button {
                     showSelfCheckDetails = true
                 } label: {
-                    Label(L("popover.self_check.details"), systemImage: "doc.text.magnifyingglass")
+                    popoverActionLabel(L("popover.self_check.details"), systemImage: "doc.text.magnifyingglass")
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
@@ -600,7 +600,7 @@ struct ContentView: View {
             Button {
                 appState.trackingPaused = false
             } label: {
-                Label(L("popover.tracking.resume"), systemImage: "play.fill")
+                popoverActionLabel(L("popover.tracking.resume"), systemImage: "play.fill")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -609,7 +609,7 @@ struct ContentView: View {
             Button {
                 showPauseTrackingConfirmation = true
             } label: {
-                Label(L("popover.tracking.pause"), systemImage: "pause.fill")
+                popoverActionLabel(L("popover.tracking.pause"), systemImage: "pause.fill")
             }
             .buttonStyle(.bordered)
             .accessibilityIdentifier("popover.toggleTracking")
@@ -660,7 +660,7 @@ struct ContentView: View {
             Button {
                 AppWindowRouter.shared.open(.quickMarker)
             } label: {
-                Label(L("popover.tracking.mark_now"), systemImage: "note.text")
+                popoverActionLabel(L("popover.tracking.mark_now"), systemImage: "note.text")
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
@@ -669,7 +669,7 @@ struct ContentView: View {
             Button {
                 openDashboardTimeline()
             } label: {
-                Label(L("popover.tracking.open_timeline"), systemImage: "clock")
+                popoverActionLabel(L("popover.tracking.open_timeline"), systemImage: "clock")
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
@@ -688,6 +688,18 @@ struct ContentView: View {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
                 content()
             }
+        }
+    }
+
+    private func popoverActionLabel(_ title: String, systemImage: String) -> some View {
+        Label {
+            Text(title)
+                .lineLimit(2)
+                .minimumScaleFactor(0.85)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: systemImage)
         }
     }
 
@@ -728,7 +740,7 @@ struct ContentView: View {
                         Button {
                             AppWindowRouter.shared.open(.settings(.privacy))
                         } label: {
-                            Label(L("popover.privacy.review"), systemImage: "hand.raised")
+                            popoverActionLabel(L("popover.privacy.review"), systemImage: "hand.raised")
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.small)
@@ -818,16 +830,20 @@ struct ContentView: View {
 
                 Spacer()
 
-                Button(L("popover.self_check.run")) {
+                Button {
                     healthCheckService.runQuickChecks()
+                } label: {
+                    popoverActionLabel(L("popover.self_check.run"), systemImage: "checkmark.shield")
                 }
                 .buttonStyle(.bordered)
                 .disabled(healthCheckService.isRunning)
                 .accessibilityIdentifier("popover.runSelfCheck")
 
                 if shouldShowSelfCheckDetailsButton {
-                    Button(L("popover.self_check.details")) {
+                    Button {
                         showSelfCheckDetails = true
+                    } label: {
+                        popoverActionLabel(L("popover.self_check.details"), systemImage: "doc.text.magnifyingglass")
                     }
                     .buttonStyle(.bordered)
                     .accessibilityIdentifier("popover.selfCheckDetails")
@@ -900,7 +916,7 @@ struct ContentView: View {
                 Button {
                     AppWindowRouter.shared.open(.quickMarker)
                 } label: {
-                    Label(L("popover.daily_snapshot.empty_add_marker"), systemImage: "note.text")
+                    popoverActionLabel(L("popover.daily_snapshot.empty_add_marker"), systemImage: "note.text")
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(DesignSystem.Colors.accentSkyBlue)
@@ -1005,7 +1021,7 @@ struct ContentView: View {
         Button {
             AppWindowRouter.shared.open(.dashboard)
         } label: {
-            Label(L("popover.daily_snapshot.empty_open_today"), systemImage: "sun.max")
+            popoverActionLabel(L("popover.daily_snapshot.empty_open_today"), systemImage: "sun.max")
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
@@ -1016,7 +1032,7 @@ struct ContentView: View {
         Button {
             appState.trackingPaused = false
         } label: {
-            Label(L("popover.daily_snapshot.empty_resume_capture"), systemImage: "play.fill")
+            popoverActionLabel(L("popover.daily_snapshot.empty_resume_capture"), systemImage: "play.fill")
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
@@ -1027,7 +1043,7 @@ struct ContentView: View {
         Button {
             AppWindowRouter.shared.open(.settings(.support))
         } label: {
-            Label(L("popover.daily_snapshot.empty_check_capture"), systemImage: "checkmark.shield")
+            popoverActionLabel(L("popover.daily_snapshot.empty_check_capture"), systemImage: "checkmark.shield")
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
@@ -1132,7 +1148,7 @@ struct ContentView: View {
                 Button {
                     AppWindowRouter.shared.open(.quickMarker)
                 } label: {
-                    Label(L("popover.action.quick_marker"), systemImage: "note.text")
+                    popoverActionLabel(L("popover.action.quick_marker"), systemImage: "note.text")
                 }
                 .buttonStyle(.bordered)
                 .accessibilityIdentifier("popover.quickMarker")
@@ -1141,7 +1157,7 @@ struct ContentView: View {
                 Button {
                     runDailySnapshotPrimaryAction()
                 } label: {
-                    Label(L(dailySnapshotPrimaryActionKey), systemImage: dailySnapshotPrimaryActionIcon)
+                    popoverActionLabel(L(dailySnapshotPrimaryActionKey), systemImage: dailySnapshotPrimaryActionIcon)
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(DesignSystem.Colors.accentSkyBlue)
@@ -1152,7 +1168,7 @@ struct ContentView: View {
                     Button {
                         openDailyFolder()
                     } label: {
-                        Label(L("popover.action.open_daily_folder"), systemImage: "folder")
+                        popoverActionLabel(L("popover.action.open_daily_folder"), systemImage: "folder")
                     }
                     .buttonStyle(.bordered)
                     .accessibilityIdentifier("popover.openDailyFolder")
@@ -1207,7 +1223,7 @@ struct ContentView: View {
                 Button {
                     openDashboardStats()
                 } label: {
-                    Label(L("popover.daily_snapshot.work_block.open"), systemImage: "chart.bar")
+                    popoverActionLabel(L("popover.daily_snapshot.work_block.open"), systemImage: "chart.bar")
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
@@ -1268,7 +1284,7 @@ struct ContentView: View {
         Button {
             runSnapshotGuidanceAction(guidance)
         } label: {
-            Label(L(guidance.actionKey), systemImage: guidance.actionIcon)
+            popoverActionLabel(L(guidance.actionKey), systemImage: guidance.actionIcon)
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
@@ -1372,7 +1388,7 @@ struct ContentView: View {
                 AppWindowRouter.shared.open(.quickMarker)
             }
         } label: {
-            Label(
+            popoverActionLabel(
                 L(hasCues ? "popover.daily_snapshot.cues_review" : "popover.daily_snapshot.cues_add"),
                 systemImage: hasCues ? "note.text" : "note.text.badge.plus"
             )
@@ -1397,7 +1413,7 @@ struct ContentView: View {
         Button {
             runPrimaryNextAction()
         } label: {
-            Label(L(nextActionKind.primaryActionKey), systemImage: nextActionKind.primaryActionIcon)
+            popoverActionLabel(L(nextActionKind.primaryActionKey), systemImage: nextActionKind.primaryActionIcon)
         }
         .buttonStyle(.borderedProminent)
         .tint(DesignSystem.Colors.accentSkyBlue)
@@ -1410,7 +1426,7 @@ struct ContentView: View {
             Button {
                 runSecondaryNextAction()
             } label: {
-                Label(L(titleKey), systemImage: secondaryNextActionIcon)
+                popoverActionLabel(L(titleKey), systemImage: secondaryNextActionIcon)
             }
             .buttonStyle(.bordered)
             .accessibilityIdentifier(secondaryNextActionAccessibilityIdentifier)
@@ -2077,7 +2093,7 @@ struct ContentView: View {
         Button {
             openTaggingWizardPreferences()
         } label: {
-            Label(L("popover.daily_snapshot.top_labels.review"), systemImage: "rectangle.split.3x1")
+            popoverActionLabel(L("popover.daily_snapshot.top_labels.review"), systemImage: "rectangle.split.3x1")
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
