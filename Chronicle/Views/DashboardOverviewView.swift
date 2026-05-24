@@ -1470,28 +1470,18 @@ struct DashboardOverviewView: View {
 
             if let selection {
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(selection.title)
-                                .font(.headline)
-                                .foregroundColor(DesignSystem.Colors.primaryText)
-                                .lineLimit(1)
+                    ViewThatFits(in: .horizontal) {
+                        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                            selectionTitleBlock(selection)
 
-                            if let subtitle = selection.subtitle {
-                                Text(subtitle)
-                                    .font(DesignSystem.Typography.caption)
-                                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                                    .lineLimit(1)
-                            }
+                            Spacer(minLength: DesignSystem.Spacing.sm)
+
+                            selectionStatusPills(selection)
                         }
 
-                        Spacer()
-
-                        if selection.isIdle {
-                            StatusPill(L("overview.selection.idle"), systemImage: "moon", tone: .warning)
-                        }
-                        if selection.isOverlay {
-                            StatusPill(L("overview.selection.overlay"), systemImage: "arrow.triangle.2.circlepath", tone: .info)
+                        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                            selectionTitleBlock(selection)
+                            selectionStatusPills(selection)
                         }
                     }
 
@@ -1539,12 +1529,60 @@ struct DashboardOverviewView: View {
         .accessibilityIdentifier("dashboard.overview.selection")
     }
 
+    private func selectionTitleBlock(_ selection: GanttSelection) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(selection.title)
+                .font(.headline)
+                .foregroundColor(DesignSystem.Colors.primaryText)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+                .help(selection.title)
+
+            if let subtitle = selection.subtitle {
+                Text(subtitle)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .help(subtitle)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private func selectionStatusPills(_ selection: GanttSelection) -> some View {
+        if selection.isIdle || selection.isOverlay {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: DesignSystem.Spacing.xs) {
+                    selectionStatusPillContent(selection)
+                }
+
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                    selectionStatusPillContent(selection)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func selectionStatusPillContent(_ selection: GanttSelection) -> some View {
+        if selection.isIdle {
+            StatusPill(L("overview.selection.idle"), systemImage: "moon", tone: .warning)
+        }
+        if selection.isOverlay {
+            StatusPill(L("overview.selection.overlay"), systemImage: "arrow.triangle.2.circlepath", tone: .info)
+        }
+    }
+
     private var selectionPanelHeader: some View {
         HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
             Label {
                 Text("overview.selection.title")
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
             } icon: {
                 Image(systemName: selection == nil ? "cursorarrow.click" : "scope")
                     .font(.caption.weight(.semibold))
@@ -1607,12 +1645,16 @@ struct DashboardOverviewView: View {
                     Text("overview.selection.empty")
                         .font(.caption.weight(.semibold))
                         .foregroundColor(DesignSystem.Colors.primaryText)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     Text("overview.selection.empty_detail")
                         .font(DesignSystem.Typography.caption)
                         .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             selectionEmptyPath
@@ -1673,7 +1715,7 @@ struct DashboardOverviewView: View {
         Button {
             selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
         } label: {
-            Label(L("overview.selection.open_timeline"), systemImage: "clock")
+            overviewSelectionActionLabel(L("overview.selection.open_timeline"), systemImage: "clock")
         }
         .buttonStyle(.borderedProminent)
         .tint(DesignSystem.Colors.accentSkyBlue)
@@ -1685,7 +1727,7 @@ struct DashboardOverviewView: View {
         Button {
             AppWindowRouter.shared.open(.quickMarker)
         } label: {
-            Label(L("overview.selection.add_note"), systemImage: "square.and.pencil")
+            overviewSelectionActionLabel(L("overview.selection.add_note"), systemImage: "square.and.pencil")
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
@@ -1693,7 +1735,7 @@ struct DashboardOverviewView: View {
     }
 
     private func selectionInfoItem(title: String, value: String, systemImage: String) -> some View {
-        HStack(alignment: .center, spacing: 8) {
+        HStack(alignment: .top, spacing: 8) {
             Image(systemName: systemImage)
                 .font(.caption)
                 .foregroundColor(DesignSystem.Colors.secondaryText)
@@ -1703,14 +1745,30 @@ struct DashboardOverviewView: View {
                 Text(title)
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(value)
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
                     .monospacedDigit()
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .help(value)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func overviewSelectionActionLabel(_ title: String, systemImage: String) -> some View {
+        Label {
+            Text(title)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: systemImage)
+        }
     }
 
     private var todayCaptureValueText: String {
