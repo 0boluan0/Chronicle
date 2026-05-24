@@ -85,20 +85,7 @@ struct ContentView: View {
                 .accessibilityIdentifier("popover.headerIcon")
 
                 VStack(alignment: .leading, spacing: 5) {
-                    HStack(spacing: DesignSystem.Spacing.sm) {
-                        Text(LocalizedStringKey("app.name"))
-                            .font(DesignSystem.Typography.title)
-                            .foregroundColor(DesignSystem.Colors.primaryText)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.86)
-
-                        StatusPill(
-                            popoverHeaderStatusText,
-                            systemImage: popoverHeaderStatusIconName,
-                            tone: popoverHeaderStatusTone
-                        )
-                        .accessibilityIdentifier("popover.headerStatus")
-                    }
+                    popoverHeaderTitleRow
 
                     Text(LocalizedStringKey("popover.subtitle"))
                         .font(DesignSystem.Typography.caption)
@@ -131,6 +118,37 @@ struct ContentView: View {
         .padding(.bottom, 2)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("popover.header")
+    }
+
+    private var popoverHeaderTitleRow: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.sm) {
+                popoverHeaderTitle
+                popoverHeaderStatusPill
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                popoverHeaderTitle
+                popoverHeaderStatusPill
+            }
+        }
+    }
+
+    private var popoverHeaderTitle: some View {
+        Text(LocalizedStringKey("app.name"))
+            .font(DesignSystem.Typography.title)
+            .foregroundColor(DesignSystem.Colors.primaryText)
+            .lineLimit(1)
+            .minimumScaleFactor(0.86)
+    }
+
+    private var popoverHeaderStatusPill: some View {
+        StatusPill(
+            popoverHeaderStatusText,
+            systemImage: popoverHeaderStatusIconName,
+            tone: popoverHeaderStatusTone
+        )
+        .accessibilityIdentifier("popover.headerStatus")
     }
 
     private var popoverHeaderActions: some View {
