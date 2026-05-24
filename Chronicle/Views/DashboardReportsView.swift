@@ -41,6 +41,7 @@ private enum ReportTemplateResetTarget {
 private enum CloseoutNextActionState {
     case needsFolder
     case checkIssue
+    case saveFailed
     case needsTimeline
     case reviewLabels
     case needsContext
@@ -549,6 +550,22 @@ struct ReportsWorkspaceView: View {
             }
             .buttonStyle(.bordered)
             .accessibilityIdentifier("reports.closeout.brief.issue.openHealth")
+        case .saveFailed:
+            Button {
+                previewDaily(date: Date())
+            } label: {
+                reportActionButtonLabel(L("reports.closeout.action.preview_today"), systemImage: "doc.text.magnifyingglass")
+            }
+            .buttonStyle(.bordered)
+            .accessibilityIdentifier("reports.closeout.previewToday")
+
+            Button {
+                AppWindowRouter.shared.open(.settings(.export))
+            } label: {
+                reportActionButtonLabel(L("reports.feedback.open_export"), systemImage: "gearshape")
+            }
+            .buttonStyle(.bordered)
+            .accessibilityIdentifier("reports.closeout.openExportSettings")
         case .needsTimeline:
             Button {
                 selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
@@ -714,7 +731,7 @@ struct ReportsWorkspaceView: View {
                 stepNumber: 3,
                 titleKey: "reports.closeout.step.export_title",
                 detailKey: closeoutExportStepDetailKey,
-                systemImage: dailyExportedToday ? "checkmark.seal.fill" : "doc.badge.plus",
+                systemImage: closeoutExportStepIconName,
                 tone: closeoutExportStepTone,
                 isComplete: dailyExportedToday,
                 isCurrent: closeoutExportStepIsCurrent,
@@ -4267,6 +4284,10 @@ struct ReportsWorkspaceView: View {
         settings.dailyExportSucceeded(for: Date())
     }
 
+    private var dailyExportFailedToday: Bool {
+        settings.dailyExportFailed(for: Date())
+    }
+
     private var weeklyExportedThisWeek: Bool {
         settings.weeklyExportSucceeded(for: appState.selectedDate)
     }
@@ -4286,12 +4307,15 @@ struct ReportsWorkspaceView: View {
     private var closeoutNotesStepIsCurrent: Bool {
         dailyFolderReady
             && !dailyExportedToday
+            && !dailyExportFailedToday
             && !hasDailyCloseoutNotes
             && (closeoutSnapshot.activeSeconds <= 0 || !closeoutHasHumanContext)
     }
 
     private var closeoutExportStepIsCurrent: Bool {
-        dailyFolderReady && !dailyExportedToday && closeoutNextActionState == .ready
+        dailyFolderReady
+            && !dailyExportedToday
+            && (closeoutNextActionState == .ready || closeoutNextActionState == .saveFailed)
     }
 
     private var closeoutIncludedNotesDetailKey: String {
@@ -4305,7 +4329,20 @@ struct ReportsWorkspaceView: View {
         if dailyExportedToday {
             return "reports.closeout.step.export_done"
         }
+        if dailyExportFailedToday {
+            return "reports.closeout.step.export_failed"
+        }
         return "reports.closeout.step.export_ready"
+    }
+
+    private var closeoutExportStepIconName: String {
+        if dailyExportedToday {
+            return "checkmark.seal.fill"
+        }
+        if dailyExportFailedToday {
+            return "exclamationmark.triangle.fill"
+        }
+        return "doc.badge.plus"
     }
 
     private var closeoutExportStepTone: DesignSystem.StatusTone {
@@ -4314,6 +4351,9 @@ struct ReportsWorkspaceView: View {
         }
         if dailyExportedToday {
             return .success
+        }
+        if dailyExportFailedToday {
+            return .critical
         }
         return .info
     }
@@ -4325,6 +4365,9 @@ struct ReportsWorkspaceView: View {
         if dailyExportedToday {
             return "reports.closeout.done_title"
         }
+        if dailyExportFailedToday {
+            return "reports.closeout.failed_title"
+        }
         return "reports.closeout.ready_title"
     }
 
@@ -4334,6 +4377,9 @@ struct ReportsWorkspaceView: View {
         }
         if dailyExportedToday {
             return "reports.closeout.done_detail"
+        }
+        if dailyExportFailedToday {
+            return "reports.closeout.failed_detail"
         }
         return "reports.closeout.ready_detail"
     }
@@ -4345,6 +4391,9 @@ struct ReportsWorkspaceView: View {
         if dailyExportedToday {
             return .success
         }
+        if dailyExportFailedToday {
+            return .critical
+        }
         return .info
     }
 
@@ -4354,6 +4403,9 @@ struct ReportsWorkspaceView: View {
         }
         if dailyExportedToday {
             return "checkmark.seal.fill"
+        }
+        if dailyExportFailedToday {
+            return "exclamationmark.triangle.fill"
         }
         return "doc.badge.plus"
     }
@@ -4365,6 +4417,9 @@ struct ReportsWorkspaceView: View {
         if dailyExportedToday {
             return L("reports.closeout.status.done")
         }
+        if dailyExportFailedToday {
+            return L("reports.closeout.status.failed")
+        }
         return L("reports.closeout.status.ready")
     }
 
@@ -4375,6 +4430,9 @@ struct ReportsWorkspaceView: View {
         if dailyExportedToday {
             return "checkmark"
         }
+        if dailyExportFailedToday {
+            return "exclamationmark.triangle.fill"
+        }
         return "doc.badge.plus"
     }
 
@@ -4384,6 +4442,8 @@ struct ReportsWorkspaceView: View {
             return "reports.closeout.next.destination_title"
         case .checkIssue:
             return "reports.closeout.brief.issue.title"
+        case .saveFailed:
+            return "reports.closeout.next.failed_title"
         case .needsTimeline:
             return "reports.closeout.next.timeline_title"
         case .reviewLabels:
@@ -4403,6 +4463,8 @@ struct ReportsWorkspaceView: View {
             return "reports.closeout.next.destination_detail"
         case .checkIssue:
             return "reports.closeout.brief.issue.detail"
+        case .saveFailed:
+            return "reports.closeout.next.failed_detail"
         case .needsTimeline:
             return "reports.closeout.next.timeline_detail"
         case .reviewLabels:
@@ -4421,6 +4483,8 @@ struct ReportsWorkspaceView: View {
         case .needsFolder:
             return "folder.badge.plus"
         case .checkIssue:
+            return "exclamationmark.triangle.fill"
+        case .saveFailed:
             return "exclamationmark.triangle.fill"
         case .needsTimeline:
             return "clock.badge.exclamationmark"
@@ -4441,6 +4505,8 @@ struct ReportsWorkspaceView: View {
             return L("reports.closeout.next.status.setup")
         case .checkIssue:
             return L("reports.closeout.next.status.check")
+        case .saveFailed:
+            return L("reports.closeout.next.status.failed")
         case .needsTimeline:
             return L("reports.closeout.next.status.timeline")
         case .reviewLabels:
@@ -4460,6 +4526,8 @@ struct ReportsWorkspaceView: View {
             return "folder.badge.plus"
         case .checkIssue:
             return "exclamationmark.triangle.fill"
+        case .saveFailed:
+            return "exclamationmark.triangle.fill"
         case .needsTimeline, .needsContext:
             return "note.text"
         case .reviewLabels:
@@ -4475,6 +4543,8 @@ struct ReportsWorkspaceView: View {
         switch closeoutNextActionState {
         case .needsFolder, .checkIssue, .needsTimeline, .reviewLabels:
             return .warning
+        case .saveFailed:
+            return .critical
         case .needsContext:
             return .info
         case .ready, .saved:
@@ -4488,6 +4558,9 @@ struct ReportsWorkspaceView: View {
         }
         if dailyExportedToday {
             return .saved
+        }
+        if dailyExportFailedToday {
+            return .saveFailed
         }
         if closeoutSnapshotError != nil {
             return .checkIssue
@@ -4510,6 +4583,8 @@ struct ReportsWorkspaceView: View {
             return "reports.closeout.action.choose_folder"
         case .checkIssue:
             return "reports.closeout.brief.issue.retry"
+        case .saveFailed:
+            return "reports.closeout.action.retry_save"
         case .needsTimeline:
             return "reports.closeout.action.add_note"
         case .reviewLabels:
@@ -4529,6 +4604,8 @@ struct ReportsWorkspaceView: View {
             return "folder.badge.plus"
         case .checkIssue:
             return "arrow.clockwise"
+        case .saveFailed:
+            return "arrow.clockwise"
         case .needsTimeline, .needsContext:
             return "text.badge.plus"
         case .reviewLabels:
@@ -4546,6 +4623,8 @@ struct ReportsWorkspaceView: View {
             return "reports.closeout.chooseDailyFolder"
         case .checkIssue:
             return "reports.closeout.brief.issue.retry"
+        case .saveFailed:
+            return "reports.closeout.retrySave"
         case .needsTimeline, .needsContext:
             return "reports.closeout.focusNotes"
         case .reviewLabels:
@@ -4563,6 +4642,8 @@ struct ReportsWorkspaceView: View {
             chooseDailyFolder()
         case .checkIssue:
             refreshCloseoutSnapshot(reason: "closeout next action retry")
+        case .saveFailed:
+            generateDaily(date: Date())
         case .needsTimeline, .needsContext:
             dailyNotesFocused = true
         case .reviewLabels:

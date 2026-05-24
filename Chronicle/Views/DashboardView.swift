@@ -15,6 +15,7 @@ struct DashboardView: View {
         case addContext
         case needsLogFolder
         case reviewDailyLog
+        case logFailed
         case savedToday
     }
 
@@ -385,7 +386,7 @@ struct DashboardView: View {
             return .today
         case .addContext:
             return .context
-        case .needsLogFolder, .reviewDailyLog, .savedToday:
+        case .needsLogFolder, .reviewDailyLog, .logFailed, .savedToday:
             return .log
         }
     }
@@ -711,6 +712,9 @@ struct DashboardView: View {
         if sidebarDailyExportedToday {
             return .savedToday
         }
+        if sidebarDailyExportFailedToday {
+            return .logFailed
+        }
         if hasRecentCaptureSignal && sidebarTodayContextCount == 0 {
             return .addContext
         }
@@ -732,7 +736,7 @@ struct DashboardView: View {
             AppWindowRouter.shared.open(.settings(.support))
         case .addContext:
             AppWindowRouter.shared.open(.quickMarker)
-        case .needsLogFolder, .reviewDailyLog:
+        case .needsLogFolder, .reviewDailyLog, .logFailed:
             selectedSectionRaw = Section.reports.rawValue
         case .savedToday:
             if case .failure = ReportService.shared.openDailyFolder() {
@@ -984,6 +988,8 @@ struct DashboardView: View {
             return "dashboard.sidebar.next_step.needs_folder_title"
         case .reviewDailyLog:
             return "dashboard.sidebar.next_step.review_title"
+        case .logFailed:
+            return "dashboard.sidebar.next_step.failed_title"
         case .savedToday:
             return "dashboard.sidebar.next_step.saved_title"
         case .startToday:
@@ -1007,6 +1013,8 @@ struct DashboardView: View {
             return "dashboard.sidebar.next_step.needs_folder_detail"
         case .reviewDailyLog:
             return "dashboard.sidebar.next_step.review_detail"
+        case .logFailed:
+            return "dashboard.sidebar.next_step.failed_detail"
         case .savedToday:
             return "dashboard.sidebar.next_step.saved_detail"
         case .startToday:
@@ -1026,6 +1034,8 @@ struct DashboardView: View {
             return "dashboard.sidebar.next_step.set_log_folder"
         case .reviewDailyLog:
             return "dashboard.sidebar.next_step.review_daily_log"
+        case .logFailed:
+            return "dashboard.sidebar.next_step.retry_daily_log"
         case .savedToday:
             return "dashboard.sidebar.next_step.open_log_folder"
         case .startToday:
@@ -1045,6 +1055,8 @@ struct DashboardView: View {
             return "folder.badge.plus"
         case .reviewDailyLog:
             return "doc.badge.plus"
+        case .logFailed:
+            return "exclamationmark.triangle.fill"
         case .savedToday:
             return "checkmark.seal.fill"
         case .startToday:
@@ -1064,6 +1076,8 @@ struct DashboardView: View {
             return "folder.badge.plus"
         case .reviewDailyLog:
             return "doc.badge.plus"
+        case .logFailed:
+            return "arrow.clockwise"
         case .savedToday:
             return "folder"
         case .startToday:
@@ -1083,6 +1097,8 @@ struct DashboardView: View {
             return .warning
         case .reviewDailyLog, .savedToday:
             return .success
+        case .logFailed:
+            return .critical
         case .startToday:
             return .info
         }
@@ -1184,6 +1200,8 @@ struct DashboardView: View {
         switch sidebarNextStepState {
         case .captureIssue:
             return .critical
+        case .logFailed:
+            return .critical
         case .paused, .addContext, .needsLogFolder:
             return .warning
         case .reviewDailyLog:
@@ -1210,6 +1228,9 @@ struct DashboardView: View {
         if sidebarDailyExportedToday {
             return L("dashboard.sidebar.today_evidence.log_value.saved")
         }
+        if sidebarDailyExportFailedToday {
+            return L("dashboard.sidebar.today_evidence.log_value.failed")
+        }
         if !sidebarDailyFolderReady {
             return L("dashboard.sidebar.today_evidence.log_value.not_set")
         }
@@ -1223,6 +1244,9 @@ struct DashboardView: View {
         if sidebarDailyExportedToday {
             return "checkmark.seal"
         }
+        if sidebarDailyExportFailedToday {
+            return "exclamationmark.triangle.fill"
+        }
         if !sidebarDailyFolderReady {
             return "folder.badge.plus"
         }
@@ -1235,6 +1259,9 @@ struct DashboardView: View {
     private var sidebarLogTone: DesignSystem.StatusTone {
         if sidebarDailyExportedToday {
             return .success
+        }
+        if sidebarDailyExportFailedToday {
+            return .critical
         }
         if !sidebarDailyFolderReady && hasRecentCaptureSignal {
             return .warning
@@ -1266,6 +1293,10 @@ struct DashboardView: View {
 
     private var sidebarDailyExportedToday: Bool {
         reportSettings.dailyExportSucceeded(for: Date())
+    }
+
+    private var sidebarDailyExportFailedToday: Bool {
+        reportSettings.dailyExportFailed(for: Date())
     }
 
     private var sidebarCaptureHasError: Bool {

@@ -718,6 +718,8 @@
 "dashboard.sidebar.next_step.needs_folder_detail" = "Today has captured context, but the daily log needs a folder before it can be saved.";
 "dashboard.sidebar.next_step.review_title" = "Close out today when ready.";
 "dashboard.sidebar.next_step.review_detail" = "Captured work and notes are ready to check before saving the daily log.";
+"dashboard.sidebar.next_step.failed_title" = "Daily log save failed.";
+"dashboard.sidebar.next_step.failed_detail" = "Open Daily Log to retry the save or reselect the folder if macOS blocked writing.";
 "dashboard.sidebar.next_step.saved_title" = "Today's log is saved.";
 "dashboard.sidebar.next_step.saved_detail" = "Open the log folder, or return to Daily Log only if today changed enough to regenerate it.";
 "dashboard.sidebar.next_step.paused_title" = "Resume capture first.";
@@ -731,6 +733,7 @@
 "dashboard.sidebar.next_step.add_context" = "Add Context";
 "dashboard.sidebar.next_step.set_log_folder" = "Set Log Folder";
 "dashboard.sidebar.next_step.review_daily_log" = "Review Daily Log";
+"dashboard.sidebar.next_step.retry_daily_log" = "Retry Save";
 "dashboard.sidebar.next_step.open_log_folder" = "Open Log Folder";
 "dashboard.sidebar.control_title" = "Today";
 "dashboard.sidebar.today_evidence.captured_title" = "Captured";
@@ -741,6 +744,7 @@
 "dashboard.sidebar.today_evidence.log_title" = "Log";
 "dashboard.sidebar.today_evidence.log_value.not_set" = "Not set";
 "dashboard.sidebar.today_evidence.log_value.ready" = "Ready";
+"dashboard.sidebar.today_evidence.log_value.failed" = "Failed";
 "dashboard.sidebar.today_evidence.log_value.saved" = "Saved";
 "dashboard.sidebar.today_evidence.log_value.waiting" = "Waiting";
 "dashboard.sidebar.today_evidence.log_help" = "Open Daily Log or the saved log folder.";
@@ -2222,7 +2226,10 @@
 "reports.closeout.ready_detail" = "Save today's log when the check looks right; preview is still available before saving.";
 "reports.closeout.done_title" = "Today's log is saved.";
 "reports.closeout.done_detail" = "You can still preview or regenerate if you added notes after the last save.";
+"reports.closeout.failed_title" = "The last save failed.";
+"reports.closeout.failed_detail" = "Retry the daily log save, or open log settings if the folder permission needs to be refreshed.";
 "reports.closeout.status.ready" = "Ready to save";
+"reports.closeout.status.failed" = "Save failed";
 "reports.closeout.status.done" = "Done";
 "reports.closeout.destination" = "Destination";
 "reports.closeout.last_report" = "Last daily log";
@@ -2253,6 +2260,7 @@
 "reports.closeout.step.export_ready" = "Save the daily log, or preview first if anything feels unclear.";
 "reports.closeout.step.export_done" = "Today already has a saved log.";
 "reports.closeout.step.export_blocked" = "Available after the folder is ready.";
+"reports.closeout.step.export_failed" = "Last save failed. Retry after checking the folder.";
 "reports.closeout.brief.title" = "Closeout brief";
 "reports.closeout.brief.detail" = "Before saving, check whether the timeline has enough story.";
 "reports.closeout.brief.captured_title" = "Captured work";
@@ -2339,6 +2347,8 @@
 "reports.closeout.next.context_detail" = "The timeline has activity, but a short note will make tomorrow's reading clearer.";
 "reports.closeout.next.save_title" = "Save today's log next.";
 "reports.closeout.next.save_detail" = "This writes a Markdown daily log to your folder; preview remains available if you want one more check.";
+"reports.closeout.next.failed_title" = "Retry the daily log save.";
+"reports.closeout.next.failed_detail" = "The previous attempt did not write the Markdown file. Retry now, or refresh the log folder in settings.";
 "reports.closeout.next.preview_title" = "Preview today's log next.";
 "reports.closeout.next.preview_detail" = "Check the story before saving; save directly only when the timeline already looks right.";
 "reports.closeout.next.done_title" = "Today's log is saved.";
@@ -2349,6 +2359,7 @@
 "reports.closeout.next.status.labels" = "Review first";
 "reports.closeout.next.status.context" = "Context suggested";
 "reports.closeout.next.status.ready" = "Ready to save";
+"reports.closeout.next.status.failed" = "Save failed";
 "reports.closeout.next.status.saved" = "Saved";
 "reports.closeout.action.choose_folder" = "Choose folder";
 "reports.closeout.action.add_note" = "Add note";
@@ -2356,6 +2367,7 @@
 "reports.closeout.action.open_timeline" = "Open Timeline";
 "reports.closeout.action.preview_today" = "Preview today";
 "reports.closeout.action.save_today" = "Save daily log";
+"reports.closeout.action.retry_save" = "Retry save";
 "reports.closeout.action.open_folder" = "Open folder";
 "reports.closeout.action.regenerate" = "Regenerate";
 "reports.weekly.closeout.title" = "This week";

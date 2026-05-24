@@ -718,6 +718,8 @@
 "dashboard.sidebar.next_step.needs_folder_detail" = "今天已经有记录语境，但今日日志需要先有文件夹才能保存。";
 "dashboard.sidebar.next_step.review_title" = "准备好时完成今天。";
 "dashboard.sidebar.next_step.review_detail" = "工作记录和笔记已经可以检查，确认后就能保存成今日日志。";
+"dashboard.sidebar.next_step.failed_title" = "今日日志保存失败。";
+"dashboard.sidebar.next_step.failed_detail" = "打开今日日志重试保存；如果 macOS 阻止写入，就重新选择日志文件夹。";
 "dashboard.sidebar.next_step.saved_title" = "今日日志已保存。";
 "dashboard.sidebar.next_step.saved_detail" = "可以直接打开日志文件夹；只有今天变化较大时，再回到今日日志重新生成。";
 "dashboard.sidebar.next_step.paused_title" = "先恢复记录。";
@@ -731,6 +733,7 @@
 "dashboard.sidebar.next_step.add_context" = "补充上下文";
 "dashboard.sidebar.next_step.set_log_folder" = "设置日志文件夹";
 "dashboard.sidebar.next_step.review_daily_log" = "查看今日日志";
+"dashboard.sidebar.next_step.retry_daily_log" = "重试保存";
 "dashboard.sidebar.next_step.open_log_folder" = "打开日志文件夹";
 "dashboard.sidebar.control_title" = "今天";
 "dashboard.sidebar.today_evidence.captured_title" = "已记录";
@@ -741,6 +744,7 @@
 "dashboard.sidebar.today_evidence.log_title" = "日志";
 "dashboard.sidebar.today_evidence.log_value.not_set" = "未设置";
 "dashboard.sidebar.today_evidence.log_value.ready" = "可保存";
+"dashboard.sidebar.today_evidence.log_value.failed" = "失败";
 "dashboard.sidebar.today_evidence.log_value.saved" = "已保存";
 "dashboard.sidebar.today_evidence.log_value.waiting" = "等待中";
 "dashboard.sidebar.today_evidence.log_help" = "打开今日日志或已保存的日志文件夹。";
@@ -2221,7 +2225,10 @@
 "reports.closeout.ready_detail" = "检查结果看起来没问题时，直接保存今日日志；需要确认时仍可先预览。";
 "reports.closeout.done_title" = "今日日志已保存。";
 "reports.closeout.done_detail" = "如果保存后又补了备注，仍可重新预览或生成。";
+"reports.closeout.failed_title" = "上次保存失败。";
+"reports.closeout.failed_detail" = "重试保存今日日志；如果文件夹权限失效，可以打开日志设置重新选择。";
 "reports.closeout.status.ready" = "可保存";
+"reports.closeout.status.failed" = "保存失败";
 "reports.closeout.status.done" = "已完成";
 "reports.closeout.destination" = "保存位置";
 "reports.closeout.last_report" = "最近日志";
@@ -2252,6 +2259,7 @@
 "reports.closeout.step.export_ready" = "直接保存今日日志；不确定时可先预览。";
 "reports.closeout.step.export_done" = "今天已有保存的日志。";
 "reports.closeout.step.export_blocked" = "文件夹就绪后可使用。";
+"reports.closeout.step.export_failed" = "上次保存失败。检查文件夹后重试。";
 "reports.closeout.brief.title" = "收工检查";
 "reports.closeout.brief.detail" = "保存前先确认时间线是否足够还原今天。";
 "reports.closeout.brief.captured_title" = "已捕获工作";
@@ -2338,6 +2346,8 @@
 "reports.closeout.next.context_detail" = "时间线已有活动，但一句简短备注会让明天再看时更容易读懂。";
 "reports.closeout.next.save_title" = "下一步保存今日日志。";
 "reports.closeout.next.save_detail" = "这会把 Markdown 日志写入你的文件夹；如果还想确认一遍，旁边仍可预览。";
+"reports.closeout.next.failed_title" = "重试保存今日日志。";
+"reports.closeout.next.failed_detail" = "上一次没有写出 Markdown 文件。现在重试，或到设置里刷新日志文件夹。";
 "reports.closeout.next.preview_title" = "下一步先预览今日日志。";
 "reports.closeout.next.preview_detail" = "保存前先检查叙事；只有时间线已经准确时才直接保存。";
 "reports.closeout.next.done_title" = "今日日志已保存。";
@@ -2348,6 +2358,7 @@
 "reports.closeout.next.status.labels" = "先检查";
 "reports.closeout.next.status.context" = "建议补语境";
 "reports.closeout.next.status.ready" = "可保存";
+"reports.closeout.next.status.failed" = "保存失败";
 "reports.closeout.next.status.saved" = "已保存";
 "reports.closeout.action.choose_folder" = "选择文件夹";
 "reports.closeout.action.add_note" = "添加备注";
@@ -2355,6 +2366,7 @@
 "reports.closeout.action.open_timeline" = "打开时间线";
 "reports.closeout.action.preview_today" = "预览今天";
 "reports.closeout.action.save_today" = "保存今日日志";
+"reports.closeout.action.retry_save" = "重试保存";
 "reports.closeout.action.open_folder" = "打开文件夹";
 "reports.closeout.action.regenerate" = "重新生成";
 "reports.weekly.closeout.title" = "本周总结";
