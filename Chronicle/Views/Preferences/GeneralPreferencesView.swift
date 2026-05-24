@@ -756,7 +756,7 @@ struct GeneralPreferencesView: View {
     }
 
     private var advancedRecommendationActions: some View {
-        HStack(spacing: DesignSystem.Spacing.sm) {
+        preferenceResponsiveActions {
             StatusPill(
                 advancedRecommendationStatusText,
                 systemImage: appState.usesRecommendedTrackingSettings ? "checkmark" : "slider.horizontal.3",
@@ -904,7 +904,7 @@ struct GeneralPreferencesView: View {
                     tone: isOn.wrappedValue ? onTone : .neutral
                 )
 
-                HStack(spacing: DesignSystem.Spacing.sm) {
+                preferenceResponsiveActions {
                     StatusPill(
                         isOn.wrappedValue ? L("privacy.status.enabled") : L("privacy.status.off"),
                         systemImage: isOn.wrappedValue ? "checkmark.circle.fill" : "circle",
@@ -965,7 +965,7 @@ struct GeneralPreferencesView: View {
                 tone: tone
             )
 
-            HStack(spacing: DesignSystem.Spacing.sm) {
+            preferenceResponsiveActions {
                 StatusPill(status, systemImage: statusIcon, tone: tone)
                 trailing()
             }
@@ -995,11 +995,25 @@ struct GeneralPreferencesView: View {
                 tone: tone
             )
 
-            HStack(spacing: DesignSystem.Spacing.sm) {
+            preferenceResponsiveActions {
                 StatusPill(status, systemImage: statusIcon, tone: tone)
                 action()
             }
             .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+    }
+
+    private func preferenceResponsiveActions<Content: View>(
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+                content()
+            }
+
+            VStack(alignment: .trailing, spacing: DesignSystem.Spacing.sm) {
+                content()
+            }
         }
     }
 
