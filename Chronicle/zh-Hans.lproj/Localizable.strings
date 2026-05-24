@@ -1236,7 +1236,7 @@
 "preferences.advanced_tracking.allowlist.empty.path.search_detail" = "确认具体应用后再设置例外。";
 "preferences.advanced_tracking.allowlist.no_results" = "没有匹配应用。";
 "preferences.advanced_tracking.allowlist.no_results_detail" = "清除搜索，或添加需要无输入也保持活跃的应用。";
-"preferences.advanced_tracking.allowlist.add" = "添加应用...";
+"preferences.advanced_tracking.allowlist.add" = "添加应用…";
 "preferences.advanced_tracking.allowlist.note" = "这些应用在前台时，即使没有输入，Chronicle 也会保持活跃记录。";
 "preferences.advanced_tracking.allowlist.row_detail" = "该应用在前台时会保持活跃记录。";
 "preferences.advanced_tracking.live_status.title" = "当前离开判断";
@@ -2174,7 +2174,7 @@
 "quick_marker.action.type_note_first" = "先写一条笔记";
 "quick_marker.action.name_focus_first" = "先命名专注区间";
 "quick_marker.action.name_block_to_stop" = "先写要结束的区间";
-"quick_marker.action.recording" = "正在记录...";
+"quick_marker.action.recording" = "正在记录…";
 "quick_marker.action.add" = "添加";
 "quick_marker.action.record" = "记录";
 "quick_marker.action.clear_input" = "清空输入";
@@ -2674,7 +2674,7 @@
 "wizard.mode" = "模式";
 "wizard.empty" = "该范围内暂无活跃应用。";
 "wizard.empty_hint" = "先使用 Chronicle 一段时间，再回来快速整理应用分类。";
-"wizard.loading" = "正在检查近期应用使用情况...";
+"wizard.loading" = "正在检查近期应用使用情况…";
 "wizard.loading_detail" = "正在读取该范围内的活动、已有分区和未来会话规则。";
 "wizard.loading.path.activity_title" = "读取活动";
 "wizard.loading.path.activity_detail" = "查找所选范围内真实发生过的应用使用。";
@@ -3100,7 +3100,7 @@
 "rules.suggestions.title" = "规则建议";
 "rules.suggestions.hint" = "建议来自反复出现的手动纠偏，是把纠偏沉淀为自动化的最快入口。";
 "rules.suggestions.count" = "%d 条待处理";
-"rules.suggestions.loading" = "正在查找重复纠偏...";
+"rules.suggestions.loading" = "正在查找重复纠偏…";
 "rules.suggestions.empty" = "暂时没有高置信建议。";
 "rules.suggestions.empty_hint" = "继续手动纠偏后，Chronicle 会在这里显示重复模式。";
 "rules.suggestions.empty.path.correct_title" = "先手动纠偏";
@@ -3400,7 +3400,7 @@
 "timeline.row.note_anchor" = "这条笔记会保存到所选活动中的 %@。";
 "timeline.row.note_placeholder" = "这一刻之后要记住什么？";
 "timeline.row.save_note" = "保存";
-"timeline.row.saving_note" = "保存中...";
+"timeline.row.saving_note" = "保存中…";
 "timeline.row.note_saved" = "已保存到 %@。";
 "timeline.row.closeout_cue" = "日志笔记";
 "timeline.row.focus_block" = "专注区间";

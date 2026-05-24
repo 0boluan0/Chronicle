@@ -1550,7 +1550,7 @@ struct TimelineView: View {
             return L("marker.delete.confirm.untitled")
         }
         if trimmed.count > 48 {
-            return String(trimmed.prefix(48)) + "..."
+            return String(trimmed.prefix(48)) + "…"
         }
         return trimmed
     }

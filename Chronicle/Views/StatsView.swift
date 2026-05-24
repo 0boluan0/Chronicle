@@ -1215,7 +1215,7 @@ struct StatsView: View {
                 ForEach(recentMarkerSpans.prefix(3)) { span in
                     let end = span.endTime ?? Int64(Date().timeIntervalSince1970)
                     let range = span.endTime == nil
-                        ? "\(TimeFormatters.timeText(for: span.startTime, includeSeconds: false))-..."
+                        ? "\(TimeFormatters.timeText(for: span.startTime, includeSeconds: false))-…"
                         : TimeFormatters.timeRange(start: span.startTime, end: end)
                     markerPreviewRow(
                         systemImage: span.endTime == nil ? "timer.circle.fill" : "timer",

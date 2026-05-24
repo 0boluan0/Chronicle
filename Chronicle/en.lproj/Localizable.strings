@@ -1236,7 +1236,7 @@
 "preferences.advanced_tracking.allowlist.empty.path.search_detail" = "Find the exact app before making an exception.";
 "preferences.advanced_tracking.allowlist.no_results" = "No matching apps.";
 "preferences.advanced_tracking.allowlist.no_results_detail" = "Clear the search or add the app if it should stay active without input.";
-"preferences.advanced_tracking.allowlist.add" = "Add App...";
+"preferences.advanced_tracking.allowlist.add" = "Add App…";
 "preferences.advanced_tracking.allowlist.note" = "When one of these apps is frontmost, Chronicle keeps it active even without input.";
 "preferences.advanced_tracking.allowlist.row_detail" = "Keeps this app active when it is frontmost.";
 "preferences.advanced_tracking.live_status.title" = "Current away-time decision";
@@ -2174,7 +2174,7 @@
 "quick_marker.action.type_note_first" = "Type a Note First";
 "quick_marker.action.name_focus_first" = "Name Focus Block First";
 "quick_marker.action.name_block_to_stop" = "Name Block to Stop";
-"quick_marker.action.recording" = "Recording...";
+"quick_marker.action.recording" = "Recording…";
 "quick_marker.action.add" = "Add";
 "quick_marker.action.record" = "Record";
 "quick_marker.action.clear_input" = "Clear input";
@@ -2646,7 +2646,7 @@
 "reports.folder.selected" = "Folder selected.";
 "reports.folder.issue" = "Folder access issue: %@. Re-select folder.";
 "reports.folder.issue_title" = "Folder access issue";
-"reports.status.generating" = "Saving...";
+"reports.status.generating" = "Saving…";
 "reports.status.copied" = "Copied to clipboard.";
 "reports.status.last_run" = "Last run: %@ • %@";
 "reports.status.not_run" = "Last run: —";
@@ -2654,7 +2654,7 @@
 "reports.status.failed" = "Failed";
 "reports.daily.saved" = "Daily log saved: %@";
 "reports.weekly.saved" = "Weekly summary saved: %@";
-"reports.status.exporting" = "Saving...";
+"reports.status.exporting" = "Saving…";
 "reports.csv.saved" = "CSV exported: %@";
 "reports.choose_folder" = "Choose Folder";
 "reports.opened_folder" = "Opened folder.";
@@ -2675,7 +2675,7 @@
 "wizard.mode" = "Mode";
 "wizard.empty" = "No active apps found in this range.";
 "wizard.empty_hint" = "Use Chronicle for a while, then come back to categorize apps quickly.";
-"wizard.loading" = "Reviewing recent app usage...";
+"wizard.loading" = "Reviewing recent app usage…";
 "wizard.loading_detail" = "Checking activity, saved sections, and future-session rules for this range.";
 "wizard.loading.path.activity_title" = "Read activity";
 "wizard.loading.path.activity_detail" = "Looking for real app usage in the selected range.";
@@ -3121,7 +3121,7 @@
 "rules.suggestions.title" = "Suggested Rules";
 "rules.suggestions.hint" = "Suggestions come from repeated manual overrides, so they are the fastest path from correction to automation.";
 "rules.suggestions.count" = "%d ready";
-"rules.suggestions.loading" = "Looking for repeated corrections...";
+"rules.suggestions.loading" = "Looking for repeated corrections…";
 "rules.suggestions.empty" = "No strong suggestions yet.";
 "rules.suggestions.empty_hint" = "Keep correcting categories manually and Chronicle will surface repeat patterns here.";
 "rules.suggestions.empty.path.correct_title" = "Correct manually";
@@ -3408,7 +3408,7 @@
 "timeline.row.note_anchor" = "This note will be saved at %@ inside the selected activity.";
 "timeline.row.note_placeholder" = "What should you remember about this moment?";
 "timeline.row.save_note" = "Save";
-"timeline.row.saving_note" = "Saving...";
+"timeline.row.saving_note" = "Saving…";
 "timeline.row.note_saved" = "Saved at %@.";
 "timeline.row.closeout_cue" = "Log note";
 "timeline.row.focus_block" = "Focus block";
