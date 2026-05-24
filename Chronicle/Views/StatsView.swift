@@ -1027,6 +1027,9 @@ struct StatsView: View {
                         systemImage: "note.text.badge.plus",
                         tone: .neutral
                     )
+
+                    markersEmptyPath
+                    markersEmptyActions
                 } else {
                     LazyVGrid(
                         columns: adaptiveColumns(minimum: 240, spacing: DesignSystem.Spacing.lg),
@@ -1040,6 +1043,59 @@ struct StatsView: View {
             }
             .accessibilityIdentifier("stats.markers")
         }
+    }
+
+    private var markersEmptyPath: some View {
+        statsEmptyPath(accessibilityIdentifier: "stats.markers.emptyPath") {
+            statsEmptyPathItem(
+                titleKey: "markers.capture.path.note_title",
+                detailKey: "markers.capture.path.note_detail",
+                systemImage: "note.text",
+                tone: .info,
+                accessibilityIdentifier: "stats.markers.emptyPath.note"
+            )
+            statsEmptyPathItem(
+                titleKey: "markers.capture.path.session_title",
+                detailKey: "markers.capture.path.session_detail",
+                systemImage: "timer",
+                tone: .success,
+                accessibilityIdentifier: "stats.markers.emptyPath.session"
+            )
+            statsEmptyPathItem(
+                titleKey: "markers.capture.path.closeout_title",
+                detailKey: "markers.capture.path.closeout_detail",
+                systemImage: "doc.badge.plus",
+                tone: .neutral,
+                accessibilityIdentifier: "stats.markers.emptyPath.closeout"
+            )
+        }
+    }
+
+    private var markersEmptyActions: some View {
+        ActionButtonGrid(minimumItemWidth: 150) {
+            Button {
+                AppWindowRouter.shared.open(.quickMarker)
+            } label: {
+                statsActionLabel(L("markers.capture.add_first_cue"), systemImage: "square.and.pencil")
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+            .tint(DesignSystem.Colors.accentSkyBlue)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("stats.markers.emptyAddCue")
+
+            Button {
+                selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
+                AppWindowRouter.shared.open(.dashboard)
+            } label: {
+                statsActionLabel(L("markers.capture.open_timeline"), systemImage: "clock")
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("stats.markers.emptyOpenTimeline")
+        }
+        .accessibilityIdentifier("stats.markers.emptyActions")
     }
 
     private func statsFocusColumnHeader(
