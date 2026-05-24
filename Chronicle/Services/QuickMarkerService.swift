@@ -12,7 +12,7 @@ enum QuickMarkerTriggerSource: String {
     case hotkey
 }
 
-enum QuickMarkerSubmissionOutcome: Equatable {
+nonisolated enum QuickMarkerSubmissionOutcome: Equatable {
     case pointCreated
     case intervalStarted
     case intervalStopped
