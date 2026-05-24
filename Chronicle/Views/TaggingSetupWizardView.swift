@@ -53,6 +53,18 @@ struct TaggingSetupWizardView: View {
     private let maxSuggestions = 12
     private let unassignedTagId: Int64 = -1
 
+    private func wizardActionLabel(_ title: String, systemImage: String) -> some View {
+        Label {
+            Text(title)
+                .lineLimit(2)
+                .minimumScaleFactor(0.86)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: systemImage)
+        }
+    }
+
     var body: some View {
         SectionCard(title: "wizard.title") {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
@@ -472,7 +484,7 @@ struct TaggingSetupWizardView: View {
         Button {
             loadSuggestions()
         } label: {
-            Label(L("wizard.refresh"), systemImage: "arrow.clockwise")
+            wizardActionLabel(L("wizard.refresh"), systemImage: "arrow.clockwise")
         }
         .buttonStyle(.bordered)
         .disabled(isLoading || isApplying)
@@ -484,7 +496,7 @@ struct TaggingSetupWizardView: View {
         Button {
             applySuggestions()
         } label: {
-            Label(wizardPrimaryActionTitle, systemImage: wizardPrimaryActionIconName)
+            wizardActionLabel(wizardPrimaryActionTitle, systemImage: wizardPrimaryActionIconName)
         }
         .buttonStyle(.borderedProminent)
         .tint(wizardPrimaryActionTone.color)
