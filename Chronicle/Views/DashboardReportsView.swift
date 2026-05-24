@@ -3626,17 +3626,7 @@ struct ReportsWorkspaceView: View {
                     previewIssueActions
                 }
 
-                DisclosureGroup(isExpanded: $showIssueDetails) {
-                    Text(error)
-                        .font(.caption.monospaced())
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                        .textSelection(.enabled)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.top, DesignSystem.Spacing.xs)
-                } label: {
-                    Text("reports.preview.issue.support_details")
-                        .font(.caption.weight(.semibold))
-                }
+                previewIssueSupportDetails(error: error)
             }
             .padding(DesignSystem.Spacing.lg)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -3649,6 +3639,34 @@ struct ReportsWorkspaceView: View {
                     .stroke(DesignSystem.StatusTone.critical.color.opacity(0.22), lineWidth: 1)
             )
             .accessibilityIdentifier("reports.preview.issueCard")
+        }
+
+        private func previewIssueSupportDetails(error: String) -> some View {
+            let trimmedError = error.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            return DisclosureGroup(isExpanded: $showIssueDetails) {
+                Text(trimmedError.isEmpty ? error : trimmedError)
+                    .font(.caption.monospaced())
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .help(error)
+                    .padding(DesignSystem.Spacing.sm)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                            .fill(DesignSystem.Colors.cardBackground.opacity(0.72))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                            .stroke(DesignSystem.Colors.separator.opacity(0.22), lineWidth: 1)
+                    )
+                    .padding(.top, DesignSystem.Spacing.xs)
+            } label: {
+                Label(L("reports.preview.issue.support_details"), systemImage: "wrench.and.screwdriver")
+                    .font(.caption.weight(.semibold))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
 
         private var previewIssueSummary: some View {
