@@ -322,6 +322,8 @@
 "popover.daily_snapshot.work_block.time_range" = "%@-%@";
 "popover.daily_snapshot.guidance.setup_title" = "今日日志还需要保存位置。";
 "popover.daily_snapshot.guidance.setup_detail" = "先选一次文件夹，今天的记录才能从时间线变成可保存的日志。";
+"popover.daily_snapshot.guidance.failed_title" = "今日日志需要重试保存。";
+"popover.daily_snapshot.guidance.failed_detail" = "时间线和笔记仍然保留在这里。现在重试；如果 macOS 阻止写入，就刷新日志文件夹。";
 "popover.daily_snapshot.guidance.saved_title" = "今天已经保存过日志。";
 "popover.daily_snapshot.guidance.saved_detail" = "需要复查时打开已保存日志；如果工作继续，再补一条笔记。";
 "popover.daily_snapshot.guidance.ready_title" = "现在适合做一次有用收尾。";
@@ -331,6 +333,7 @@
 "popover.daily_snapshot.guidance.building_title" = "记录还在形成中。";
 "popover.daily_snapshot.guidance.building_detail" = "可以继续工作；想确认 Chronicle 看到了什么时再打开时间线。";
 "popover.daily_snapshot.guidance.status.setup" = "设目录";
+"popover.daily_snapshot.guidance.status.failed" = "重试";
 "popover.daily_snapshot.guidance.status.saved" = "已保存";
 "popover.daily_snapshot.guidance.status.ready" = "可收尾";
 "popover.daily_snapshot.guidance.status.context" = "缺笔记";
@@ -338,6 +341,7 @@
 "popover.action.quick_marker" = "+ 添加笔记";
 "popover.action.review_timeline" = "复盘时间线";
 "popover.action.export_daily" = "保存今日日志";
+"popover.action.retry_daily_log" = "重试今日日志";
 "popover.action.setup_exports" = "设置日志目录";
 "popover.action.open_daily_folder" = "打开日志目录";
 "popover.export_status.setup_hint" = "先选择今日日志保存位置，再保存第一份日志。";

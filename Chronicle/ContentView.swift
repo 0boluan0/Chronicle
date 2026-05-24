@@ -1364,11 +1364,14 @@ struct ContentView: View {
     }
 
     private var dailySnapshotGuidance: DailySnapshotGuidanceKind {
-        if dailySnapshot.activeSeconds >= 15 * 60 && dailySnapshot.reviewCueCount == 0 {
+        if dailySnapshot.activeSeconds >= 15 * 60 && dailySnapshot.reviewCueCount == 0 && !dailyLogExportFailedToday {
             return .needsContext
         }
         if !hasDailyExportFolderConfigured {
             return .setupExports
+        }
+        if dailyLogExportFailedToday {
+            return .failed
         }
         if dailyLogSavedToday {
             return .saved
@@ -1386,6 +1389,8 @@ struct ContentView: View {
         switch guidance {
         case .setupExports:
             openExportPreferences()
+        case .failed:
+            exportDailyNow()
         case .saved:
             openDailyFolder()
         case .readyWithContext:
@@ -2069,6 +2074,9 @@ struct ContentView: View {
         if !hasDailyExportFolderConfigured {
             return "popover.action.setup_exports"
         }
+        if dailyLogExportFailedToday {
+            return "popover.action.retry_daily_log"
+        }
         if dailyLogSavedToday {
             return "popover.action.open_daily_folder"
         }
@@ -2079,6 +2087,9 @@ struct ContentView: View {
         if !hasDailyExportFolderConfigured {
             return "folder.badge.plus"
         }
+        if dailyLogExportFailedToday {
+            return "arrow.clockwise"
+        }
         if dailyLogSavedToday {
             return "folder"
         }
@@ -2088,6 +2099,8 @@ struct ContentView: View {
     private func runDailySnapshotPrimaryAction() {
         if !hasDailyExportFolderConfigured {
             openExportPreferences()
+        } else if dailyLogExportFailedToday {
+            exportDailyNow()
         } else if dailyLogSavedToday {
             openDailyFolder()
         } else {
@@ -2589,6 +2602,7 @@ private struct DailySnapshotTag: Identifiable, Equatable {
 
 private enum DailySnapshotGuidanceKind {
     case setupExports
+    case failed
     case saved
     case readyWithContext
     case needsContext
@@ -2598,6 +2612,8 @@ private enum DailySnapshotGuidanceKind {
         switch self {
         case .setupExports:
             return "popover.daily_snapshot.guidance.setup_title"
+        case .failed:
+            return "popover.daily_snapshot.guidance.failed_title"
         case .saved:
             return "popover.daily_snapshot.guidance.saved_title"
         case .readyWithContext:
@@ -2613,6 +2629,8 @@ private enum DailySnapshotGuidanceKind {
         switch self {
         case .setupExports:
             return "popover.daily_snapshot.guidance.setup_detail"
+        case .failed:
+            return "popover.daily_snapshot.guidance.failed_detail"
         case .saved:
             return "popover.daily_snapshot.guidance.saved_detail"
         case .readyWithContext:
@@ -2628,6 +2646,8 @@ private enum DailySnapshotGuidanceKind {
         switch self {
         case .setupExports:
             return "popover.daily_snapshot.guidance.status.setup"
+        case .failed:
+            return "popover.daily_snapshot.guidance.status.failed"
         case .saved:
             return "popover.daily_snapshot.guidance.status.saved"
         case .readyWithContext:
@@ -2643,6 +2663,8 @@ private enum DailySnapshotGuidanceKind {
         switch self {
         case .setupExports:
             return "folder.badge.plus"
+        case .failed:
+            return "exclamationmark.triangle.fill"
         case .saved:
             return "checkmark.seal.fill"
         case .readyWithContext:
@@ -2658,6 +2680,8 @@ private enum DailySnapshotGuidanceKind {
         switch self {
         case .setupExports:
             return "folder"
+        case .failed:
+            return "arrow.clockwise"
         case .saved:
             return "checkmark"
         case .readyWithContext:
@@ -2671,7 +2695,7 @@ private enum DailySnapshotGuidanceKind {
 
     var tone: DesignSystem.StatusTone {
         switch self {
-        case .setupExports, .needsContext:
+        case .setupExports, .failed, .needsContext:
             return .warning
         case .building:
             return .info
@@ -2684,6 +2708,8 @@ private enum DailySnapshotGuidanceKind {
         switch self {
         case .setupExports:
             return "popover.action.setup_exports"
+        case .failed:
+            return "popover.action.retry_daily_log"
         case .saved:
             return "popover.action.open_daily_folder"
         case .readyWithContext:
@@ -2699,6 +2725,8 @@ private enum DailySnapshotGuidanceKind {
         switch self {
         case .setupExports:
             return "folder.badge.plus"
+        case .failed:
+            return "arrow.clockwise"
         case .saved:
             return "folder"
         case .readyWithContext:
@@ -2714,6 +2742,8 @@ private enum DailySnapshotGuidanceKind {
         switch self {
         case .setupExports:
             return "popover.dailySnapshot.guidance.setupExports"
+        case .failed:
+            return "popover.dailySnapshot.guidance.retryDailyLog"
         case .saved:
             return "popover.dailySnapshot.guidance.openFolder"
         case .readyWithContext:

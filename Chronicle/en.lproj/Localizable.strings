@@ -322,6 +322,8 @@
 "popover.daily_snapshot.work_block.time_range" = "%@-%@";
 "popover.daily_snapshot.guidance.setup_title" = "Daily log needs a home.";
 "popover.daily_snapshot.guidance.setup_detail" = "Choose a folder once so today can become a saved log instead of just a timeline.";
+"popover.daily_snapshot.guidance.failed_title" = "Daily log save needs a retry.";
+"popover.daily_snapshot.guidance.failed_detail" = "The timeline and notes are still here. Retry the save, or refresh the folder if macOS blocked writing.";
 "popover.daily_snapshot.guidance.saved_title" = "Today is already saved.";
 "popover.daily_snapshot.guidance.saved_detail" = "Open the saved log if you need to review it; add another note if the day continues.";
 "popover.daily_snapshot.guidance.ready_title" = "Ready for a useful closeout.";
@@ -331,6 +333,7 @@
 "popover.daily_snapshot.guidance.building_title" = "Capture is still warming up.";
 "popover.daily_snapshot.guidance.building_detail" = "Keep working or check the timeline when you want to confirm what Chronicle has seen.";
 "popover.daily_snapshot.guidance.status.setup" = "Set folder";
+"popover.daily_snapshot.guidance.status.failed" = "Retry";
 "popover.daily_snapshot.guidance.status.saved" = "Saved";
 "popover.daily_snapshot.guidance.status.ready" = "Ready";
 "popover.daily_snapshot.guidance.status.context" = "Needs note";
@@ -338,6 +341,7 @@
 "popover.action.quick_marker" = "+ Add Note";
 "popover.action.review_timeline" = "Review Timeline";
 "popover.action.export_daily" = "Save Daily Log";
+"popover.action.retry_daily_log" = "Retry Daily Log";
 "popover.action.setup_exports" = "Set Log Folder";
 "popover.action.open_daily_folder" = "Open Log Folder";
 "popover.export_status.setup_hint" = "Choose a daily log folder first, then save your first daily log.";
