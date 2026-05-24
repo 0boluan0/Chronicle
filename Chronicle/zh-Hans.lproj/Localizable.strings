@@ -1300,6 +1300,9 @@
 "support.update_channel.install_title" = "首次打开检查";
 "support.update_channel.install_detail" = "如果 macOS 提示候选版本未签名，先确认发布来源和校验文件，再从 Finder 手动打开。";
 "support.update_channel.install_status" = "用户确认";
+"support.update_channel.health_title" = "更新后健康检查";
+"support.update_channel.health_detail" = "首次启动后运行应用健康检查，并确认今日日志仍能保存。";
+"support.update_channel.health_status" = "确认后再依赖";
 "support.update_channel.recovery_title" = "回退路径";
 "support.update_channel.recovery_detail" = "替换 Chronicle 前，保留上一个稳定版本的下载入口。";
 "support.update_channel.recovery_status" = "可手动回退";

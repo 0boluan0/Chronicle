@@ -471,6 +471,15 @@ struct SupportPreferencesView: View {
                     )
 
                     supportChecklistItem(
+                        systemImage: "stethoscope",
+                        tone: .info,
+                        titleKey: "support.update_channel.health_title",
+                        detailKey: "support.update_channel.health_detail",
+                        status: L("support.update_channel.health_status"),
+                        accessibilityIdentifier: "support.updateChannel.health"
+                    )
+
+                    supportChecklistItem(
                         systemImage: "clock.arrow.circlepath",
                         tone: .warning,
                         titleKey: "support.update_channel.recovery_title",

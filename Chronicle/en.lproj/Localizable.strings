@@ -1300,6 +1300,9 @@
 "support.update_channel.install_title" = "First launch check";
 "support.update_channel.install_detail" = "If macOS warns about an unsigned candidate, open it from Finder only after checking the release source and checksum.";
 "support.update_channel.install_status" = "User-approved";
+"support.update_channel.health_title" = "Post-update health";
+"support.update_channel.health_detail" = "After the first launch, run App Health and confirm today's log can still save.";
+"support.update_channel.health_status" = "Verify before relying";
 "support.update_channel.recovery_title" = "Recovery path";
 "support.update_channel.recovery_detail" = "Keep the previous stable build reachable before replacing Chronicle.";
 "support.update_channel.recovery_status" = "Rollback ready";
