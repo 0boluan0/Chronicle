@@ -401,7 +401,7 @@ struct DashboardOverviewView: View {
         Button {
             performActivityMapEmptyPrimaryAction()
         } label: {
-            Label(L(activityMapEmptyPrimaryActionTitleKey), systemImage: activityMapEmptyPrimaryActionIconName)
+            overviewActionLabel(L(activityMapEmptyPrimaryActionTitleKey), systemImage: activityMapEmptyPrimaryActionIconName)
         }
         .buttonStyle(.borderedProminent)
         .tint(activityMapEmptyPrimaryTone.color)
@@ -421,7 +421,7 @@ struct DashboardOverviewView: View {
         Button {
             AppWindowRouter.shared.open(.quickMarker)
         } label: {
-            Label(L("overview.activity_map.empty_add_marker"), systemImage: "square.and.pencil")
+            overviewActionLabel(L("overview.activity_map.empty_add_marker"), systemImage: "square.and.pencil")
         }
         .buttonStyle(.bordered)
         .accessibilityIdentifier("dashboard.overview.activityMap.empty.addMarker")
@@ -431,10 +431,23 @@ struct DashboardOverviewView: View {
         Button {
             selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
         } label: {
-            Label(L("overview.activity_map.empty_open_timeline"), systemImage: "clock")
+            overviewActionLabel(L("overview.activity_map.empty_open_timeline"), systemImage: "clock")
         }
         .buttonStyle(.bordered)
         .accessibilityIdentifier("dashboard.overview.activityMap.empty.openTimeline")
+    }
+
+    private func overviewActionLabel(_ title: String, systemImage: String) -> some View {
+        Label {
+            Text(title)
+                .lineLimit(2)
+                .minimumScaleFactor(0.86)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: systemImage)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var headerView: some View {
@@ -871,7 +884,7 @@ struct DashboardOverviewView: View {
         Button {
             performPrimaryReviewAction()
         } label: {
-            Label(L(primaryReviewActionTitleKey), systemImage: primaryReviewActionIconName)
+            overviewActionLabel(L(primaryReviewActionTitleKey), systemImage: primaryReviewActionIconName)
         }
         .buttonStyle(.borderedProminent)
         .tint(DesignSystem.Colors.accentSkyBlue)
@@ -963,7 +976,7 @@ struct DashboardOverviewView: View {
         Button {
             performSecondaryReviewAction()
         } label: {
-            Label(L(secondaryReviewActionTitleKey), systemImage: secondaryReviewActionIconName)
+            overviewActionLabel(L(secondaryReviewActionTitleKey), systemImage: secondaryReviewActionIconName)
         }
         .buttonStyle(.bordered)
         .accessibilityIdentifier(secondaryReviewActionAccessibilityIdentifier)
@@ -1341,6 +1354,7 @@ struct DashboardOverviewView: View {
         Label {
             Text(title)
                 .lineLimit(2)
+                .minimumScaleFactor(0.86)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
         } icon: {
@@ -1398,7 +1412,7 @@ struct DashboardOverviewView: View {
             Button {
                 AppWindowRouter.shared.open(.settings(.export))
             } label: {
-                Label(L("overview.weekly_summary.open_export"), systemImage: "gearshape")
+                weeklySummaryActionLabel(L("overview.weekly_summary.open_export"), systemImage: "gearshape")
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
@@ -1407,7 +1421,7 @@ struct DashboardOverviewView: View {
             Button {
                 openWeeklyFolder()
             } label: {
-                Label(L("overview.weekly_summary.open_folder"), systemImage: "folder")
+                weeklySummaryActionLabel(L("overview.weekly_summary.open_folder"), systemImage: "folder")
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
@@ -1772,11 +1786,13 @@ struct DashboardOverviewView: View {
         Label {
             Text(title)
                 .lineLimit(2)
+                .minimumScaleFactor(0.86)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
         } icon: {
             Image(systemName: systemImage)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var todayCaptureValueText: String {
