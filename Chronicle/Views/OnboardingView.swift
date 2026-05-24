@@ -151,38 +151,57 @@ struct OnboardingView: View {
     }
 
     private var setupRail: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-                Text("Chronicle")
-                    .font(.title3.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                Text("onboarding.path.subtitle")
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
-            }
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            setupRailHeader
 
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                ForEach(flowSteps) { flowStep in
-                    stepRow(for: flowStep)
+            ScrollView(.vertical) {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
+                    setupRailSteps
+
+                    setupRailFocusCard
+
+                    setupRailTrustCard
+
+                    Text("onboarding.path.footer")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .padding(.trailing, 1)
             }
-
-            setupRailFocusCard
-
-            setupRailTrustCard
-
-            Spacer()
-
-            Text("onboarding.path.footer")
-                .font(DesignSystem.Typography.caption)
-                .foregroundColor(DesignSystem.Colors.secondaryText)
-                .lineLimit(3)
+            .scrollIndicators(.automatic)
         }
         .padding(DesignSystem.Spacing.lg)
-        .frame(width: 210, alignment: .topLeading)
+        .frame(width: 220, alignment: .topLeading)
         .frame(maxHeight: .infinity, alignment: .topLeading)
         .background(DesignSystem.Colors.cardBackground.opacity(0.55))
+    }
+
+    private var setupRailHeader: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+            Text("Chronicle")
+                .font(.title3.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.primaryText)
+
+            Text("onboarding.path.subtitle")
+                .font(DesignSystem.Typography.caption)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("onboarding.rail.header")
+    }
+
+    private var setupRailSteps: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            ForEach(flowSteps) { flowStep in
+                stepRow(for: flowStep)
+            }
+        }
+        .accessibilityIdentifier("onboarding.rail.steps")
     }
 
     private var setupRailFocusCard: some View {
@@ -261,7 +280,8 @@ struct OnboardingView: View {
                     Text(LocalizedStringKey(railTitleKey(for: flowStep)))
                         .font(.caption.weight(isCurrent ? .semibold : .regular))
                         .foregroundColor(DesignSystem.Colors.primaryText)
-                        .lineLimit(1)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     Text(railStatusText(for: flowStep))
                         .font(.caption2)
