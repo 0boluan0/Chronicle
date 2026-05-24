@@ -528,6 +528,14 @@ struct SupportPreferencesView: View {
                     .accessibilityIdentifier("support.updateChannel.copyChecklist")
 
                     Button {
+                        showHealthReport = true
+                    } label: {
+                        supportActionLabel(L("support.release_safety.open_health"), systemImage: "stethoscope")
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("support.updateChannel.openHealth")
+
+                    Button {
                         open(
                             url: releasesPageURL,
                             target: .updateChannel,
