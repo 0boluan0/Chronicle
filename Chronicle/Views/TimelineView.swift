@@ -37,6 +37,18 @@ struct TimelineView: View {
         [GridItem(.adaptive(minimum: minimum), spacing: spacing, alignment: .leading)]
     }
 
+    private func timelineActionLabel(_ title: String, systemImage: String) -> some View {
+        Label {
+            Text(title)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: systemImage)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
             headerView
@@ -188,7 +200,7 @@ struct TimelineView: View {
             Button {
                 refreshTimeline(reason: "timeline issue retry")
             } label: {
-                Label(L("timeline.error.retry"), systemImage: "arrow.clockwise")
+                timelineActionLabel(L("timeline.error.retry"), systemImage: "arrow.clockwise")
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
@@ -199,7 +211,7 @@ struct TimelineView: View {
             Button {
                 AppWindowRouter.shared.open(.settings(.support))
             } label: {
-                Label(L("timeline.error.open_health"), systemImage: "stethoscope")
+                timelineActionLabel(L("timeline.error.open_health"), systemImage: "stethoscope")
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
@@ -318,7 +330,7 @@ struct TimelineView: View {
                 Button {
                     showUntaggedActivities()
                 } label: {
-                    Label(L("timeline.review.show_unlabeled"), systemImage: "exclamationmark.triangle.fill")
+                    timelineActionLabel(L("timeline.review.show_unlabeled"), systemImage: "exclamationmark.triangle.fill")
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
@@ -329,7 +341,7 @@ struct TimelineView: View {
                 Button {
                     resetTimelineFilters()
                 } label: {
-                    Label(L("timeline.review.reset_filters"), systemImage: "line.3.horizontal.decrease.circle")
+                    timelineActionLabel(L("timeline.review.reset_filters"), systemImage: "line.3.horizontal.decrease.circle")
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
@@ -417,7 +429,7 @@ struct TimelineView: View {
             Button {
                 resetTimelineFilters()
             } label: {
-                Label(L("timeline.empty.reset_filters"), systemImage: "line.3.horizontal.decrease.circle")
+                timelineActionLabel(L("timeline.empty.reset_filters"), systemImage: "line.3.horizontal.decrease.circle")
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
@@ -428,7 +440,7 @@ struct TimelineView: View {
             Button {
                 AppWindowRouter.shared.open(.quickMarker)
             } label: {
-                Label(L("timeline.empty.add_note"), systemImage: "square.and.pencil")
+                timelineActionLabel(L("timeline.empty.add_note"), systemImage: "square.and.pencil")
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
@@ -450,7 +462,7 @@ struct TimelineView: View {
         Button {
             AppWindowRouter.shared.open(.dashboard)
         } label: {
-            Label(L("timeline.empty.open_today"), systemImage: "sun.max")
+            timelineActionLabel(L("timeline.empty.open_today"), systemImage: "sun.max")
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
@@ -463,7 +475,7 @@ struct TimelineView: View {
             appState.trackingPaused = false
             AppWindowRouter.shared.open(.dashboard)
         } label: {
-            Label(L("timeline.empty.resume_capture"), systemImage: "play.fill")
+            timelineActionLabel(L("timeline.empty.resume_capture"), systemImage: "play.fill")
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
@@ -475,7 +487,7 @@ struct TimelineView: View {
         Button {
             AppWindowRouter.shared.open(.settings(.support))
         } label: {
-            Label(L("timeline.empty.check_capture"), systemImage: "checkmark.shield")
+            timelineActionLabel(L("timeline.empty.check_capture"), systemImage: "checkmark.shield")
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
