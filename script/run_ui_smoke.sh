@@ -10,6 +10,34 @@ RESULTS_DIR="${ROOT_DIR}/build/ui-smoke-results"
 
 LANGUAGE="${1:-all}"
 
+PUBLIC_TESTS_EN=(
+  "ChronicleUITests/ChronicleUITests/testEnglishPublicBetaSmoke"
+)
+
+PUBLIC_TESTS_ZH_HANS=(
+  "ChronicleUITests/ChronicleUITests/testChinesePublicBetaSmoke"
+)
+
+SURFACE_TESTS_EN=(
+  "ChronicleUITests/ChronicleUITests/testTagsPreferencesClassificationSurfaceSmoke"
+  "ChronicleUITests/ChronicleUITests/testTagWizardReviewSurfaceSmoke"
+  "ChronicleUITests/ChronicleUITests/testAppMappingsReviewWorkspaceSmoke"
+  "ChronicleUITests/ChronicleUITests/testQuickMarkerPanelGuidanceSmoke"
+  "ChronicleUITests/ChronicleUITests/testPopoverNextActionCardSmoke"
+  "ChronicleUITests/ChronicleUITests/testDashboardOverviewReviewBriefSmoke"
+  "ChronicleUITests/ChronicleUITests/testDashboardTimelineReviewFocusSmoke"
+  "ChronicleUITests/ChronicleUITests/testDashboardMarkersReviewNotesSmoke"
+  "ChronicleUITests/ChronicleUITests/testDashboardStatsInsightsSmoke"
+  "ChronicleUITests/ChronicleUITests/testDashboardDebugFlowSmoke"
+  "ChronicleUITests/ChronicleUITests/testDashboardReportsCloseoutSmoke"
+  "ChronicleUITests/ChronicleUITests/testReportsReviewPlanSmoke"
+  "ChronicleUITests/ChronicleUITests/testPrivacyTrustSurfaceSmoke"
+  "ChronicleUITests/ChronicleUITests/testDebugPreferencesDiagnosticsSurfaceSmoke"
+  "ChronicleUITests/ChronicleUITests/testSupportReadinessReportSmoke"
+  "ChronicleUITests/ChronicleUITests/testGeneralSetupSurfaceSmoke"
+  "ChronicleUITests/ChronicleUITests/testOnboardingGuidedSetupSurfaceSmoke"
+)
+
 automation_status() {
   automationmodetool 2>&1 || true
 }
@@ -39,25 +67,24 @@ cleanup_processes() {
 
 run_case() {
   local language="$1"
-  local test_name
+  local scope="$2"
   local result_bundle
+  shift 2
+  local tests=("$@")
+  local only_testing_args=()
 
-  case "$language" in
-    en)
-      test_name="ChronicleUITests/ChronicleUITests/testEnglishPublicBetaSmoke"
-      ;;
-    zh-Hans)
-      test_name="ChronicleUITests/ChronicleUITests/testChinesePublicBetaSmoke"
-      ;;
-    *)
-      echo "unsupported language: $language" >&2
-      exit 2
-      ;;
-  esac
+  if [ "${#tests[@]}" -eq 0 ]; then
+    echo "no tests configured for ${scope}/${language}" >&2
+    exit 2
+  fi
+
+  for test_name in "${tests[@]}"; do
+    only_testing_args+=("-only-testing:${test_name}")
+  done
 
   cleanup_processes
   mkdir -p "$RESULTS_DIR"
-  result_bundle="${RESULTS_DIR}/${language}.xcresult"
+  result_bundle="${RESULTS_DIR}/${scope}-${language}.xcresult"
   rm -rf "$result_bundle"
 
   xcodebuild \
@@ -66,22 +93,33 @@ run_case() {
     -destination "$DESTINATION" \
     -derivedDataPath "$DERIVED_DATA" \
     -resultBundlePath "$result_bundle" \
-    -only-testing:"$test_name" \
+    "${only_testing_args[@]}" \
     test
 }
 
 require_automation_mode
 
 case "$LANGUAGE" in
-  all)
-    run_case en
-    run_case zh-Hans
+  all|public)
+    run_case en public "${PUBLIC_TESTS_EN[@]}"
+    run_case zh-Hans public "${PUBLIC_TESTS_ZH_HANS[@]}"
     ;;
-  en|zh-Hans)
-    run_case "$LANGUAGE"
+  full)
+    run_case en public "${PUBLIC_TESTS_EN[@]}"
+    run_case zh-Hans public "${PUBLIC_TESTS_ZH_HANS[@]}"
+    run_case en surface "${SURFACE_TESTS_EN[@]}"
+    ;;
+  surface)
+    run_case en surface "${SURFACE_TESTS_EN[@]}"
+    ;;
+  en)
+    run_case en public "${PUBLIC_TESTS_EN[@]}"
+    ;;
+  zh-Hans)
+    run_case zh-Hans public "${PUBLIC_TESTS_ZH_HANS[@]}"
     ;;
   *)
-    echo "usage: $0 [all|en|zh-Hans]" >&2
+    echo "usage: $0 [all|public|full|surface|en|zh-Hans]" >&2
     exit 2
     ;;
 esac
