@@ -1073,21 +1073,7 @@ struct HealthCheckDetailsView: View {
                 )
             }
 
-            DisclosureGroup {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(technicalMessage)
-                    if let technicalDetails, !technicalDetails.isEmpty {
-                        Text(technicalDetails)
-                    }
-                }
-                .font(DesignSystem.Typography.caption)
-                .foregroundColor(DesignSystem.Colors.secondaryText)
-                .textSelection(.enabled)
-                .padding(.top, 2)
-            } label: {
-                Label(L("self_check.details.issue.technical_details"), systemImage: "wrench.and.screwdriver")
-                    .font(.caption.weight(.medium))
-            }
+            technicalIssueDetails(message: technicalMessage, details: technicalDetails)
 
             if let action = presentation.action {
                 LazyVGrid(
@@ -1110,6 +1096,61 @@ struct HealthCheckDetailsView: View {
                 .stroke(presentation.tone.color.opacity(0.18), lineWidth: 1)
         )
         .accessibilityIdentifier(accessibilityIdentifier)
+    }
+
+    private func technicalIssueDetails(message: String, details: String?) -> some View {
+        let messageText = message.trimmingCharacters(in: .whitespacesAndNewlines)
+        let detailsText = (details ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return DisclosureGroup {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                if !messageText.isEmpty {
+                    technicalDetailLine(
+                        titleKey: "self_check.details.clipboard.technical_message",
+                        value: messageText
+                    )
+                }
+
+                if !detailsText.isEmpty {
+                    technicalDetailLine(
+                        titleKey: "self_check.details.clipboard.technical_details",
+                        value: detailsText
+                    )
+                }
+            }
+            .padding(DesignSystem.Spacing.sm)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                    .fill(DesignSystem.Colors.cardBackground.opacity(0.72))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                    .stroke(DesignSystem.Colors.separator.opacity(0.22), lineWidth: 1)
+            )
+            .padding(.top, DesignSystem.Spacing.xs)
+        } label: {
+            Label(L("self_check.details.issue.technical_details"), systemImage: "wrench.and.screwdriver")
+                .font(.caption.weight(.medium))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func technicalDetailLine(titleKey: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(LocalizedStringKey(titleKey))
+                .font(.caption2.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .lineLimit(1)
+
+            Text(value)
+                .font(.caption.monospaced())
+                .foregroundColor(DesignSystem.Colors.primaryText)
+                .fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled)
+                .help(value)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func healthIssueSummary(_ presentation: HealthIssuePresentation) -> some View {
