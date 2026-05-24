@@ -2229,6 +2229,11 @@
 "reports.closeout.confidence.timeline_empty" = "Timeline is missing";
 "reports.closeout.confidence.timeline_ready_detail" = "%d rows can be summarized.";
 "reports.closeout.confidence.timeline_empty_detail" = "Keep Chronicle running or add a note before saving.";
+"reports.closeout.confidence.source_title" = "Capture basis";
+"reports.closeout.confidence.source_value" = "%d events";
+"reports.closeout.confidence.source_ready_detail" = "%d timeline rows are available to check.";
+"reports.closeout.confidence.source_compacted_detail" = "Timeline rows exist, but raw event details are not available for this range.";
+"reports.closeout.confidence.source_empty_detail" = "No captured events support this log yet.";
 "reports.closeout.confidence.context_title" = "Context";
 "reports.closeout.confidence.context_ready" = "Context included";
 "reports.closeout.confidence.context_optional" = "Context can wait";

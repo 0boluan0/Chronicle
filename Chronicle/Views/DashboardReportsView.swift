@@ -933,6 +933,15 @@ struct ReportsWorkspaceView: View {
                 )
 
                 closeoutSaveConfidenceItem(
+                    titleKey: "reports.closeout.confidence.source_title",
+                    value: closeoutConfidenceSourceValue,
+                    detail: closeoutConfidenceSourceDetail,
+                    systemImage: closeoutSnapshot.rawEventCount > 0 ? "dot.radiowaves.left.and.right" : "tray",
+                    tone: closeoutSnapshot.rawEventCount > 0 ? .success : (closeoutSnapshot.activeSeconds > 0 ? .info : .neutral),
+                    accessibilityIdentifier: "reports.closeout.confidence.source"
+                )
+
+                closeoutSaveConfidenceItem(
                     titleKey: "reports.closeout.confidence.context_title",
                     value: closeoutConfidenceContextValue,
                     detail: closeoutConfidenceContextDetail,
@@ -4472,6 +4481,20 @@ struct ReportsWorkspaceView: View {
             : L("reports.closeout.confidence.timeline_empty_detail")
     }
 
+    private var closeoutConfidenceSourceValue: String {
+        String(format: L("reports.closeout.confidence.source_value"), closeoutSnapshot.rawEventCount)
+    }
+
+    private var closeoutConfidenceSourceDetail: String {
+        if closeoutSnapshot.rawEventCount > 0 {
+            return String(format: L("reports.closeout.confidence.source_ready_detail"), closeoutSnapshot.sessionCount)
+        }
+        if closeoutSnapshot.activeSeconds > 0 {
+            return L("reports.closeout.confidence.source_compacted_detail")
+        }
+        return L("reports.closeout.confidence.source_empty_detail")
+    }
+
     private var closeoutConfidenceContextValue: String {
         closeoutHasHumanContext
             ? L("reports.closeout.confidence.context_ready")
@@ -4827,6 +4850,7 @@ struct ReportsWorkspaceView: View {
         let group = DispatchGroup()
         var timelineItems: [TimelineItem] = []
         var tagRows: [TagRow] = []
+        var rawEventCount = 0
         var snapshotError: String?
 
         group.enter()
@@ -4839,6 +4863,17 @@ struct ReportsWorkspaceView: View {
             switch result {
             case .success(let items):
                 timelineItems = items
+            case .failure(let error):
+                snapshotError = error.localizedDescription
+            }
+            group.leave()
+        }
+
+        group.enter()
+        DatabaseService.shared.fetchRawEventCount(start: bounds.start, end: bounds.end) { result in
+            switch result {
+            case .success(let count):
+                rawEventCount = count
             case .failure(let error):
                 snapshotError = error.localizedDescription
             }
@@ -4860,7 +4895,12 @@ struct ReportsWorkspaceView: View {
             if let snapshotError {
                 self.closeoutSnapshotError = snapshotError
             } else {
-                self.closeoutSnapshot = CloseoutSnapshot(items: timelineItems, bounds: bounds, tags: tagRows)
+                self.closeoutSnapshot = CloseoutSnapshot(
+                    items: timelineItems,
+                    bounds: bounds,
+                    tags: tagRows,
+                    rawEventCount: rawEventCount
+                )
                 self.closeoutSnapshotError = nil
                 self.showCloseoutSnapshotIssueDetails = false
             }
@@ -4879,6 +4919,7 @@ private struct CloseoutSnapshot: Equatable {
     let idleSeconds: Int64
     let sessionCount: Int
     let cueCount: Int
+    let rawEventCount: Int
     let untaggedActiveCount: Int
     let workBlocks: [WorkBlockInsight]
 
@@ -4887,6 +4928,7 @@ private struct CloseoutSnapshot: Equatable {
         idleSeconds: 0,
         sessionCount: 0,
         cueCount: 0,
+        rawEventCount: 0,
         untaggedActiveCount: 0,
         workBlocks: []
     )
@@ -4896,6 +4938,7 @@ private struct CloseoutSnapshot: Equatable {
         idleSeconds: Int64,
         sessionCount: Int,
         cueCount: Int,
+        rawEventCount: Int,
         untaggedActiveCount: Int,
         workBlocks: [WorkBlockInsight]
     ) {
@@ -4903,6 +4946,7 @@ private struct CloseoutSnapshot: Equatable {
         self.idleSeconds = idleSeconds
         self.sessionCount = sessionCount
         self.cueCount = cueCount
+        self.rawEventCount = rawEventCount
         self.untaggedActiveCount = untaggedActiveCount
         self.workBlocks = workBlocks
     }
@@ -4911,7 +4955,7 @@ private struct CloseoutSnapshot: Equatable {
         workBlocks.first
     }
 
-    init(items: [TimelineItem], bounds: (start: Int64, end: Int64), tags: [TagRow]) {
+    init(items: [TimelineItem], bounds: (start: Int64, end: Int64), tags: [TagRow], rawEventCount: Int = 0) {
         var activeSeconds: Int64 = 0
         var idleSeconds: Int64 = 0
         var sessionCount = 0
@@ -4942,6 +4986,7 @@ private struct CloseoutSnapshot: Equatable {
         self.idleSeconds = idleSeconds
         self.sessionCount = sessionCount
         self.cueCount = cueCount
+        self.rawEventCount = rawEventCount
         self.untaggedActiveCount = untaggedActiveCount
         self.workBlocks = WorkBlockInsightBuilder.build(
             activities: activities,

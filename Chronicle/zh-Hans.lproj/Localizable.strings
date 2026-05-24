@@ -2228,6 +2228,11 @@
 "reports.closeout.confidence.timeline_empty" = "时间线缺内容";
 "reports.closeout.confidence.timeline_ready_detail" = "可总结 %d 条记录。";
 "reports.closeout.confidence.timeline_empty_detail" = "先保持 Chronicle 运行，或补一条笔记后再保存。";
+"reports.closeout.confidence.source_title" = "记录依据";
+"reports.closeout.confidence.source_value" = "%d 条事件";
+"reports.closeout.confidence.source_ready_detail" = "可核对 %d 条时间线记录。";
+"reports.closeout.confidence.source_compacted_detail" = "时间线已有记录，但这个范围没有原始事件明细。";
+"reports.closeout.confidence.source_empty_detail" = "这份日志还没有捕获事件作为依据。";
 "reports.closeout.confidence.context_title" = "语境";
 "reports.closeout.confidence.context_ready" = "已有语境";
 "reports.closeout.confidence.context_optional" = "语境可稍后补";
