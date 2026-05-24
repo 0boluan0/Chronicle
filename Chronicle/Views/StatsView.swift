@@ -980,10 +980,17 @@ struct StatsView: View {
                                     .foregroundColor(DesignSystem.Colors.secondaryText)
                             }
                             Spacer()
-                            Button(L("stats.deep_work.open_dashboard")) {
+                            Button {
                                 openDashboard(at: block.start)
+                            } label: {
+                                statsCompactActionLabel(
+                                    L("stats.deep_work.open_dashboard"),
+                                    systemImage: "rectangle.split.3x1"
+                                )
                             }
                             .buttonStyle(.bordered)
+                            .controlSize(.small)
+                            .accessibilityIdentifier("stats.deepWork.openDashboard")
                         }
                     }
                 }
