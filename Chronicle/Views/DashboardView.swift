@@ -431,6 +431,18 @@ struct DashboardView: View {
         .accessibilityIdentifier("dashboard.sidebar.quickActions")
     }
 
+    private func sidebarActionLabel(_ titleKey: LocalizedStringKey, systemImage: String) -> some View {
+        Label {
+            Text(titleKey)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: systemImage)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     private var sidebarTodayControlPanel: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
             ViewThatFits(in: .horizontal) {
@@ -678,8 +690,7 @@ struct DashboardView: View {
                 Button {
                     performSidebarNextStep()
                 } label: {
-                    Label(sidebarNextStepButtonTitleKey, systemImage: sidebarNextStepButtonIconName)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    sidebarActionLabel(sidebarNextStepButtonTitleKey, systemImage: sidebarNextStepButtonIconName)
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
