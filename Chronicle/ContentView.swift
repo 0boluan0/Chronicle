@@ -372,34 +372,41 @@ struct ContentView: View {
     }
 
     private var commandCenterFlow: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 132), spacing: DesignSystem.Spacing.sm, alignment: .topLeading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            commandCenterFlowStep(
-                titleKey: "popover.command_center.flow.capture",
-                systemImage: "record.circle",
-                tone: dailySnapshot.activeSeconds > 0 ? .success : .info,
-                isComplete: dailySnapshot.activeSeconds > 0,
-                isCurrent: dailySnapshot.activeSeconds == 0
-            )
-            commandCenterFlowStep(
-                titleKey: "popover.command_center.flow.context",
-                systemImage: "note.text",
-                tone: dailySnapshot.reviewCueCount > 0 ? .success : .warning,
-                isComplete: dailySnapshot.reviewCueCount > 0,
-                isCurrent: dailySnapshot.activeSeconds > 0 && dailySnapshot.reviewCueCount == 0
-            )
-            commandCenterFlowStep(
-                titleKey: "popover.command_center.flow.log",
-                systemImage: commandCenterLogStepIconName,
-                tone: commandCenterLogStepTone,
-                isComplete: dailyLogSavedToday,
-                isCurrent: dailySnapshot.activeSeconds > 0 && dailySnapshot.reviewCueCount > 0 && !dailyLogSavedToday
-            )
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                commandCenterFlowSteps
+            }
+
+            VStack(spacing: DesignSystem.Spacing.sm) {
+                commandCenterFlowSteps
+            }
         }
         .accessibilityIdentifier("popover.commandCenter.flow")
+    }
+
+    @ViewBuilder
+    private var commandCenterFlowSteps: some View {
+        commandCenterFlowStep(
+            titleKey: "popover.command_center.flow.capture",
+            systemImage: "record.circle",
+            tone: dailySnapshot.activeSeconds > 0 ? .success : .info,
+            isComplete: dailySnapshot.activeSeconds > 0,
+            isCurrent: dailySnapshot.activeSeconds == 0
+        )
+        commandCenterFlowStep(
+            titleKey: "popover.command_center.flow.context",
+            systemImage: "note.text",
+            tone: dailySnapshot.reviewCueCount > 0 ? .success : .warning,
+            isComplete: dailySnapshot.reviewCueCount > 0,
+            isCurrent: dailySnapshot.activeSeconds > 0 && dailySnapshot.reviewCueCount == 0
+        )
+        commandCenterFlowStep(
+            titleKey: "popover.command_center.flow.log",
+            systemImage: commandCenterLogStepIconName,
+            tone: commandCenterLogStepTone,
+            isComplete: dailyLogSavedToday,
+            isCurrent: dailySnapshot.activeSeconds > 0 && dailySnapshot.reviewCueCount > 0 && !dailyLogSavedToday
+        )
     }
 
     private func commandCenterFlowStep(
