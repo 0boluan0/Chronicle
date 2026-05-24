@@ -939,15 +939,15 @@
 "preferences.debug" = "Diagnostics";
 "preferences.debug.description" = "Use diagnostics for short troubleshooting sessions, then return to App Health for the readable support summary.";
 "preferences.debug.logging_title" = "Troubleshooting logs";
-"preferences.debug.logging_detail" = "Turn this on only while support asks for more detail about capture or saved logs.";
-"preferences.debug.console_note" = "Extra logs stay on this Mac and are meant for short troubleshooting sessions.";
+"preferences.debug.logging_detail" = "Turn this on only while support asks for more detail about capture, storage, or saved logs.";
+"preferences.debug.console_note" = "Extra logs stay in macOS Console on this Mac and are meant for short troubleshooting sessions.";
 "preferences.debug.logging_on" = "Extra logs on";
 "preferences.debug.logging_off" = "Extra logs off";
 "preferences.debug.status.title" = "Troubleshooting Mode";
 "preferences.debug.status.off_title" = "Diagnostics are quiet right now.";
 "preferences.debug.status.off_detail" = "Keep extra logging off during normal work so this page stays reserved for real support sessions.";
 "preferences.debug.status.on_title" = "Extra logging is temporarily on.";
-"preferences.debug.status.on_detail" = "Capture the issue while it is happening, then turn logs off and create a support package if the problem remains.";
+"preferences.debug.status.on_detail" = "Reproduce the issue while macOS Console captures the local details, then turn logs off and create a support package if the problem remains.";
 "preferences.debug.safety_title" = "Local and temporary";
 "preferences.debug.flow.title" = "Safe Troubleshooting Path";
 "preferences.debug.flow.heading" = "Use the lightest useful evidence first.";
@@ -955,7 +955,7 @@
 "preferences.debug.flow.health_title" = "Check app health";
 "preferences.debug.flow.health_detail" = "Confirm storage, tracking, permissions, and saved-log setup before changing diagnostics.";
 "preferences.debug.flow.logs_title" = "Log briefly";
-"preferences.debug.flow.logs_detail" = "Turn on extra logs only while reproducing the issue, then turn them off again.";
+"preferences.debug.flow.logs_detail" = "Turn on Console logs only while reproducing the issue, then turn them off again.";
 "preferences.debug.flow.package_title" = "Package evidence";
 "preferences.debug.flow.package_detail" = "Create a local support package after the issue is captured, so you can inspect it before sharing.";
 "preferences.debug.action.open_support" = "Open App Health";

@@ -939,15 +939,15 @@
 "preferences.debug" = "诊断";
 "preferences.debug.description" = "诊断只用于短时间排查；完成后回到应用健康，查看更容易理解的支持摘要。";
 "preferences.debug.logging_title" = "排查日志";
-"preferences.debug.logging_detail" = "只有在支持排查记录或日志保存问题时再打开。";
-"preferences.debug.console_note" = "额外日志只保留在本机，适合短时间排查当前问题。";
+"preferences.debug.logging_detail" = "只有在支持排查记录、存储或日志保存问题时再打开。";
+"preferences.debug.console_note" = "额外日志只保留在这台 Mac 的 macOS Console 中，适合短时间排查当前问题。";
 "preferences.debug.logging_on" = "额外日志已开启";
 "preferences.debug.logging_off" = "额外日志已关闭";
 "preferences.debug.status.title" = "排查模式";
 "preferences.debug.status.off_title" = "诊断目前保持安静。";
 "preferences.debug.status.off_detail" = "正常工作时保持额外日志关闭，让这个页面只用于真正需要支持排查的情况。";
 "preferences.debug.status.on_title" = "额外日志已临时开启。";
-"preferences.debug.status.on_detail" = "在问题发生时记录现场；问题仍存在时，再关闭日志并生成支持包。";
+"preferences.debug.status.on_detail" = "复现问题时让 macOS Console 记录本地细节；问题仍存在时，再关闭日志并生成支持包。";
 "preferences.debug.safety_title" = "本地且临时";
 "preferences.debug.flow.title" = "安全排查路径";
 "preferences.debug.flow.heading" = "先使用最轻量、最有用的证据。";
@@ -955,7 +955,7 @@
 "preferences.debug.flow.health_title" = "检查应用健康";
 "preferences.debug.flow.health_detail" = "先确认存储、记录、权限和日志保存设置，再调整诊断。";
 "preferences.debug.flow.logs_title" = "短时间记录日志";
-"preferences.debug.flow.logs_detail" = "只在复现问题时打开额外日志，完成后再关闭。";
+"preferences.debug.flow.logs_detail" = "只在复现问题时打开 Console 日志，完成后再关闭。";
 "preferences.debug.flow.package_title" = "打包排查证据";
 "preferences.debug.flow.package_detail" = "捕获问题后生成本地支持包，分享前可以先自行检查。";
 "preferences.debug.action.open_support" = "打开应用健康";
