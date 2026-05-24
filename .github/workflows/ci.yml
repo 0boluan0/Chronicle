@@ -11,6 +11,17 @@ on:
         required: false
         type: boolean
         default: false
+      ui_smoke_scope:
+        description: "UI smoke scope for self-hosted runs"
+        required: false
+        type: choice
+        default: all
+        options:
+          - all
+          - full
+          - surface
+          - en
+          - zh-Hans
 
 jobs:
   build-and-unit-tests:
@@ -78,10 +89,8 @@ jobs:
     if: ${{ vars.CHRONICLE_UI_SMOKE_ENABLED == '1' || (github.event_name == 'workflow_dispatch' && inputs.run_ui_smoke) }}
     runs-on: [self-hosted, macOS, chronicle-ui]
     timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        language: [en, zh-Hans]
+    env:
+      UI_SMOKE_SCOPE: ${{ github.event_name == 'workflow_dispatch' && inputs.ui_smoke_scope || 'all' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -94,4 +103,4 @@ jobs:
       - name: Run UI Smoke
         run: |
           chmod +x script/run_ui_smoke.sh
-          ./script/run_ui_smoke.sh "${{ matrix.language }}"
+          ./script/run_ui_smoke.sh "$UI_SMOKE_SCOPE"

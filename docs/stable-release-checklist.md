@@ -10,6 +10,7 @@ This checklist is for preparing a stable `v0.x` release with low upgrade risk.
 - Ensure UI smoke passes on a dedicated macOS UI runner:
   - `./script/run_ui_smoke.sh all` for the bilingual public beta path.
   - `./script/run_ui_smoke.sh full` before promoting an RC, including the English surface checks for quick capture, dashboard, reports, preferences, and onboarding.
+- For a remote release dry run, trigger the CI workflow manually with `run_ui_smoke=true` and `ui_smoke_scope=full`.
 - Confirm the UI runner machine reports Automation Mode can run without per-run authentication.
 - Verify no unplanned schema migration is included.
 
