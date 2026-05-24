@@ -10,6 +10,9 @@ import SwiftUI
 
 final class DashboardWindowController {
     static let shared = DashboardWindowController()
+    private static let frameAutosaveName = "ChronicleDashboardWindow"
+    private static let defaultContentSize = NSSize(width: 980, height: 720)
+    private static let minimumContentSize = NSSize(width: 820, height: 560)
 
     private var window: NSWindow?
     private let languageManager = AppLanguageManager.shared
@@ -24,12 +27,12 @@ final class DashboardWindowController {
             let hostingController = NSHostingController(rootView: rootView)
             let window = NSWindow(contentViewController: hostingController)
             window.title = L("dashboard.title")
-            window.setContentSize(NSSize(width: 980, height: 720))
-            window.minSize = NSSize(width: 820, height: 560)
+            window.setContentSize(Self.defaultContentSize)
+            window.minSize = Self.minimumContentSize
             window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
             window.isReleasedWhenClosed = false
-            window.setFrameAutosaveName("ChronicleDashboardWindow")
-            window.center()
+            window.setFrameAutosaveName(Self.frameAutosaveName)
+            prepareInitialFrame(for: window)
             self.window = window
         }
 
@@ -47,5 +50,11 @@ final class DashboardWindowController {
 
     func close() {
         window?.performClose(nil)
+    }
+
+    private func prepareInitialFrame(for window: NSWindow) {
+        if !window.setFrameUsingName(Self.frameAutosaveName) {
+            window.center()
+        }
     }
 }
