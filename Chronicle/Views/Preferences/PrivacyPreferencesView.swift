@@ -56,6 +56,18 @@ struct PrivacyPreferencesView: View {
         }
     }
 
+    private func privacyActionLabel(_ title: String, systemImage: String) -> some View {
+        Label {
+            Text(title)
+                .lineLimit(2)
+                .minimumScaleFactor(0.86)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: systemImage)
+        }
+    }
+
     private var overviewSection: some View {
         SectionCard(title: "privacy.overview.title") {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
@@ -316,7 +328,7 @@ struct PrivacyPreferencesView: View {
             Button {
                 openGuide(url: privacyPermissionsGuideURL)
             } label: {
-                Label(L("privacy.next.action.review_options"), systemImage: "hand.raised")
+                privacyActionLabel(L("privacy.next.action.review_options"), systemImage: "hand.raised")
             }
             .buttonStyle(.bordered)
             .accessibilityIdentifier("privacy.next.reviewOptions")
@@ -324,7 +336,7 @@ struct PrivacyPreferencesView: View {
             Button {
                 AccessibilityPermissionManager.shared.openSystemSettings()
             } label: {
-                Label(L("preferences.window_titles.open_settings"), systemImage: "gearshape")
+                privacyActionLabel(L("preferences.window_titles.open_settings"), systemImage: "gearshape")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.StatusTone.warning.color)
@@ -333,7 +345,7 @@ struct PrivacyPreferencesView: View {
             Button {
                 exportTelemetry()
             } label: {
-                Label(
+                privacyActionLabel(
                     isExportingTelemetry ? L("privacy.telemetry_exporting") : L("privacy.next.action.export_counters"),
                     systemImage: "square.and.arrow.down"
                 )
@@ -345,7 +357,7 @@ struct PrivacyPreferencesView: View {
             Button {
                 openAppSupportFolder()
             } label: {
-                Label(L("privacy.next.action.open_local_folder"), systemImage: "folder")
+                privacyActionLabel(L("privacy.next.action.open_local_folder"), systemImage: "folder")
             }
             .buttonStyle(.bordered)
             .accessibilityIdentifier("privacy.next.openLocalFolder")
@@ -561,7 +573,7 @@ struct PrivacyPreferencesView: View {
         Button {
             AccessibilityPermissionManager.shared.openSystemSettings()
         } label: {
-            Label(L("preferences.window_titles.open_settings"), systemImage: "gearshape")
+            privacyActionLabel(L("preferences.window_titles.open_settings"), systemImage: "gearshape")
         }
         .buttonStyle(.bordered)
         .accessibilityIdentifier("privacy.openAccessibilitySettings")
@@ -691,7 +703,7 @@ struct PrivacyPreferencesView: View {
                         Button {
                             AppWindowRouter.shared.open(.settings(.general))
                         } label: {
-                            Label(L("privacy.capture.safety.manage"), systemImage: "slider.horizontal.3")
+                            privacyActionLabel(L("privacy.capture.safety.manage"), systemImage: "slider.horizontal.3")
                         }
                         .buttonStyle(.bordered)
                         .accessibilityIdentifier("privacy.capture.safety.manageBlockedApps")
@@ -811,7 +823,7 @@ struct PrivacyPreferencesView: View {
                     }
                     .padding(.top, DesignSystem.Spacing.xs)
                 } label: {
-                    Label(L("privacy.storage.technical_details"), systemImage: "wrench.and.screwdriver")
+                    privacyActionLabel(L("privacy.storage.technical_details"), systemImage: "wrench.and.screwdriver")
                         .font(.caption.weight(.medium))
                 }
 
@@ -836,7 +848,7 @@ struct PrivacyPreferencesView: View {
             Button {
                 openAppSupportFolder()
             } label: {
-                Label(L("privacy.open_app_support"), systemImage: "folder")
+                privacyActionLabel(L("privacy.open_app_support"), systemImage: "folder")
             }
             .buttonStyle(.bordered)
             .accessibilityIdentifier("privacy.openAppSupport")
@@ -854,7 +866,7 @@ struct PrivacyPreferencesView: View {
             Button {
                 showWipeConfirm = true
             } label: {
-                Label(L("privacy.wipe_data"), systemImage: "trash")
+                privacyActionLabel(L("privacy.wipe_data"), systemImage: "trash")
             }
             .buttonStyle(.bordered)
             .tint(.red)
@@ -1099,21 +1111,21 @@ struct PrivacyPreferencesView: View {
         Button {
             openGuide(url: dataSafetyGuideURL)
         } label: {
-            Label(L("privacy.open_data_safety_guide"), systemImage: "lock.shield")
+            privacyActionLabel(L("privacy.open_data_safety_guide"), systemImage: "lock.shield")
         }
         .buttonStyle(.bordered)
 
         Button {
             openGuide(url: migrationGuideURL)
         } label: {
-            Label(L("privacy.open_migration_guide"), systemImage: "arrow.triangle.2.circlepath")
+            privacyActionLabel(L("privacy.open_migration_guide"), systemImage: "arrow.triangle.2.circlepath")
         }
         .buttonStyle(.bordered)
 
         Button {
             openGuide(url: privacyPermissionsGuideURL)
         } label: {
-            Label(L("privacy.open_privacy_permissions_guide"), systemImage: "hand.raised")
+            privacyActionLabel(L("privacy.open_privacy_permissions_guide"), systemImage: "hand.raised")
         }
         .buttonStyle(.bordered)
     }
