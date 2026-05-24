@@ -325,6 +325,7 @@ struct OnboardingView: View {
                 title: "privacy.status.no_upload",
                 tone: .success
             )
+            setupRailSelfCheckRow
             setupRailTrustRow(
                 systemImage: "hand.raised",
                 title: "onboarding.trust.optional_permissions",
@@ -345,6 +346,49 @@ struct OnboardingView: View {
     }
 
     private func setupRailTrustRow(
+        systemImage: String,
+        title: LocalizedStringKey,
+        tone: DesignSystem.StatusTone
+    ) -> some View {
+        setupRailTrustLabel(systemImage: systemImage, title: title, tone: tone)
+    }
+
+    private var setupRailSelfCheckRow: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .center, spacing: 7) {
+                setupRailTrustLabel(
+                    systemImage: finishHealthStatusIconName,
+                    title: "onboarding.trust.self_check",
+                    tone: finishHealthTone
+                )
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                StatusPill(
+                    finishHealthStatusText,
+                    systemImage: finishHealthStatusIconName,
+                    tone: finishHealthTone
+                )
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                setupRailTrustLabel(
+                    systemImage: finishHealthStatusIconName,
+                    title: "onboarding.trust.self_check",
+                    tone: finishHealthTone
+                )
+
+                StatusPill(
+                    finishHealthStatusText,
+                    systemImage: finishHealthStatusIconName,
+                    tone: finishHealthTone
+                )
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("onboarding.rail.selfCheck")
+    }
+
+    private func setupRailTrustLabel(
         systemImage: String,
         title: LocalizedStringKey,
         tone: DesignSystem.StatusTone

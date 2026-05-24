@@ -1221,6 +1221,7 @@ final class ChronicleTests: XCTestCase {
             "onboarding.path.step.finish",
             "onboarding.status.ready",
             "onboarding.status.final_step",
+            "onboarding.trust.self_check",
             "onboarding.skip_setup",
             "onboarding.next.log_folder",
             "onboarding.next.choose_folder",

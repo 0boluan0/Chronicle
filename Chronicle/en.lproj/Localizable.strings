@@ -431,6 +431,7 @@
 "onboarding.status.needs_folder" = "Needs folder";
 "onboarding.status.final_step" = "Final step";
 "onboarding.trust.optional_permissions" = "Optional permissions";
+"onboarding.trust.self_check" = "Startup self-check";
 "onboarding.skip_setup" = "Use Defaults";
 "onboarding.next.log_folder" = "Set Up Daily Log";
 "onboarding.next.choose_folder" = "Choose Daily Log Folder";

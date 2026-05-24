@@ -431,6 +431,7 @@
 "onboarding.status.needs_folder" = "需要目录";
 "onboarding.status.final_step" = "最后一步";
 "onboarding.trust.optional_permissions" = "权限可选";
+"onboarding.trust.self_check" = "启动自检";
 "onboarding.skip_setup" = "先用默认设置";
 "onboarding.next.log_folder" = "设置今日日志";
 "onboarding.next.choose_folder" = "选择今日日志位置";
