@@ -128,13 +128,17 @@ struct DashboardStatsView: View {
                     Text(message)
                         .font(DesignSystem.Typography.caption)
                         .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .lineLimit(4)
+                        .fixedSize(horizontal: false, vertical: true)
                         .textSelection(.enabled)
+                        .help(message)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.top, DesignSystem.Spacing.xs)
                 } label: {
                     Text("dashboard.stats.error.support_details")
                         .font(DesignSystem.Typography.caption)
                         .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .lineLimit(2)
                 }
             }
         }
@@ -153,12 +157,16 @@ struct DashboardStatsView: View {
                 Text("dashboard.stats.load_failed")
                     .font(.headline.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text("dashboard.stats.error.detail")
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -263,12 +271,16 @@ struct DashboardStatsView: View {
                 Text(LocalizedStringKey(statsScopeHeadlineKey))
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(LocalizedStringKey(statsScopeDetailKey))
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -412,12 +424,16 @@ struct DashboardStatsView: View {
                 Text(LocalizedStringKey(statsReviewHeadlineKey))
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(LocalizedStringKey(statsReviewDetailKey))
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -461,7 +477,7 @@ struct DashboardStatsView: View {
     private var statsReviewProgressView: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
             ViewThatFits(in: .horizontal) {
-                HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+                HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
                     statsReviewProgressLabel
 
                     Spacer(minLength: DesignSystem.Spacing.sm)
@@ -505,7 +521,7 @@ struct DashboardStatsView: View {
     }
 
     private var statsReviewProgressLabel: some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.xs) {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.xs) {
             Image(systemName: statsReviewStatusIconName)
                 .font(.caption.weight(.semibold))
                 .foregroundColor(statsReviewProgressTone.color)
