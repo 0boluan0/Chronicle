@@ -775,7 +775,25 @@ struct DashboardTimelineView: View {
     }
 
     private var timelineFilterHeader: some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                timelineFilterCopy
+
+                StatusPill(filterStateStatusText, systemImage: filterStateIconName, tone: filterStateTone)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                timelineFilterCopy
+
+                StatusPill(filterStateStatusText, systemImage: filterStateIconName, tone: filterStateTone)
+            }
+        }
+        .accessibilityIdentifier("dashboard.timeline.filterGuide")
+    }
+
+    private var timelineFilterCopy: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
             IconWell(
                 systemImage: filterStateIconName,
                 tone: filterStateTone,
@@ -792,12 +810,8 @@ struct DashboardTimelineView: View {
                     .foregroundColor(DesignSystem.Colors.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
             }
-
-            Spacer(minLength: DesignSystem.Spacing.md)
-
-            StatusPill(filterStateStatusText, systemImage: filterStateIconName, tone: filterStateTone)
         }
-        .accessibilityIdentifier("dashboard.timeline.filterGuide")
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var timelineSearchField: some View {
@@ -826,7 +840,7 @@ struct DashboardTimelineView: View {
         }
         .padding(.horizontal, DesignSystem.Spacing.md)
         .padding(.vertical, 7)
-        .frame(minWidth: 220)
+        .frame(minWidth: 220, maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
                 .fill(Color(nsColor: .textBackgroundColor))
@@ -845,7 +859,7 @@ struct DashboardTimelineView: View {
         }
         .pickerStyle(.segmented)
         .tint(DesignSystem.Colors.accentSkyBlue)
-        .frame(width: 220)
+        .frame(minWidth: 220, maxWidth: .infinity, alignment: .leading)
         .accessibilityIdentifier("dashboard.timeline.range")
     }
 
@@ -860,15 +874,21 @@ struct DashboardTimelineView: View {
         }
         .pickerStyle(.segmented)
         .tint(DesignSystem.Colors.accentSkyBlue)
-        .frame(width: 220)
+        .frame(minWidth: 220, maxWidth: .infinity, alignment: .leading)
         .accessibilityIdentifier("dashboard.timeline.sortOrder")
     }
 
     private var timelineBatchButton: some View {
-        Button(isBatchMode ? L("timeline.batch.done") : L("timeline.batch.edit")) {
+        Button {
             toggleBatchMode()
+        } label: {
+            timelineActionLabel(
+                isBatchMode ? L("timeline.batch.done") : L("timeline.batch.edit"),
+                systemImage: isBatchMode ? "checkmark.circle" : "checklist"
+            )
         }
         .buttonStyle(.bordered)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityIdentifier("dashboard.timeline.batch")
     }
 
@@ -880,7 +900,7 @@ struct DashboardTimelineView: View {
                 Text(tag.name).tag(tag.id)
             }
         }
-        .frame(width: 200)
+        .frame(minWidth: 200, maxWidth: .infinity, alignment: .leading)
         .accessibilityIdentifier("dashboard.timeline.tagFilter")
     }
 
@@ -890,7 +910,7 @@ struct DashboardTimelineView: View {
                 Text(name).tag(name)
             }
         }
-        .frame(width: 220)
+        .frame(minWidth: 220, maxWidth: .infinity, alignment: .leading)
         .accessibilityIdentifier("dashboard.timeline.appFilter")
     }
 
@@ -902,16 +922,16 @@ struct DashboardTimelineView: View {
 
     private var activeFilterChips: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.sm) {
-                Text("timeline.filters.active_title")
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.sm) {
+                    activeFilterChipsTitle
+                    activeFilterChipsDetail
+                }
 
-                Text("timeline.filters.active_detail")
-                    .font(.caption2)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+                VStack(alignment: .leading, spacing: 2) {
+                    activeFilterChipsTitle
+                    activeFilterChipsDetail
+                }
             }
 
             LazyVGrid(
@@ -976,6 +996,22 @@ struct DashboardTimelineView: View {
         .accessibilityIdentifier("dashboard.timeline.activeFilters")
     }
 
+    private var activeFilterChipsTitle: some View {
+        Text("timeline.filters.active_title")
+            .font(.caption.weight(.semibold))
+            .foregroundColor(DesignSystem.Colors.primaryText)
+            .lineLimit(2)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var activeFilterChipsDetail: some View {
+        Text("timeline.filters.active_detail")
+            .font(.caption2)
+            .foregroundColor(DesignSystem.Colors.secondaryText)
+            .lineLimit(2)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
     private func activeFilterChip(
         titleKey: LocalizedStringKey,
         value: String,
@@ -994,13 +1030,15 @@ struct DashboardTimelineView: View {
                     Text(titleKey)
                         .font(.caption2.weight(.semibold))
                         .foregroundColor(DesignSystem.Colors.secondaryText)
-                        .lineLimit(1)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     Text(value)
                         .font(.caption.weight(.semibold))
                         .foregroundColor(DesignSystem.Colors.primaryText)
-                        .lineLimit(1)
+                        .lineLimit(2)
                         .truncationMode(.middle)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
                 Spacer(minLength: DesignSystem.Spacing.xs)
@@ -1052,6 +1090,23 @@ struct DashboardTimelineView: View {
     }
 
     private var filterStateSummary: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                filterStateSummaryCopy
+
+                StatusPill(filterStateStatusText, systemImage: filterStateIconName, tone: filterStateTone)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                filterStateSummaryCopy
+
+                StatusPill(filterStateStatusText, systemImage: filterStateIconName, tone: filterStateTone)
+            }
+        }
+    }
+
+    private var filterStateSummaryCopy: some View {
         HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
             Image(systemName: filterStateIconName)
                 .font(.caption.weight(.semibold))
@@ -1062,6 +1117,8 @@ struct DashboardTimelineView: View {
                 Text(LocalizedStringKey(filterStateTitleKey))
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(LocalizedStringKey(filterStateDetailKey))
                     .font(.caption2)
@@ -1069,16 +1126,15 @@ struct DashboardTimelineView: View {
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
-
-            StatusPill(filterStateStatusText, systemImage: filterStateIconName, tone: filterStateTone)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var filterResetButton: some View {
         Button {
             resetTimelineFilters()
         } label: {
-            Label(L("timeline.focus.reset_filters"), systemImage: "line.3.horizontal.decrease.circle")
+            timelineActionLabel(L("timeline.focus.reset_filters"), systemImage: "line.3.horizontal.decrease.circle")
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
