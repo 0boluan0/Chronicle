@@ -15,7 +15,7 @@ final class QuickMarkerPanelController: NSWindowController, NSWindowDelegate {
     private init() {
         let panel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 800, height: 560),
-            styleMask: [.titled, .fullSizeContentView],
+            styleMask: [.titled, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
