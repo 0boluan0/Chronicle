@@ -43,9 +43,15 @@ struct AppMappingsView: View {
                     Text("apps.page.subtitle")
                         .font(DesignSystem.Typography.caption)
                         .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .help(L("apps.page.subtitle"))
                     Text("apps.page.rule_note")
                         .font(DesignSystem.Typography.caption)
                         .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .help(L("apps.page.rule_note"))
                 }
             }
 
@@ -255,7 +261,7 @@ struct AppMappingsView: View {
     private func mappingReviewQueueItem(_ mapping: AppMappingRow) -> some View {
         let tone = mappingReviewQueueTone(for: mapping)
 
-        return HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+        return HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
             IconWell(
                 image: appIcon(for: mapping),
                 tone: tone,
@@ -267,14 +273,19 @@ struct AppMappingsView: View {
                 Text(mapping.appName)
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
                     .minimumScaleFactor(0.82)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .help(mapping.appName)
 
                 Text(mappingReviewQueueReasonText(for: mapping))
                     .font(.caption2)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .help(mappingReviewQueueReasonText(for: mapping))
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer(minLength: 0)
 
@@ -318,6 +329,7 @@ struct AppMappingsView: View {
                     .font(.caption.weight(.semibold))
                     .lineLimit(1)
                     .minimumScaleFactor(0.82)
+                    .help(String(format: L("apps.review.queue.more"), mappingReviewQueueRemainingCount))
             }
             .frame(maxWidth: .infinity, minHeight: 42, alignment: .leading)
             .padding(.horizontal, DesignSystem.Spacing.sm)
@@ -1605,12 +1617,14 @@ private struct AppMappingRowView: View {
                     .foregroundColor(DesignSystem.Colors.secondaryText)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
+                    .help(reportLineText)
 
                 Text(futureSessionLineText)
                     .font(.caption2)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
+                    .help(futureSessionLineText)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -1621,8 +1635,10 @@ private struct AppMappingRowView: View {
         Text(mapping.appName)
             .font(.system(size: 13, weight: .semibold))
             .foregroundColor(DesignSystem.Colors.primaryText)
-            .lineLimit(1)
+            .lineLimit(2)
             .minimumScaleFactor(0.85)
+            .fixedSize(horizontal: false, vertical: true)
+            .help(mapping.appName)
     }
 
     private var backfillMenu: some View {
@@ -1751,6 +1767,7 @@ private struct AppMappingRowView: View {
                 .foregroundColor(DesignSystem.Colors.secondaryText)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
+                .help(modeDetailText)
         }
     }
 
