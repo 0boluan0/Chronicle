@@ -117,14 +117,7 @@ struct GeneralPreferencesView: View {
             )
 
             VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: DesignSystem.Spacing.xs) {
-                    Text(LocalizedStringKey(readinessHeadlineKey))
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundColor(DesignSystem.Colors.primaryText)
-                        .lineLimit(2)
-
-                    StatusPill(readinessStatusText, systemImage: readinessIconName, tone: readinessTone)
-                }
+                readinessTitleStatus
 
                 Text(LocalizedStringKey(readinessDetailKey))
                     .font(DesignSystem.Typography.caption)
@@ -134,6 +127,28 @@ struct GeneralPreferencesView: View {
             }
         }
         .accessibilityElement(children: .combine)
+    }
+
+    private var readinessTitleStatus: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.xs) {
+                readinessHeadlineText
+                StatusPill(readinessStatusText, systemImage: readinessIconName, tone: readinessTone)
+            }
+
+            VStack(alignment: .leading, spacing: 5) {
+                readinessHeadlineText
+                StatusPill(readinessStatusText, systemImage: readinessIconName, tone: readinessTone)
+            }
+        }
+    }
+
+    private var readinessHeadlineText: some View {
+        Text(LocalizedStringKey(readinessHeadlineKey))
+            .font(.subheadline.weight(.semibold))
+            .foregroundColor(DesignSystem.Colors.primaryText)
+            .lineLimit(2)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     @ViewBuilder
