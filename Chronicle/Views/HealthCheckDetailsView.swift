@@ -178,7 +178,7 @@ struct HealthCheckDetailsView: View {
                 Button {
                     healthCheckService.runQuickChecks()
                 } label: {
-                    Label(L("popover.self_check.run"), systemImage: "waveform.path.ecg")
+                    healthActionLabel(L("popover.self_check.run"), systemImage: "waveform.path.ecg")
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(DesignSystem.Colors.accentSkyBlue)
@@ -189,7 +189,7 @@ struct HealthCheckDetailsView: View {
                 Button {
                     AppWindowRouter.shared.open(.settings())
                 } label: {
-                    Label(L("actions.open_preferences"), systemImage: "gearshape")
+                    healthActionLabel(L("actions.open_preferences"), systemImage: "gearshape")
                 }
                 .buttonStyle(.bordered)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -200,7 +200,7 @@ struct HealthCheckDetailsView: View {
                         _ = AccessibilityPermissionManager.shared.requestPermission(prompt: true)
                         AccessibilityPermissionManager.shared.syncAppState(appState)
                     } label: {
-                        Label(L("onboarding.permissions.grant"), systemImage: "hand.raised")
+                        healthActionLabel(L("onboarding.permissions.grant"), systemImage: "hand.raised")
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(DesignSystem.Colors.accentSkyBlue)
@@ -210,7 +210,7 @@ struct HealthCheckDetailsView: View {
                     Button {
                         AccessibilityPermissionManager.shared.openSystemSettings()
                     } label: {
-                        Label(L("preferences.window_titles.open_settings"), systemImage: "gearshape.2")
+                        healthActionLabel(L("preferences.window_titles.open_settings"), systemImage: "gearshape.2")
                     }
                     .buttonStyle(.bordered)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -232,7 +232,7 @@ struct HealthCheckDetailsView: View {
                 Button {
                     openAppSupportFolder()
                 } label: {
-                    Label(L("self_check.details.open_app_support"), systemImage: "folder")
+                    healthActionLabel(L("self_check.details.open_app_support"), systemImage: "folder")
                 }
                 .buttonStyle(.bordered)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -241,7 +241,7 @@ struct HealthCheckDetailsView: View {
                 Button {
                     createFeedbackBundle()
                 } label: {
-                    Label(
+                    healthActionLabel(
                         isCreatingFeedbackBundle ? L("self_check.details.bundle_creating") : L("self_check.details.bundle_create"),
                         systemImage: "shippingbox"
                     )
@@ -254,7 +254,7 @@ struct HealthCheckDetailsView: View {
                 Button {
                     copySummaryToClipboard()
                 } label: {
-                    Label(L("self_check.details.copy"), systemImage: "doc.on.doc")
+                    healthActionLabel(L("self_check.details.copy"), systemImage: "doc.on.doc")
                 }
                 .buttonStyle(.bordered)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -313,6 +313,19 @@ struct HealthCheckDetailsView: View {
         ) {
             content()
         }
+    }
+
+    private func healthActionLabel(_ title: String, systemImage: String) -> some View {
+        Label {
+            Text(title)
+                .lineLimit(2)
+                .minimumScaleFactor(0.85)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: systemImage)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func statusBanner(_ message: String) -> some View {
@@ -569,8 +582,7 @@ struct HealthCheckDetailsView: View {
         Button {
             performReadinessNextAction()
         } label: {
-            Label(L(readinessNextActionButtonKey), systemImage: readinessNextActionButtonIconName)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            healthActionLabel(L(readinessNextActionButtonKey), systemImage: readinessNextActionButtonIconName)
         }
         .disabled(readinessNextActionIsDisabled)
         .accessibilityIdentifier("selfCheck.readiness.nextAction.primary")
@@ -731,8 +743,7 @@ struct HealthCheckDetailsView: View {
             Button {
                 copySummaryToClipboard()
             } label: {
-                Label(L("self_check.details.support_brief.copy"), systemImage: "doc.on.doc")
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                healthActionLabel(L("self_check.details.support_brief.copy"), systemImage: "doc.on.doc")
             }
             .buttonStyle(.bordered)
             .accessibilityIdentifier("selfCheck.supportBrief.copy")
@@ -1238,7 +1249,7 @@ struct HealthCheckDetailsView: View {
         Button {
             performIssueAction(action)
         } label: {
-            Label(L(action.titleKey), systemImage: action.systemImage)
+            healthActionLabel(L(action.titleKey), systemImage: action.systemImage)
         }
         .disabled(action == .createSupportPackage && isCreatingFeedbackBundle)
         .frame(maxWidth: .infinity, alignment: .leading)
