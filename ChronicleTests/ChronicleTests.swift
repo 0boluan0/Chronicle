@@ -2062,6 +2062,8 @@ final class ChronicleTests: XCTestCase {
             "dashboard.sidebar.today_status.status.recording",
             "dashboard.sidebar.today_status.status.paused",
             "dashboard.sidebar.today_status.status.needs_check",
+            "dashboard.sidebar.progress.label",
+            "dashboard.sidebar.progress.value",
             "dashboard.sidebar.next_step.title",
             "dashboard.sidebar.next_step.ready_title",
             "dashboard.sidebar.next_step.ready_detail",
