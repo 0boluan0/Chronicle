@@ -695,9 +695,10 @@ struct ContentView: View {
     private func popoverResponsiveActionStack<Content: View>(
         @ViewBuilder content: () -> Content
     ) -> some View {
-        ActionButtonGrid(minimumItemWidth: 150) {
+        VStack(spacing: DesignSystem.Spacing.sm) {
             content()
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func popoverActionLabel(_ title: String, systemImage: String) -> some View {
@@ -710,6 +711,7 @@ struct ContentView: View {
         } icon: {
             Image(systemName: systemImage)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var trackingPrivacyGuardrailView: some View {
