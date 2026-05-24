@@ -372,7 +372,7 @@ struct QuickMarkerPanelView: View {
     }
 
     private var captureRouteActions: some View {
-        ActionButtonGrid(minimumItemWidth: 112) {
+        VStack(spacing: DesignSystem.Spacing.sm) {
             Button {
                 performDailyLogRouteAction()
             } label: {
@@ -381,7 +381,7 @@ struct QuickMarkerPanelView: View {
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
             .tint(DesignSystem.Colors.accentSkyBlue)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity)
             .accessibilityIdentifier("quickMarker.route.dailyLogAction")
 
             Button {
@@ -391,9 +391,10 @@ struct QuickMarkerPanelView: View {
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity)
             .accessibilityIdentifier("quickMarker.route.openTimeline")
         }
+        .frame(maxWidth: .infinity)
         .accessibilityIdentifier("quickMarker.route.actions")
     }
 
