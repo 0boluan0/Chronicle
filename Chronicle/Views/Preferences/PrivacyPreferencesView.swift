@@ -426,7 +426,7 @@ struct PrivacyPreferencesView: View {
         ) {
             privacyStatusLead(systemImage: systemImage, tone: tone, title: title, detail: detail)
 
-            HStack(spacing: DesignSystem.Spacing.sm) {
+            privacyResponsiveActions {
                 StatusPill(status, systemImage: statusIcon, tone: tone)
                 trailing()
             }
@@ -670,7 +670,7 @@ struct PrivacyPreferencesView: View {
                         detail: "privacy.capture.safety.detail"
                     )
 
-                    HStack(spacing: DesignSystem.Spacing.sm) {
+                    privacyResponsiveActions {
                         StatusPill(titleSafetyStatusText, systemImage: titleSafetyIconName, tone: titleSafetyTone)
 
                         Button {
@@ -986,7 +986,7 @@ struct PrivacyPreferencesView: View {
                     detail: "privacy.telemetry_note"
                 )
 
-                HStack(spacing: DesignSystem.Spacing.sm) {
+                privacyResponsiveActions {
                     StatusPill(telemetryStatusText, systemImage: telemetryIconName, tone: telemetryTone)
                     Toggle("privacy.telemetry_enabled", isOn: $appState.telemetryEnabled)
                         .labelsHidden()
@@ -996,6 +996,20 @@ struct PrivacyPreferencesView: View {
             }
         }
         .accessibilityIdentifier("privacy.telemetry.toggleRow")
+    }
+
+    private func privacyResponsiveActions<Content: View>(
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+                content()
+            }
+
+            VStack(alignment: .trailing, spacing: DesignSystem.Spacing.sm) {
+                content()
+            }
+        }
     }
 
     private var telemetryExportActionRow: some View {
