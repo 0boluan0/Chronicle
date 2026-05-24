@@ -11,7 +11,7 @@ This checklist is for preparing a stable `v0.x` release with low upgrade risk.
   - `xcodebuild -project Chronicle.xcodeproj -scheme Chronicle -configuration Debug -destination 'platform=macOS,arch=arm64' -derivedDataPath /tmp/chronicle-deriveddata-unit CODE_SIGNING_ALLOWED=NO test`
 - Ensure UI smoke passes on a dedicated macOS UI runner:
   - `./script/run_ui_smoke.sh all` for the bilingual public beta path.
-  - `./script/run_ui_smoke.sh full` before promoting an RC, including the English surface checks for quick capture, dashboard, reports, preferences, and onboarding.
+  - `./script/run_ui_smoke.sh full` before promoting an RC, including the English surface checks for quick capture, dashboard, reports, App Health deep links, preferences, and onboarding.
   - Set `UI_SMOKE_TIMEOUT_SECONDS=<seconds>` if the dedicated runner is expected to take longer than the default 30-minute per-run watchdog.
 - For a remote release dry run, trigger the CI workflow manually with `run_ui_smoke=true` and `ui_smoke_scope=full`.
 - Confirm the UI runner machine reports Automation Mode can run without per-run authentication.
