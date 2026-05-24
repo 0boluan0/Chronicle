@@ -156,7 +156,7 @@ struct TagsPreferencesView: View {
     }
 
     private var setupGuideLead: some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
             IconWell(
                 systemImage: setupStage.systemImage,
                 tone: setupStage.tone,
@@ -175,7 +175,9 @@ struct TagsPreferencesView: View {
                     .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var setupStatusPill: some View {
