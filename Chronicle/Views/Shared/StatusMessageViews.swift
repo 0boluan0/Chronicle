@@ -37,7 +37,8 @@ struct StatusBannerView: View {
                             Text(LocalizedStringKey(titleKey(for: status)))
                                 .font(.subheadline.weight(.semibold))
                                 .foregroundColor(DesignSystem.Colors.primaryText)
-                                .lineLimit(1)
+                                .lineLimit(2)
+                                .fixedSize(horizontal: false, vertical: true)
 
                             Text(status.text)
                                 .font(DesignSystem.Typography.caption)
@@ -45,7 +46,9 @@ struct StatusBannerView: View {
                                 .lineLimit(3)
                                 .fixedSize(horizontal: false, vertical: true)
                                 .textSelection(.enabled)
+                                .help(status.text)
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
 
                         Spacer(minLength: 0)
                     }
@@ -94,6 +97,7 @@ struct ExportStatusLine: View {
                         .lineLimit(3)
                         .textSelection(.enabled)
                         .fixedSize(horizontal: false, vertical: true)
+                        .help(status.text)
                         .accessibilityIdentifier(accessibilityIdentifier ?? "")
 
                     Spacer(minLength: 0)
@@ -109,6 +113,7 @@ struct ExportStatusLine: View {
                     RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
                         .stroke(tone(for: status).color.opacity(0.16), lineWidth: 1)
                 )
+                .accessibilityElement(children: .combine)
             }
         }
     }
