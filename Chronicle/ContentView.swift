@@ -918,7 +918,7 @@ struct ContentView: View {
             snapshotCueStatusView
             dailySnapshotEmptyPath
 
-            ActionButtonGrid(minimumItemWidth: 154) {
+            ActionButtonStack {
                 Button {
                     AppWindowRouter.shared.open(.quickMarker)
                 } label: {
