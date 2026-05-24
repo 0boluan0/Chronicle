@@ -117,7 +117,25 @@ struct MarkerTimelineView: View {
     }
 
     private var markerReviewLead: some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                markerReviewLeadCopy
+
+                StatusPill(markerReviewStatusText, systemImage: markerReviewStatusIconName, tone: markerReviewTone)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                markerReviewLeadCopy
+
+                StatusPill(markerReviewStatusText, systemImage: markerReviewStatusIconName, tone: markerReviewTone)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var markerReviewLeadCopy: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
             IconWell(
                 systemImage: markerReviewIconName,
                 tone: markerReviewTone,
@@ -128,8 +146,8 @@ struct MarkerTimelineView: View {
                 Text(markerReviewHeadlineKey)
                     .font(.callout.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.82)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(markerReviewDetailKey)
                     .font(DesignSystem.Typography.caption)
@@ -137,10 +155,6 @@ struct MarkerTimelineView: View {
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
-
-            Spacer(minLength: DesignSystem.Spacing.sm)
-
-            StatusPill(markerReviewStatusText, systemImage: markerReviewStatusIconName, tone: markerReviewTone)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -204,7 +218,8 @@ struct MarkerTimelineView: View {
                 Text(titleKey)
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(detailKey)
                     .font(.caption2)
@@ -224,7 +239,7 @@ struct MarkerTimelineView: View {
         Button {
             AppWindowRouter.shared.open(.quickMarker)
         } label: {
-            Label(L("markers.capture.add_cue"), systemImage: "square.and.pencil")
+            markerTimelineActionLabel(L("markers.capture.add_cue"), systemImage: "square.and.pencil")
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
@@ -235,7 +250,7 @@ struct MarkerTimelineView: View {
             Button {
                 selectedDashboardSectionRaw = DashboardView.Section.reports.rawValue
             } label: {
-                Label(L("markers.review.open_closeout"), systemImage: "doc.text.magnifyingglass")
+                markerTimelineActionLabel(L("markers.review.open_closeout"), systemImage: "doc.text.magnifyingglass")
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
@@ -246,7 +261,7 @@ struct MarkerTimelineView: View {
             Button {
                 clearMarkerSearch()
             } label: {
-                Label(L("markers.review.clear_search"), systemImage: "xmark.circle")
+                markerTimelineActionLabel(L("markers.review.clear_search"), systemImage: "xmark.circle")
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
@@ -257,7 +272,7 @@ struct MarkerTimelineView: View {
             Button {
                 expandOngoingGroups()
             } label: {
-                Label(L("markers.review.expand_ongoing"), systemImage: "record.circle")
+                markerTimelineActionLabel(L("markers.review.expand_ongoing"), systemImage: "record.circle")
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
@@ -268,12 +283,27 @@ struct MarkerTimelineView: View {
             Button {
                 toggleCrowdedGroups()
             } label: {
-                Label(crowdedActionTitleKey, systemImage: crowdedGroupsAreExpanded ? "rectangle.compress.vertical" : "rectangle.expand.vertical")
+                markerTimelineActionLabel(
+                    L(crowdedActionTitleKey),
+                    systemImage: crowdedGroupsAreExpanded ? "rectangle.compress.vertical" : "rectangle.expand.vertical"
+                )
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
             .accessibilityIdentifier("markers.review.toggleCrowded")
         }
+    }
+
+    private func markerTimelineActionLabel(_ title: String, systemImage: String) -> some View {
+        Label {
+            Text(title)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: systemImage)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var markerSummaryStrip: some View {
@@ -379,16 +409,21 @@ struct MarkerTimelineView: View {
                 )
 
                 VStack(alignment: .leading, spacing: 5) {
-                    HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.xs) {
-                        Text(titleKey)
-                            .font(.caption.weight(.semibold))
-                            .foregroundColor(DesignSystem.Colors.primaryText)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.82)
+                    ViewThatFits(in: .horizontal) {
+                        HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.xs) {
+                            markerReviewLensTitle(titleKey)
 
-                        Spacer(minLength: 0)
+                            Spacer(minLength: 0)
 
-                        StatusPill(status, systemImage: systemImage, tone: tone)
+                            StatusPill(status, systemImage: systemImage, tone: tone)
+                                .fixedSize(horizontal: true, vertical: false)
+                        }
+
+                        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                            markerReviewLensTitle(titleKey)
+
+                            StatusPill(status, systemImage: systemImage, tone: tone)
+                        }
                     }
 
                     Text(detail)
@@ -401,6 +436,14 @@ struct MarkerTimelineView: View {
         }
         .accessibilityIdentifier(accessibilityIdentifier)
         .accessibilityElement(children: .combine)
+    }
+
+    private func markerReviewLensTitle(_ titleKey: LocalizedStringKey) -> some View {
+        Text(titleKey)
+            .font(.caption.weight(.semibold))
+            .foregroundColor(DesignSystem.Colors.primaryText)
+            .lineLimit(2)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private var markerControls: some View {
@@ -603,7 +646,8 @@ struct MarkerTimelineView: View {
                 Text(titleKey)
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(detailKey)
                     .font(DesignSystem.Typography.caption)
@@ -633,7 +677,7 @@ struct MarkerTimelineView: View {
             Button {
                 AppWindowRouter.shared.open(.quickMarker)
             } label: {
-                Label(L("markers.capture.add_cue"), systemImage: "bookmark")
+                markerTimelineActionLabel(L("markers.capture.add_cue"), systemImage: "bookmark")
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
@@ -651,7 +695,7 @@ struct MarkerTimelineView: View {
             Button {
                 clearMarkerSearch()
             } label: {
-                Label(L("markers.review.clear_search"), systemImage: "line.3.horizontal.decrease.circle")
+                markerTimelineActionLabel(L("markers.review.clear_search"), systemImage: "line.3.horizontal.decrease.circle")
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
@@ -664,7 +708,7 @@ struct MarkerTimelineView: View {
         Button {
             selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
         } label: {
-            Label(L("markers.timeline.empty_open_today"), systemImage: "sun.max")
+            markerTimelineActionLabel(L("markers.timeline.empty_open_today"), systemImage: "sun.max")
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
@@ -676,7 +720,7 @@ struct MarkerTimelineView: View {
             appState.trackingPaused = false
             selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
         } label: {
-            Label(L("markers.timeline.empty_resume_capture"), systemImage: "play.fill")
+            markerTimelineActionLabel(L("markers.timeline.empty_resume_capture"), systemImage: "play.fill")
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
@@ -687,7 +731,7 @@ struct MarkerTimelineView: View {
         Button {
             AppWindowRouter.shared.open(.settings(.support))
         } label: {
-            Label(L("markers.timeline.empty_check_capture"), systemImage: "checkmark.shield")
+            markerTimelineActionLabel(L("markers.timeline.empty_check_capture"), systemImage: "checkmark.shield")
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
@@ -759,7 +803,7 @@ struct MarkerTimelineView: View {
         !crowdedGroups.isEmpty && crowdedGroups.allSatisfy { expandedGroupIds.contains($0.id) }
     }
 
-    private var crowdedActionTitleKey: LocalizedStringKey {
+    private var crowdedActionTitleKey: String {
         crowdedGroupsAreExpanded ? "markers.review.collapse_crowded" : "markers.review.expand_crowded"
     }
 
