@@ -38,6 +38,19 @@ struct StatsView: View {
         [GridItem(.adaptive(minimum: minimum), spacing: spacing, alignment: .leading)]
     }
 
+    private func statsActionLabel(_ title: String, systemImage: String) -> some View {
+        Label {
+            Text(title)
+                .lineLimit(2)
+                .minimumScaleFactor(0.86)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: systemImage)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
             headerView
@@ -179,7 +192,7 @@ struct StatsView: View {
             Button {
                 refreshStats(reason: "stats issue retry")
             } label: {
-                Label(L("dashboard.stats.error.retry"), systemImage: "arrow.clockwise")
+                statsActionLabel(L("dashboard.stats.error.retry"), systemImage: "arrow.clockwise")
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
@@ -190,7 +203,7 @@ struct StatsView: View {
             Button {
                 AppWindowRouter.shared.open(.settings(.support))
             } label: {
-                Label(L("dashboard.stats.error.open_health"), systemImage: "stethoscope")
+                statsActionLabel(L("dashboard.stats.error.open_health"), systemImage: "stethoscope")
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
@@ -325,7 +338,7 @@ struct StatsView: View {
         Button {
             showIdleSuppressionExplanation = true
         } label: {
-            Label(L("stats.idle_suppression.explain"), systemImage: "info.circle")
+            statsActionLabel(L("stats.idle_suppression.explain"), systemImage: "info.circle")
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
@@ -522,7 +535,7 @@ struct StatsView: View {
             Button {
                 showUnlabeledTimeline()
             } label: {
-                Label(L("dashboard.stats.review.review_labels"), systemImage: "rectangle.split.3x1")
+                statsActionLabel(L("dashboard.stats.review.review_labels"), systemImage: "rectangle.split.3x1")
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
@@ -533,7 +546,7 @@ struct StatsView: View {
             Button {
                 AppWindowRouter.shared.open(.quickMarker)
             } label: {
-                Label(L("dashboard.stats.review.add_cue"), systemImage: "square.and.pencil")
+                statsActionLabel(L("dashboard.stats.review.add_cue"), systemImage: "square.and.pencil")
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
@@ -575,7 +588,7 @@ struct StatsView: View {
                 selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
                 AppWindowRouter.shared.open(.dashboard)
             } label: {
-                Label(L("dashboard.stats.review.open_today"), systemImage: "sun.max")
+                statsActionLabel(L("dashboard.stats.review.open_today"), systemImage: "sun.max")
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
@@ -587,7 +600,7 @@ struct StatsView: View {
                 selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
                 AppWindowRouter.shared.open(.dashboard)
             } label: {
-                Label(L("dashboard.stats.review.open_today"), systemImage: "sun.max")
+                statsActionLabel(L("dashboard.stats.review.open_today"), systemImage: "sun.max")
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
@@ -602,7 +615,7 @@ struct StatsView: View {
             Button {
                 AppWindowRouter.shared.open(.settings(.support))
             } label: {
-                Label(L("dashboard.stats.review.check_capture"), systemImage: "stethoscope")
+                statsActionLabel(L("dashboard.stats.review.check_capture"), systemImage: "stethoscope")
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
@@ -613,7 +626,7 @@ struct StatsView: View {
             Button {
                 AppWindowRouter.shared.open(.settings(.support))
             } label: {
-                Label(L("dashboard.stats.review.check_capture"), systemImage: "stethoscope")
+                statsActionLabel(L("dashboard.stats.review.check_capture"), systemImage: "stethoscope")
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
@@ -630,7 +643,7 @@ struct StatsView: View {
                 selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
                 AppWindowRouter.shared.open(.dashboard)
             } label: {
-                Label(L("dashboard.stats.review.resume_capture"), systemImage: "play.fill")
+                statsActionLabel(L("dashboard.stats.review.resume_capture"), systemImage: "play.fill")
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
@@ -643,7 +656,7 @@ struct StatsView: View {
                 selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
                 AppWindowRouter.shared.open(.dashboard)
             } label: {
-                Label(L("dashboard.stats.review.resume_capture"), systemImage: "play.fill")
+                statsActionLabel(L("dashboard.stats.review.resume_capture"), systemImage: "play.fill")
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
@@ -656,7 +669,7 @@ struct StatsView: View {
         Button {
             AppWindowRouter.shared.open(.quickMarker)
         } label: {
-            Label(L("dashboard.stats.review.add_cue"), systemImage: "square.and.pencil")
+            statsActionLabel(L("dashboard.stats.review.add_cue"), systemImage: "square.and.pencil")
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
@@ -669,7 +682,7 @@ struct StatsView: View {
             selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
             AppWindowRouter.shared.open(.dashboard)
         } label: {
-            Label(L("dashboard.stats.review.open_timeline"), systemImage: "clock")
+            statsActionLabel(L("dashboard.stats.review.open_timeline"), systemImage: "clock")
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
@@ -682,7 +695,7 @@ struct StatsView: View {
             selectedDashboardSectionRaw = DashboardView.Section.markers.rawValue
             AppWindowRouter.shared.open(.dashboard)
         } label: {
-            Label(L("dashboard.stats.review.open_markers"), systemImage: "note.text")
+            statsActionLabel(L("dashboard.stats.review.open_markers"), systemImage: "note.text")
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
@@ -697,7 +710,7 @@ struct StatsView: View {
                 selectedDashboardSectionRaw = DashboardView.Section.reports.rawValue
                 AppWindowRouter.shared.open(.dashboard)
             } label: {
-                Label(L("dashboard.stats.review.prepare_report"), systemImage: "doc.text.magnifyingglass")
+                statsActionLabel(L("dashboard.stats.review.prepare_report"), systemImage: "doc.text.magnifyingglass")
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
@@ -709,7 +722,7 @@ struct StatsView: View {
                 selectedDashboardSectionRaw = DashboardView.Section.reports.rawValue
                 AppWindowRouter.shared.open(.dashboard)
             } label: {
-                Label(L("dashboard.stats.review.prepare_report"), systemImage: "doc.text.magnifyingglass")
+                statsActionLabel(L("dashboard.stats.review.prepare_report"), systemImage: "doc.text.magnifyingglass")
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
