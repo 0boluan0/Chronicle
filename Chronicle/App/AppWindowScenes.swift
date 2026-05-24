@@ -74,12 +74,26 @@ private struct WindowConfigurationBridge: NSViewRepresentable {
 
     let configuration: SceneWindowConfiguration
 
+    final class Coordinator {
+        private var restoredAutosaveNames = Set<String>()
+
+        func shouldRestoreFrame(for autosaveName: String) -> Bool {
+            restoredAutosaveNames.insert(autosaveName).inserted
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
     func makeNSView(context: Context) -> NSView {
         NSView(frame: .zero)
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
         let title = L(configuration.titleKey)
+        let configuration = configuration
+        let coordinator = context.coordinator
         DispatchQueue.main.async {
             guard let window = nsView.window else { return }
             window.title = title
@@ -95,6 +109,10 @@ private struct WindowConfigurationBridge: NSViewRepresentable {
                 window.styleMask.remove(.resizable)
             }
             window.isRestorable = configuration.restorable
+            if let autosaveName = configuration.autosaveName,
+               coordinator.shouldRestoreFrame(for: autosaveName) {
+                _ = window.setFrameUsingName(autosaveName)
+            }
         }
     }
 }
