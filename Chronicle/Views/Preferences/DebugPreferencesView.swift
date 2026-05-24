@@ -244,14 +244,7 @@ struct DebugPreferencesView: View {
     }
 
     private func debugActionLabel(_ title: String, systemImage: String) -> some View {
-        Label {
-            Text(title)
-                .lineLimit(2)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-        } icon: {
-            Image(systemName: systemImage)
-        }
+        ActionButtonLabel(title, systemImage: systemImage, fillsWidth: false)
     }
 
     private var debugStatusTitleKey: String {

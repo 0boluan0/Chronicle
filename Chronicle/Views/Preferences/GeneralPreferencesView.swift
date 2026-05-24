@@ -152,15 +152,7 @@ struct GeneralPreferencesView: View {
     }
 
     private func generalActionLabel(_ title: String, systemImage: String) -> some View {
-        Label {
-            Text(title)
-                .lineLimit(2)
-                .minimumScaleFactor(0.86)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-        } icon: {
-            Image(systemName: systemImage)
-        }
+        ActionButtonLabel(title, systemImage: systemImage, fillsWidth: false)
     }
 
     @ViewBuilder

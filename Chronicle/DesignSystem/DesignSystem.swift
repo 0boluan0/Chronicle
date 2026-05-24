@@ -339,29 +339,34 @@ struct ActionButtonLabel: View {
     private let systemImage: String
     private let maxLines: Int
     private let minimumScaleFactor: CGFloat
+    private let fillsWidth: Bool
 
     init(
         _ title: String,
         systemImage: String,
         maxLines: Int = 2,
-        minimumScaleFactor: CGFloat = 0.86
+        minimumScaleFactor: CGFloat = 0.86,
+        fillsWidth: Bool = true
     ) {
         self.title = Text(verbatim: title)
         self.systemImage = systemImage
         self.maxLines = maxLines
         self.minimumScaleFactor = minimumScaleFactor
+        self.fillsWidth = fillsWidth
     }
 
     init(
         _ titleKey: LocalizedStringKey,
         systemImage: String,
         maxLines: Int = 2,
-        minimumScaleFactor: CGFloat = 0.86
+        minimumScaleFactor: CGFloat = 0.86,
+        fillsWidth: Bool = true
     ) {
         self.title = Text(titleKey)
         self.systemImage = systemImage
         self.maxLines = maxLines
         self.minimumScaleFactor = minimumScaleFactor
+        self.fillsWidth = fillsWidth
     }
 
     var body: some View {
@@ -374,7 +379,7 @@ struct ActionButtonLabel: View {
         } icon: {
             Image(systemName: systemImage)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: fillsWidth ? .infinity : nil, alignment: .leading)
     }
 }
 

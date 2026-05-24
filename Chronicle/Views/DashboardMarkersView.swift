@@ -544,15 +544,7 @@ struct DashboardMarkersView: View {
     }
 
     private func cueCaptureActionLabel(_ title: String, systemImage: String) -> some View {
-        Label {
-            Text(title)
-                .lineLimit(2)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-        } icon: {
-            Image(systemName: systemImage)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        ActionButtonLabel(title, systemImage: systemImage)
     }
 
     private var cueSummaryGrid: some View {

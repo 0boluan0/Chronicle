@@ -281,16 +281,7 @@ struct DashboardTimelineView: View {
     }
 
     private func timelineActionLabel(_ title: String, systemImage: String) -> some View {
-        Label {
-            Text(title)
-                .lineLimit(2)
-                .minimumScaleFactor(0.86)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-        } icon: {
-            Image(systemName: systemImage)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        ActionButtonLabel(title, systemImage: systemImage)
     }
 
     private var reviewFocusCard: some View {
@@ -713,16 +704,7 @@ struct DashboardTimelineView: View {
     @ViewBuilder
     private func reviewFocusActionLabel(_ titleKey: LocalizedStringKey, systemImage: String?) -> some View {
         if let systemImage {
-            Label {
-                Text(titleKey)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.86)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-            } icon: {
-                Image(systemName: systemImage)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            ActionButtonLabel(titleKey, systemImage: systemImage)
         } else {
             Text(titleKey)
                 .lineLimit(2)

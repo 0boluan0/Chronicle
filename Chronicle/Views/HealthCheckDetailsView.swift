@@ -344,16 +344,7 @@ struct HealthCheckDetailsView: View {
     }
 
     private func healthActionLabel(_ title: String, systemImage: String) -> some View {
-        Label {
-            Text(title)
-                .lineLimit(2)
-                .minimumScaleFactor(0.85)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-        } icon: {
-            Image(systemName: systemImage)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        ActionButtonLabel(title, systemImage: systemImage, minimumScaleFactor: 0.85)
     }
 
     private var readinessSummarySection: some View {
