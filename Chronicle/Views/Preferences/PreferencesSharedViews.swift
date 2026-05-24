@@ -46,7 +46,7 @@ struct PreferencesPageLayout<Content: View>: View {
     private var pageHeader: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
             ViewThatFits(in: .horizontal) {
-                HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+                HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
                     pageHeaderLead
                         .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -69,7 +69,7 @@ struct PreferencesPageLayout<Content: View>: View {
     }
 
     private var pageHeaderLead: some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
             IconWell(
                 systemImage: systemImage,
                 tone: tone,
@@ -91,7 +91,9 @@ struct PreferencesPageLayout<Content: View>: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
