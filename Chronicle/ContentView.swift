@@ -309,19 +309,17 @@ struct ContentView: View {
 
     private var commandCenterLoopProgress: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 190), spacing: DesignSystem.Spacing.md, alignment: .leading)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.xs
-            ) {
-                commandCenterLoopProgressCopy
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                StatusPill(
-                    commandCenterLoopProgressText,
-                    systemImage: commandCenterLoopStatusIconName,
-                    tone: commandCenterLoopTone
-                )
-                .frame(maxWidth: .infinity, alignment: .leading)
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                    commandCenterLoopProgressCopy
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    commandCenterLoopProgressStatusPill
+                }
+
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                    commandCenterLoopProgressCopy
+                    commandCenterLoopProgressStatusPill
+                }
             }
 
             RatioBar(
@@ -340,6 +338,15 @@ struct ContentView: View {
                 .stroke(commandCenterLoopTone.color.opacity(0.18), lineWidth: 1)
         )
         .accessibilityIdentifier("popover.commandCenter.progress")
+    }
+
+    private var commandCenterLoopProgressStatusPill: some View {
+        StatusPill(
+            commandCenterLoopProgressText,
+            systemImage: commandCenterLoopStatusIconName,
+            tone: commandCenterLoopTone
+        )
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     private var commandCenterLoopProgressCopy: some View {
