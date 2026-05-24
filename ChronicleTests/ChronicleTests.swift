@@ -1280,6 +1280,7 @@ final class ChronicleTests: XCTestCase {
             "onboarding.summary.exports",
             "preferences.sidebar.guide.status.ready",
             "preferences.sidebar.guide.status.paused",
+            "preferences.sidebar.guide.status.manual_start",
             "preferences.sidebar.guide.status.selected",
             "preferences.sidebar.guide.status.needs_permission",
             "preferences.sidebar.guide.status.needs_review",

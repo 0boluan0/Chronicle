@@ -1010,6 +1010,7 @@
 "preferences.sidebar.guide.health_detail" = "升级前确认健康和数据位置。";
 "preferences.sidebar.guide.status.ready" = "已就绪";
 "preferences.sidebar.guide.status.paused" = "已暂停";
+"preferences.sidebar.guide.status.manual_start" = "手动启动";
 "preferences.sidebar.guide.status.selected" = "已选择";
 "preferences.sidebar.guide.status.needs_permission" = "需授权";
 "preferences.sidebar.guide.status.needs_review" = "需检查";

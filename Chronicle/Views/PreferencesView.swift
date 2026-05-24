@@ -549,9 +549,16 @@ struct PreferencesView: View {
     private func setupGuideReadiness(for section: Section) -> PreferencesSetupReadiness {
         switch section {
         case .general:
-            return appState.trackingPaused
-                ? PreferencesSetupReadiness(titleKey: "preferences.sidebar.guide.status.paused", systemImage: "pause.fill", tone: .warning)
-                : PreferencesSetupReadiness(titleKey: "preferences.sidebar.guide.status.ready", systemImage: "checkmark", tone: .success)
+            if appState.trackingPaused {
+                return PreferencesSetupReadiness(titleKey: "preferences.sidebar.guide.status.paused", systemImage: "pause.fill", tone: .warning)
+            }
+            if !appState.launchAtLoginEnabled {
+                return PreferencesSetupReadiness(titleKey: "preferences.sidebar.guide.status.manual_start", systemImage: "power", tone: .warning)
+            }
+            if !sidebarUsesCleanTimelineDefaults {
+                return PreferencesSetupReadiness(titleKey: "preferences.sidebar.guide.status.needs_review", systemImage: "exclamationmark.triangle.fill", tone: .warning)
+            }
+            return PreferencesSetupReadiness(titleKey: "preferences.sidebar.guide.status.ready", systemImage: "checkmark", tone: .success)
         case .privacy:
             if appState.windowTitleCaptureEnabled && !appState.accessibilityAuthorized {
                 return PreferencesSetupReadiness(titleKey: "preferences.sidebar.guide.status.needs_permission", systemImage: "hand.raised.fill", tone: .warning)
@@ -600,6 +607,12 @@ struct PreferencesView: View {
             return PreferencesSetupReadiness(titleKey: "preferences.sidebar.guide.status.needs_review", systemImage: "exclamationmark.triangle.fill", tone: .warning)
         }
         return PreferencesSetupReadiness(titleKey: "preferences.sidebar.guide.status.ready", systemImage: "checkmark", tone: .success)
+    }
+
+    private var sidebarUsesCleanTimelineDefaults: Bool {
+        appState.ignoreChronicleSelf &&
+        appState.usesRecommendedTrackingSettings &&
+        appState.idleDetectionEnabled
     }
 
     private func healthIssueCounts(for report: HealthCheckReport) -> (errors: Int, warnings: Int) {
@@ -811,6 +824,7 @@ private struct PreferencesSetupReadiness {
     var needsAttention: Bool {
         switch titleKey {
         case "preferences.sidebar.guide.status.paused",
+            "preferences.sidebar.guide.status.manual_start",
             "preferences.sidebar.guide.status.needs_permission",
             "preferences.sidebar.guide.status.needs_review",
             "preferences.sidebar.guide.status.needs_folder",

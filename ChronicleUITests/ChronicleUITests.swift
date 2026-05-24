@@ -1057,6 +1057,7 @@ final class ChronicleUITests: XCTestCase {
         XCTAssertTrue(app.groups["preferences.sidebar.guide"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Setup order"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["preferences.sidebar.guide.progress"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Manual start"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["preferences.sidebar.guide.current"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["preferences.sidebar.guide.next"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["preferences.sidebar.guide.daily"].waitForExistence(timeout: 5))

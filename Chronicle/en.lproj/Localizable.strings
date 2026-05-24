@@ -1010,6 +1010,7 @@
 "preferences.sidebar.guide.health_detail" = "Check health and data before updating.";
 "preferences.sidebar.guide.status.ready" = "Ready";
 "preferences.sidebar.guide.status.paused" = "Paused";
+"preferences.sidebar.guide.status.manual_start" = "Manual start";
 "preferences.sidebar.guide.status.selected" = "Selected";
 "preferences.sidebar.guide.status.needs_permission" = "Needs permission";
 "preferences.sidebar.guide.status.needs_review" = "Needs review";
