@@ -919,9 +919,131 @@ struct DashboardStatsView: View {
                 )
             }
 
+            dataQualityEvidenceChain(stats: stats)
+
             capturePipelineStrip(stats: stats)
         }
         .accessibilityIdentifier("dashboard.stats.dataQuality")
+    }
+
+    private func dataQualityEvidenceChain(stats: RangeStats) -> some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            Label {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("dashboard.stats.data_quality.chain_title")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+
+                    Text("dashboard.stats.data_quality.chain_detail")
+                        .font(.caption2)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            } icon: {
+                Image(systemName: "checklist.checked")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(dataQualityTone(stats).color)
+                    .frame(width: 16)
+            }
+            .labelStyle(.titleAndIcon)
+
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 150), spacing: DesignSystem.Spacing.sm, alignment: .topLeading)],
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                dataQualityEvidenceStep(
+                    titleKey: "dashboard.stats.data_quality.chain.capture_title",
+                    value: dataQualityCaptureEvidenceValue(stats),
+                    detail: dataQualityCaptureEvidenceDetail(stats),
+                    systemImage: stats.rawEventCount == 0 ? "circle" : "waveform.path.ecg",
+                    tone: stats.rawEventCount == 0 ? .neutral : .info,
+                    accessibilityIdentifier: "dashboard.stats.dataQuality.chain.capture"
+                )
+
+                dataQualityEvidenceStep(
+                    titleKey: "dashboard.stats.data_quality.chain.cleanup_title",
+                    value: dataQualityCleanupEvidenceValue(stats),
+                    detail: dataQualityCleanupEvidenceDetail(stats),
+                    systemImage: dataQualityCleanupEvidenceIconName(stats),
+                    tone: dataQualityCleanupEvidenceTone(stats),
+                    accessibilityIdentifier: "dashboard.stats.dataQuality.chain.cleanup"
+                )
+
+                dataQualityEvidenceStep(
+                    titleKey: "dashboard.stats.data_quality.chain.context_title",
+                    value: dataQualityContextEvidenceValue(stats),
+                    detail: dataQualityContextEvidenceDetail(stats),
+                    systemImage: dataQualityContextIconName(stats),
+                    tone: dataQualityContextTone(stats),
+                    accessibilityIdentifier: "dashboard.stats.dataQuality.chain.context"
+                )
+            }
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(dataQualityTone(stats).color.opacity(0.06))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(dataQualityTone(stats).color.opacity(0.16), lineWidth: 1)
+        )
+        .accessibilityIdentifier("dashboard.stats.dataQuality.evidenceChain")
+    }
+
+    private func dataQualityEvidenceStep(
+        titleKey: LocalizedStringKey,
+        value: String,
+        detail: String,
+        systemImage: String,
+        tone: DesignSystem.StatusTone,
+        accessibilityIdentifier: String
+    ) -> some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.xs) {
+            Image(systemName: systemImage)
+                .font(.caption2.weight(.semibold))
+                .foregroundColor(tone.color)
+                .frame(width: 14, height: 16)
+
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.xs) {
+                    Text(titleKey)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .lineLimit(1)
+
+                    Spacer(minLength: DesignSystem.Spacing.xs)
+
+                    Text(value)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                }
+
+                Text(detail)
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, DesignSystem.Spacing.sm)
+        .padding(.vertical, 7)
+        .frame(maxWidth: .infinity, minHeight: 54, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .fill(tone.color.opacity(0.07))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .stroke(tone.color.opacity(0.16), lineWidth: 1)
+        )
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     private func capturePipelineStrip(stats: RangeStats) -> some View {
@@ -1403,6 +1525,107 @@ struct DashboardStatsView: View {
 
     private func dataQualityContextCount(_ stats: RangeStats) -> Int {
         stats.markerNotesCount + stats.markerSessionsCount
+    }
+
+    private func dataQualityCaptureEvidenceValue(_ stats: RangeStats) -> String {
+        guard stats.rawEventCount > 0 else {
+            return L("dashboard.stats.data_quality.chain.raw_none")
+        }
+        return String(format: L("dashboard.stats.data_quality.chain.raw_value"), stats.rawEventCount)
+    }
+
+    private func dataQualityCaptureEvidenceDetail(_ stats: RangeStats) -> String {
+        if stats.rawEventCount > 0 {
+            return L("dashboard.stats.data_quality.chain.capture_ready")
+        }
+        if stats.summary.sessions > 0 {
+            return L("dashboard.stats.data_quality.chain.capture_legacy")
+        }
+        return L("dashboard.stats.data_quality.chain.capture_waiting")
+    }
+
+    private func dataQualityCleanupEvidenceValue(_ stats: RangeStats) -> String {
+        guard stats.summary.sessions > 0 else {
+            return L("dashboard.stats.data_quality.chain.sessions_none")
+        }
+        return String(format: L("dashboard.stats.data_quality.chain.sessions_value"), stats.summary.sessions)
+    }
+
+    private func dataQualityCleanupEvidenceDetail(_ stats: RangeStats) -> String {
+        if stats.summary.sessions > 0 {
+            return L("dashboard.stats.data_quality.chain.cleanup_ready")
+        }
+        if stats.rawEventCount > 0 {
+            return L("dashboard.stats.data_quality.chain.cleanup_pending")
+        }
+        return L("dashboard.stats.data_quality.chain.cleanup_waiting")
+    }
+
+    private func dataQualityCleanupEvidenceIconName(_ stats: RangeStats) -> String {
+        if stats.summary.sessions > 0 {
+            return "arrow.triangle.merge"
+        }
+        if stats.rawEventCount > 0 {
+            return "exclamationmark.triangle"
+        }
+        return "circle"
+    }
+
+    private func dataQualityCleanupEvidenceTone(_ stats: RangeStats) -> DesignSystem.StatusTone {
+        if stats.summary.sessions > 0 {
+            return .success
+        }
+        if stats.rawEventCount > 0 {
+            return .warning
+        }
+        return .neutral
+    }
+
+    private func dataQualityContextEvidenceValue(_ stats: RangeStats) -> String {
+        let contextCount = dataQualityContextCount(stats)
+        guard contextCount > 0 else {
+            return L("dashboard.stats.data_quality.chain.context_none")
+        }
+        return String(format: L("dashboard.stats.data_quality.chain.context_value"), contextCount)
+    }
+
+    private func dataQualityContextEvidenceDetail(_ stats: RangeStats) -> String {
+        if stats.summary.totalSeconds == 0 {
+            return L("dashboard.stats.data_quality.chain.context_waiting")
+        }
+        if stats.topTags.isEmpty {
+            return L("dashboard.stats.data_quality.chain.context_categories")
+        }
+        if dataQualityContextCount(stats) == 0 {
+            return L("dashboard.stats.data_quality.chain.context_notes")
+        }
+        return L("dashboard.stats.data_quality.chain.context_ready")
+    }
+
+    private func dataQualityContextIconName(_ stats: RangeStats) -> String {
+        if stats.summary.totalSeconds == 0 {
+            return "circle"
+        }
+        if stats.topTags.isEmpty {
+            return "rectangle.split.3x1"
+        }
+        if dataQualityContextCount(stats) == 0 {
+            return "note.text"
+        }
+        return "checkmark.seal.fill"
+    }
+
+    private func dataQualityContextTone(_ stats: RangeStats) -> DesignSystem.StatusTone {
+        if stats.summary.totalSeconds == 0 {
+            return .neutral
+        }
+        if stats.topTags.isEmpty {
+            return .warning
+        }
+        if dataQualityContextCount(stats) == 0 {
+            return .info
+        }
+        return .success
     }
 
     private func capturePipelineState(_ stats: RangeStats) -> CapturePipelineState {
