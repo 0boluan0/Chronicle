@@ -617,20 +617,30 @@ struct DashboardView: View {
     private var sidebarTodayControlStatus: some View {
         StatusPill(sidebarTodayStatusText, systemImage: sidebarTodayStatusIconName, tone: sidebarTodayStatusTone)
             .fixedSize(horizontal: true, vertical: false)
+            .accessibilityIdentifier("dashboard.sidebar.todayControl.status")
     }
 
     private var sidebarQuickActionGrid: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            Label {
-                Text("dashboard.sidebar.quick_actions")
-                    .font(.caption2.weight(.semibold))
+            VStack(alignment: .leading, spacing: 2) {
+                Label {
+                    Text("dashboard.sidebar.quick_actions")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                } icon: {
+                    Image(systemName: "bolt.fill")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(DesignSystem.Colors.secondaryText)
+                }
+                .labelStyle(.titleAndIcon)
+
+                Text("dashboard.sidebar.quick_actions_detail")
+                    .font(.caption2)
                     .foregroundStyle(.secondary)
-            } icon: {
-                Image(systemName: "bolt.fill")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("dashboard.sidebar.utilityActions.detail")
             }
-            .labelStyle(.titleAndIcon)
 
             VStack(spacing: DesignSystem.Spacing.sm) {
                 HStack(spacing: DesignSystem.Spacing.sm) {
