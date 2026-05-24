@@ -769,11 +769,27 @@ struct SupportPreferencesView: View {
         tone: DesignSystem.StatusTone,
         @ViewBuilder trailing: () -> Trailing
     ) -> some View {
-        HStack(spacing: DesignSystem.Spacing.sm) {
-            if let status, let statusIcon {
-                StatusPill(status, systemImage: statusIcon, tone: tone)
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+                supportStatusPill(status: status, statusIcon: statusIcon, tone: tone)
+                trailing()
             }
-            trailing()
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                supportStatusPill(status: status, statusIcon: statusIcon, tone: tone)
+                trailing()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func supportStatusPill(
+        status: String?,
+        statusIcon: String?,
+        tone: DesignSystem.StatusTone
+    ) -> some View {
+        if let status, let statusIcon {
+            StatusPill(status, systemImage: statusIcon, tone: tone)
         }
     }
 
