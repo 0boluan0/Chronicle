@@ -213,7 +213,7 @@ struct PreferencesView: View {
                 Text("preferences.sidebar.guide.detail")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
-                    .lineLimit(3)
+                    .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
 
                 setupGuideProgressSummary
@@ -222,7 +222,7 @@ struct PreferencesView: View {
 
                 Divider()
 
-                VStack(spacing: 4) {
+                VStack(alignment: .leading, spacing: 3) {
                     setupGuideButton(
                         stepNumber: "1",
                         titleKey: "preferences.sidebar.guide.daily_title",
@@ -316,18 +316,16 @@ struct PreferencesView: View {
                 remainderColor: DesignSystem.Colors.separator
             )
 
-            HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.xs) {
-                StatusPill(
-                    setupGuideProgressStatusText,
-                    systemImage: setupGuideProgressIconName,
-                    tone: setupGuideProgressTone
-                )
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.xs) {
+                    setupGuideProgressPill
+                    setupGuideProgressDetail
+                }
 
-                Text(LocalizedStringKey(setupGuideProgressDetailKey))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                    setupGuideProgressPill
+                    setupGuideProgressDetail
+                }
             }
         }
         .padding(DesignSystem.Spacing.sm)
@@ -341,6 +339,22 @@ struct PreferencesView: View {
         )
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("preferences.sidebar.guide.progress")
+    }
+
+    private var setupGuideProgressPill: some View {
+        StatusPill(
+            setupGuideProgressStatusText,
+            systemImage: setupGuideProgressIconName,
+            tone: setupGuideProgressTone
+        )
+    }
+
+    private var setupGuideProgressDetail: some View {
+        Text(LocalizedStringKey(setupGuideProgressDetailKey))
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .lineLimit(2)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private var setupGuideCurrentStep: some View {
@@ -371,7 +385,13 @@ struct PreferencesView: View {
             Button {
                 openNextSetupStep()
             } label: {
-                Label(L(nextSetupGuideActionKey), systemImage: nextSetupGuideIconName)
+                Label {
+                    Text(L(nextSetupGuideActionKey))
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                } icon: {
+                    Image(systemName: nextSetupGuideIconName)
+                }
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .buttonStyle(.bordered)
@@ -393,14 +413,13 @@ struct PreferencesView: View {
         identifier: String
     ) -> some View {
         let isActive = selectedSection == section
-        let stepColor = isActive ? DesignSystem.Colors.accentSkyBlue : DesignSystem.Colors.secondaryText
         let readiness = setupGuideReadiness(for: section)
 
         return Button {
             destination?.apply()
             selectedSectionRaw = section.rawValue
         } label: {
-            HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+            HStack(alignment: .top, spacing: 8) {
                 Text(stepNumber)
                     .font(.caption2.weight(.bold))
                     .foregroundStyle(isActive ? Color.white : DesignSystem.Colors.accentSkyBlue)
@@ -410,32 +429,33 @@ struct PreferencesView: View {
                             .fill(isActive ? DesignSystem.Colors.accentSkyBlue : DesignSystem.Colors.accentSkyBlue.opacity(0.12))
                     )
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Label {
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.xs) {
                         Text(titleKey)
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.primary)
-                            .lineLimit(1)
-                    } icon: {
-                        Image(systemName: systemImage)
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(stepColor)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        Spacer(minLength: DesignSystem.Spacing.xs)
+
+                        setupGuideStatusPill(readiness, identifier: "\(identifier).status")
+                            .fixedSize(horizontal: true, vertical: false)
                     }
-                    .labelStyle(.titleAndIcon)
 
-                    Text(detailKey)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    setupGuideStatusPill(readiness, identifier: "\(identifier).status")
+                    if isActive {
+                        Text(detailKey)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
 
                 Spacer(minLength: 0)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 6)
+            .padding(.vertical, isActive ? 6 : 5)
             .padding(.horizontal, 6)
             .background(
                 RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
