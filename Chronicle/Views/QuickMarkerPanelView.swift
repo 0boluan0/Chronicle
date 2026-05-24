@@ -221,25 +221,21 @@ struct QuickMarkerPanelView: View {
     }
 
     private var panelHeaderProgressRail: some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
-            Image(systemName: reviewLoopIconName)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(reviewLoopTone.color)
-                .frame(width: 16)
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+                panelHeaderProgressLabel
+                panelHeaderRatioBar
+                panelHeaderProgressText
+            }
 
-            RatioBar(
-                filledFraction: reviewLoopProgressFraction,
-                filledColor: reviewLoopTone.color,
-                remainderColor: DesignSystem.Colors.separator
-            )
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                HStack(alignment: .center, spacing: DesignSystem.Spacing.xs) {
+                    panelHeaderProgressLabel
+                    panelHeaderProgressText
+                }
 
-            Text(String(format: L("quick_marker.loop.progress"), reviewLoopReadyCount, reviewLoopTotalCount))
-                .font(.caption2.weight(.semibold))
-                .foregroundColor(reviewLoopTone.color)
-                .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.82)
-                .fixedSize(horizontal: true, vertical: false)
+                panelHeaderRatioBar
+            }
         }
         .padding(.horizontal, DesignSystem.Spacing.sm)
         .padding(.vertical, 7)
@@ -253,6 +249,31 @@ struct QuickMarkerPanelView: View {
         )
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("quickMarker.headerProgress")
+    }
+
+    private var panelHeaderProgressLabel: some View {
+        Image(systemName: reviewLoopIconName)
+            .font(.caption.weight(.semibold))
+            .foregroundColor(reviewLoopTone.color)
+            .frame(width: 16)
+    }
+
+    private var panelHeaderRatioBar: some View {
+        RatioBar(
+            filledFraction: reviewLoopProgressFraction,
+            filledColor: reviewLoopTone.color,
+            remainderColor: DesignSystem.Colors.separator
+        )
+    }
+
+    private var panelHeaderProgressText: some View {
+        Text(String(format: L("quick_marker.loop.progress"), reviewLoopReadyCount, reviewLoopTotalCount))
+            .font(.caption2.weight(.semibold))
+            .foregroundColor(reviewLoopTone.color)
+            .monospacedDigit()
+            .lineLimit(1)
+            .minimumScaleFactor(0.82)
+            .fixedSize(horizontal: true, vertical: false)
     }
 
     private var headerCloseButton: some View {
