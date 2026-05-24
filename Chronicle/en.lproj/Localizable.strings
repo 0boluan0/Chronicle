@@ -848,6 +848,12 @@
 "overview.daily_chart.insight.none" = "None yet";
 "overview.daily_chart.empty_title" = "No daily activity yet.";
 "overview.daily_chart.empty_detail" = "Once Chronicle captures activity for this range, the timeline will show lanes and clickable work blocks.";
+"overview.daily_chart.empty.path.capture_title" = "Keep Chronicle running";
+"overview.daily_chart.empty.path.capture_detail" = "The chart fills in after a normal work session has visible app activity.";
+"overview.daily_chart.empty.path.context_title" = "Add a quick note";
+"overview.daily_chart.empty.path.context_detail" = "A note gives the day a useful anchor even before activity appears.";
+"overview.daily_chart.empty.path.closeout_title" = "Review after work starts";
+"overview.daily_chart.empty.path.closeout_detail" = "Return to Today once blocks appear, then save the daily log.";
 "overview.weekly_chart.title" = "Weekly rhythm";
 "overview.weekly_chart.detail" = "Compare focus lanes by day, then spot the heaviest days and quiet gaps before saving a review.";
 "overview.weekly_chart.status" = "%d lanes";

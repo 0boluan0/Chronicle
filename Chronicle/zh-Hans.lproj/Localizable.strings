@@ -848,6 +848,12 @@
 "overview.daily_chart.insight.none" = "暂无";
 "overview.daily_chart.empty_title" = "还没有当天活动。";
 "overview.daily_chart.empty_detail" = "Chronicle 记录到这个时段的活动后，时间轴会显示主线和可点击的工作块。";
+"overview.daily_chart.empty.path.capture_title" = "保持 Chronicle 运行";
+"overview.daily_chart.empty.path.capture_detail" = "正常工作一段时间后，有可见应用活动时这里会自动填充。";
+"overview.daily_chart.empty.path.context_title" = "补一条快速备注";
+"overview.daily_chart.empty.path.context_detail" = "即使活动暂未出现，一条备注也能给今天留下有用锚点。";
+"overview.daily_chart.empty.path.closeout_title" = "开始工作后再复盘";
+"overview.daily_chart.empty.path.closeout_detail" = "等时间块出现后回到 Today，再保存今日日志。";
 "overview.weekly_chart.title" = "一周节奏";
 "overview.weekly_chart.detail" = "按天比较不同投入主线，先看本周高峰和空白，再决定是否保存复盘。";
 "overview.weekly_chart.status" = "%d 条主线";
