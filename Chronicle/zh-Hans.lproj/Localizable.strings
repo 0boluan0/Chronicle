@@ -532,6 +532,8 @@
 "onboarding.finish.setup_title" = "今天的设置";
 "onboarding.finish.next_title" = "从今天开始";
 "onboarding.finish.next_detail" = "打开今天查看当前时间线；遇到值得回看的事，就加一条笔记。";
+"onboarding.finish.next_folder_title" = "先让第一份今日日志可保存。";
+"onboarding.finish.next_folder_detail" = "现在选择本地文件夹，或先打开今天，在收工前再设置。";
 "onboarding.finish.checklist.running_title" = "让它留在菜单栏运行";
 "onboarding.finish.checklist.running_detail" = "工作时保持 Chronicle 打开，时间线会自己累积，不需要多管一个任务。";
 "onboarding.finish.checklist.note_title" = "关键时刻补一句语境";

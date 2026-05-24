@@ -1487,11 +1487,11 @@ struct OnboardingView: View {
                 IconWell(systemImage: "checklist.checked", tone: .info)
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("onboarding.finish.next_title")
+                    Text(LocalizedStringKey(finishNextTitleKey))
                         .font(.subheadline.weight(.semibold))
                         .foregroundColor(DesignSystem.Colors.primaryText)
 
-                    Text("onboarding.finish.next_detail")
+                    Text(LocalizedStringKey(finishNextDetailKey))
                         .font(DesignSystem.Typography.caption)
                         .foregroundColor(DesignSystem.Colors.secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
@@ -1536,13 +1536,26 @@ struct OnboardingView: View {
                 alignment: .leading,
                 spacing: DesignSystem.Spacing.sm
             ) {
+                if !hasDailyExportFolderConfigured {
+                    finishActionCard(
+                        id: "onboarding.finishSetupExports",
+                        systemImage: "folder.badge.plus",
+                        title: "onboarding.finish.setup_exports",
+                        detail: "onboarding.finish.action.folder_detail",
+                        tone: .warning,
+                        isPrimary: true
+                    ) {
+                        chooseDailyFolder()
+                    }
+                }
+
                 finishActionCard(
                     id: "onboarding.openDashboard",
                     systemImage: "rectangle.3.group",
                     title: "onboarding.finish.open_dashboard",
                     detail: "onboarding.finish.action.today_detail",
                     tone: .info,
-                    isPrimary: true
+                    isPrimary: hasDailyExportFolderConfigured
                 ) {
                     completeOnboarding(opening: .dashboard)
                 }
@@ -1557,17 +1570,6 @@ struct OnboardingView: View {
                     completeOnboarding(opening: .quickMarker)
                 }
 
-                if !hasDailyExportFolderConfigured {
-                    finishActionCard(
-                        id: "onboarding.finishSetupExports",
-                        systemImage: "folder.badge.plus",
-                        title: "onboarding.finish.setup_exports",
-                        detail: "onboarding.finish.action.folder_detail",
-                        tone: .warning
-                    ) {
-                        chooseDailyFolder()
-                    }
-                }
             }
             .accessibilityIdentifier("onboarding.finishPrimaryActions")
         }
@@ -2139,6 +2141,18 @@ struct OnboardingView: View {
         hasDailyExportFolderConfigured
             ? "onboarding.finish.checklist.closeout_detail_ready"
             : "onboarding.finish.checklist.closeout_detail_needs_folder"
+    }
+
+    private var finishNextTitleKey: String {
+        hasDailyExportFolderConfigured
+            ? "onboarding.finish.next_title"
+            : "onboarding.finish.next_folder_title"
+    }
+
+    private var finishNextDetailKey: String {
+        hasDailyExportFolderConfigured
+            ? "onboarding.finish.next_detail"
+            : "onboarding.finish.next_folder_detail"
     }
 
     private var stepIndicator: String {

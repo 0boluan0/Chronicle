@@ -532,6 +532,8 @@
 "onboarding.finish.setup_title" = "Today's setup";
 "onboarding.finish.next_title" = "Start with today";
 "onboarding.finish.next_detail" = "Open Today for the current timeline, or add a note when something is worth remembering.";
+"onboarding.finish.next_folder_title" = "Make the first daily log saveable.";
+"onboarding.finish.next_folder_detail" = "Choose a local folder now, or open Today and set it before closeout.";
 "onboarding.finish.checklist.running_title" = "Let it run in the menu bar";
 "onboarding.finish.checklist.running_detail" = "Keep Chronicle open while you work; the timeline builds without another task to manage.";
 "onboarding.finish.checklist.note_title" = "Add one note when context matters";

@@ -1151,7 +1151,8 @@ final class ChronicleUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Confirm local health"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["onboarding.finish.health"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["onboarding.finish.checkHealth"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Start with today"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Make the first daily log saveable."].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Choose a local folder now, or open Today and set it before closeout."].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Daily log"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["onboarding.availabilitySettings"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["onboarding.finishChecklist"].waitForExistence(timeout: 5))
@@ -1159,7 +1160,7 @@ final class ChronicleUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Add one note when context matters"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Review before you stop work"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["onboarding.finishPrimaryActions"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Best next step: see the timeline that is already building."].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["onboarding.finishSetupExports"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Add a decision, interruption, or focus block while it is still fresh."].waitForExistence(timeout: 5))
         let openDashboard = app.buttons["onboarding.openDashboard"]
         XCTAssertTrue(openDashboard.waitForExistence(timeout: 5))
