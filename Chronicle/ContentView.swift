@@ -507,7 +507,7 @@ struct ContentView: View {
     }
 
     private var commandCenterHealthActions: some View {
-        HStack(spacing: DesignSystem.Spacing.sm) {
+        popoverResponsiveActionStack {
             Button {
                 healthCheckService.runQuickChecks()
             } label: {
@@ -638,7 +638,7 @@ struct ContentView: View {
     }
 
     private var trackingCurrentAppActions: some View {
-        HStack(spacing: DesignSystem.Spacing.sm) {
+        popoverResponsiveActionStack {
             Button {
                 AppWindowRouter.shared.open(.quickMarker)
             } label: {
@@ -656,6 +656,20 @@ struct ContentView: View {
             .buttonStyle(.bordered)
             .controlSize(.small)
             .accessibilityIdentifier("popover.tracking.openTimeline")
+        }
+    }
+
+    private func popoverResponsiveActionStack<Content: View>(
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                content()
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                content()
+            }
         }
     }
 
