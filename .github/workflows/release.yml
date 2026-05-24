@@ -88,6 +88,13 @@ jobs:
           chmod +x scripts/build_dmg.sh
           scripts/build_dmg.sh
 
+      - name: Verify DMG checksum
+        run: |
+          cd dist
+          for checksum_file in *.dmg.sha256; do
+            shasum -a 256 -c "$checksum_file"
+          done
+
       - name: Prepare release notes
         run: |
           mkdir -p build
