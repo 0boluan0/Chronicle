@@ -1068,6 +1068,33 @@ final class ChronicleTests: XCTestCase {
     }
 #endif
 
+    func testDiagnosticsRedactionReplacesHomeDirectoryInPaths() {
+        let home = "/Users/example"
+
+        XCTAssertEqual(
+            DiagnosticsRedaction.redactHomePath(
+                "/Users/example/Library/Application Support/Chronicle/activity.sqlite",
+                homeDirectory: home
+            ),
+            "~/Library/Application Support/Chronicle/activity.sqlite"
+        )
+        XCTAssertEqual(DiagnosticsRedaction.redactHomePath("/Users/example", homeDirectory: home), "~")
+        XCTAssertEqual(
+            DiagnosticsRedaction.redactHomePath("/Users/example-old/activity.sqlite", homeDirectory: home),
+            "/Users/example-old/activity.sqlite"
+        )
+    }
+
+    func testDiagnosticsRedactionHandlesOptionalMessages() {
+        let message = "Cannot open /Users/example/Library/Application Support/Chronicle/activity.sqlite"
+
+        XCTAssertEqual(
+            DiagnosticsRedaction.redactHomePath(in: message, homeDirectory: "/Users/example"),
+            "Cannot open ~/Library/Application Support/Chronicle/activity.sqlite"
+        )
+        XCTAssertNil(DiagnosticsRedaction.redactHomePath(in: nil, homeDirectory: "/Users/example"))
+    }
+
     func testRecommendedTrackingSettingsCanBeRestoredAndPersisted() {
         let suiteName = "chronicle-tests-tracking-defaults-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
