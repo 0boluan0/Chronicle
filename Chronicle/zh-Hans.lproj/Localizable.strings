@@ -2116,6 +2116,7 @@
 "stats.deep_work.open_dashboard" = "打开今天";
 "stats.deep_work.switches" = "切换 %d 次";
 "stats.idle_suppression.active" = "空闲抑制生效中：%@";
+"stats.idle_suppression.inactive" = "当前没有空闲抑制来源生效。";
 "stats.idle_suppression.media" = "媒体播放";
 "stats.idle_suppression.allowlist" = "允许列表应用";
 "stats.idle_suppression.grace" = "恢复缓冲";

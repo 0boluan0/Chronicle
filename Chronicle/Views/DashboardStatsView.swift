@@ -30,6 +30,7 @@ struct DashboardStatsView: View {
     @State private var isLoading = false
     @State private var lastRefresh: Date?
     @State private var showStatsIssueDetails = false
+    @State private var showIdleSuppressionExplanation = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
@@ -68,6 +69,9 @@ struct DashboardStatsView: View {
         }
         .onChange(of: appState.dateRangeMode) { _, _ in
             refreshStats(reason: "range changed")
+        }
+        .sheet(isPresented: $showIdleSuppressionExplanation) {
+            idleSuppressionExplanationSheet
         }
     }
 
@@ -191,6 +195,8 @@ struct DashboardStatsView: View {
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
+
+                idleSuppressionStrip
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("dashboard.stats.scope")
@@ -247,6 +253,51 @@ struct DashboardStatsView: View {
             .toggleStyle(.switch)
             .font(DesignSystem.Typography.caption)
             .accessibilityIdentifier("dashboard.stats.includeIdle")
+    }
+
+    private var idleSuppressionStrip: some View {
+        RowSurface(tone: idleSuppressionTone) {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.md, alignment: .leading)],
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                idleSuppressionSummary
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Button {
+                    showIdleSuppressionExplanation = true
+                } label: {
+                    Label(L("stats.idle_suppression.explain"), systemImage: "info.circle")
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityIdentifier("dashboard.stats.idleSuppression.explain")
+            }
+        }
+        .accessibilityIdentifier("dashboard.stats.idleSuppression")
+    }
+
+    private var idleSuppressionSummary: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: isIdleSuppressionActive ? "shield.lefthalf.filled" : "checkmark.shield")
+                .font(.caption.weight(.semibold))
+                .foregroundColor(idleSuppressionTone.color)
+                .frame(width: 16, height: 18)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("stats.idle_suppression.sheet_title")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+
+                Text(idleSuppressionStatusText)
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private var statsReviewCard: some View {
@@ -2624,6 +2675,127 @@ struct DashboardStatsView: View {
             return L("dashboard.stats.review.cues_empty")
         }
         return L("dashboard.stats.review.cues_ready")
+    }
+
+    private var isIdleSuppressionActive: Bool {
+        appState.idleSuppressionMediaPlaying
+            || appState.idleSuppressionFrontmostAllowed
+            || appState.idleSuppressionResumeGrace
+    }
+
+    private var idleSuppressionTone: DesignSystem.StatusTone {
+        isIdleSuppressionActive ? .warning : .neutral
+    }
+
+    private var idleSuppressionStatusText: String {
+        let reasons = idleSuppressionReasonLabels
+        guard !reasons.isEmpty else {
+            return L("stats.idle_suppression.inactive")
+        }
+        return String(format: L("stats.idle_suppression.active"), reasons.joined(separator: ", "))
+    }
+
+    private var idleSuppressionReasonLabels: [String] {
+        var reasons: [String] = []
+        if appState.idleSuppressionMediaPlaying {
+            reasons.append(L("stats.idle_suppression.media"))
+        }
+        if appState.idleSuppressionFrontmostAllowed {
+            reasons.append(L("stats.idle_suppression.allowlist"))
+        }
+        if appState.idleSuppressionResumeGrace {
+            reasons.append(L("stats.idle_suppression.grace"))
+        }
+        return reasons
+    }
+
+    private var idleSuppressionExplanationSheet: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                IconWell(
+                    systemImage: isIdleSuppressionActive ? "shield.lefthalf.filled" : "checkmark.shield",
+                    tone: idleSuppressionTone,
+                    accessibilityLabel: L("stats.idle_suppression.sheet_title")
+                )
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(L("stats.idle_suppression.sheet_title"))
+                        .font(.headline.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+
+                    Text(L("stats.idle_suppression.sheet_subtitle"))
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                suppressionReasonRow(
+                    title: L("stats.idle_suppression.media"),
+                    active: appState.idleSuppressionMediaPlaying,
+                    detail: L("stats.idle_suppression.media_detail")
+                )
+                suppressionReasonRow(
+                    title: L("stats.idle_suppression.allowlist"),
+                    active: appState.idleSuppressionFrontmostAllowed,
+                    detail: L("stats.idle_suppression.allowlist_detail")
+                )
+                suppressionReasonRow(
+                    title: L("stats.idle_suppression.grace"),
+                    active: appState.idleSuppressionResumeGrace,
+                    detail: L("stats.idle_suppression.grace_detail")
+                )
+            }
+
+            HStack {
+                Spacer()
+                Button(L("stats.idle_suppression.open_preferences")) {
+                    showIdleSuppressionExplanation = false
+                    AppWindowRouter.shared.open(.settings(.general))
+                }
+                .buttonStyle(.bordered)
+
+                Button(L("actions.close")) {
+                    showIdleSuppressionExplanation = false
+                }
+                .buttonStyle(.borderedProminent)
+            }
+        }
+        .padding(20)
+        .frame(minWidth: 440, minHeight: 300)
+    }
+
+    private func suppressionReasonRow(title: String, active: Bool, detail: String) -> some View {
+        RowSurface(tone: active ? .warning : .neutral) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                Image(systemName: active ? "checkmark.circle.fill" : "circle")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(active ? DesignSystem.StatusTone.warning.color : DesignSystem.Colors.secondaryText)
+                    .frame(width: 16, height: 18)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.sm) {
+                        Text(title)
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(DesignSystem.Colors.primaryText)
+
+                        Spacer(minLength: 0)
+
+                        StatusPill(
+                            active ? L("stats.idle_suppression.state_active") : L("stats.idle_suppression.state_inactive"),
+                            systemImage: active ? "pause.circle" : "circle",
+                            tone: active ? .warning : .neutral
+                        )
+                    }
+
+                    Text(detail)
+                        .font(.caption2)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
     }
 }
 

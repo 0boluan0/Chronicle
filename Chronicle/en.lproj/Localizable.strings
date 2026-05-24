@@ -2116,6 +2116,7 @@
 "stats.deep_work.open_dashboard" = "Open Today";
 "stats.deep_work.switches" = "%d switches";
 "stats.idle_suppression.active" = "Idle suppression active: %@";
+"stats.idle_suppression.inactive" = "No idle suppression source is active right now.";
 "stats.idle_suppression.media" = "media playing";
 "stats.idle_suppression.allowlist" = "allowlisted app";
 "stats.idle_suppression.grace" = "resume grace";
