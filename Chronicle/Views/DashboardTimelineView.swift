@@ -1952,15 +1952,21 @@ struct DashboardTimelineView: View {
     }
 
     private var batchQueueHeader: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 240), spacing: DesignSystem.Spacing.md, alignment: .leading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            batchQueueCopy
-                .frame(maxWidth: .infinity, alignment: .leading)
-            StatusPill(batchQueueStatusText, systemImage: batchQueueStatusIconName, tone: batchQueueTone)
-                .frame(maxWidth: .infinity, alignment: .leading)
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                batchQueueCopy
+
+                Spacer(minLength: DesignSystem.Spacing.sm)
+
+                StatusPill(batchQueueStatusText, systemImage: batchQueueStatusIconName, tone: batchQueueTone)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                batchQueueCopy
+
+                StatusPill(batchQueueStatusText, systemImage: batchQueueStatusIconName, tone: batchQueueTone)
+            }
         }
         .accessibilityIdentifier("dashboard.timeline.batchHeader")
     }
@@ -1977,13 +1983,17 @@ struct DashboardTimelineView: View {
                 Text("timeline.batch.queue_title")
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text("timeline.batch.queue_detail")
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var batchSelectionRow: some View {
@@ -2004,6 +2014,8 @@ struct DashboardTimelineView: View {
             Text(String(format: L("timeline.batch.selected_count"), selectedActivityIds.count))
                 .font(DesignSystem.Typography.caption)
                 .foregroundColor(DesignSystem.Colors.secondaryText)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
         } icon: {
             Image(systemName: selectedActivityIds.isEmpty ? "circle" : "checkmark.circle.fill")
                 .font(.caption.weight(.semibold))
@@ -2055,12 +2067,14 @@ struct DashboardTimelineView: View {
                 .font(.caption.weight(.semibold))
                 .foregroundColor(tone.color)
                 .frame(width: 16)
+                .padding(.top, 1)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(titleKey)
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(detailKey)
                     .font(.caption2)
@@ -2073,7 +2087,7 @@ struct DashboardTimelineView: View {
         }
         .padding(.horizontal, DesignSystem.Spacing.sm)
         .padding(.vertical, 7)
-        .frame(maxWidth: .infinity, minHeight: 58, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: 64, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
                 .fill(tone.color.opacity(0.06))
@@ -2101,9 +2115,10 @@ struct DashboardTimelineView: View {
         Button {
             selectVisibleActivities()
         } label: {
-            Label(L("timeline.batch.select_visible"), systemImage: "checkmark.circle")
+            timelineActionLabel(L("timeline.batch.select_visible"), systemImage: "checkmark.circle")
         }
         .buttonStyle(.bordered)
+        .controlSize(.small)
         .accessibilityIdentifier("dashboard.timeline.batchSelectVisible")
     }
 
@@ -2111,9 +2126,10 @@ struct DashboardTimelineView: View {
         Button {
             clearBatchSelection(showStatus: true)
         } label: {
-            Label(L("timeline.batch.clear_selection"), systemImage: "xmark.circle")
+            timelineActionLabel(L("timeline.batch.clear_selection"), systemImage: "xmark.circle")
         }
         .buttonStyle(.bordered)
+        .controlSize(.small)
         .disabled(selectedActivityIds.isEmpty)
         .accessibilityIdentifier("dashboard.timeline.batchClearSelection")
     }
@@ -2138,7 +2154,7 @@ struct DashboardTimelineView: View {
                 Text(tag.name).tag(tag.id)
             }
         }
-        .frame(width: 260)
+        .frame(minWidth: 180, maxWidth: .infinity, alignment: .leading)
         .accessibilityIdentifier("dashboard.timeline.batchTarget")
     }
 
@@ -2158,12 +2174,13 @@ struct DashboardTimelineView: View {
         Button {
             applyBatchOverride()
         } label: {
-            Label(
+            timelineActionLabel(
                 isApplyingBatchOverride ? L("timeline.batch.applying") : L("timeline.batch.apply"),
                 systemImage: isApplyingBatchOverride ? "hourglass" : "checkmark.circle.fill"
             )
         }
         .buttonStyle(.borderedProminent)
+        .controlSize(.small)
         .disabled(selectedActivityIds.isEmpty || isApplyingBatchOverride || isUndoingBatchOverride)
         .accessibilityIdentifier("dashboard.timeline.batchApply")
     }
@@ -2172,12 +2189,13 @@ struct DashboardTimelineView: View {
         Button {
             undoLastBatch()
         } label: {
-            Label(
+            timelineActionLabel(
                 isUndoingBatchOverride ? L("timeline.batch.undoing") : L("timeline.batch.undo"),
                 systemImage: isUndoingBatchOverride ? "hourglass" : "arrow.uturn.backward.circle"
             )
         }
         .buttonStyle(.bordered)
+        .controlSize(.small)
         .disabled(lastBatchUndo == nil || isApplyingBatchOverride || isUndoingBatchOverride)
         .accessibilityIdentifier("dashboard.timeline.batchUndo")
     }
