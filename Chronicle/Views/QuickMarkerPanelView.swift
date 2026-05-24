@@ -66,8 +66,8 @@ struct QuickMarkerPanelView: View {
             }
 
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                panelSideRail
                 captureEntry
+                panelSideRail
             }
         }
         .accessibilityIdentifier("quickMarker.workspace")
