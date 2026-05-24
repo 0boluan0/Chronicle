@@ -272,14 +272,21 @@ struct ErrorBanner: View {
     let message: String
 
     var body: some View {
-        HStack(spacing: DesignSystem.Spacing.sm) {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundColor(Color(nsColor: .systemRed))
+                .frame(width: 16, height: 16)
+
             Text(message)
                 .font(DesignSystem.Typography.caption)
                 .foregroundColor(DesignSystem.Colors.primaryText)
-            Spacer()
+                .lineLimit(4)
+                .fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled)
+
+            Spacer(minLength: 0)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, DesignSystem.Spacing.md)
         .padding(.vertical, DesignSystem.Spacing.sm)
         .background(
@@ -290,6 +297,7 @@ struct ErrorBanner: View {
             RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
                 .stroke(Color(nsColor: .systemRed).opacity(0.35), lineWidth: 1)
         )
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -302,17 +310,24 @@ struct ErrorStateView: View {
             HStack(spacing: DesignSystem.Spacing.sm) {
                 Image(systemName: "xmark.octagon.fill")
                     .foregroundColor(Color(nsColor: .systemRed))
+                    .frame(width: 18, height: 18)
+
                 Text(title)
                     .font(DesignSystem.Typography.sectionHeader)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             if let message {
                 Text(message)
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(6)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .textSelection(.enabled)
+        .accessibilityElement(children: .combine)
     }
 }
 
