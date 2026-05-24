@@ -392,7 +392,9 @@ struct MetricValueView: View {
                 Text(title)
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.86)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Text(value)
@@ -400,7 +402,9 @@ struct MetricValueView: View {
                 .foregroundColor(DesignSystem.Colors.primaryText)
                 .monospacedDigit()
                 .lineLimit(1)
+                .truncationMode(.tail)
                 .minimumScaleFactor(0.75)
+                .help(value)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
