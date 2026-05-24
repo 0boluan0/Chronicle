@@ -184,7 +184,9 @@ struct PreferencesView: View {
     }
 
     private func sidebarRow(for section: Section) -> some View {
-        HStack(spacing: 10) {
+        let readiness = setupGuideReadiness(for: section)
+
+        return HStack(spacing: 10) {
             Image(systemName: section.systemImage)
                 .foregroundStyle(.secondary)
                 .frame(width: 18)
@@ -199,10 +201,26 @@ struct PreferencesView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+
+            sidebarRowStatusIcon(readiness)
         }
         .padding(.vertical, 2)
-        .help("\(L(section.titleStringKey)): \(L(section.subtitleStringKey))")
+        .help("\(L(section.titleStringKey)): \(L(section.subtitleStringKey)) · \(L(readiness.titleKey))")
         .accessibilityElement(children: .combine)
+        .accessibilityLabel(sidebarRowAccessibilityLabel(for: section, readiness: readiness))
+    }
+
+    private func sidebarRowStatusIcon(_ readiness: PreferencesSetupReadiness) -> some View {
+        Image(systemName: readiness.systemImage)
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(readiness.tone.color)
+            .frame(width: 16, height: 16)
+            .padding(.trailing, 1)
+            .help(L(readiness.titleKey))
+    }
+
+    private func sidebarRowAccessibilityLabel(for section: Section, readiness: PreferencesSetupReadiness) -> String {
+        "\(L(section.titleStringKey)): \(L(section.subtitleStringKey)). \(L(readiness.titleKey))"
     }
 
     private var sidebarSetupGuide: some View {
