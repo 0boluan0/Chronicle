@@ -431,6 +431,8 @@ final class ChronicleUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Daily log"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Active time"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Main focus"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Work block"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["No block yet"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Timeline view"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["dashboard.overview.activityMapHeader"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["dashboard.overview.activityMap.empty"].waitForExistence(timeout: 5))

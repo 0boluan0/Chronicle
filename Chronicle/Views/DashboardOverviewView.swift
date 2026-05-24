@@ -59,6 +59,7 @@ struct DashboardOverviewView: View {
     @State private var reviewSummary: AggregationSummary?
     @State private var reviewTopApps: [TopItem] = []
     @State private var reviewTopTags: [TopItem] = []
+    @State private var reviewWorkBlocks: [WorkBlockInsight] = []
     @State private var weeklyReportStatus: String?
     @State private var weeklyReportStatusIsError = false
     @State private var isGeneratingWeeklyReport = false
@@ -676,6 +677,12 @@ struct DashboardOverviewView: View {
                 value: "\(reviewMarkerCount)",
                 systemImage: "note.text",
                 tone: reviewMarkerCount == 0 ? .neutral : .info
+            )
+            reviewMetric(
+                title: "overview.review.work_block",
+                value: reviewWorkBlockValue,
+                systemImage: reviewTopWorkBlock == nil ? "square.split.2x2" : "rectangle.stack.fill",
+                tone: reviewWorkBlockTone
             )
         }
     }
@@ -2012,11 +2019,29 @@ struct DashboardOverviewView: View {
         return source.first
     }
 
+    private var reviewTopWorkBlock: WorkBlockInsight? {
+        reviewWorkBlocks.first
+    }
+
     private var reviewFocusValue: String {
         guard let item = primaryFocusItem else {
             return L("overview.review.none")
         }
         return String(format: L("overview.review.focus_value"), item.name, formatDuration(item.durationSeconds))
+    }
+
+    private var reviewWorkBlockValue: String {
+        guard let block = reviewTopWorkBlock else {
+            return L("overview.review.work_block_empty")
+        }
+        return formatDuration(block.durationSeconds)
+    }
+
+    private var reviewWorkBlockTone: DesignSystem.StatusTone {
+        guard reviewTopWorkBlock != nil else {
+            return reviewActiveSeconds > 0 ? .info : .neutral
+        }
+        return .success
     }
 
     private var reviewUntaggedSeconds: Int64 {
@@ -2796,6 +2821,9 @@ struct DashboardOverviewView: View {
         var newReviewSummary: AggregationSummary?
         var newReviewTopApps: [TopItem] = []
         var newReviewTopTags: [TopItem] = []
+        var newReviewWorkBlocks: [WorkBlockInsight] = []
+        var workBlockActivities: [ActivityRow] = []
+        var workBlockTags: [TagRow] = []
         var errorMessage: String?
 
         let reviewFilters = AggregationFilters(
@@ -2850,6 +2878,28 @@ struct DashboardOverviewView: View {
             switch result {
             case .success(let items):
                 newReviewTopTags = items
+            case .failure(let error):
+                errorMessage = error.localizedDescription
+            }
+            group.leave()
+        }
+
+        group.enter()
+        AggregationService.shared.fetchTags { result in
+            switch result {
+            case .success(let rows):
+                workBlockTags = rows
+            case .failure(let error):
+                errorMessage = error.localizedDescription
+            }
+            group.leave()
+        }
+
+        group.enter()
+        DatabaseService.shared.fetchActivitiesOverlappingRange(start: bounds.start, end: bounds.end) { result in
+            switch result {
+            case .success(let rows):
+                workBlockActivities = rows
             case .failure(let error):
                 errorMessage = error.localizedDescription
             }
@@ -2924,6 +2974,13 @@ struct DashboardOverviewView: View {
         }
 
         group.notify(queue: .main) {
+            newReviewWorkBlocks = WorkBlockInsightBuilder.build(
+                activities: workBlockActivities,
+                tags: workBlockTags,
+                rangeStart: bounds.start,
+                rangeEnd: bounds.end,
+                untaggedTitle: L("overview.review.work_block_untagged")
+            )
             self.dailyRowsState = newDailyRows
             self.weeklyRowsState = newWeeklyRows
             self.weekDayLabelsState = newWeekLabels
@@ -2933,6 +2990,7 @@ struct DashboardOverviewView: View {
             self.reviewSummary = newReviewSummary
             self.reviewTopApps = newReviewTopApps
             self.reviewTopTags = newReviewTopTags
+            self.reviewWorkBlocks = newReviewWorkBlocks
             self.isLoading = false
             self.lastRefresh = Date()
             if let errorMessage {

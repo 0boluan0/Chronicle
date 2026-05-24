@@ -871,6 +871,9 @@
 "overview.review.main_focus" = "Main focus";
 "overview.review.unclassified" = "Unclassified";
 "overview.review.markers" = "Notes";
+"overview.review.work_block" = "Work block";
+"overview.review.work_block_empty" = "No block yet";
+"overview.review.work_block_untagged" = "Untagged";
 "overview.review.none" = "None yet";
 "overview.review.focus_value" = "%@ · %@";
 "overview.review.open_timeline" = "Open Timeline";

@@ -871,6 +871,9 @@
 "overview.review.main_focus" = "主要投入";
 "overview.review.unclassified" = "未分类";
 "overview.review.markers" = "笔记";
+"overview.review.work_block" = "工作块";
+"overview.review.work_block_empty" = "暂无区间";
+"overview.review.work_block_untagged" = "未分类";
 "overview.review.none" = "暂无";
 "overview.review.focus_value" = "%@ · %@";
 "overview.review.open_timeline" = "查看时间线";
