@@ -189,11 +189,7 @@ struct TagsPreferencesView: View {
     }
 
     private var setupActionGroup: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 170), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
+        ActionButtonGrid(minimumItemWidth: 170) {
             Button {
                 runPrimarySetupAction()
             } label: {

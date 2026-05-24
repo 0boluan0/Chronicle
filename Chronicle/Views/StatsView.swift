@@ -131,11 +131,7 @@ struct StatsView: View {
                     )
                 }
 
-                LazyVGrid(
-                    columns: adaptiveColumns(minimum: 150, spacing: DesignSystem.Spacing.sm),
-                    alignment: .leading,
-                    spacing: DesignSystem.Spacing.sm
-                ) {
+                ActionButtonGrid(minimumItemWidth: 150) {
                     statsIssueActions
                 }
 
@@ -500,15 +496,10 @@ struct StatsView: View {
     }
 
     private var statsReviewActionsGrid: some View {
-        LazyVGrid(
-            columns: adaptiveColumns(minimum: 142, spacing: DesignSystem.Spacing.sm),
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
+        ActionButtonGrid(minimumItemWidth: 142) {
             primaryStatsReviewActionButton
             secondaryStatsReviewButtons
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder

@@ -334,11 +334,7 @@ struct HealthCheckDetailsView: View {
     }
 
     private func healthActionButtons<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 136), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
+        ActionButtonGrid(minimumItemWidth: 136) {
             content()
         }
     }

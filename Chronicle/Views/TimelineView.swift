@@ -128,11 +128,7 @@ struct TimelineView: View {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                 timelineIssueHeader
 
-                LazyVGrid(
-                    columns: adaptiveColumns(minimum: 170, spacing: DesignSystem.Spacing.sm),
-                    alignment: .leading,
-                    spacing: DesignSystem.Spacing.sm
-                ) {
+                ActionButtonGrid(minimumItemWidth: 170) {
                     timelineIssueActions
                 }
 
