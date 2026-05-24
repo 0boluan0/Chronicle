@@ -2883,28 +2883,11 @@ struct ReportsWorkspaceView: View {
     }
 
     private func reportActionButtonLabel(_ title: String, systemImage: String) -> some View {
-        Label {
-            Text(title)
-                .lineLimit(2)
-                .minimumScaleFactor(0.86)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-        } icon: {
-            Image(systemName: systemImage)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        ActionButtonLabel(title, systemImage: systemImage)
     }
 
     private func reportCompactActionLabel(_ title: String, systemImage: String) -> some View {
-        Label {
-            Text(title)
-                .lineLimit(2)
-                .minimumScaleFactor(0.86)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-        } icon: {
-            Image(systemName: systemImage)
-        }
+        ActionButtonLabel(title, systemImage: systemImage, fillsWidth: false)
     }
 
     private static let previewDateFormatter: DateFormatter = {
@@ -3027,16 +3010,7 @@ struct ReportsWorkspaceView: View {
     }
 
     private func reportFolderActionLabel(_ title: String, systemImage: String) -> some View {
-        Label {
-            Text(title)
-                .lineLimit(2)
-                .minimumScaleFactor(0.86)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-        } icon: {
-            Image(systemName: systemImage)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        ActionButtonLabel(title, systemImage: systemImage)
     }
 
     private func reportFolderToggles<Toggles: View>(_ toggles: () -> Toggles) -> some View {
@@ -3655,15 +3629,7 @@ struct ReportsWorkspaceView: View {
         }
 
         private func previewActionLabel(_ title: String, systemImage: String) -> some View {
-            Label {
-                Text(title)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.86)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-            } icon: {
-                Image(systemName: systemImage)
-            }
+            ActionButtonLabel(title, systemImage: systemImage, fillsWidth: false)
         }
 
         private func previewIssueCard(error: String) -> some View {
@@ -5498,15 +5464,7 @@ private struct ReportPresetPanelView: View {
     }
 
     private func presetActionLabel(_ title: String, systemImage: String) -> some View {
-        Label {
-            Text(title)
-                .lineLimit(2)
-                .minimumScaleFactor(0.86)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-        } icon: {
-            Image(systemName: systemImage)
-        }
+        ActionButtonLabel(title, systemImage: systemImage, fillsWidth: false)
     }
 }
 
@@ -5791,15 +5749,7 @@ private struct ReportCloseoutFeedbackView: View {
     }
 
     private func feedbackActionLabel(_ title: String, systemImage: String) -> some View {
-        Label {
-            Text(title)
-                .lineLimit(2)
-                .minimumScaleFactor(0.86)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-        } icon: {
-            Image(systemName: systemImage)
-        }
+        ActionButtonLabel(title, systemImage: systemImage, fillsWidth: false)
     }
 
     private func feedbackTitleKey(for status: StatusMessage) -> String {
