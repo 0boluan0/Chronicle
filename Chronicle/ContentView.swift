@@ -472,11 +472,7 @@ struct ContentView: View {
     }
 
     private var commandCenterActions: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 168), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
+        ActionButtonGrid(minimumItemWidth: 168) {
             primaryNextActionButton
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -680,14 +676,8 @@ struct ContentView: View {
     private func popoverResponsiveActionStack<Content: View>(
         @ViewBuilder content: () -> Content
     ) -> some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: DesignSystem.Spacing.sm) {
-                content()
-            }
-
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                content()
-            }
+        ActionButtonGrid(minimumItemWidth: 150) {
+            content()
         }
     }
 
@@ -908,11 +898,7 @@ struct ContentView: View {
             snapshotCueStatusView
             dailySnapshotEmptyPath
 
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 154), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.sm
-            ) {
+            ActionButtonGrid(minimumItemWidth: 154) {
                 Button {
                     AppWindowRouter.shared.open(.quickMarker)
                 } label: {
@@ -1140,11 +1126,7 @@ struct ContentView: View {
                 .foregroundColor(isUp ? Color(nsColor: .systemGreen) : Color(nsColor: .systemOrange))
             }
 
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 148), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.sm
-            ) {
+            ActionButtonGrid(minimumItemWidth: 148) {
                 Button {
                     AppWindowRouter.shared.open(.quickMarker)
                 } label: {
