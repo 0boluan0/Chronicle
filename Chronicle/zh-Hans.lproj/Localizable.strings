@@ -2451,6 +2451,8 @@
 "reports.review_reminder.time" = "提醒时间";
 "reports.review_reminder.note" = "超过设定时间且今日日志仍未保存时，会在菜单栏弹窗中提示。";
 "reports.review_reminder.system_notification.note" = "默认关闭。开启后每天最多发送一次本地提醒通知。";
+"reports.review_reminder.system_notification.ready" = "系统通知已可用于每日回顾提醒。";
+"reports.review_reminder.system_notification.denied" = "macOS 未授予通知权限，系统提醒已保持关闭。";
 "reports.review_reminder.heading" = "避免忘记收工复盘。";
 "reports.review_reminder.detail" = "如果超过设定时间且今日日志还没保存，Chronicle 会给一个轻提醒。";
 "reports.review_reminder.status.off" = "已关闭";

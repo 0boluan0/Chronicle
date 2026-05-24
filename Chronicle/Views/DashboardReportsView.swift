@@ -79,6 +79,7 @@ struct ReportsWorkspaceView: View {
     @State private var closeoutSnapshot = CloseoutSnapshot.empty
     @State private var closeoutSnapshotError: String?
     @State private var showCloseoutSnapshotIssueDetails = false
+    @State private var reviewReminderNotificationStatus: StatusMessage?
     @State private var pendingTemplateReset: ReportTemplateResetTarget?
     @FocusState private var dailyNotesFocused: Bool
 
@@ -2283,19 +2284,20 @@ struct ReportsWorkspaceView: View {
                     alignment: .leading,
                     spacing: DesignSystem.Spacing.sm
                 ) {
-                    Toggle(L("reports.review_reminder.enabled"), isOn: $appState.dailyReviewReminderEnabled)
+                    Toggle(
+                        L("reports.review_reminder.enabled"),
+                        isOn: Binding(
+                            get: { appState.dailyReviewReminderEnabled },
+                            set: updateDailyReviewReminderEnabled
+                        )
+                    )
                         .toggleStyle(.switch)
 
                     Toggle(
                         L("reports.review_reminder.system_notification"),
                         isOn: Binding(
                             get: { appState.dailyReviewSystemNotificationEnabled },
-                            set: { newValue in
-                                appState.dailyReviewSystemNotificationEnabled = newValue
-                                if newValue {
-                                    DailyReviewReminderNotificationService.shared.requestAuthorization()
-                                }
-                            }
+                            set: updateDailyReviewSystemNotificationEnabled
                         )
                     )
                     .disabled(!appState.dailyReviewReminderEnabled)
@@ -2325,6 +2327,11 @@ struct ReportsWorkspaceView: View {
                 Text(L("reports.review_reminder.system_notification.note"))
                     .font(.caption)
                     .foregroundColor(.secondary)
+
+                ExportStatusLine(
+                    status: reviewReminderNotificationStatus,
+                    accessibilityIdentifier: "reports.reviewReminder.notificationStatus"
+                )
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -2433,6 +2440,37 @@ struct ReportsWorkspaceView: View {
             .init(id: "notification", titleKey: "reports.review_reminder.outcome.notification_title", detailKey: "reports.review_reminder.outcome.notification_detail", systemImage: "bell.badge", tone: appState.dailyReviewReminderEnabled && appState.dailyReviewSystemNotificationEnabled ? .success : .neutral),
             .init(id: "saved", titleKey: "reports.review_reminder.outcome.saved_title", detailKey: "reports.review_reminder.outcome.saved_detail", systemImage: "checkmark.seal", tone: .success)
         ]
+    }
+
+    private func updateDailyReviewReminderEnabled(_ enabled: Bool) {
+        appState.dailyReviewReminderEnabled = enabled
+        if !enabled {
+            reviewReminderNotificationStatus = nil
+        }
+    }
+
+    private func updateDailyReviewSystemNotificationEnabled(_ enabled: Bool) {
+        reviewReminderNotificationStatus = nil
+        guard enabled else {
+            appState.dailyReviewSystemNotificationEnabled = false
+            return
+        }
+
+        appState.dailyReviewSystemNotificationEnabled = true
+        DailyReviewReminderNotificationService.shared.requestAuthorization { granted in
+            if granted {
+                reviewReminderNotificationStatus = StatusMessage(
+                    text: L("reports.review_reminder.system_notification.ready"),
+                    isError: false
+                )
+            } else {
+                appState.dailyReviewSystemNotificationEnabled = false
+                reviewReminderNotificationStatus = StatusMessage(
+                    text: L("reports.review_reminder.system_notification.denied"),
+                    isError: true
+                )
+            }
+        }
     }
 
     private var reviewReminderTone: DesignSystem.StatusTone {

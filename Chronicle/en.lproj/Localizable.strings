@@ -2452,6 +2452,8 @@
 "reports.review_reminder.time" = "Reminder time";
 "reports.review_reminder.note" = "Shows in the menubar popover after the selected time if today's daily log is still unsaved.";
 "reports.review_reminder.system_notification.note" = "Default off. When enabled, Chronicle sends one local reminder notification per day.";
+"reports.review_reminder.system_notification.ready" = "System notifications are ready for daily review reminders.";
+"reports.review_reminder.system_notification.denied" = "macOS did not grant notification permission, so system reminders stayed off.";
 "reports.review_reminder.heading" = "Avoid forgetting closeout.";
 "reports.review_reminder.detail" = "Choose a gentle nudge after work if today's daily log is still unsaved.";
 "reports.review_reminder.status.off" = "Off";

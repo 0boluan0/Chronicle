@@ -24,22 +24,29 @@ final class DailyReviewReminderNotificationService {
     private init() {}
 
     func requestAuthorization(completion: ((Bool) -> Void)? = nil) {
+        let finish: (Bool) -> Void = { granted in
+            guard let completion else { return }
+            DispatchQueue.main.async {
+                completion(granted)
+            }
+        }
+
         guard !AppRuntime.disablesSystemPrompts else {
-            completion?(false)
+            finish(false)
             return
         }
         center.getNotificationSettings { settings in
             switch settings.authorizationStatus {
             case .authorized, .provisional, .ephemeral:
-                completion?(true)
+                finish(true)
             case .denied:
-                completion?(false)
+                finish(false)
             case .notDetermined:
                 self.center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
-                    completion?(granted)
+                    finish(granted)
                 }
             @unknown default:
-                completion?(false)
+                finish(false)
             }
         }
     }
@@ -64,7 +71,10 @@ final class DailyReviewReminderNotificationService {
         }
 
         requestAuthorization { granted in
-            guard granted else { return }
+            guard granted else {
+                self.appState.dailyReviewSystemNotificationEnabled = false
+                return
+            }
 
             let content = UNMutableNotificationContent()
             content.title = L("daily_review.notification.title")
