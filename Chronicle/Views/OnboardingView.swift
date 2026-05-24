@@ -95,7 +95,7 @@ struct OnboardingView: View {
     }
 
     private var onboardingHeaderCopy: some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
             IconWell(systemImage: stepIconName, tone: stepTone)
 
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
@@ -103,6 +103,7 @@ struct OnboardingView: View {
                     .font(DesignSystem.Typography.title)
                     .foregroundColor(DesignSystem.Colors.primaryText)
                     .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(stepIndicator)
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
@@ -113,6 +114,7 @@ struct OnboardingView: View {
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityElement(children: .combine)
     }
@@ -837,7 +839,8 @@ struct OnboardingView: View {
                 Text(title)
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(detail)
                     .font(.caption2)
@@ -845,6 +848,7 @@ struct OnboardingView: View {
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer(minLength: 0)
         }
@@ -1014,8 +1018,8 @@ struct OnboardingView: View {
                 Text(title)
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(detail)
                     .font(.caption2)
@@ -1023,6 +1027,7 @@ struct OnboardingView: View {
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer(minLength: 0)
         }
@@ -1053,7 +1058,7 @@ struct OnboardingView: View {
     }
 
     private var exportFolderStatusCopy: some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
             IconWell(systemImage: "folder", tone: exportTone)
 
             VStack(alignment: .leading, spacing: 3) {
@@ -1061,12 +1066,14 @@ struct OnboardingView: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
                     .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text("onboarding.exports.hint")
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
                     .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityElement(children: .combine)
     }
@@ -1323,8 +1330,8 @@ struct OnboardingView: View {
                 Text(title)
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(detail)
                     .font(.caption2)
@@ -1332,6 +1339,7 @@ struct OnboardingView: View {
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer(minLength: 0)
         }
@@ -1362,7 +1370,7 @@ struct OnboardingView: View {
     }
 
     private var privacyCaptureStatusCopy: some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
             IconWell(systemImage: "text.viewfinder", tone: titleCaptureTone)
 
             VStack(alignment: .leading, spacing: 3) {
@@ -1370,12 +1378,14 @@ struct OnboardingView: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
                     .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text("onboarding.privacy.hint")
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
                     .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityElement(children: .combine)
     }
@@ -1405,7 +1415,7 @@ struct OnboardingView: View {
     }
 
     private var permissionStatusCopy: some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
             IconWell(systemImage: appState.accessibilityAuthorized ? "checkmark.seal.fill" : "hand.raised", tone: permissionTone)
 
             VStack(alignment: .leading, spacing: 3) {
@@ -1413,6 +1423,7 @@ struct OnboardingView: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
                     .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text("onboarding.permissions.choice_hint")
                     .font(DesignSystem.Typography.caption)
@@ -1420,6 +1431,7 @@ struct OnboardingView: View {
                     .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityElement(children: .combine)
     }
@@ -1493,17 +1505,22 @@ struct OnboardingView: View {
         detail: LocalizedStringKey,
         tone: DesignSystem.StatusTone
     ) -> some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
             IconWell(systemImage: systemImage, tone: tone)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(detail)
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer()
         }
@@ -1517,7 +1534,7 @@ struct OnboardingView: View {
         tone: DesignSystem.StatusTone
     ) -> some View {
         RowSurface(tone: tone) {
-            HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
                 IconWell(systemImage: systemImage, tone: tone)
 
                 VStack(alignment: .leading, spacing: 4) {
@@ -1529,12 +1546,16 @@ struct OnboardingView: View {
                     Text(title)
                         .font(.subheadline.weight(.semibold))
                         .foregroundColor(DesignSystem.Colors.primaryText)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     Text(detail)
                         .font(DesignSystem.Typography.caption)
                         .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 Spacer(minLength: DesignSystem.Spacing.sm)
             }
@@ -1555,19 +1576,23 @@ struct OnboardingView: View {
 
     private var finishNextActions: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
                 IconWell(systemImage: "checklist.checked", tone: .info)
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(LocalizedStringKey(finishNextTitleKey))
                         .font(.subheadline.weight(.semibold))
                         .foregroundColor(DesignSystem.Colors.primaryText)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     Text(LocalizedStringKey(finishNextDetailKey))
                         .font(DesignSystem.Typography.caption)
                         .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 Spacer()
             }
@@ -1750,6 +1775,7 @@ struct OnboardingView: View {
                         .font(.subheadline.weight(.semibold))
                         .foregroundColor(DesignSystem.Colors.primaryText)
                         .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     Text(detail)
                         .font(DesignSystem.Typography.caption)
@@ -1757,6 +1783,7 @@ struct OnboardingView: View {
                         .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 Spacer(minLength: 0)
             }
@@ -1810,7 +1837,7 @@ struct OnboardingView: View {
         detail: LocalizedStringKey,
         tone: DesignSystem.StatusTone
     ) -> some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
             IconWell(systemImage: systemImage, tone: tone)
 
             VStack(alignment: .leading, spacing: 3) {
@@ -1818,6 +1845,7 @@ struct OnboardingView: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
                     .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(detail)
                     .font(DesignSystem.Typography.caption)
@@ -1825,6 +1853,7 @@ struct OnboardingView: View {
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityElement(children: .combine)
     }
@@ -1856,7 +1885,7 @@ struct OnboardingView: View {
         detail: LocalizedStringKey,
         tone: DesignSystem.StatusTone
     ) -> some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
             IconWell(systemImage: systemImage, tone: tone)
 
             VStack(alignment: .leading, spacing: 3) {
@@ -1864,6 +1893,7 @@ struct OnboardingView: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
                     .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(detail)
                     .font(DesignSystem.Typography.caption)
@@ -1871,6 +1901,7 @@ struct OnboardingView: View {
                     .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityElement(children: .combine)
     }
