@@ -964,22 +964,45 @@ struct AppMappingsView: View {
 
     private var mappingListSection: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
-                Text("apps.list.title")
-                    .font(DesignSystem.Typography.sectionHeader)
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-
-                StatusPill(
-                    String(format: L("apps.visible_count"), filteredMappings.count, appMappings.count),
-                    systemImage: "eye",
-                    tone: filteredMappings.isEmpty ? .warning : .info
-                )
-
-                Spacer()
-            }
+            mappingListHeader
 
             mappingList
         }
+    }
+
+    private var mappingListHeader: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+                mappingListTitle
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                mappingListStatus
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                mappingListTitle
+                mappingListStatus
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityIdentifier("appMappings.list.header")
+    }
+
+    private var mappingListTitle: some View {
+        Text("apps.list.title")
+            .font(DesignSystem.Typography.sectionHeader)
+            .foregroundColor(DesignSystem.Colors.primaryText)
+            .lineLimit(2)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var mappingListStatus: some View {
+        StatusPill(
+            String(format: L("apps.visible_count"), filteredMappings.count, appMappings.count),
+            systemImage: "eye",
+            tone: filteredMappings.isEmpty ? .warning : .info
+        )
     }
 
     private var mappingLoadMoreFooter: some View {
