@@ -4136,26 +4136,76 @@ struct ReportsWorkspaceView: View {
         let markdown: String
 
         var body: some View {
-            Group {
-                if let renderedMarkdown {
-                    Text(renderedMarkdown)
-                } else {
-                    Text(markdown)
-                }
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                previewDocumentHeader
+
+                markdownBody
+                    .font(.body)
+                    .lineSpacing(5)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .textSelection(.enabled)
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 24)
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                            .fill(Color(nsColor: .textBackgroundColor).opacity(0.98))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                            .stroke(DesignSystem.Colors.separator.opacity(0.35), lineWidth: 1)
+                    )
             }
-            .font(.body)
-            .lineSpacing(4)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .textSelection(.enabled)
             .padding(DesignSystem.Spacing.md)
+            .frame(maxWidth: 760, alignment: .topLeading)
             .background(
                 RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                    .fill(Color(nsColor: .textBackgroundColor).opacity(0.92))
+                    .fill(DesignSystem.Colors.cardBackground.opacity(0.96))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                    .stroke(DesignSystem.Colors.separator.opacity(0.45), lineWidth: 1)
+                    .stroke(DesignSystem.Colors.separator.opacity(0.38), lineWidth: 1)
             )
+            .shadow(color: Color.black.opacity(0.045), radius: 7, x: 0, y: 2)
+            .frame(maxWidth: .infinity, alignment: .top)
+            .accessibilityIdentifier("reports.preview.document")
+        }
+
+        @ViewBuilder
+        private var markdownBody: some View {
+            if let renderedMarkdown {
+                Text(renderedMarkdown)
+            } else {
+                Text(markdown)
+            }
+        }
+
+        private var previewDocumentHeader: some View {
+            HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+                IconWell(
+                    systemImage: "doc.richtext",
+                    tone: .success,
+                    accessibilityLabel: L("reports.preview.document.title")
+                )
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("reports.preview.document.title")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+                        .lineLimit(1)
+
+                    Text("reports.preview.document.detail")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: DesignSystem.Spacing.sm)
+
+                StatusPill(L("reports.preview.document.status"), systemImage: "curlybraces", tone: .success)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+            .accessibilityIdentifier("reports.preview.document.header")
         }
 
         private var renderedMarkdown: AttributedString? {

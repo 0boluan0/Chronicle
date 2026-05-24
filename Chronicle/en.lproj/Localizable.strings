@@ -2588,6 +2588,9 @@
 "reports.preview.check.context_detail" = "Notes and focus blocks are included when available.";
 "reports.preview.check.output_title" = "Output";
 "reports.preview.check.output_detail" = "Markdown is ready for local save or copy.";
+"reports.preview.document.title" = "Document preview";
+"reports.preview.document.detail" = "Rendered Markdown stays selectable here before it is saved locally.";
+"reports.preview.document.status" = "Markdown";
 "reports.destination.title" = "Save Folder";
 "reports.template.editor" = "Markdown template";
 "reports.template.characters" = "%d characters";

@@ -2587,6 +2587,9 @@
 "reports.preview.check.context_detail" = "有笔记或专注区间时会一并写入。";
 "reports.preview.check.output_title" = "输出";
 "reports.preview.check.output_detail" = "Markdown 可本地保存或复制。";
+"reports.preview.document.title" = "文档预览";
+"reports.preview.document.detail" = "本地保存之前，可在这里直接阅读和选择生成后的 Markdown。";
+"reports.preview.document.status" = "Markdown";
 "reports.destination.title" = "保存文件夹";
 "reports.template.editor" = "Markdown 模板";
 "reports.template.characters" = "%d 个字符";
