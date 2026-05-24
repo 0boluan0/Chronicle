@@ -10,6 +10,9 @@ import SwiftUI
 
 final class OnboardingWindowController {
     static let shared = OnboardingWindowController()
+    private static let frameAutosaveName = "ChronicleOnboardingWindow"
+    private static let defaultContentSize = NSSize(width: 860, height: 640)
+    private static let minimumContentSize = NSSize(width: 720, height: 540)
 
     private var window: NSWindow?
     private let languageManager = AppLanguageManager.shared
@@ -30,12 +33,12 @@ final class OnboardingWindowController {
             let hostingController = NSHostingController(rootView: rootView)
             let window = NSWindow(contentViewController: hostingController)
             window.title = L("onboarding.title")
-            window.setContentSize(NSSize(width: 780, height: 580))
-            window.minSize = NSSize(width: 720, height: 540)
-            window.styleMask = [.titled, .closable, .miniaturizable]
+            window.setContentSize(Self.defaultContentSize)
+            window.minSize = Self.minimumContentSize
+            window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
             window.isReleasedWhenClosed = false
-            window.setFrameAutosaveName("ChronicleOnboardingWindow")
-            window.center()
+            window.setFrameAutosaveName(Self.frameAutosaveName)
+            prepareInitialFrame(for: window)
             self.window = window
         }
 
@@ -56,5 +59,11 @@ final class OnboardingWindowController {
 
     func updateTitle() {
         window?.title = L("onboarding.title")
+    }
+
+    private func prepareInitialFrame(for window: NSWindow) {
+        if !window.setFrameUsingName(Self.frameAutosaveName) {
+            window.center()
+        }
     }
 }

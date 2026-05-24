@@ -169,9 +169,9 @@ struct WelcomeWindowSceneRoot: View {
                 WindowConfigurationBridge(
                     configuration: SceneWindowConfiguration(
                         titleKey: "onboarding.title",
-                        autosaveName: nil,
+                        autosaveName: "ChronicleOnboardingWindow",
                         minSize: CGSize(width: 720, height: 540),
-                        resizable: false,
+                        resizable: true,
                         restorable: false
                     )
                 )

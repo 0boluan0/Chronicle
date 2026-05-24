@@ -42,5 +42,6 @@ struct ChronicleApp: App {
                 .environmentObject(appState)
                 .environmentObject(languageManager)
         }
+        .defaultSize(width: 860, height: 640)
     }
 }
