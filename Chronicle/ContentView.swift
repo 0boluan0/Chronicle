@@ -1200,21 +1200,7 @@ struct ContentView: View {
             snapshotReviewGuidanceView
             snapshotCueStatusView
 
-            if let activeDelta = dailySnapshot.activeDeltaVsYesterday {
-                let isUp = activeDelta >= 0
-                let deltaText = formatDuration(abs(activeDelta))
-                HStack(spacing: 6) {
-                    Image(systemName: isUp ? "arrow.up.right" : "arrow.down.right")
-                    Text(
-                        String(
-                            format: L(isUp ? "popover.daily_snapshot.delta_up" : "popover.daily_snapshot.delta_down"),
-                            deltaText
-                        )
-                    )
-                }
-                .font(DesignSystem.Typography.caption)
-                .foregroundColor(isUp ? Color(nsColor: .systemGreen) : Color(nsColor: .systemOrange))
-            }
+            snapshotComparisonView
 
             ActionButtonStack {
                 Button {
@@ -1426,6 +1412,84 @@ struct ContentView: View {
                 .stroke(tone.color.opacity(0.18), lineWidth: 1)
         )
         .accessibilityIdentifier("popover.dailySnapshot.cues")
+    }
+
+    private var snapshotComparisonView: some View {
+        let comparison = dailySnapshotComparison
+
+        return RowSurface(tone: comparison.tone) {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 220), spacing: DesignSystem.Spacing.md, alignment: .leading)],
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                    Image(systemName: comparison.systemImage)
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(comparison.tone.color)
+                        .frame(width: 16)
+
+                    VStack(alignment: .leading, spacing: 3) {
+                        HStack(spacing: DesignSystem.Spacing.xs) {
+                            Text("popover.daily_snapshot.comparison.title")
+                                .font(.caption.weight(.semibold))
+                                .foregroundColor(DesignSystem.Colors.primaryText)
+
+                            StatusPill(comparison.statusText, systemImage: comparison.statusIcon, tone: comparison.tone)
+                        }
+
+                        Text(comparison.detailText)
+                            .font(.caption2)
+                            .foregroundColor(DesignSystem.Colors.secondaryText)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+        }
+        .accessibilityIdentifier("popover.dailySnapshot.comparison")
+    }
+
+    private var dailySnapshotComparison: DailySnapshotComparison {
+        guard let activeDelta = dailySnapshot.activeDeltaVsYesterday else {
+            return DailySnapshotComparison(
+                systemImage: "calendar.badge.clock",
+                statusText: L("popover.daily_snapshot.comparison.first_day_status"),
+                statusIcon: "circle",
+                detailText: L("popover.daily_snapshot.comparison.first_day_detail"),
+                tone: .neutral
+            )
+        }
+
+        let deltaMagnitude = abs(activeDelta)
+        if deltaMagnitude < 60 {
+            return DailySnapshotComparison(
+                systemImage: "equal.circle",
+                statusText: L("popover.daily_snapshot.comparison.steady_status"),
+                statusIcon: "equal",
+                detailText: L("popover.daily_snapshot.comparison.steady_detail"),
+                tone: .info
+            )
+        }
+
+        let deltaText = formatDuration(deltaMagnitude)
+        if activeDelta > 0 {
+            return DailySnapshotComparison(
+                systemImage: "arrow.up.right.circle.fill",
+                statusText: String(format: L("popover.daily_snapshot.comparison.up_status"), deltaText),
+                statusIcon: "arrow.up.right",
+                detailText: String(format: L("popover.daily_snapshot.comparison.up_detail"), deltaText),
+                tone: .success
+            )
+        }
+
+        return DailySnapshotComparison(
+            systemImage: "arrow.down.right.circle.fill",
+            statusText: String(format: L("popover.daily_snapshot.comparison.down_status"), deltaText),
+            statusIcon: "arrow.down.right",
+            detailText: String(format: L("popover.daily_snapshot.comparison.down_detail"), deltaText),
+            tone: .warning
+        )
     }
 
     private func snapshotCueSummary(hasCues: Bool, tone: DesignSystem.StatusTone) -> some View {
@@ -2438,7 +2502,10 @@ struct ContentView: View {
                 markerNotesCount: 0,
                 markerSessionsCount: 0
             )
-            let delta = today.activeSeconds - (yesterdaySummary?.activeSeconds ?? 0)
+            let yesterdayHasBaseline = (yesterdaySummary?.totalSeconds ?? 0) > 0 ||
+                (yesterdaySummary?.markerNotesCount ?? 0) > 0 ||
+                (yesterdaySummary?.markerSessionsCount ?? 0) > 0
+            let delta = yesterdayHasBaseline ? today.activeSeconds - (yesterdaySummary?.activeSeconds ?? 0) : nil
             let workBlocks = WorkBlockInsightBuilder.build(
                 activities: activities,
                 tags: tagRows,
@@ -2598,6 +2665,14 @@ private struct DailySnapshotTag: Identifiable, Equatable {
     let tagId: Int64?
     let durationSeconds: Int64
     let percentOfActive: Double
+}
+
+private struct DailySnapshotComparison {
+    let systemImage: String
+    let statusText: String
+    let statusIcon: String
+    let detailText: String
+    let tone: DesignSystem.StatusTone
 }
 
 private enum DailySnapshotGuidanceKind {

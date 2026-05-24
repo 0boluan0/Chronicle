@@ -280,8 +280,15 @@
 "popover.daily_snapshot.sessions" = "Activity blocks";
 "popover.daily_snapshot.top_app" = "Top app";
 "popover.daily_snapshot.top_tag" = "Top category";
-"popover.daily_snapshot.delta_up" = "+%@ active vs yesterday";
-"popover.daily_snapshot.delta_down" = "-%@ active vs yesterday";
+"popover.daily_snapshot.comparison.title" = "Yesterday check";
+"popover.daily_snapshot.comparison.first_day_status" = "First baseline";
+"popover.daily_snapshot.comparison.first_day_detail" = "No comparable activity from yesterday yet. Today becomes the baseline for future reviews.";
+"popover.daily_snapshot.comparison.steady_status" = "Steady";
+"popover.daily_snapshot.comparison.steady_detail" = "Active time is about the same as yesterday.";
+"popover.daily_snapshot.comparison.up_status" = "+%@";
+"popover.daily_snapshot.comparison.up_detail" = "%@ more active work than yesterday.";
+"popover.daily_snapshot.comparison.down_status" = "-%@";
+"popover.daily_snapshot.comparison.down_detail" = "%@ less active work than yesterday.";
 "popover.daily_snapshot.no_data" = "No activity";
 "popover.daily_snapshot.untagged" = "Uncategorized";
 "popover.daily_snapshot.active_share" = "Active %d%%";

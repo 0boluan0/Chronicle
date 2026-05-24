@@ -280,8 +280,15 @@
 "popover.daily_snapshot.sessions" = "活动段";
 "popover.daily_snapshot.top_app" = "主要应用";
 "popover.daily_snapshot.top_tag" = "主要分类";
-"popover.daily_snapshot.delta_up" = "较昨日活动 +%@";
-"popover.daily_snapshot.delta_down" = "较昨日活动 -%@";
+"popover.daily_snapshot.comparison.title" = "昨日对比";
+"popover.daily_snapshot.comparison.first_day_status" = "首日基准";
+"popover.daily_snapshot.comparison.first_day_detail" = "昨天还没有可比较的活动记录。今天会成为后续复盘的基准。";
+"popover.daily_snapshot.comparison.steady_status" = "基本持平";
+"popover.daily_snapshot.comparison.steady_detail" = "活跃工作时长与昨天基本一致。";
+"popover.daily_snapshot.comparison.up_status" = "+%@";
+"popover.daily_snapshot.comparison.up_detail" = "比昨天多 %@ 活跃工作。";
+"popover.daily_snapshot.comparison.down_status" = "-%@";
+"popover.daily_snapshot.comparison.down_detail" = "比昨天少 %@ 活跃工作。";
 "popover.daily_snapshot.no_data" = "暂无活动";
 "popover.daily_snapshot.untagged" = "未分类";
 "popover.daily_snapshot.active_share" = "活动 %d%%";
