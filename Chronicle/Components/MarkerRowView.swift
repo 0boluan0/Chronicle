@@ -64,12 +64,20 @@ struct MarkerRowView: View {
     }
 
     private var markerTime: some View {
-        Text(TimeFormatters.timeText(for: marker.timestamp, includeSeconds: true))
-            .font(DesignSystem.Typography.caption)
-            .foregroundColor(DesignSystem.Colors.secondaryText)
-            .monospacedDigit()
-            .lineLimit(1)
-            .minimumScaleFactor(0.86)
+        Label {
+            Text(TimeFormatters.timeText(for: marker.timestamp, includeSeconds: true))
+                .font(DesignSystem.Typography.caption)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.86)
+        } icon: {
+            Image(systemName: "clock")
+        }
+        .font(.caption2)
+        .foregroundColor(DesignSystem.Colors.secondaryText)
+        .labelStyle(.titleAndIcon)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func adaptiveColumns(minimum: CGFloat, spacing: CGFloat) -> [GridItem] {

@@ -77,12 +77,20 @@ struct MarkerSpanRowView: View {
     }
 
     private func spanRangeMetadata(_ rangeText: String) -> some View {
-        Text(rangeText)
-            .font(DesignSystem.Typography.caption)
-            .foregroundColor(DesignSystem.Colors.secondaryText)
-            .monospacedDigit()
-            .lineLimit(1)
-            .minimumScaleFactor(0.86)
+        Label {
+            Text(rangeText)
+                .font(DesignSystem.Typography.caption)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.86)
+        } icon: {
+            Image(systemName: "clock")
+        }
+        .font(.caption2)
+        .foregroundColor(DesignSystem.Colors.secondaryText)
+        .labelStyle(.titleAndIcon)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func spanDurationMetadata(_ durationText: String) -> some View {
@@ -98,6 +106,7 @@ struct MarkerSpanRowView: View {
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func spanPurposeMetadata(_ purposeText: String) -> some View {
@@ -112,6 +121,7 @@ struct MarkerSpanRowView: View {
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func adaptiveColumns(minimum: CGFloat, spacing: CGFloat) -> [GridItem] {
