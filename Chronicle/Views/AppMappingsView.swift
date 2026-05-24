@@ -108,30 +108,7 @@ struct AppMappingsView: View {
     private var mappingReviewBoard: some View {
         SectionCard(title: "apps.review.title") {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
-                    IconWell(
-                        systemImage: needsReviewMappingCount == 0 ? "checkmark.seal.fill" : "tray.and.arrow.down.fill",
-                        tone: needsReviewMappingCount == 0 ? .success : .warning,
-                        accessibilityLabel: L("apps.review.title")
-                    )
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(LocalizedStringKey(needsReviewMappingCount == 0 ? "apps.review.ready_title" : "apps.review.focus_title"))
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundColor(DesignSystem.Colors.primaryText)
-                        Text(LocalizedStringKey(needsReviewMappingCount == 0 ? "apps.review.ready_detail" : "apps.review.focus_detail"))
-                            .font(DesignSystem.Typography.caption)
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
-                    }
-
-                    Spacer()
-
-                    StatusPill(
-                        reviewStatusText,
-                        systemImage: needsReviewMappingCount == 0 ? "checkmark.circle" : "exclamationmark.triangle.fill",
-                        tone: needsReviewMappingCount == 0 ? .success : .warning
-                    )
-                }
+                mappingReviewHeader
 
                 Divider()
 
@@ -173,6 +150,55 @@ struct AppMappingsView: View {
                 }
             }
         }
+    }
+
+    private var mappingReviewHeader: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+                mappingReviewHeaderLead
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                mappingReviewStatusPill
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                mappingReviewHeaderLead
+                mappingReviewStatusPill
+            }
+        }
+    }
+
+    private var mappingReviewHeaderLead: some View {
+        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+            IconWell(
+                systemImage: needsReviewMappingCount == 0 ? "checkmark.seal.fill" : "tray.and.arrow.down.fill",
+                tone: needsReviewMappingCount == 0 ? .success : .warning,
+                accessibilityLabel: L("apps.review.title")
+            )
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(LocalizedStringKey(needsReviewMappingCount == 0 ? "apps.review.ready_title" : "apps.review.focus_title"))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(LocalizedStringKey(needsReviewMappingCount == 0 ? "apps.review.ready_detail" : "apps.review.focus_detail"))
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private var mappingReviewStatusPill: some View {
+        StatusPill(
+            reviewStatusText,
+            systemImage: needsReviewMappingCount == 0 ? "checkmark.circle" : "exclamationmark.triangle.fill",
+            tone: needsReviewMappingCount == 0 ? .success : .warning
+        )
     }
 
     private var mappingReviewQueue: some View {
@@ -378,34 +404,7 @@ struct AppMappingsView: View {
 
     private var mappingImpactStrip: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-                IconWell(
-                    systemImage: "arrow.triangle.branch",
-                    tone: .info,
-                    accessibilityLabel: L("apps.review.impact.title")
-                )
-                .frame(width: 34, height: 34)
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("apps.review.impact.title")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundColor(DesignSystem.Colors.primaryText)
-
-                    Text("apps.review.impact.detail")
-                        .font(DesignSystem.Typography.caption)
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                Spacer(minLength: 0)
-
-                StatusPill(
-                    L("apps.review.impact.status"),
-                    systemImage: "checkmark.shield",
-                    tone: .info
-                )
-            }
+            mappingImpactHeader
 
             LazyVGrid(
                 columns: [GridItem(.adaptive(minimum: 168), spacing: DesignSystem.Spacing.sm)],
@@ -445,6 +444,56 @@ struct AppMappingsView: View {
                 .stroke(DesignSystem.StatusTone.info.color.opacity(0.18), lineWidth: 1)
         )
         .accessibilityIdentifier("appMappings.impactStrip")
+    }
+
+    private var mappingImpactHeader: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                mappingImpactHeaderLead
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                mappingImpactStatusPill
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                mappingImpactHeaderLead
+                mappingImpactStatusPill
+            }
+        }
+    }
+
+    private var mappingImpactHeaderLead: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            IconWell(
+                systemImage: "arrow.triangle.branch",
+                tone: .info,
+                accessibilityLabel: L("apps.review.impact.title")
+            )
+            .frame(width: 34, height: 34)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("apps.review.impact.title")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text("apps.review.impact.detail")
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private var mappingImpactStatusPill: some View {
+        StatusPill(
+            L("apps.review.impact.status"),
+            systemImage: "checkmark.shield",
+            tone: .info
+        )
     }
 
     private func mappingImpactItem(
@@ -785,22 +834,36 @@ struct AppMappingsView: View {
     }
 
     private var mappingActiveFiltersActions: some View {
-        HStack(spacing: DesignSystem.Spacing.sm) {
-            StatusPill(
-                String(format: L("apps.visible_count"), filteredMappings.count, appMappings.count),
-                systemImage: "eye",
-                tone: filteredMappings.isEmpty ? .warning : .info
-            )
-
-            Button {
-                clearMappingFilters()
-            } label: {
-                Label(L("apps.empty.action.clear_filters"), systemImage: "xmark.circle")
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+                mappingVisibleCountPill
+                mappingClearFiltersButton
             }
-            .buttonStyle(.bordered)
-            .controlSize(.small)
-            .accessibilityIdentifier("appMappings.clearFilters")
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                mappingVisibleCountPill
+                mappingClearFiltersButton
+            }
         }
+    }
+
+    private var mappingVisibleCountPill: some View {
+        StatusPill(
+            String(format: L("apps.visible_count"), filteredMappings.count, appMappings.count),
+            systemImage: "eye",
+            tone: filteredMappings.isEmpty ? .warning : .info
+        )
+    }
+
+    private var mappingClearFiltersButton: some View {
+        Button {
+            clearMappingFilters()
+        } label: {
+            Label(L("apps.empty.action.clear_filters"), systemImage: "xmark.circle")
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+        .accessibilityIdentifier("appMappings.clearFilters")
     }
 
     private var activeMappingFilterChips: [ActiveMappingFilterChip] {
