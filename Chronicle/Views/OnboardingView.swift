@@ -652,9 +652,14 @@ struct OnboardingView: View {
     }
 
     private func footerButtonLabel(_ titleKey: String, systemImage: String) -> some View {
+        onboardingActionLabel(L(titleKey), systemImage: systemImage)
+    }
+
+    private func onboardingActionLabel(_ title: String, systemImage: String) -> some View {
         Label {
-            Text(L(titleKey))
+            Text(title)
                 .lineLimit(2)
+                .minimumScaleFactor(0.86)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
         } icon: {
@@ -911,7 +916,7 @@ struct OnboardingView: View {
                         Button {
                             chooseDailyFolder()
                         } label: {
-                            Label(L("onboarding.exports.setup"), systemImage: "folder.badge.plus")
+                            onboardingActionLabel(L("onboarding.exports.setup"), systemImage: "folder.badge.plus")
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(DesignSystem.Colors.accentSkyBlue)
@@ -920,7 +925,7 @@ struct OnboardingView: View {
                         Button {
                             AppWindowRouter.shared.open(.settings(.export))
                         } label: {
-                            Label(L("actions.open_preferences"), systemImage: "gearshape")
+                            onboardingActionLabel(L("actions.open_preferences"), systemImage: "gearshape")
                         }
                         .buttonStyle(.bordered)
                         .accessibilityIdentifier("onboarding.openExportPreferences")
@@ -929,7 +934,7 @@ struct OnboardingView: View {
                             Button {
                                 openDailyFolder()
                             } label: {
-                                Label(L("reports.open_folder"), systemImage: "folder")
+                                onboardingActionLabel(L("reports.open_folder"), systemImage: "folder")
                             }
                             .buttonStyle(.bordered)
                             .accessibilityIdentifier("onboarding.openExportFolder")
@@ -1122,7 +1127,7 @@ struct OnboardingView: View {
                             Button {
                                 AccessibilityPermissionManager.shared.openSystemSettings()
                             } label: {
-                                Label(L("onboarding.permissions.grant"), systemImage: "gearshape")
+                                onboardingActionLabel(L("onboarding.permissions.grant"), systemImage: "gearshape")
                             }
                             .buttonStyle(.borderedProminent)
                             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -1131,7 +1136,7 @@ struct OnboardingView: View {
                             Button {
                                 AccessibilityPermissionManager.shared.syncAppState(appState)
                             } label: {
-                                Label(L("onboarding.permissions.recheck"), systemImage: "arrow.clockwise")
+                                onboardingActionLabel(L("onboarding.permissions.recheck"), systemImage: "arrow.clockwise")
                             }
                             .buttonStyle(.bordered)
                             .accessibilityIdentifier("onboarding.permissions.recheck")
@@ -1729,7 +1734,7 @@ struct OnboardingView: View {
         Button {
             healthCheckService.runQuickChecks()
         } label: {
-            Label(L("onboarding.finish.check_health"), systemImage: "checkmark.shield")
+            onboardingActionLabel(L("onboarding.finish.check_health"), systemImage: "checkmark.shield")
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
@@ -1743,7 +1748,7 @@ struct OnboardingView: View {
             Button {
                 showHealthDetails = true
             } label: {
-                Label(L("onboarding.finish.health_details"), systemImage: "doc.text.magnifyingglass")
+                onboardingActionLabel(L("onboarding.finish.health_details"), systemImage: "doc.text.magnifyingglass")
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
