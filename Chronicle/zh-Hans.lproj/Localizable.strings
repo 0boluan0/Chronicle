@@ -66,6 +66,21 @@
 "popover.command_center.progress.closeout_detail" = "今天已有活动和语境；工作结束时保存今日日志。";
 "popover.command_center.progress.saved_title" = "今天已经收尾。";
 "popover.command_center.progress.saved_detail" = "日志已保存；只有今天发生变化时再补笔记。";
+"popover.privacy.title" = "隐私防线";
+"popover.privacy.status.app_only" = "仅应用级";
+"popover.privacy.status.permission_needed" = "需要权限";
+"popover.privacy.detail.app_only" = "不记录窗口标题时 Chronicle 仍然可用；活动保存在这台 Mac。";
+"popover.privacy.detail.permission" = "窗口标题采集已开启，但 macOS 还需要允许 Chronicle。";
+"popover.privacy.detail.raw" = "当前选择原文模式，会保存完整窗口标题。";
+"popover.privacy.detail.length" = "窗口标题会保存为长度标记。";
+"popover.privacy.detail.hash" = "窗口标题会保存为短哈希。";
+"popover.privacy.review" = "隐私设置";
+"popover.privacy.storage_title" = "本地";
+"popover.privacy.storage_detail" = "不云同步。";
+"popover.privacy.mode_title" = "模式";
+"popover.privacy.mode_detail" = "应用到标题。";
+"popover.privacy.share_title" = "检查";
+"popover.privacy.share_detail" = "分享前先查看。";
 
 "self_check.details.title" = "应用健康详情";
 "self_check.details.actions" = "建议操作";

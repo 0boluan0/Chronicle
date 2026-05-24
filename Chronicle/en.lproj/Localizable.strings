@@ -66,6 +66,21 @@
 "popover.command_center.progress.closeout_detail" = "The day has activity and context; save the daily log when work ends.";
 "popover.command_center.progress.saved_title" = "Today is closed out.";
 "popover.command_center.progress.saved_detail" = "Your log is saved; add another note only if the day changes.";
+"popover.privacy.title" = "Privacy guardrail";
+"popover.privacy.status.app_only" = "App-only";
+"popover.privacy.status.permission_needed" = "Permission needed";
+"popover.privacy.detail.app_only" = "Chronicle is useful without window titles; activity stays local on this Mac.";
+"popover.privacy.detail.permission" = "Title capture is on, but macOS still needs to approve Chronicle.";
+"popover.privacy.detail.raw" = "Full window titles are being stored because raw mode is selected.";
+"popover.privacy.detail.length" = "Window titles are stored as length-only tokens.";
+"popover.privacy.detail.hash" = "Window titles are stored as short hashes.";
+"popover.privacy.review" = "Privacy Settings";
+"popover.privacy.storage_title" = "Local";
+"popover.privacy.storage_detail" = "No cloud sync.";
+"popover.privacy.mode_title" = "Mode";
+"popover.privacy.mode_detail" = "Applies to titles.";
+"popover.privacy.share_title" = "Review";
+"popover.privacy.share_detail" = "Inspect before sharing.";
 
 "self_check.details.title" = "App Health Details";
 "self_check.details.actions" = "Recommended Actions";

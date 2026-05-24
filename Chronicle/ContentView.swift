@@ -521,6 +521,8 @@ struct ContentView: View {
                 }
 
                 trackingCurrentAppView
+
+                trackingPrivacyGuardrailView
             }
         }
         .accessibilityIdentifier("popover.trackingCard")
@@ -630,6 +632,111 @@ struct ContentView: View {
             .controlSize(.small)
             .accessibilityIdentifier("popover.tracking.openTimeline")
         }
+    }
+
+    private var trackingPrivacyGuardrailView: some View {
+        RowSurface(tone: popoverPrivacyTone) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 210), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
+                    alignment: .leading,
+                    spacing: DesignSystem.Spacing.sm
+                ) {
+                    HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                        Image(systemName: popoverPrivacyIconName)
+                            .font(.caption.weight(.semibold))
+                            .foregroundColor(popoverPrivacyTone.color)
+                            .frame(width: 16, height: 18)
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("popover.privacy.title")
+                                .font(.caption.weight(.semibold))
+                                .foregroundColor(DesignSystem.Colors.primaryText)
+
+                            Text(LocalizedStringKey(popoverPrivacyDetailKey))
+                                .font(.caption2)
+                                .foregroundColor(DesignSystem.Colors.secondaryText)
+                                .lineLimit(3)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                        StatusPill(
+                            popoverPrivacyStatusText,
+                            systemImage: popoverPrivacyIconName,
+                            tone: popoverPrivacyTone
+                        )
+
+                        Button {
+                            AppWindowRouter.shared.open(.settings(.privacy))
+                        } label: {
+                            Label(L("popover.privacy.review"), systemImage: "hand.raised")
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .accessibilityIdentifier("popover.privacy.openSettings")
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 126), spacing: DesignSystem.Spacing.sm, alignment: .topLeading)],
+                    alignment: .leading,
+                    spacing: DesignSystem.Spacing.xs
+                ) {
+                    trackingPrivacyGuardrailItem(
+                        titleKey: "popover.privacy.storage_title",
+                        detailKey: "popover.privacy.storage_detail",
+                        systemImage: "internaldrive",
+                        accessibilityIdentifier: "popover.privacy.storage"
+                    )
+                    trackingPrivacyGuardrailItem(
+                        titleKey: "popover.privacy.mode_title",
+                        detailKey: "popover.privacy.mode_detail",
+                        systemImage: "text.viewfinder",
+                        accessibilityIdentifier: "popover.privacy.mode"
+                    )
+                    trackingPrivacyGuardrailItem(
+                        titleKey: "popover.privacy.share_title",
+                        detailKey: "popover.privacy.share_detail",
+                        systemImage: "shippingbox",
+                        accessibilityIdentifier: "popover.privacy.share"
+                    )
+                }
+            }
+        }
+        .accessibilityIdentifier("popover.privacyGuardrail")
+    }
+
+    private func trackingPrivacyGuardrailItem(
+        titleKey: LocalizedStringKey,
+        detailKey: LocalizedStringKey,
+        systemImage: String,
+        accessibilityIdentifier: String
+    ) -> some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.xs) {
+            Image(systemName: systemImage)
+                .font(.caption2.weight(.semibold))
+                .foregroundColor(popoverPrivacyTone.color)
+                .frame(width: 13, height: 15)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(titleKey)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
+
+                Text(detailKey)
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 46, alignment: .topLeading)
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     private var selfCheckStatusView: some View {
@@ -1645,6 +1752,60 @@ struct ContentView: View {
             return L("popover.tracking.current_waiting")
         }
         return String(format: L("popover.tracking.current_changed_at"), Self.timeFormatter.string(from: lastRecordedAppChange))
+    }
+
+    private var popoverPrivacyTone: DesignSystem.StatusTone {
+        guard appState.windowTitleCaptureEnabled else {
+            return .success
+        }
+        if !appState.accessibilityAuthorized {
+            return .warning
+        }
+        return appState.windowTitlePrivacyMode == .raw ? .warning : .success
+    }
+
+    private var popoverPrivacyIconName: String {
+        guard appState.windowTitleCaptureEnabled else {
+            return "eye.slash"
+        }
+        if !appState.accessibilityAuthorized {
+            return "exclamationmark.triangle.fill"
+        }
+        switch appState.windowTitlePrivacyMode {
+        case .raw:
+            return "text.viewfinder"
+        case .lengthOnly:
+            return "ruler"
+        case .hashed:
+            return "number"
+        }
+    }
+
+    private var popoverPrivacyStatusText: String {
+        guard appState.windowTitleCaptureEnabled else {
+            return L("popover.privacy.status.app_only")
+        }
+        if !appState.accessibilityAuthorized {
+            return L("popover.privacy.status.permission_needed")
+        }
+        return L(appState.windowTitlePrivacyMode.titleKey)
+    }
+
+    private var popoverPrivacyDetailKey: String {
+        guard appState.windowTitleCaptureEnabled else {
+            return "popover.privacy.detail.app_only"
+        }
+        if !appState.accessibilityAuthorized {
+            return "popover.privacy.detail.permission"
+        }
+        switch appState.windowTitlePrivacyMode {
+        case .raw:
+            return "popover.privacy.detail.raw"
+        case .lengthOnly:
+            return "popover.privacy.detail.length"
+        case .hashed:
+            return "popover.privacy.detail.hash"
+        }
     }
 
     private var shouldShowTaggingSetupPrompt: Bool {
