@@ -70,6 +70,9 @@ else
   echo "Notarization credentials not set; keeping unsigned development/notarization-free DMG path."
 fi
 
+echo "Verifying DMG image..."
+hdiutil verify "${DMG_PATH}"
+
 echo "Computing SHA-256 checksum..."
 (
   cd "${OUTPUT_DIR}"
