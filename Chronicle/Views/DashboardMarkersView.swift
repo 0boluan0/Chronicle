@@ -13,6 +13,7 @@ struct DashboardMarkersView: View {
     private enum CueCapturePathState {
         case complete
         case active
+        case failed
         case waiting
 
         var tone: DesignSystem.StatusTone {
@@ -21,6 +22,8 @@ struct DashboardMarkersView: View {
                 return .success
             case .active:
                 return .info
+            case .failed:
+                return .critical
             case .waiting:
                 return .neutral
             }
@@ -531,6 +534,17 @@ struct DashboardMarkersView: View {
             .accessibilityIdentifier("dashboard.markers.closeout")
         }
 
+        if cueDailyLogFailedForRange {
+            Button {
+                AppWindowRouter.shared.open(.settings(.export))
+            } label: {
+                cueCaptureActionLabel(L("markers.capture.open_log_settings"), systemImage: "gearshape")
+            }
+            .buttonStyle(.bordered)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("dashboard.markers.openLogSettings")
+        }
+
         if cueSummaryError != nil {
             Button {
                 AppWindowRouter.shared.open(.settings(.support))
@@ -588,11 +602,14 @@ struct DashboardMarkersView: View {
         if isLoadingCueSummary {
             return "markers.capture.loading_headline"
         }
-        if cueSummary.totalCount == 0 {
-            return "markers.capture.empty_headline"
+        if cueDailyLogFailedForRange {
+            return "markers.capture.failed_headline"
         }
         if cueSummary.ongoingCount > 0 {
             return "markers.capture.live_headline"
+        }
+        if cueSummary.totalCount == 0 {
+            return "markers.capture.empty_headline"
         }
         if cueDailyLogSavedForRange {
             return "markers.capture.saved_headline"
@@ -607,11 +624,14 @@ struct DashboardMarkersView: View {
         if isLoadingCueSummary {
             return "markers.capture.loading_detail"
         }
-        if cueSummary.totalCount == 0 {
-            return "markers.capture.empty_detail"
+        if cueDailyLogFailedForRange {
+            return "markers.capture.failed_detail"
         }
         if cueSummary.ongoingCount > 0 {
             return "markers.capture.live_detail"
+        }
+        if cueSummary.totalCount == 0 {
+            return "markers.capture.empty_detail"
         }
         if cueDailyLogSavedForRange {
             return "markers.capture.saved_detail"
@@ -625,6 +645,9 @@ struct DashboardMarkersView: View {
         }
         if isLoadingCueSummary {
             return "markers.capture.add_cue"
+        }
+        if cueDailyLogFailedForRange {
+            return "markers.capture.retry_daily_log"
         }
         if cueSummary.ongoingCount > 0 {
             return "markers.capture.check_live"
@@ -648,6 +671,9 @@ struct DashboardMarkersView: View {
         if isLoadingCueSummary {
             return "square.and.pencil"
         }
+        if cueDailyLogFailedForRange {
+            return "arrow.clockwise"
+        }
         if cueSummary.ongoingCount > 0 {
             return "record.circle"
         }
@@ -669,6 +695,9 @@ struct DashboardMarkersView: View {
         }
         if isLoadingCueSummary {
             return "dashboard.markers.addCue"
+        }
+        if cueDailyLogFailedForRange {
+            return "dashboard.markers.retryDailyLog"
         }
         if cueSummary.ongoingCount > 0 {
             return "dashboard.markers.checkLive"
@@ -692,11 +721,14 @@ struct DashboardMarkersView: View {
         if isLoadingCueSummary {
             return "markers.capture.next.loading_title"
         }
-        if cueSummary.totalCount == 0 {
-            return "markers.capture.next.empty_title"
+        if cueDailyLogFailedForRange {
+            return "markers.capture.next.failed_title"
         }
         if cueSummary.ongoingCount > 0 {
             return "markers.capture.next.live_title"
+        }
+        if cueSummary.totalCount == 0 {
+            return "markers.capture.next.empty_title"
         }
         if cueNeedsLogFolder {
             return "markers.capture.next.folder_title"
@@ -714,11 +746,14 @@ struct DashboardMarkersView: View {
         if isLoadingCueSummary {
             return "markers.capture.next.loading_detail"
         }
-        if cueSummary.totalCount == 0 {
-            return "markers.capture.next.empty_detail"
+        if cueDailyLogFailedForRange {
+            return "markers.capture.next.failed_detail"
         }
         if cueSummary.ongoingCount > 0 {
             return "markers.capture.next.live_detail"
+        }
+        if cueSummary.totalCount == 0 {
+            return "markers.capture.next.empty_detail"
         }
         if cueNeedsLogFolder {
             return "markers.capture.next.folder_detail"
@@ -736,11 +771,14 @@ struct DashboardMarkersView: View {
         if isLoadingCueSummary {
             return "arrow.triangle.2.circlepath"
         }
-        if cueSummary.totalCount == 0 {
-            return "square.and.pencil"
+        if cueDailyLogFailedForRange {
+            return "exclamationmark.triangle.fill"
         }
         if cueSummary.ongoingCount > 0 {
             return "record.circle"
+        }
+        if cueSummary.totalCount == 0 {
+            return "square.and.pencil"
         }
         if cueNeedsLogFolder {
             return "folder.badge.plus"
@@ -758,11 +796,14 @@ struct DashboardMarkersView: View {
         if isLoadingCueSummary {
             return .neutral
         }
-        if cueSummary.totalCount == 0 {
-            return .info
+        if cueDailyLogFailedForRange {
+            return .critical
         }
         if cueSummary.ongoingCount > 0 {
             return .warning
+        }
+        if cueSummary.totalCount == 0 {
+            return .info
         }
         if cueNeedsLogFolder {
             return .warning
@@ -780,6 +821,7 @@ struct DashboardMarkersView: View {
                 || cueSummary.noteCount == 0
                 || cueSummary.sessionCount == 0
                 || cueSummary.ongoingCount > 0
+                || cueDailyLogFailedForRange
                 || cueDailyLogSavedForRange)
     }
 
@@ -792,6 +834,7 @@ struct DashboardMarkersView: View {
 
     private var cueNeedsLogFolder: Bool {
         cueCaptureReadyForCloseout
+            && !cueDailyLogFailedForRange
             && !cueDailyLogSavedForRange
             && !cueDailyFolderReady
     }
@@ -803,6 +846,11 @@ struct DashboardMarkersView: View {
     private var cueDailyLogSavedForRange: Bool {
         appState.dateRangeMode == .day
             && reportSettings.dailyExportSucceeded(for: appState.selectedDate)
+    }
+
+    private var cueDailyLogFailedForRange: Bool {
+        appState.dateRangeMode == .day
+            && reportSettings.dailyExportFailed(for: appState.selectedDate)
     }
 
     private var cueNotePathState: CueCapturePathState {
@@ -820,6 +868,9 @@ struct DashboardMarkersView: View {
     }
 
     private var cueCloseoutPathState: CueCapturePathState {
+        if cueDailyLogFailedForRange {
+            return .failed
+        }
         if cueDailyLogSavedForRange {
             return .complete
         }
@@ -830,6 +881,9 @@ struct DashboardMarkersView: View {
     }
 
     private var cueCapturePathCloseoutDetailKey: LocalizedStringKey {
+        if cueDailyLogFailedForRange {
+            return "markers.capture.path.failed_detail"
+        }
         if cueNeedsLogFolder {
             return "markers.capture.path.folder_detail"
         }
@@ -866,6 +920,9 @@ struct DashboardMarkersView: View {
         if isLoadingCueSummary {
             return L("markers.capture.progress.loading")
         }
+        if cueDailyLogFailedForRange {
+            return L("markers.capture.progress.failed")
+        }
         return String(
             format: L("markers.capture.progress.value"),
             cueCaptureProgressReadyCount,
@@ -879,6 +936,9 @@ struct DashboardMarkersView: View {
         }
         if isLoadingCueSummary {
             return "arrow.triangle.2.circlepath"
+        }
+        if cueDailyLogFailedForRange {
+            return "exclamationmark.triangle.fill"
         }
         if cueCaptureProgressReadyCount == cueCaptureProgressTotalCount {
             return "checkmark.circle.fill"
@@ -896,6 +956,9 @@ struct DashboardMarkersView: View {
         if cueCaptureProgressReadyCount == cueCaptureProgressTotalCount {
             return .success
         }
+        if cueDailyLogFailedForRange {
+            return .critical
+        }
         if cueSummary.ongoingCount > 0 || cueNeedsLogFolder {
             return .warning
         }
@@ -909,11 +972,14 @@ struct DashboardMarkersView: View {
         if isLoadingCueSummary {
             return L("markers.capture.status.loading")
         }
-        if cueSummary.totalCount == 0 {
-            return L("markers.capture.status.empty")
+        if cueDailyLogFailedForRange {
+            return L("markers.capture.status.failed")
         }
         if cueSummary.ongoingCount > 0 {
             return String(format: L("markers.capture.status.live_format"), cueSummary.ongoingCount)
+        }
+        if cueSummary.totalCount == 0 {
+            return L("markers.capture.status.empty")
         }
         if cueDailyLogSavedForRange {
             return L("markers.capture.status.saved")
@@ -928,11 +994,14 @@ struct DashboardMarkersView: View {
         if isLoadingCueSummary {
             return "arrow.triangle.2.circlepath"
         }
-        if cueSummary.totalCount == 0 {
-            return "note.text"
+        if cueDailyLogFailedForRange {
+            return "exclamationmark.triangle.fill"
         }
         if cueSummary.ongoingCount > 0 {
             return "record.circle"
+        }
+        if cueSummary.totalCount == 0 {
+            return "note.text"
         }
         if cueDailyLogSavedForRange {
             return "checkmark.seal"
@@ -944,11 +1013,17 @@ struct DashboardMarkersView: View {
         if cueSummaryError != nil {
             return .critical
         }
-        if cueSummary.totalCount == 0 || isLoadingCueSummary {
+        if isLoadingCueSummary {
             return .neutral
+        }
+        if cueDailyLogFailedForRange {
+            return .critical
         }
         if cueSummary.ongoingCount > 0 {
             return .warning
+        }
+        if cueSummary.totalCount == 0 {
+            return .neutral
         }
         if cueDailyLogSavedForRange {
             return .success
@@ -961,6 +1036,8 @@ struct DashboardMarkersView: View {
             refreshCueSummary(reason: "marker summary primary retry")
         } else if isLoadingCueSummary {
             AppWindowRouter.shared.open(.quickMarker)
+        } else if cueDailyLogFailedForRange {
+            selectedDashboardSectionRaw = DashboardView.Section.reports.rawValue
         } else if cueSummary.ongoingCount > 0 {
             appState.quickMarkerMode = .interval
             AppWindowRouter.shared.open(.quickMarker)

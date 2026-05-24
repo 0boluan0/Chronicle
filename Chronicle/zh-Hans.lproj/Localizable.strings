@@ -1885,6 +1885,8 @@
 "markers.capture.live_detail" = "保存今日日志前先检查或结束进行中的专注区间，日志会更完整。";
 "markers.capture.saved_headline" = "这一天已经保存过日志。";
 "markers.capture.saved_detail" = "可以打开日志文件夹检查；如果当天内容又变化，再补一条笔记。";
+"markers.capture.failed_headline" = "今日日志保存失败。";
+"markers.capture.failed_detail" = "备注仍然在这里，但 Markdown 日志没有写出。重试今日日志，或刷新文件夹权限。";
 "markers.capture.loading_headline" = "正在检查复盘语境。";
 "markers.capture.loading_detail" = "Chronicle 正在统计所选范围内的备注和专注区间。";
 "markers.capture.error_headline" = "语境概览需要检查。";
@@ -1895,6 +1897,7 @@
 "markers.capture.status.loading" = "检查中";
 "markers.capture.status.error" = "需检查";
 "markers.capture.status.saved" = "已保存";
+"markers.capture.status.failed" = "保存失败";
 "markers.capture.add_cue" = "添加笔记";
 "markers.capture.add_first_cue" = "添加第一条笔记";
 "markers.capture.check_live" = "检查进行中区间";
@@ -1905,6 +1908,8 @@
 "markers.capture.closeout" = "今日日志";
 "markers.capture.set_log_folder" = "设置日志目录";
 "markers.capture.open_log_folder" = "打开日志文件夹";
+"markers.capture.retry_daily_log" = "重试今日日志";
+"markers.capture.open_log_settings" = "日志设置";
 "markers.capture.next.label" = "建议下一步";
 "markers.capture.next.empty_title" = "现在先留下一条有用笔记。";
 "markers.capture.next.empty_detail" = "笔记会给今天留下人为锚点，避免时间线过一会儿就变成冷记录。";
@@ -1916,6 +1921,8 @@
 "markers.capture.next.folder_detail" = "复盘线索已经准备好，但 Chronicle 需要先知道把 Markdown 日志保存到哪里。";
 "markers.capture.next.saved_title" = "需要检查时，直接打开已保存的今日日志。";
 "markers.capture.next.saved_detail" = "这一天已经收尾；只有新工作改变当天脉络时，再补一条笔记。";
+"markers.capture.next.failed_title" = "重试保存今日日志。";
+"markers.capture.next.failed_detail" = "打开今日日志重试；如果文件夹变过，先刷新保存位置。";
 "markers.capture.next.loading_title" = "等待 Chronicle 完成语境检查。";
 "markers.capture.next.loading_detail" = "概览刷新时仍可先添加一条笔记。";
 "markers.capture.next.error_title" = "先刷新语境概览。";
@@ -1924,6 +1931,7 @@
 "markers.capture.progress.value" = "%d/%d 就绪";
 "markers.capture.progress.loading" = "检查中";
 "markers.capture.progress.error" = "需检查";
+"markers.capture.progress.failed" = "保存失败";
 "markers.capture.summary.notes" = "备注";
 "markers.capture.summary.sessions" = "专注区间";
 "markers.capture.summary.ongoing" = "进行中";
@@ -1935,6 +1943,7 @@
 "markers.capture.path.closeout_title" = "用于今日日志";
 "markers.capture.path.closeout_detail" = "保存今日日志时会带上这些笔记。";
 "markers.capture.path.folder_detail" = "先设置一次目录，这些线索才能变成 Markdown 日志。";
+"markers.capture.path.failed_detail" = "笔记已准备好，但上次 Markdown 保存失败。先重试，再把今天视为已收尾。";
 "markers.summary.events" = "%d 次";
 "markers.summary.duration_events" = "%@ · %d 次";
 "markers.summary.groups" = "分组";

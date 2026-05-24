@@ -1885,6 +1885,8 @@
 "markers.capture.live_detail" = "Finish or check the live focus block before saving today's log so the ending is clean.";
 "markers.capture.saved_headline" = "This day already has a saved log.";
 "markers.capture.saved_detail" = "Open the log folder to inspect it, or add another note if the day has changed.";
+"markers.capture.failed_headline" = "The daily log save failed.";
+"markers.capture.failed_detail" = "Your notes are still here, but the Markdown log did not write. Retry the daily log or refresh the folder permission.";
 "markers.capture.loading_headline" = "Checking review context.";
 "markers.capture.loading_detail" = "Chronicle is counting notes and focus blocks for the selected range.";
 "markers.capture.error_headline" = "Context summary needs attention.";
@@ -1895,6 +1897,7 @@
 "markers.capture.status.loading" = "Checking";
 "markers.capture.status.error" = "Needs check";
 "markers.capture.status.saved" = "Saved";
+"markers.capture.status.failed" = "Save failed";
 "markers.capture.add_cue" = "Add Note";
 "markers.capture.add_first_cue" = "Add First Note";
 "markers.capture.check_live" = "Check Live Block";
@@ -1905,6 +1908,8 @@
 "markers.capture.closeout" = "Daily Log";
 "markers.capture.set_log_folder" = "Set Log Folder";
 "markers.capture.open_log_folder" = "Open Log Folder";
+"markers.capture.retry_daily_log" = "Retry Daily Log";
+"markers.capture.open_log_settings" = "Log Settings";
 "markers.capture.next.label" = "Suggested next";
 "markers.capture.next.empty_title" = "Capture one useful note now.";
 "markers.capture.next.empty_detail" = "A note gives the day a human anchor before the timeline becomes old context.";
@@ -1916,6 +1921,8 @@
 "markers.capture.next.folder_detail" = "Your notes are ready, but Chronicle needs a folder before it can save today's Markdown log.";
 "markers.capture.next.saved_title" = "Open the saved daily log when you need to inspect it.";
 "markers.capture.next.saved_detail" = "The day is already closed out; add a note only if new work changed the story.";
+"markers.capture.next.failed_title" = "Retry the daily log save.";
+"markers.capture.next.failed_detail" = "Open Daily Log to retry. If the folder changed, refresh the destination before saving again.";
 "markers.capture.next.loading_title" = "Let Chronicle finish checking context.";
 "markers.capture.next.loading_detail" = "You can still add a note while the summary refreshes.";
 "markers.capture.next.error_title" = "Refresh the context summary first.";
@@ -1924,6 +1931,7 @@
 "markers.capture.progress.value" = "%d/%d ready";
 "markers.capture.progress.loading" = "Checking";
 "markers.capture.progress.error" = "Needs check";
+"markers.capture.progress.failed" = "Save failed";
 "markers.capture.summary.notes" = "Notes";
 "markers.capture.summary.sessions" = "Focus blocks";
 "markers.capture.summary.ongoing" = "Live";
@@ -1935,6 +1943,7 @@
 "markers.capture.path.closeout_title" = "Use in daily log";
 "markers.capture.path.closeout_detail" = "These notes are included when you save today's log.";
 "markers.capture.path.folder_detail" = "Set a folder once so these cues can become a saved Markdown log.";
+"markers.capture.path.failed_detail" = "The notes are ready, but the last Markdown save failed. Retry before calling the day closed.";
 "markers.summary.events" = "%d events";
 "markers.summary.duration_events" = "%@ · %d events";
 "markers.summary.groups" = "Groups";
