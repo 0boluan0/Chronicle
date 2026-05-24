@@ -65,6 +65,10 @@ cleanup_processes() {
   pkill -x "Chronicle" >/dev/null 2>&1 || true
 }
 
+usage() {
+  echo "usage: $0 [all|public|full|surface|en|zh-Hans]" >&2
+}
+
 run_case() {
   local language="$1"
   local scope="$2"
@@ -97,6 +101,17 @@ run_case() {
     test
 }
 
+case "$LANGUAGE" in
+  all|public|full|surface|en|zh-Hans)
+    ;;
+  *)
+    usage
+    exit 2
+    ;;
+esac
+
+trap cleanup_processes EXIT
+
 require_automation_mode
 
 case "$LANGUAGE" in
@@ -117,9 +132,5 @@ case "$LANGUAGE" in
     ;;
   zh-Hans)
     run_case zh-Hans public "${PUBLIC_TESTS_ZH_HANS[@]}"
-    ;;
-  *)
-    echo "usage: $0 [all|public|full|surface|en|zh-Hans]" >&2
-    exit 2
     ;;
 esac
