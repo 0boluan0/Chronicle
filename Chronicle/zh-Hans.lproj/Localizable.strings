@@ -2038,6 +2038,8 @@
 "marker_span.delete.confirm.action" = "删除专注区间";
 "quick_marker.title" = "快速记录";
 "quick_marker.subtitle" = "不离开当前工作，也能留下复盘笔记或开始专注区间。";
+"quick_marker.side.context_title" = "当前语境";
+"quick_marker.side.route_title" = "下一步";
 "quick_marker.context.local_title" = "本地保存";
 "quick_marker.context.local_detail" = "会写入今天的时间线。";
 "quick_marker.context.time_title" = "当前时刻";

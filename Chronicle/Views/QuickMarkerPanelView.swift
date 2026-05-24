@@ -111,12 +111,54 @@ struct QuickMarkerPanelView: View {
     private var panelSideRail: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
             reviewLoopStrip
-            contextStrip
-            captureRouteStrip
-            captureRouteActions
+            panelSideRailSection(
+                titleKey: "quick_marker.side.context_title",
+                systemImage: "info.circle",
+                tone: .info,
+                accessibilityIdentifier: "quickMarker.contextSection"
+            ) {
+                contextStrip
+            }
+            panelSideRailSection(
+                titleKey: "quick_marker.side.route_title",
+                systemImage: "arrowshape.turn.up.right",
+                tone: dailyLogContextTone,
+                accessibilityIdentifier: "quickMarker.routeSection"
+            ) {
+                captureRouteStrip
+                captureRouteActions
+            }
         }
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .accessibilityIdentifier("quickMarker.sideRail")
+    }
+
+    private func panelSideRailSection<Content: View>(
+        titleKey: LocalizedStringKey,
+        systemImage: String,
+        tone: DesignSystem.StatusTone,
+        accessibilityIdentifier: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            Label {
+                Text(titleKey)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .textCase(.uppercase)
+                    .lineLimit(1)
+            } icon: {
+                Image(systemName: systemImage)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundColor(tone.color)
+                    .frame(width: 14)
+            }
+            .labelStyle(.titleAndIcon)
+
+            content()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     private func panelActionLabel(_ title: String, systemImage: String) -> some View {

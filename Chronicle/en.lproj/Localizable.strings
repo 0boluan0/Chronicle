@@ -2038,6 +2038,8 @@
 "marker_span.delete.confirm.action" = "Delete focus block";
 "quick_marker.title" = "Quick Capture";
 "quick_marker.subtitle" = "Capture a review note or start a focus block without leaving your work.";
+"quick_marker.side.context_title" = "Current context";
+"quick_marker.side.route_title" = "Next steps";
 "quick_marker.context.local_title" = "Saved locally";
 "quick_marker.context.local_detail" = "Goes into today's timeline.";
 "quick_marker.context.time_title" = "Now";

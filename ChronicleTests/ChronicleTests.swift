@@ -1561,6 +1561,8 @@ final class ChronicleTests: XCTestCase {
             "quick_marker.status.set_log_folder",
             "quick_marker.status.retry_daily_log",
             "quick_marker.subtitle",
+            "quick_marker.side.context_title",
+            "quick_marker.side.route_title",
             "quick_marker.context.local_title",
             "quick_marker.context.local_detail",
             "quick_marker.context.time_title",
