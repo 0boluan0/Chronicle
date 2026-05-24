@@ -111,6 +111,18 @@ struct QuickMarkerEntryView: View {
         [GridItem(.adaptive(minimum: minimum), spacing: spacing, alignment: .leading)]
     }
 
+    private func quickMarkerActionLabel(_ title: String, systemImage: String) -> some View {
+        Label {
+            Text(title)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: systemImage)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     private var captureTypeControls: some View {
         LazyVGrid(
             columns: adaptiveColumns(minimum: 230, spacing: DesignSystem.Spacing.sm),
@@ -172,7 +184,7 @@ struct QuickMarkerEntryView: View {
             Button {
                 stopOpenSpan(span)
             } label: {
-                Label(L("quick_marker.session_stop"), systemImage: "stop.circle")
+                quickMarkerActionLabel(L("quick_marker.session_stop"), systemImage: "stop.circle")
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
@@ -184,7 +196,7 @@ struct QuickMarkerEntryView: View {
             Button {
                 appState.quickMarkerMode = .interval
             } label: {
-                Label(L("quick_marker.mode.interval"), systemImage: "timer")
+                quickMarkerActionLabel(L("quick_marker.mode.interval"), systemImage: "timer")
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
@@ -277,12 +289,16 @@ struct QuickMarkerEntryView: View {
                     Text(L(capturePromptKey))
                         .font(.caption.weight(.semibold))
                         .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     captureInputBox
 
                     Text(L(captureHintKey))
                         .font(.caption2)
                         .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
         }
@@ -307,11 +323,12 @@ struct QuickMarkerEntryView: View {
     }
 
     private var captureTextInputRow: some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
             Image(systemName: inputIconName)
                 .font(.subheadline.weight(.semibold))
                 .foregroundColor(modeTone.color)
                 .frame(width: 18)
+                .padding(.top, 2)
 
             TextField(L(inputPlaceholderKey), text: $markerText, axis: .vertical)
                 .textFieldStyle(.plain)
@@ -323,6 +340,7 @@ struct QuickMarkerEntryView: View {
 
             if !markerText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 clearTextButton
+                    .padding(.top, 2)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -339,13 +357,13 @@ struct QuickMarkerEntryView: View {
                 Text(L(intentPreviewTitleKey))
                     .font(.caption2.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.86)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(L(intentPreviewDetailKey))
                     .font(.caption2)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
+                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
@@ -398,19 +416,27 @@ struct QuickMarkerEntryView: View {
     }
 
     private var captureComposerHeader: some View {
-        LazyVGrid(
-            columns: adaptiveColumns(minimum: 220, spacing: DesignSystem.Spacing.md),
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            captureComposerHeaderCopy
-            StatusPill(L(modeStatusKey), systemImage: modeStatusIconName, tone: modeTone)
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                captureComposerHeaderCopy
+
+                Spacer(minLength: DesignSystem.Spacing.sm)
+
+                StatusPill(L(modeStatusKey), systemImage: modeStatusIconName, tone: modeTone)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                captureComposerHeaderCopy
+
+                StatusPill(L(modeStatusKey), systemImage: modeStatusIconName, tone: modeTone)
+            }
         }
         .accessibilityIdentifier("quickMarker.composerHeader")
     }
 
     private var captureComposerHeaderCopy: some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
             IconWell(systemImage: modeIconName, tone: modeTone, accessibilityLabel: L(modeHeadlineKey))
 
             VStack(alignment: .leading, spacing: 4) {
@@ -418,6 +444,7 @@ struct QuickMarkerEntryView: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
                     .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(L(modeDetailKey))
                     .font(DesignSystem.Typography.caption)
@@ -426,6 +453,7 @@ struct QuickMarkerEntryView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
     }
 
@@ -463,30 +491,32 @@ struct QuickMarkerEntryView: View {
         systemImage: String,
         tone: DesignSystem.StatusTone
     ) -> some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.xs) {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.xs) {
             Image(systemName: systemImage)
                 .font(.caption.weight(.semibold))
                 .foregroundColor(tone.color)
                 .frame(width: 14)
+                .padding(.top, 1)
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(titleKey)
                     .font(.caption2.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(detailKey)
                     .font(.caption2)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Spacer(minLength: 0)
         }
         .padding(.horizontal, DesignSystem.Spacing.sm)
         .padding(.vertical, 6)
-        .frame(minWidth: 136, maxWidth: .infinity, alignment: .leading)
+        .frame(minWidth: 136, maxWidth: .infinity, minHeight: 58, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
                 .fill(tone.color.opacity(0.06))
@@ -536,7 +566,7 @@ struct QuickMarkerEntryView: View {
     }
 
     private func statusFeedbackLabel(_ message: String) -> some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
             IconWell(
                 systemImage: statusFeedbackIconName,
                 tone: statusFeedbackTone,
@@ -547,12 +577,13 @@ struct QuickMarkerEntryView: View {
                 Text(L(statusFeedbackTitleKey))
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(message)
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
+                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -576,7 +607,7 @@ struct QuickMarkerEntryView: View {
         Button {
             AppWindowRouter.shared.open(.settings(.support))
         } label: {
-            Label(L("quick_marker.status.open_health"), systemImage: "stethoscope")
+            quickMarkerActionLabel(L("quick_marker.status.open_health"), systemImage: "stethoscope")
         }
         .buttonStyle(.bordered)
         .controlSize(.mini)
@@ -591,7 +622,7 @@ struct QuickMarkerEntryView: View {
             AppWindowRouter.shared.open(.dashboard)
             onCancel?()
         } label: {
-            Label(L("quick_marker.status.open_timeline"), systemImage: "clock")
+            quickMarkerActionLabel(L("quick_marker.status.open_timeline"), systemImage: "clock")
         }
         .buttonStyle(.bordered)
         .controlSize(.mini)
@@ -603,7 +634,7 @@ struct QuickMarkerEntryView: View {
         Button {
             performQuickMarkerDailyLogAction()
         } label: {
-            Label(L(quickMarkerDailyLogActionTitleKey), systemImage: quickMarkerDailyLogActionIconName)
+            quickMarkerActionLabel(L(quickMarkerDailyLogActionTitleKey), systemImage: quickMarkerDailyLogActionIconName)
         }
         .buttonStyle(.bordered)
         .controlSize(.mini)
@@ -667,11 +698,14 @@ struct QuickMarkerEntryView: View {
                         .font(.caption.weight(.semibold))
                         .foregroundColor(DesignSystem.Colors.secondaryText)
                         .frame(width: 16)
+                        .padding(.top, 1)
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(L("quick_marker.recent_empty_title"))
                             .font(.caption.weight(.semibold))
                             .foregroundColor(DesignSystem.Colors.primaryText)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
 
                         Text(L("quick_marker.recent_empty_detail"))
                             .font(.caption2)
@@ -754,12 +788,14 @@ struct QuickMarkerEntryView: View {
                 .font(.caption.weight(.semibold))
                 .foregroundColor(tone.color)
                 .frame(width: 14)
+                .padding(.top, 1)
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(titleKey)
                     .font(.caption2.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(detailKey)
                     .font(.caption2)
@@ -807,18 +843,20 @@ struct QuickMarkerEntryView: View {
             applyRecentSuggestion(suggestion)
             isFocused = true
         } label: {
-            HStack(alignment: .center, spacing: DesignSystem.Spacing.xs) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.xs) {
                 Image(systemName: suggestion.kind.systemImage)
                     .font(.caption.weight(.semibold))
                     .foregroundColor(suggestion.kind.tone.color)
                     .frame(width: 15)
+                    .padding(.top, 1)
 
                 VStack(alignment: .leading, spacing: 1) {
                     Text(suggestion.text)
                         .font(DesignSystem.Typography.caption.weight(.semibold))
                         .foregroundColor(DesignSystem.Colors.primaryText)
-                        .lineLimit(1)
+                        .lineLimit(2)
                         .truncationMode(.tail)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     Text(L(suggestion.kind.labelKey))
                         .font(.caption2)
@@ -828,7 +866,7 @@ struct QuickMarkerEntryView: View {
 
                 Spacer(minLength: 0)
             }
-            .frame(maxWidth: .infinity, minHeight: 38, alignment: .leading)
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .topLeading)
         }
         .buttonStyle(.bordered)
         .help(suggestion.text)
@@ -876,7 +914,7 @@ struct QuickMarkerEntryView: View {
         return Button {
             applyStarter(starter)
         } label: {
-            HStack(spacing: DesignSystem.Spacing.sm) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
                 ZStack {
                     RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
                         .fill(tone.color.opacity(0.10))
@@ -891,8 +929,8 @@ struct QuickMarkerEntryView: View {
                     Text(L(starter.titleKey))
                         .font(DesignSystem.Typography.caption.weight(.semibold))
                         .foregroundColor(DesignSystem.Colors.primaryText)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.82)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     Text(L(starter.detailKey))
                         .font(.caption2)
@@ -905,7 +943,7 @@ struct QuickMarkerEntryView: View {
             }
             .padding(.horizontal, DesignSystem.Spacing.sm)
             .padding(.vertical, 7)
-            .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
+            .frame(maxWidth: .infinity, minHeight: 64, alignment: .topLeading)
             .background(
                 RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
                     .fill(DesignSystem.Colors.cardBackground.opacity(0.78))
