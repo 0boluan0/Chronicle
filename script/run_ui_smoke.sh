@@ -145,6 +145,8 @@ run_case() {
     -scheme "$SCHEME" \
     -destination "$DESTINATION" \
     -derivedDataPath "$DERIVED_DATA" \
+    CODE_SIGNING_ALLOWED=NO \
+    -parallel-testing-enabled NO \
     -resultBundlePath "$result_bundle" \
     "${only_testing_args[@]}" \
     test
