@@ -2479,6 +2479,11 @@
 "reports.readiness.needs_setup" = "Needs setup";
 "reports.readiness.ready_count" = "%d of %d save locations ready";
 "reports.readiness.folder_path" = "Folder: %@";
+"reports.readiness.cadence.daily_auto_on" = "Daily log auto-save is on.";
+"reports.readiness.cadence.daily_auto_off" = "Daily log saves manually.";
+"reports.readiness.cadence.weekly_auto_on" = "Weekly summary auto-save is on.";
+"reports.readiness.cadence.weekly_auto_off" = "Weekly summary saves manually.";
+"reports.readiness.cadence.csv_manual" = "CSV exports save manually.";
 "reports.readiness.next.label" = "Suggested next";
 "reports.readiness.next.setup_title" = "Choose a save folder for %@.";
 "reports.readiness.next.setup_detail" = "%@ needs a destination before Chronicle can save it without stopping you later.";

@@ -2478,6 +2478,11 @@
 "reports.readiness.needs_setup" = "需要设置";
 "reports.readiness.ready_count" = "%d/%d 个保存位置就绪";
 "reports.readiness.folder_path" = "文件夹：%@";
+"reports.readiness.cadence.daily_auto_on" = "今日日志已开启自动保存。";
+"reports.readiness.cadence.daily_auto_off" = "今日日志需要手动保存。";
+"reports.readiness.cadence.weekly_auto_on" = "周总结已开启自动保存。";
+"reports.readiness.cadence.weekly_auto_off" = "周总结需要手动保存。";
+"reports.readiness.cadence.csv_manual" = "CSV 需要手动导出。";
 "reports.readiness.next.label" = "建议下一步";
 "reports.readiness.next.setup_title" = "为%@选择保存文件夹。";
 "reports.readiness.next.setup_detail" = "%@需要先有保存位置，Chronicle 之后才能直接保存，不再打断你。";

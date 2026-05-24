@@ -1834,17 +1834,25 @@ struct ReportsWorkspaceView: View {
                 tone: tone
             )
 
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(String(format: L("reports.readiness.folder_path"), folderDisplayPath(for: kind)))
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
                     .lineLimit(1)
                     .truncationMode(.middle)
 
-                Text(lastRun.text)
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(lastRun.isError ? Color(nsColor: .systemRed) : DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
+                exportReadinessMetadataLine(
+                    systemImage: exportCadenceIconName(for: kind),
+                    text: exportCadenceText(for: kind),
+                    tone: exportCadenceTone(for: kind)
+                )
+
+                exportReadinessMetadataLine(
+                    systemImage: "clock",
+                    text: lastRun.text,
+                    tone: lastRun.isError ? .critical : .neutral,
+                    isError: lastRun.isError
+                )
             }
 
             exportReadinessTileActions(kind: kind, needsSetup: folderStatus.isError)
@@ -1861,6 +1869,27 @@ struct ReportsWorkspaceView: View {
                 .stroke(tone.color.opacity(0.18), lineWidth: 1)
         )
         .accessibilityIdentifier("reports.readiness.\(folderKindIdentifier(kind))")
+    }
+
+    private func exportReadinessMetadataLine(
+        systemImage: String,
+        text: String,
+        tone: DesignSystem.StatusTone,
+        isError: Bool = false
+    ) -> some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.xs) {
+            Image(systemName: systemImage)
+                .font(.caption2.weight(.semibold))
+                .foregroundColor(tone.color)
+                .frame(width: 14, height: 16)
+
+            Text(text)
+                .font(DesignSystem.Typography.caption)
+                .foregroundColor(isError ? Color(nsColor: .systemRed) : DesignSystem.Colors.secondaryText)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func exportReadinessTileActions(kind: ReportFolderKind, needsSetup: Bool) -> some View {
@@ -2240,7 +2269,7 @@ struct ReportsWorkspaceView: View {
             reportFolderActionLabel(L("reports.open_folder"), systemImage: "folder")
         }
         .buttonStyle(.bordered)
-        .accessibilityIdentifier("reports.daily.preview")
+        .accessibilityIdentifier("reports.csv.openFolder")
     }
 
     private var csvOverwriteToggle: some View {
@@ -5234,6 +5263,39 @@ struct ReportsWorkspaceView: View {
             return L("reports.weekly.title")
         case .csv:
             return L("reports.csv.title")
+        }
+    }
+
+    private func exportCadenceText(for kind: ReportFolderKind) -> String {
+        switch kind {
+        case .daily:
+            return L(settings.enableAutoDailyExport ? "reports.readiness.cadence.daily_auto_on" : "reports.readiness.cadence.daily_auto_off")
+        case .weekly:
+            return L(settings.enableAutoWeeklyExport ? "reports.readiness.cadence.weekly_auto_on" : "reports.readiness.cadence.weekly_auto_off")
+        case .csv:
+            return L("reports.readiness.cadence.csv_manual")
+        }
+    }
+
+    private func exportCadenceTone(for kind: ReportFolderKind) -> DesignSystem.StatusTone {
+        switch kind {
+        case .daily:
+            return settings.enableAutoDailyExport ? .success : .neutral
+        case .weekly:
+            return settings.enableAutoWeeklyExport ? .success : .neutral
+        case .csv:
+            return .info
+        }
+    }
+
+    private func exportCadenceIconName(for kind: ReportFolderKind) -> String {
+        switch kind {
+        case .daily:
+            return settings.enableAutoDailyExport ? "arrow.triangle.2.circlepath.circle.fill" : "hand.tap"
+        case .weekly:
+            return settings.enableAutoWeeklyExport ? "arrow.triangle.2.circlepath.circle.fill" : "hand.tap"
+        case .csv:
+            return "hand.tap"
         }
     }
 
