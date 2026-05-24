@@ -54,6 +54,7 @@ The current release candidate is [`v0.1.0-rc1`](https://github.com/0boluan0/Chro
 - `Chronicle-v0.1.0-rc1.dmg.sha256`
 
 Install it by opening the DMG and dragging `Chronicle.app` into `/Applications`.
+The published DMG is 4,303,715 bytes and its SHA-256 checksum is `21d9e4d067d8b27318414005e9664b0cc17ca749163b003e6d91460855bfd698`.
 
 Release-candidate builds may be unsigned or not notarized when distribution credentials are unavailable. If macOS blocks first launch, use Finder to right-click `Chronicle.app`, choose **Open**, and confirm that you trust the downloaded build.
 
