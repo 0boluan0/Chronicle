@@ -1424,7 +1424,7 @@ struct ReportsWorkspaceView: View {
             )
 
             LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 128), spacing: DesignSystem.Spacing.sm)],
+                columns: [GridItem(.adaptive(minimum: 142), spacing: DesignSystem.Spacing.sm)],
                 alignment: .leading,
                 spacing: DesignSystem.Spacing.sm
             ) {
@@ -1447,20 +1447,26 @@ struct ReportsWorkspaceView: View {
     @ViewBuilder
     private var dailyPlanActions: some View {
         if folderStatusLine(for: .daily).isError {
-            Button(L("reports.choose_folder")) {
+            Button {
                 chooseDailyFolder()
+            } label: {
+                reportActionButtonLabel(L("reports.choose_folder"), systemImage: "folder.badge.plus")
             }
             .buttonStyle(.borderedProminent)
             .accessibilityIdentifier("reports.plan.chooseDailyFolder")
         } else {
-            Button(L("reports.preview")) {
+            Button {
                 previewDaily(date: appState.selectedDate)
+            } label: {
+                reportActionButtonLabel(L("reports.preview"), systemImage: "doc.text.magnifyingglass")
             }
             .buttonStyle(.bordered)
             .accessibilityIdentifier("reports.plan.previewDaily")
 
-            Button(L("reports.daily.generate_today")) {
+            Button {
                 generateDaily(date: Date())
+            } label: {
+                reportActionButtonLabel(L("reports.daily.generate_today"), systemImage: "doc.badge.plus")
             }
             .buttonStyle(.borderedProminent)
             .accessibilityIdentifier("reports.plan.generateDailyToday")
@@ -1470,20 +1476,26 @@ struct ReportsWorkspaceView: View {
     @ViewBuilder
     private var weeklyPlanActions: some View {
         if folderStatusLine(for: .weekly).isError {
-            Button(L("reports.choose_folder")) {
+            Button {
                 chooseWeeklyFolder()
+            } label: {
+                reportActionButtonLabel(L("reports.choose_folder"), systemImage: "folder.badge.plus")
             }
             .buttonStyle(.borderedProminent)
             .accessibilityIdentifier("reports.plan.chooseWeeklyFolder")
         } else {
-            Button(L("reports.preview")) {
+            Button {
                 previewWeekly(date: appState.selectedDate)
+            } label: {
+                reportActionButtonLabel(L("reports.preview"), systemImage: "calendar.badge.clock")
             }
             .buttonStyle(.bordered)
             .accessibilityIdentifier("reports.plan.previewWeekly")
 
-            Button(L("reports.weekly.generate_this")) {
+            Button {
                 generateWeekly(date: Date())
+            } label: {
+                reportActionButtonLabel(L("reports.weekly.generate_this"), systemImage: "calendar.badge.plus")
             }
             .buttonStyle(.borderedProminent)
             .accessibilityIdentifier("reports.plan.generateWeekly")
@@ -1493,20 +1505,26 @@ struct ReportsWorkspaceView: View {
     @ViewBuilder
     private var csvPlanActions: some View {
         if folderStatusLine(for: .csv).isError {
-            Button(L("reports.choose_folder")) {
+            Button {
                 chooseCsvFolder()
+            } label: {
+                reportActionButtonLabel(L("reports.choose_folder"), systemImage: "folder.badge.plus")
             }
             .buttonStyle(.borderedProminent)
             .accessibilityIdentifier("reports.plan.chooseCsvFolder")
         } else {
-            Button(L("reports.export_now")) {
+            Button {
                 exportCsv()
+            } label: {
+                reportActionButtonLabel(L("reports.export_now"), systemImage: "square.and.arrow.down")
             }
             .buttonStyle(.borderedProminent)
             .accessibilityIdentifier("reports.plan.exportCsv")
 
-            Button(L("reports.timesheet.export")) {
+            Button {
                 exportTimesheet()
+            } label: {
+                reportActionButtonLabel(L("reports.timesheet.export"), systemImage: "tablecells")
             }
             .buttonStyle(.bordered)
             .accessibilityIdentifier("reports.plan.exportTimesheet")
