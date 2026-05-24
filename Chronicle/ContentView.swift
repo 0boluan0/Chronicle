@@ -561,7 +561,7 @@ struct ContentView: View {
     }
 
     private var commandCenterActions: some View {
-        ActionButtonStack {
+        popoverActionGrid {
             primaryNextActionButton
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -570,6 +570,7 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
+        .accessibilityIdentifier("popover.commandCenter.actions")
     }
 
     private var commandCenterHealthStrip: some View {
@@ -610,7 +611,7 @@ struct ContentView: View {
     }
 
     private var commandCenterHealthActions: some View {
-        popoverResponsiveActionStack {
+        popoverActionGrid {
             Button {
                 healthCheckService.runQuickChecks()
             } label: {
@@ -632,6 +633,7 @@ struct ContentView: View {
                 .accessibilityIdentifier("popover.selfCheckDetails")
             }
         }
+        .accessibilityIdentifier("popover.captureHealth.actions")
     }
 
     private var trackingStatusView: some View {
@@ -741,7 +743,7 @@ struct ContentView: View {
     }
 
     private var trackingCurrentAppActions: some View {
-        popoverResponsiveActionStack {
+        popoverActionGrid {
             Button {
                 AppWindowRouter.shared.open(.quickMarker)
             } label: {
@@ -760,12 +762,14 @@ struct ContentView: View {
             .controlSize(.small)
             .accessibilityIdentifier("popover.tracking.openTimeline")
         }
+        .accessibilityIdentifier("popover.tracking.actions")
     }
 
-    private func popoverResponsiveActionStack<Content: View>(
+    private func popoverActionGrid<Content: View>(
+        minimumItemWidth: CGFloat = 170,
         @ViewBuilder content: () -> Content
     ) -> some View {
-        ActionButtonStack {
+        ActionButtonGrid(minimumItemWidth: minimumItemWidth) {
             content()
         }
     }
@@ -944,7 +948,7 @@ struct ContentView: View {
             snapshotCueStatusView
             dailySnapshotEmptyPath
 
-            ActionButtonStack {
+            popoverActionGrid {
                 Button {
                     AppWindowRouter.shared.open(.quickMarker)
                 } label: {
@@ -967,6 +971,7 @@ struct ContentView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
+            .accessibilityIdentifier("popover.dailySnapshot.emptyActions")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 2)
@@ -1158,7 +1163,7 @@ struct ContentView: View {
 
             snapshotComparisonView
 
-            ActionButtonStack {
+            popoverActionGrid {
                 Button {
                     AppWindowRouter.shared.open(.quickMarker)
                 } label: {
@@ -1189,6 +1194,7 @@ struct ContentView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
+            .accessibilityIdentifier("popover.dailySnapshot.actions")
 
             if !hasDailyExportFolderConfigured {
                 Text(L("popover.export_status.setup_hint"))
