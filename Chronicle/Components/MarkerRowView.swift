@@ -36,6 +36,7 @@ struct MarkerRowView: View {
                         Image(systemName: "doc.text.magnifyingglass")
                             .font(.caption2.weight(.semibold))
                             .foregroundColor(DesignSystem.StatusTone.success.color)
+                            .frame(width: 14)
 
                         Text("timeline.row.closeout_cue")
                             .font(DesignSystem.Typography.caption)
@@ -43,6 +44,7 @@ struct MarkerRowView: View {
                             .lineLimit(2)
                             .fixedSize(horizontal: false, vertical: true)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityIdentifier("timeline.marker.closeoutCue")
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -67,6 +69,7 @@ struct MarkerRowView: View {
             .foregroundColor(DesignSystem.Colors.secondaryText)
             .monospacedDigit()
             .lineLimit(1)
+            .minimumScaleFactor(0.86)
     }
 
     private func adaptiveColumns(minimum: CGFloat, spacing: CGFloat) -> [GridItem] {

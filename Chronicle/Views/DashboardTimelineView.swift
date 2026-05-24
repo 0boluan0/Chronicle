@@ -1782,17 +1782,36 @@ struct DashboardTimelineView: View {
     }
 
     private func timelineGroupTitle(_ group: TimelineGroup) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.sm) {
-            Text(group.label)
-                .font(.headline.weight(.semibold))
-                .foregroundColor(DesignSystem.Colors.primaryText)
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.sm) {
+                timelineGroupLabel(group)
 
-            StatusPill(
-                String(format: L("timeline.group.item_count"), group.items.count),
-                systemImage: "list.bullet",
-                tone: .neutral
-            )
+                StatusPill(
+                    String(format: L("timeline.group.item_count"), group.items.count),
+                    systemImage: "list.bullet",
+                    tone: .neutral
+                )
+                .fixedSize(horizontal: true, vertical: false)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                timelineGroupLabel(group)
+
+                StatusPill(
+                    String(format: L("timeline.group.item_count"), group.items.count),
+                    systemImage: "list.bullet",
+                    tone: .neutral
+                )
+            }
         }
+    }
+
+    private func timelineGroupLabel(_ group: TimelineGroup) -> some View {
+        Text(group.label)
+            .font(.headline.weight(.semibold))
+            .foregroundColor(DesignSystem.Colors.primaryText)
+            .lineLimit(2)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     @ViewBuilder
@@ -2234,11 +2253,15 @@ struct DashboardTimelineView: View {
 
     private func activityRowActions(for activity: ActivityRow) -> AnyView {
         AnyView(
-            HStack(spacing: DesignSystem.Spacing.xs) {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 150), spacing: DesignSystem.Spacing.xs, alignment: .leading)],
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.xs
+            ) {
                 Button {
                     openInlineNote(for: activity)
                 } label: {
-                    Label(L("timeline.row.add_note"), systemImage: "square.and.pencil")
+                    timelineActionLabel(L("timeline.row.add_note"), systemImage: "square.and.pencil")
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
@@ -2248,7 +2271,10 @@ struct DashboardTimelineView: View {
                 Button {
                     activeTagPickerActivityId = activity.id
                 } label: {
-                    Label(L(activity.tagId == nil ? "timeline.row.fix_label" : "timeline.row.change_label"), systemImage: activity.tagId == nil ? "exclamationmark.triangle.fill" : "rectangle.split.3x1")
+                    timelineActionLabel(
+                        L(activity.tagId == nil ? "timeline.row.fix_label" : "timeline.row.change_label"),
+                        systemImage: activity.tagId == nil ? "exclamationmark.triangle.fill" : "rectangle.split.3x1"
+                    )
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)

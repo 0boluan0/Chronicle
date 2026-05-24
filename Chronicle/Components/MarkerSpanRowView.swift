@@ -82,6 +82,7 @@ struct MarkerSpanRowView: View {
             .foregroundColor(DesignSystem.Colors.secondaryText)
             .monospacedDigit()
             .lineLimit(1)
+            .minimumScaleFactor(0.86)
     }
 
     private func spanDurationMetadata(_ durationText: String) -> some View {
@@ -94,6 +95,8 @@ struct MarkerSpanRowView: View {
                 .font(DesignSystem.Typography.caption)
                 .foregroundColor(DesignSystem.Colors.secondaryText)
                 .monospacedDigit()
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 

@@ -123,6 +123,7 @@ struct ActivityRowView: View {
             .foregroundColor(DesignSystem.Colors.primaryText)
             .monospacedDigit()
             .lineLimit(1)
+            .minimumScaleFactor(0.86)
     }
 
     private var activityDuration: some View {
@@ -131,6 +132,7 @@ struct ActivityRowView: View {
             .foregroundColor(DesignSystem.Colors.secondaryText)
             .monospacedDigit()
             .lineLimit(1)
+            .minimumScaleFactor(0.86)
             .labelStyle(.titleAndIcon)
     }
 
@@ -138,8 +140,9 @@ struct ActivityRowView: View {
         Text(activity.appName)
             .font(.callout.weight(.semibold))
             .foregroundColor(DesignSystem.Colors.primaryText)
-            .lineLimit(1)
+            .lineLimit(2)
             .truncationMode(.tail)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     private var activityReviewCue: some View {
@@ -153,12 +156,13 @@ struct ActivityRowView: View {
                 Text(L(reviewCueTitleKey))
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.86)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(L(reviewCueDetailKey))
                     .font(.caption2)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
