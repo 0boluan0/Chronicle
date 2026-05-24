@@ -276,8 +276,7 @@ struct TagsPreferencesView: View {
                 Button {
                     runPrimarySetupAction()
                 } label: {
-                    Label(L(setupStage.actionKey), systemImage: setupStage.actionIcon)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    setupActionLabel(L(setupStage.actionKey), systemImage: setupStage.actionIcon)
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(setupStage.tone.color)
@@ -339,12 +338,13 @@ struct TagsPreferencesView: View {
                     Text(title)
                         .font(.caption.weight(.semibold))
                         .foregroundColor(DesignSystem.Colors.primaryText)
-                        .lineLimit(1)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     Text(detail)
                         .font(.caption2)
                         .foregroundColor(DesignSystem.Colors.secondaryText)
-                        .lineLimit(2)
+                        .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
