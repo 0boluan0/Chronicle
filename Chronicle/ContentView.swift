@@ -491,7 +491,7 @@ struct ContentView: View {
     }
 
     private var commandCenterActions: some View {
-        ActionButtonGrid(minimumItemWidth: 168) {
+        ActionButtonStack {
             primaryNextActionButton
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -1146,7 +1146,7 @@ struct ContentView: View {
                 .foregroundColor(isUp ? Color(nsColor: .systemGreen) : Color(nsColor: .systemOrange))
             }
 
-            ActionButtonGrid(minimumItemWidth: 148) {
+            ActionButtonStack {
                 Button {
                     AppWindowRouter.shared.open(.quickMarker)
                 } label: {
