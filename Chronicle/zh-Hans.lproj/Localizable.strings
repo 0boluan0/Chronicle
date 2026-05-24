@@ -44,8 +44,8 @@
 "popover.self_check.error_detail" = "自检失败：%@";
 "popover.self_check.not_run" = "感觉记录异常时，先检查记录健康度。";
 "popover.self_check.detail_not_run" = "Chronicle 会一次检查权限、日志保存和本地数据文件夹状态。";
-"popover.self_check.error_count" = "自检发现 %d 个错误。";
-"popover.self_check.warning_count" = "自检发现 %d 个警告。";
+"popover.self_check.error_count" = "错误：%d。";
+"popover.self_check.warning_count" = "警告：%d。";
 "popover.self_check.ok" = "自检通过。";
 
 "popover.command_center.title" = "今日工作台";
@@ -116,7 +116,7 @@
 "self_check.details.issue_triage.title" = "修复顺序";
 "self_check.details.issue_triage.detail" = "先处理“%@”；Chronicle 已把它排在影响较小的事项前面。";
 "self_check.details.issue_triage.ready_detail" = "当前没有需要分诊的问题。";
-"self_check.details.issue_triage.counts" = "%d 个错误，%d 个警告";
+"self_check.details.issue_triage.counts" = "错误：%d · 警告：%d";
 "self_check.details.issue.technical_details" = "技术详情";
 "self_check.details.issue.severity.error" = "先处理";
 "self_check.details.issue.severity.warning" = "需复查";
@@ -685,7 +685,7 @@
 "debug.health.open_support" = "打开应用健康";
 "debug.health.running" = "Chronicle 正在检查本地存储、记录、权限和日志保存。";
 "debug.health.status.ok" = "无问题";
-"debug.health.status.issues" = "%d 个问题";
+"debug.health.status.issues" = "问题：%d";
 "debug.health.last_run" = "最近运行：%@";
 "debug.health.last_error" = "健康检查失败";
 "debug.health.no_report" = "还没有健康报告。依赖维护操作前，先运行检查。";

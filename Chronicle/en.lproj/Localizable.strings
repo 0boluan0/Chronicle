@@ -44,8 +44,8 @@
 "popover.self_check.error_detail" = "Self-check failed: %@";
 "popover.self_check.not_run" = "Check capture health when something feels off.";
 "popover.self_check.detail_not_run" = "Chronicle can verify permissions, saved logs, and the local data folder in one step.";
-"popover.self_check.error_count" = "Self-check found %d error(s).";
-"popover.self_check.warning_count" = "Self-check found %d warning(s).";
+"popover.self_check.error_count" = "Errors found: %d.";
+"popover.self_check.warning_count" = "Warnings found: %d.";
 "popover.self_check.ok" = "Self-check passed.";
 
 "popover.command_center.title" = "Today's workspace";
@@ -116,7 +116,7 @@
 "self_check.details.issue_triage.title" = "Fix Order";
 "self_check.details.issue_triage.detail" = "Start with “%@”; Chronicle sorted it ahead of lower-impact items.";
 "self_check.details.issue_triage.ready_detail" = "No issue needs triage right now.";
-"self_check.details.issue_triage.counts" = "%d error(s), %d warning(s)";
+"self_check.details.issue_triage.counts" = "Errors: %d · Warnings: %d";
 "self_check.details.issue.technical_details" = "Technical details";
 "self_check.details.issue.severity.error" = "Fix first";
 "self_check.details.issue.severity.warning" = "Review";
@@ -685,7 +685,7 @@
 "debug.health.open_support" = "Open App Health";
 "debug.health.running" = "Chronicle is checking local storage, tracking, permissions, and saved logs.";
 "debug.health.status.ok" = "No issues";
-"debug.health.status.issues" = "%d issue(s)";
+"debug.health.status.issues" = "Issues: %d";
 "debug.health.last_run" = "Last run: %@";
 "debug.health.last_error" = "Health check failed";
 "debug.health.no_report" = "No health report yet. Run the check before relying on maintenance actions.";
