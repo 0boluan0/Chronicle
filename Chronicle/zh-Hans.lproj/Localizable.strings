@@ -24,6 +24,10 @@
 "popover.open_dashboard" = "打开今天";
 "popover.open_preferences" = "设置";
 "popover.subtitle" = "记录、补语境、保存今天。";
+"popover.positioning.title" = "离线工作日志";
+"popover.positioning.timeline" = "时间线";
+"popover.positioning.context" = "语境";
+"popover.positioning.markdown" = "Markdown";
 "popover.header.status.recording" = "记录中";
 "popover.header.status.checking" = "检查中";
 "popover.header.status.ready" = "健康";

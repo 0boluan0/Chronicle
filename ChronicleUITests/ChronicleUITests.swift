@@ -349,6 +349,9 @@ final class ChronicleUITests: XCTestCase {
 
         XCTAssertTrue(app.descendants(matching: .any)["popover.commandCenter"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.descendants(matching: .any)["popover.detailsScroll"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["popover.positioning"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Offline work journal"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Markdown"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Today's workspace"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Leave the first useful note."].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["popover.commandCenter.progress"].waitForExistence(timeout: 5))

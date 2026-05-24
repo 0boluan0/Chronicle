@@ -24,6 +24,10 @@
 "popover.open_dashboard" = "Open Today";
 "popover.open_preferences" = "Settings";
 "popover.subtitle" = "Capture, add context, save the day.";
+"popover.positioning.title" = "Offline work journal";
+"popover.positioning.timeline" = "Timeline";
+"popover.positioning.context" = "Context";
+"popover.positioning.markdown" = "Markdown";
 "popover.header.status.recording" = "Recording";
 "popover.header.status.checking" = "Checking";
 "popover.header.status.ready" = "Healthy";

@@ -98,6 +98,8 @@ struct ContentView: View {
                 popoverHeaderActions
             }
 
+            popoverPositioningStrip
+
             HStack(spacing: DesignSystem.Spacing.sm) {
                 RatioBar(
                     filledFraction: commandCenterLoopProgressFraction,
@@ -118,6 +120,74 @@ struct ContentView: View {
         .padding(.bottom, 2)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("popover.header")
+    }
+
+    private var popoverPositioningStrip: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+                popoverPositioningLead
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                popoverPositioningSignals
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                popoverPositioningLead
+                popoverPositioningSignals
+            }
+        }
+        .padding(.horizontal, DesignSystem.Spacing.sm)
+        .padding(.vertical, 7)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .fill(DesignSystem.StatusTone.info.color.opacity(0.07))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .stroke(DesignSystem.StatusTone.info.color.opacity(0.18), lineWidth: 1)
+        )
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("popover.positioning")
+    }
+
+    private var popoverPositioningLead: some View {
+        HStack(alignment: .center, spacing: DesignSystem.Spacing.xs) {
+            Image(systemName: "lock.doc")
+                .font(.caption.weight(.semibold))
+                .foregroundColor(DesignSystem.StatusTone.info.color)
+                .frame(width: 14)
+
+            Text("popover.positioning.title")
+                .font(.caption.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.primaryText)
+                .lineLimit(1)
+        }
+    }
+
+    private var popoverPositioningSignals: some View {
+        HStack(spacing: DesignSystem.Spacing.xs) {
+            popoverPositioningSignal("popover.positioning.timeline", systemImage: "clock")
+            popoverPositioningSignal("popover.positioning.context", systemImage: "note.text")
+            popoverPositioningSignal("popover.positioning.markdown", systemImage: "doc.text")
+        }
+        .fixedSize(horizontal: true, vertical: false)
+    }
+
+    private func popoverPositioningSignal(_ titleKey: LocalizedStringKey, systemImage: String) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: systemImage)
+                .font(.caption2.weight(.semibold))
+
+            Text(titleKey)
+                .font(.caption2.weight(.medium))
+                .lineLimit(1)
+        }
+        .foregroundColor(DesignSystem.StatusTone.info.color)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 4)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .fill(DesignSystem.StatusTone.info.color.opacity(0.09))
+        )
     }
 
     private var popoverHeaderTitleRow: some View {
