@@ -518,15 +518,10 @@ struct ReportsWorkspaceView: View {
     }
 
     private var closeoutActionButtons: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 150), spacing: DesignSystem.Spacing.sm)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
+        ActionButtonGrid(minimumItemWidth: 150) {
             closeoutPrimaryActionButton
             closeoutSecondaryActionButtons
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
@@ -618,15 +613,10 @@ struct ReportsWorkspaceView: View {
     }
 
     private var dashboardWeeklyActions: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 150), spacing: DesignSystem.Spacing.sm)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
+        ActionButtonGrid(minimumItemWidth: 150) {
             dashboardWeeklyPrimaryActionButton
             dashboardWeeklySecondaryActions
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     @ViewBuilder
@@ -889,15 +879,10 @@ struct ReportsWorkspaceView: View {
     }
 
     private var closeoutBriefIssueActions: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 142), spacing: DesignSystem.Spacing.sm)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
+        ActionButtonGrid(minimumItemWidth: 142) {
             closeoutBriefIssueRetryButton
             closeoutBriefIssueHealthButton
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var closeoutBriefIssueRetryButton: some View {
@@ -1753,11 +1738,7 @@ struct ReportsWorkspaceView: View {
     }
 
     private func exportReadinessTileActions(kind: ReportFolderKind, needsSetup: Bool) -> some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 128), spacing: DesignSystem.Spacing.sm)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
+        ActionButtonGrid(minimumItemWidth: 128) {
             exportReadinessChooseButton(kind: kind, needsSetup: needsSetup)
 
             if !needsSetup {
