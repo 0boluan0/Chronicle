@@ -823,6 +823,8 @@ struct PrivacyPreferencesView: View {
 
                 localDataDangerRow
 
+                localDataResetPath
+
                 StatusBannerView(status: wipeStatus, accessibilityIdentifier: "privacy.wipeStatus")
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -864,6 +866,78 @@ struct PrivacyPreferencesView: View {
             .tint(.red)
             .accessibilityIdentifier("privacy.wipeData")
         }
+    }
+
+    private var localDataResetPath: some View {
+        LazyVGrid(
+            columns: adaptiveColumns(minimum: 178, spacing: DesignSystem.Spacing.sm),
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            localDataResetStep(
+                titleKey: "privacy.storage.reset_path.open_title",
+                detailKey: "privacy.storage.reset_path.open_detail",
+                systemImage: "folder",
+                tone: .info,
+                accessibilityIdentifier: "privacy.storage.resetPath.open"
+            )
+            localDataResetStep(
+                titleKey: "privacy.storage.reset_path.backup_title",
+                detailKey: "privacy.storage.reset_path.backup_detail",
+                systemImage: "externaldrive",
+                tone: .success,
+                accessibilityIdentifier: "privacy.storage.resetPath.backup"
+            )
+            localDataResetStep(
+                titleKey: "privacy.storage.reset_path.delete_title",
+                detailKey: "privacy.storage.reset_path.delete_detail",
+                systemImage: "trash",
+                tone: .critical,
+                accessibilityIdentifier: "privacy.storage.resetPath.delete"
+            )
+        }
+        .accessibilityIdentifier("privacy.storage.resetPath")
+    }
+
+    private func localDataResetStep(
+        titleKey: LocalizedStringKey,
+        detailKey: LocalizedStringKey,
+        systemImage: String,
+        tone: DesignSystem.StatusTone,
+        accessibilityIdentifier: String
+    ) -> some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.xs) {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(tone.color)
+                .frame(width: 16)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(titleKey)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(detailKey)
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .frame(maxWidth: .infinity, minHeight: 72, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .fill(tone.color.opacity(0.06))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .stroke(tone.color.opacity(0.16), lineWidth: 1)
+        )
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     private var sharingSection: some View {

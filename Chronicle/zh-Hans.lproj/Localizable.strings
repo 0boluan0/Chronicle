@@ -1502,6 +1502,12 @@
 "privacy.storage.technical_details" = "技术细节";
 "privacy.storage.danger.heading" = "在这台 Mac 上重新开始";
 "privacy.storage.danger.detail" = "会删除这台 Mac 上的 Chronicle 本地活动历史。此操作不可撤销，仅在你确定要重置 Chronicle 时使用。";
+"privacy.storage.reset_path.open_title" = "打开本地文件夹";
+"privacy.storage.reset_path.open_detail" = "先检查 Chronicle 将要重置的文件。";
+"privacy.storage.reset_path.backup_title" = "需要时先备份";
+"privacy.storage.reset_path.backup_detail" = "删除之后可能还需要的历史，先复制整个文件夹。";
+"privacy.storage.reset_path.delete_title" = "只为重置而删除";
+"privacy.storage.reset_path.delete_detail" = "确认本地历史可以清除后，再使用删除操作。";
 "privacy.database_path" = "本地文件路径";
 "privacy.open_app_support" = "打开本地文件夹";
 "privacy.wipe_data" = "删除本地历史…";

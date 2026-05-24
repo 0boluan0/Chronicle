@@ -1502,6 +1502,12 @@
 "privacy.storage.technical_details" = "Technical details";
 "privacy.storage.danger.heading" = "Start over on this Mac";
 "privacy.storage.danger.detail" = "Deletes Chronicle’s local activity history on this Mac. This cannot be undone, so use it only when you are resetting Chronicle.";
+"privacy.storage.reset_path.open_title" = "Open local folder";
+"privacy.storage.reset_path.open_detail" = "Inspect the files Chronicle will reset.";
+"privacy.storage.reset_path.backup_title" = "Back up if needed";
+"privacy.storage.reset_path.backup_detail" = "Copy the folder before deleting history you may need later.";
+"privacy.storage.reset_path.delete_title" = "Delete only to reset";
+"privacy.storage.reset_path.delete_detail" = "Use the wipe action after you are sure the local history can go.";
 "privacy.database_path" = "Local File Path";
 "privacy.open_app_support" = "Open Local Folder";
 "privacy.wipe_data" = "Delete Local History…";
