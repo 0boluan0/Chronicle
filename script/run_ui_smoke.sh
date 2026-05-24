@@ -91,6 +91,9 @@ run_case() {
   result_bundle="${RESULTS_DIR}/${scope}-${language}.xcresult"
   rm -rf "$result_bundle"
 
+  echo "Running ${scope} UI smoke (${language}) with ${#tests[@]} test(s)."
+  echo "Result bundle: ${result_bundle}"
+
   xcodebuild \
     -project "$PROJECT_PATH" \
     -scheme "$SCHEME" \
