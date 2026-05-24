@@ -372,11 +372,7 @@ struct QuickMarkerPanelView: View {
     }
 
     private var captureRouteActions: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 112), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
+        ActionButtonGrid(minimumItemWidth: 112) {
             Button {
                 performDailyLogRouteAction()
             } label: {

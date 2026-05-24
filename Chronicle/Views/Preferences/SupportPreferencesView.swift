@@ -881,11 +881,7 @@ struct SupportPreferencesView: View {
     }
 
     private func responsiveActionGroup<Content: View>(@ViewBuilder content: () -> Content) -> some View {
-        LazyVGrid(
-            columns: adaptiveColumns(minimum: 180, spacing: DesignSystem.Spacing.sm),
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
+        ActionButtonGrid(minimumItemWidth: 180) {
             content()
         }
     }

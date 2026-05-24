@@ -116,11 +116,7 @@ struct QuickMarkerEntryView: View {
     }
 
     private var captureTypeControls: some View {
-        LazyVGrid(
-            columns: adaptiveColumns(minimum: 230, spacing: DesignSystem.Spacing.sm),
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
+        ActionButtonGrid(minimumItemWidth: 230) {
             modeSelector
             if appState.quickMarkerMode == .interval {
                 intervalActionSelector
@@ -559,11 +555,7 @@ struct QuickMarkerEntryView: View {
     }
 
     private var quickMarkerSuccessActions: some View {
-        LazyVGrid(
-            columns: adaptiveColumns(minimum: 118, spacing: DesignSystem.Spacing.sm),
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
+        ActionButtonGrid(minimumItemWidth: 118) {
             quickMarkerOpenTimelineButton
             quickMarkerDailyLogButton
         }

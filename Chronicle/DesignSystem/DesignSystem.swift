@@ -383,6 +383,39 @@ struct ActionButtonLabel: View {
     }
 }
 
+struct ActionButtonGrid<Content: View>: View {
+    private let minimumItemWidth: CGFloat
+    private let spacing: CGFloat
+    private let content: Content
+
+    init(
+        minimumItemWidth: CGFloat = 180,
+        spacing: CGFloat = DesignSystem.Spacing.sm,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.minimumItemWidth = minimumItemWidth
+        self.spacing = spacing
+        self.content = content()
+    }
+
+    var body: some View {
+        LazyVGrid(
+            columns: [
+                GridItem(
+                    .adaptive(minimum: minimumItemWidth),
+                    spacing: spacing,
+                    alignment: .leading
+                )
+            ],
+            alignment: .leading,
+            spacing: spacing
+        ) {
+            content
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 struct StatusPill: View {
     private static let maxTextWidth: CGFloat = 180
 
