@@ -2957,6 +2957,7 @@
 "rules.suggestions.empty.path.repeat_detail" = "同样的纠偏再次出现后，这里才会生成建议。";
 "rules.suggestions.empty.path.narrow_title" = "创建窄规则";
 "rules.suggestions.empty.path.narrow_detail" = "只自动化足够稳定、可以信任的重复模式。";
+"rules.suggestions.empty.review_apps" = "先整理应用";
 "rules.suggestions.summary" = "%@ → %@";
 "rules.suggestions.detail" = "手动覆盖：%d/%d（%@）· 作用域：%@";
 "rules.suggestions.preview" = "将 %@ 归入 %@";

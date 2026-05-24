@@ -2049,6 +2049,15 @@ struct RulesManagementView: View {
                 )
             }
             .accessibilityIdentifier("rules.suggestions.emptyPath")
+
+            Button {
+                AppWindowRouter.shared.open(.settings(.tagWizard))
+            } label: {
+                Label(L("rules.suggestions.empty.review_apps"), systemImage: "rectangle.grid.1x2")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(DesignSystem.Colors.accentSkyBlue)
+            .accessibilityIdentifier("rules.suggestions.empty.reviewApps")
         }
         .padding(DesignSystem.Spacing.md)
         .background(

@@ -107,6 +107,8 @@ final class ChronicleUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Correct manually"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Wait for repeats"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Create narrow rules"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["rules.suggestions.empty.reviewApps"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Review Apps First"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["rules.create.card"].waitForExistence(timeout: 5))
         let ruleName = app.textFields["rules.create.name"]
         XCTAssertTrue(ruleName.waitForExistence(timeout: 5))

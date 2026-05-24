@@ -2930,6 +2930,7 @@ final class ChronicleTests: XCTestCase {
             "rules.suggestions.empty.path.repeat_detail",
             "rules.suggestions.empty.path.narrow_title",
             "rules.suggestions.empty.path.narrow_detail",
+            "rules.suggestions.empty.review_apps",
             "rules.suggestions.preview",
             "rules.suggestions.reason",
             "rules.suggestions.corrections",

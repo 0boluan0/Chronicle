@@ -2978,6 +2978,7 @@
 "rules.suggestions.empty.path.repeat_detail" = "Suggestions appear after the same correction happens again.";
 "rules.suggestions.empty.path.narrow_title" = "Create narrow rules";
 "rules.suggestions.empty.path.narrow_detail" = "Only automate patterns that are predictable enough to trust.";
+"rules.suggestions.empty.review_apps" = "Review Apps First";
 "rules.suggestions.summary" = "%@ → %@";
 "rules.suggestions.detail" = "Manual overrides: %d/%d (%@) · scope: %@";
 "rules.suggestions.preview" = "Classify %@ as %@";
