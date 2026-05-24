@@ -480,15 +480,22 @@ struct DashboardOverviewView: View {
     }
 
     private var reviewHeroHeader: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.lg, alignment: .topLeading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.md
-        ) {
-            reviewHeroCopy
-            reviewActiveTimeSummary
-                .frame(maxWidth: .infinity, alignment: .leading)
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.lg) {
+                reviewHeroCopy
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                reviewActiveTimeSummary(alignment: .trailing)
+                    .frame(minWidth: 128, maxWidth: 180, alignment: .trailing)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                reviewHeroCopy
+                reviewActiveTimeSummary(alignment: .leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
+        .accessibilityIdentifier("dashboard.overview.reviewHero")
     }
 
     private var reviewHeroCopy: some View {
@@ -547,8 +554,8 @@ struct DashboardOverviewView: View {
             .accessibilityIdentifier("dashboard.overview.captureStatus")
     }
 
-    private var reviewActiveTimeSummary: some View {
-        VStack(alignment: .trailing, spacing: 5) {
+    private func reviewActiveTimeSummary(alignment: HorizontalAlignment) -> some View {
+        VStack(alignment: alignment, spacing: 5) {
             Text(formatDuration(reviewActiveSeconds))
                 .font(.system(size: 32, weight: .semibold, design: .rounded))
                 .foregroundColor(DesignSystem.Colors.primaryText)
@@ -559,22 +566,26 @@ struct DashboardOverviewView: View {
             Label(L("overview.review.active_time"), systemImage: "bolt.fill")
                 .font(.caption.weight(.semibold))
                 .foregroundColor(reviewActiveSeconds == 0 ? DesignSystem.Colors.secondaryText : reviewTone.color)
-                .lineLimit(1)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .frame(minWidth: 128, alignment: .trailing)
         .accessibilityIdentifier("dashboard.overview.activeTimeSummary")
     }
 
     private var reviewSuggestedNextRow: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 220), spacing: DesignSystem.Spacing.md, alignment: .leading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.xs
-        ) {
-            reviewSuggestedNextCopy
-                .frame(maxWidth: .infinity, alignment: .leading)
-            StatusPill(L(primaryReviewActionTitleKey), systemImage: primaryReviewActionIconName, tone: reviewTone)
-                .frame(maxWidth: .infinity, alignment: .leading)
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                reviewSuggestedNextCopy
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                StatusPill(L(primaryReviewActionTitleKey), systemImage: primaryReviewActionIconName, tone: reviewTone)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                reviewSuggestedNextCopy
+                StatusPill(L(primaryReviewActionTitleKey), systemImage: primaryReviewActionIconName, tone: reviewTone)
+            }
         }
         .accessibilityIdentifier("dashboard.overview.suggestedNext")
     }
@@ -603,15 +614,19 @@ struct DashboardOverviewView: View {
 
     private var reviewReadinessStrip: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 220), spacing: DesignSystem.Spacing.md, alignment: .leading)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.xs
-            ) {
-                reviewReadinessCopy
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                StatusPill(reviewReadinessProgressText, systemImage: reviewReadinessStatusIconName, tone: reviewReadinessTone)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                    reviewReadinessCopy
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    StatusPill(reviewReadinessProgressText, systemImage: reviewReadinessStatusIconName, tone: reviewReadinessTone)
+                        .fixedSize(horizontal: true, vertical: false)
+                }
+
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                    reviewReadinessCopy
+                    StatusPill(reviewReadinessProgressText, systemImage: reviewReadinessStatusIconName, tone: reviewReadinessTone)
+                }
             }
 
             RatioBar(

@@ -418,6 +418,7 @@ final class ChronicleUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["Today workspace"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.descendants(matching: .any)["dashboard.overview.reviewBrief"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["dashboard.overview.reviewHero"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["dashboard.overview.reviewStatus"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["dashboard.overview.captureStatus"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.descendants(matching: .any)["dashboard.overview.commandStrip"].exists)
