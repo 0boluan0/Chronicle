@@ -23,6 +23,7 @@ struct SupportPreferencesView: View {
     @State private var isCreatingFeedbackBundle = false
     @State private var hasTrackedOpen = false
     @State private var showHealthReport = false
+    @AppStorage("preferences.support.openHealthReport") private var shouldOpenHealthReport = false
 
     private let latestReleaseURL = URL(string: "https://github.com/0boluan0/Chronicle/releases/latest")!
     private let releasesPageURL = URL(string: "https://github.com/0boluan0/Chronicle/releases")!
@@ -261,6 +262,10 @@ struct SupportPreferencesView: View {
                 hasTrackedOpen = true
                 TelemetryService.shared.increment("support_opened")
             }
+            openPendingHealthReportIfNeeded()
+        }
+        .onChange(of: shouldOpenHealthReport) { _, _ in
+            openPendingHealthReportIfNeeded()
         }
         .sheet(isPresented: $showHealthReport) {
             HealthCheckDetailsView {
@@ -268,6 +273,12 @@ struct SupportPreferencesView: View {
             }
             .environmentObject(appState)
         }
+    }
+
+    private func openPendingHealthReportIfNeeded() {
+        guard shouldOpenHealthReport else { return }
+        shouldOpenHealthReport = false
+        showHealthReport = true
     }
 
     private var supportPathSection: some View {

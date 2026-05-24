@@ -618,7 +618,7 @@ struct QuickMarkerEntryView: View {
 
     private var quickMarkerHealthButton: some View {
         Button {
-            AppWindowRouter.shared.open(.settings(.support))
+            AppWindowRouter.shared.open(.settings(.supportHealth))
         } label: {
             quickMarkerActionLabel(L("quick_marker.status.open_health"), systemImage: "stethoscope")
         }

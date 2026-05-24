@@ -427,7 +427,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     @objc private func openAppHealth() {
         TelemetryService.shared.increment("support_opened")
-        AppWindowRouter.shared.open(.settings(.support))
+        AppWindowRouter.shared.open(.settings(.supportHealth))
     }
 
     @objc private func openDashboard() {
@@ -570,6 +570,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             return .settings(.export)
         case "settingsSupport":
             return .settings(.support)
+        case "settingsSupportHealth":
+            return .settings(.supportHealth)
         case "settingsTags":
             return .settings(.tagsRules)
         case "settingsPrivacy":

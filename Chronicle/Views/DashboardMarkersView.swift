@@ -315,7 +315,7 @@ struct DashboardMarkersView: View {
             .accessibilityIdentifier("dashboard.markers.retrySummary")
 
             Button {
-                AppWindowRouter.shared.open(.settings(.support))
+                AppWindowRouter.shared.open(.settings(.supportHealth))
             } label: {
                 cueCaptureActionLabel(L("markers.capture.open_health"), systemImage: "stethoscope")
             }
@@ -547,7 +547,7 @@ struct DashboardMarkersView: View {
 
         if cueSummaryError != nil {
             Button {
-                AppWindowRouter.shared.open(.settings(.support))
+                AppWindowRouter.shared.open(.settings(.supportHealth))
             } label: {
                 cueCaptureActionLabel(L("markers.capture.open_health"), systemImage: "stethoscope")
             }

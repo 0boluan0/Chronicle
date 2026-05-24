@@ -44,6 +44,7 @@ enum PreferencesNavigationDestination {
     case tagWizard
     case export
     case support
+    case supportHealth
     case privacy
 #if DEBUG
     case debug
@@ -64,6 +65,10 @@ enum PreferencesNavigationDestination {
             defaults.set("export", forKey: "preferences.selectedSection")
         case .support:
             defaults.set("support", forKey: "preferences.selectedSection")
+            defaults.set(false, forKey: "preferences.support.openHealthReport")
+        case .supportHealth:
+            defaults.set("support", forKey: "preferences.selectedSection")
+            defaults.set(true, forKey: "preferences.support.openHealthReport")
         case .privacy:
             defaults.set("privacy", forKey: "preferences.selectedSection")
 #if DEBUG

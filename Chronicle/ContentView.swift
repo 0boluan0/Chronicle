@@ -1117,7 +1117,7 @@ struct ContentView: View {
 
     private var dailySnapshotEmptyCheckCaptureButton: some View {
         Button {
-            AppWindowRouter.shared.open(.settings(.support))
+            AppWindowRouter.shared.open(.settings(.supportHealth))
         } label: {
             popoverActionLabel(L("popover.daily_snapshot.empty_check_capture"), systemImage: "checkmark.shield")
         }

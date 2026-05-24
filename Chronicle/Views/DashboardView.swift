@@ -769,7 +769,7 @@ struct DashboardView: View {
             appState.trackingPaused = false
             selectedSectionRaw = Section.overview.rawValue
         case .captureIssue:
-            AppWindowRouter.shared.open(.settings(.support))
+            AppWindowRouter.shared.open(.settings(.supportHealth))
         case .addContext:
             AppWindowRouter.shared.open(.quickMarker)
         case .needsLogFolder, .reviewDailyLog, .logFailed:

@@ -61,7 +61,7 @@ struct AppWindowRouterCommands: Commands {
 
             Button(L("menu.app_health")) {
                 TelemetryService.shared.increment("support_opened")
-                AppWindowRouter.shared.open(.settings(.support))
+                AppWindowRouter.shared.open(.settings(.supportHealth))
             }
 
             Divider()

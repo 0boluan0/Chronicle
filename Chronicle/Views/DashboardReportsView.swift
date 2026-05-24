@@ -544,7 +544,7 @@ struct ReportsWorkspaceView: View {
             EmptyView()
         case .checkIssue:
             Button {
-                AppWindowRouter.shared.open(.settings(.support))
+                AppWindowRouter.shared.open(.settings(.supportHealth))
             } label: {
                 reportActionButtonLabel(L("reports.closeout.brief.issue.open_health"), systemImage: "stethoscope")
             }
@@ -914,7 +914,7 @@ struct ReportsWorkspaceView: View {
 
     private var closeoutBriefIssueHealthButton: some View {
         Button {
-            AppWindowRouter.shared.open(.settings(.support))
+            AppWindowRouter.shared.open(.settings(.supportHealth))
         } label: {
             reportActionButtonLabel(L("reports.closeout.brief.issue.open_health"), systemImage: "stethoscope")
         }
@@ -3738,7 +3738,7 @@ struct ReportsWorkspaceView: View {
 
         private var previewIssueHealthButton: some View {
             Button {
-                AppWindowRouter.shared.open(.settings(.support))
+                AppWindowRouter.shared.open(.settings(.supportHealth))
             } label: {
                 previewActionLabel(L("reports.preview.issue.open_health"), systemImage: "stethoscope")
             }

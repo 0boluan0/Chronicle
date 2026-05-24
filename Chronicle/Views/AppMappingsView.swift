@@ -1195,7 +1195,7 @@ struct AppMappingsView: View {
                 .accessibilityIdentifier("appMappings.emptyResumeCapture")
             } else if mappingEmptyCaptureHasError {
                 Button {
-                    AppWindowRouter.shared.open(.settings(.support))
+                    AppWindowRouter.shared.open(.settings(.supportHealth))
                 } label: {
                     mappingActionLabel(L("apps.empty.action.check_capture"), systemImage: "checkmark.shield")
                 }

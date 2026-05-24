@@ -110,7 +110,7 @@ struct DashboardDebugView: View {
                     .fixedSize(horizontal: false, vertical: true)
 
                 Button {
-                    AppWindowRouter.shared.open(.settings(.support))
+                    AppWindowRouter.shared.open(.settings(.supportHealth))
                 } label: {
                     debugActionLabel(L("debug.issue.open_support"), systemImage: "stethoscope")
                 }
@@ -231,7 +231,7 @@ struct DashboardDebugView: View {
                     .accessibilityIdentifier("dashboard.debug.handoff.runHealth")
 
                     Button {
-                        AppWindowRouter.shared.open(.settings(.support))
+                        AppWindowRouter.shared.open(.settings(.supportHealth))
                     } label: {
                         debugActionLabel(L("debug.handoff.open_support"), systemImage: "lifepreserver")
                     }
@@ -696,7 +696,7 @@ struct DashboardDebugView: View {
                     .accessibilityIdentifier("dashboard.debug.runHealthCheck")
 
                     Button {
-                        AppWindowRouter.shared.open(.settings(.support))
+                        AppWindowRouter.shared.open(.settings(.supportHealth))
                     } label: {
                         debugActionLabel(L("debug.health.open_support"), systemImage: "stethoscope")
                     }

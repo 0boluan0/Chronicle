@@ -712,7 +712,7 @@ struct MarkerTimelineView: View {
 
     private var markerTimelineEmptyCheckCaptureButton: some View {
         Button {
-            AppWindowRouter.shared.open(.settings(.support))
+            AppWindowRouter.shared.open(.settings(.supportHealth))
         } label: {
             markerTimelineActionLabel(L("markers.timeline.empty_check_capture"), systemImage: "checkmark.shield")
         }

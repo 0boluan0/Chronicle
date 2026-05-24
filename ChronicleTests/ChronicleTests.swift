@@ -1058,6 +1058,24 @@ final class ChronicleTests: XCTestCase {
         defaults.removePersistentDomain(forName: suiteName)
     }
 
+    func testPreferencesNavigationDestinationSelectsSupportHealthReport() {
+        let suiteName = "chronicle-tests-support-health-navigation-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+
+        PreferencesNavigationDestination.supportHealth.apply(to: defaults)
+
+        XCTAssertEqual(defaults.string(forKey: "preferences.selectedSection"), "support")
+        XCTAssertTrue(defaults.bool(forKey: "preferences.support.openHealthReport"))
+
+        PreferencesNavigationDestination.support.apply(to: defaults)
+
+        XCTAssertEqual(defaults.string(forKey: "preferences.selectedSection"), "support")
+        XCTAssertFalse(defaults.bool(forKey: "preferences.support.openHealthReport"))
+
+        defaults.removePersistentDomain(forName: suiteName)
+    }
+
 #if DEBUG
     func testDeveloperDiagnosticsDoNotAppearInDefaultNavigation() {
         XCTAssertFalse(DeveloperDiagnostics.showNavigationItems(environment: [:], arguments: []))

@@ -974,7 +974,7 @@ struct DashboardOverviewView: View {
             if appState.trackingPaused {
                 appState.trackingPaused = false
             } else if captureHasError {
-                AppWindowRouter.shared.open(.settings(.support))
+                AppWindowRouter.shared.open(.settings(.supportHealth))
             } else {
                 AppWindowRouter.shared.open(.quickMarker)
             }
@@ -1994,7 +1994,7 @@ struct DashboardOverviewView: View {
         if appState.trackingPaused {
             appState.trackingPaused = false
         } else if captureHasError {
-            AppWindowRouter.shared.open(.settings(.support))
+            AppWindowRouter.shared.open(.settings(.supportHealth))
         } else {
             AppWindowRouter.shared.open(.quickMarker)
         }

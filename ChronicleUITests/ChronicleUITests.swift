@@ -1113,6 +1113,24 @@ final class ChronicleUITests: XCTestCase {
         app.terminate()
     }
 
+    func testSupportHealthRouteOpensReportSmoke() throws {
+        let workspace = try makeWorkspace(language: "en")
+        let app = makeApp(
+            route: "settingsSupportHealth",
+            language: "en",
+            workspace: workspace,
+            resetState: true
+        )
+        app.launch()
+
+        XCTAssertTrue(app.staticTexts["Support"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["App Health Details"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["Current Status"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["selfCheck.actions"].waitForExistence(timeout: 5))
+
+        app.terminate()
+    }
+
     func testGeneralSetupSurfaceSmoke() throws {
         let workspace = try makeWorkspace(language: "en")
         let app = makeApp(

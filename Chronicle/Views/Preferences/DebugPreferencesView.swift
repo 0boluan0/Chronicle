@@ -224,7 +224,7 @@ struct DebugPreferencesView: View {
 
     private var openSupportAction: some View {
         Button {
-            AppWindowRouter.shared.open(.settings(.support))
+            AppWindowRouter.shared.open(.settings(.supportHealth))
         } label: {
             debugActionLabel(L("preferences.debug.action.open_support"), systemImage: "stethoscope")
         }

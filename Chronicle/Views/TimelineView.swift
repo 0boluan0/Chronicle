@@ -197,7 +197,7 @@ struct TimelineView: View {
             .accessibilityIdentifier("timeline.retryLoad")
 
             Button {
-                AppWindowRouter.shared.open(.settings(.support))
+                AppWindowRouter.shared.open(.settings(.supportHealth))
             } label: {
                 timelineActionLabel(L("timeline.error.open_health"), systemImage: "stethoscope")
             }
@@ -473,7 +473,7 @@ struct TimelineView: View {
 
     private var timelineEmptyCheckCaptureButton: some View {
         Button {
-            AppWindowRouter.shared.open(.settings(.support))
+            AppWindowRouter.shared.open(.settings(.supportHealth))
         } label: {
             timelineActionLabel(L("timeline.empty.check_capture"), systemImage: "checkmark.shield")
         }

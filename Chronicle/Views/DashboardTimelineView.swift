@@ -267,7 +267,7 @@ struct DashboardTimelineView: View {
             .accessibilityIdentifier("dashboard.timeline.retryLoad")
 
             Button {
-                AppWindowRouter.shared.open(.settings(.support))
+                AppWindowRouter.shared.open(.settings(.supportHealth))
             } label: {
                 timelineActionLabel(L("timeline.error.open_health"), systemImage: "stethoscope")
             }
@@ -1688,7 +1688,7 @@ struct DashboardTimelineView: View {
 
     private var emptyTimelineCheckCaptureButton: some View {
         Button {
-            AppWindowRouter.shared.open(.settings(.support))
+            AppWindowRouter.shared.open(.settings(.supportHealth))
         } label: {
             timelineActionLabel(L("timeline.empty.check_capture"), systemImage: "checkmark.shield")
         }
@@ -3678,7 +3678,7 @@ struct DashboardTimelineView: View {
             appState.trackingPaused = false
             selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
         case .checkCapture:
-            AppWindowRouter.shared.open(.settings(.support))
+            AppWindowRouter.shared.open(.settings(.supportHealth))
         case .startCapture:
             AppWindowRouter.shared.open(.quickMarker)
         case .resetFilters:
@@ -3707,7 +3707,7 @@ struct DashboardTimelineView: View {
                 appState.trackingPaused = false
                 selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
             } else if timelineEmptyCaptureHasError {
-                AppWindowRouter.shared.open(.settings(.support))
+                AppWindowRouter.shared.open(.settings(.supportHealth))
             } else {
                 AppWindowRouter.shared.open(.quickMarker)
             }

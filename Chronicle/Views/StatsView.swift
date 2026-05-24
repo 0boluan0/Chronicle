@@ -188,7 +188,7 @@ struct StatsView: View {
             .accessibilityIdentifier("stats.retryLoad")
 
             Button {
-                AppWindowRouter.shared.open(.settings(.support))
+                AppWindowRouter.shared.open(.settings(.supportHealth))
             } label: {
                 statsActionLabel(L("dashboard.stats.error.open_health"), systemImage: "stethoscope")
             }
@@ -595,7 +595,7 @@ struct StatsView: View {
     private func statsCheckCaptureButton(isPrimary: Bool) -> some View {
         if isPrimary {
             Button {
-                AppWindowRouter.shared.open(.settings(.support))
+                AppWindowRouter.shared.open(.settings(.supportHealth))
             } label: {
                 statsActionLabel(L("dashboard.stats.review.check_capture"), systemImage: "stethoscope")
             }
@@ -606,7 +606,7 @@ struct StatsView: View {
             .accessibilityIdentifier("stats.checkCapture")
         } else {
             Button {
-                AppWindowRouter.shared.open(.settings(.support))
+                AppWindowRouter.shared.open(.settings(.supportHealth))
             } label: {
                 statsActionLabel(L("dashboard.stats.review.check_capture"), systemImage: "stethoscope")
             }
