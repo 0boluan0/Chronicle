@@ -925,6 +925,7 @@ struct DashboardStatsView: View {
             }
 
             dataQualityEvidenceChain(stats: stats)
+            dataQualityActionStrip(stats: stats)
 
             capturePipelineStrip(stats: stats)
         }
@@ -996,6 +997,87 @@ struct DashboardStatsView: View {
                 .stroke(dataQualityTone(stats).color.opacity(0.16), lineWidth: 1)
         )
         .accessibilityIdentifier("dashboard.stats.dataQuality.evidenceChain")
+    }
+
+    private func dataQualityActionStrip(stats: RangeStats) -> some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 150), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            dataQualityPrimaryActionButton(stats: stats)
+            dataQualitySecondaryActionButton(stats: stats)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityIdentifier("dashboard.stats.dataQuality.actions")
+    }
+
+    @ViewBuilder
+    private func dataQualityPrimaryActionButton(stats: RangeStats) -> some View {
+        if stats.summary.totalSeconds == 0 {
+            Button {
+                selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
+            } label: {
+                Label(L("dashboard.stats.review.open_today"), systemImage: "sun.max")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(DesignSystem.Colors.accentSkyBlue)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("dashboard.stats.dataQuality.openToday")
+        } else if stats.topTags.isEmpty {
+            Button {
+                showUnlabeledTimeline()
+            } label: {
+                Label(L("dashboard.stats.review.review_labels"), systemImage: "rectangle.split.3x1")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(DesignSystem.Colors.accentSkyBlue)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("dashboard.stats.dataQuality.reviewLabels")
+        } else if dataQualityContextCount(stats) == 0 {
+            Button {
+                AppWindowRouter.shared.open(.quickMarker)
+            } label: {
+                Label(L("dashboard.stats.review.add_cue"), systemImage: "square.and.pencil")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(DesignSystem.Colors.accentSkyBlue)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("dashboard.stats.dataQuality.addCue")
+        } else {
+            Button {
+                performStatsPrepareReportAction()
+            } label: {
+                Label(statsPrepareReportTitle, systemImage: statsPrepareReportIconName)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(DesignSystem.Colors.accentSkyBlue)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("dashboard.stats.dataQuality.prepareReport")
+        }
+    }
+
+    @ViewBuilder
+    private func dataQualitySecondaryActionButton(stats: RangeStats) -> some View {
+        if stats.summary.totalSeconds == 0 {
+            Button {
+                AppWindowRouter.shared.open(.settings(.general))
+            } label: {
+                Label(L("dashboard.stats.data_quality.capture_settings"), systemImage: "slider.horizontal.3")
+            }
+            .buttonStyle(.bordered)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("dashboard.stats.dataQuality.captureSettings")
+        } else {
+            Button {
+                selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
+            } label: {
+                Label(L("dashboard.stats.review.open_timeline"), systemImage: "clock")
+            }
+            .buttonStyle(.bordered)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier("dashboard.stats.dataQuality.openTimeline")
+        }
     }
 
     private func dataQualityEvidenceStep(
