@@ -439,10 +439,10 @@ struct GanttRowView: View {
         lines.append(TimeFormatters.timeRange(start: segment.start, end: segment.end))
         lines.append(String(format: L("Duration: %@"), segment.selection.durationText))
         if segment.isIdle {
-            lines.append(L("Idle"))
+            lines.append(L("overview.selection.idle"))
         }
         if segment.isOverlay {
-            lines.append(L("Overlay"))
+            lines.append(L("overview.selection.overlay"))
         }
         return lines.joined(separator: "\n")
     }
