@@ -112,6 +112,7 @@
 "self_check.details.issue.severity.warning" = "需复查";
 "self_check.details.issue.action.run_check" = "重新检查";
 "self_check.details.issue.action.open_preferences" = "打开设置";
+"self_check.details.issue.action.open_export_settings" = "打开日志设置";
 "self_check.details.issue.action.grant_permission" = "授予权限";
 "self_check.details.issue.action.open_data" = "打开本地数据";
 "self_check.details.issue.action.create_bundle" = "生成支持包";

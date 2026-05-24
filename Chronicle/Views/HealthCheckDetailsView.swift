@@ -929,7 +929,7 @@ struct HealthCheckDetailsView: View {
         switch action {
         case .grantAccessibility, .openDataFolder:
             return 0
-        case .runCheck:
+        case .runCheck, .openExportSettings:
             return 1
         case .openPreferences:
             return 2
@@ -1142,7 +1142,7 @@ struct HealthCheckDetailsView: View {
                 tone: .warning,
                 severityText: severityText,
                 accessibilitySuffix: "dailyExport",
-                action: .openPreferences
+                action: .openExportSettings
             )
         }
 
@@ -1154,7 +1154,7 @@ struct HealthCheckDetailsView: View {
                 tone: .warning,
                 severityText: severityText,
                 accessibilitySuffix: "weeklyExport",
-                action: .openPreferences
+                action: .openExportSettings
             )
         }
 
@@ -1251,6 +1251,8 @@ struct HealthCheckDetailsView: View {
             healthCheckService.runQuickChecks()
         case .openPreferences:
             AppWindowRouter.shared.open(.settings())
+        case .openExportSettings:
+            AppWindowRouter.shared.open(.settings(.export))
         case .grantAccessibility:
             _ = AccessibilityPermissionManager.shared.requestPermission(prompt: true)
             AccessibilityPermissionManager.shared.syncAppState(appState)
@@ -2108,6 +2110,7 @@ private struct HealthIssuePresentation {
 private enum HealthIssueAction: Equatable {
     case runCheck
     case openPreferences
+    case openExportSettings
     case grantAccessibility
     case openDataFolder
     case createSupportPackage
@@ -2118,6 +2121,8 @@ private enum HealthIssueAction: Equatable {
             return "self_check.details.issue.action.run_check"
         case .openPreferences:
             return "self_check.details.issue.action.open_preferences"
+        case .openExportSettings:
+            return "self_check.details.issue.action.open_export_settings"
         case .grantAccessibility:
             return "self_check.details.issue.action.grant_permission"
         case .openDataFolder:
@@ -2133,6 +2138,8 @@ private enum HealthIssueAction: Equatable {
             return "waveform.path.ecg"
         case .openPreferences:
             return "gearshape"
+        case .openExportSettings:
+            return "doc.text.magnifyingglass"
         case .grantAccessibility:
             return "hand.raised"
         case .openDataFolder:
@@ -2146,7 +2153,7 @@ private enum HealthIssueAction: Equatable {
         switch self {
         case .runCheck, .grantAccessibility:
             return true
-        case .openPreferences, .openDataFolder, .createSupportPackage:
+        case .openPreferences, .openExportSettings, .openDataFolder, .createSupportPackage:
             return false
         }
     }
@@ -2157,6 +2164,8 @@ private enum HealthIssueAction: Equatable {
             return "runCheck"
         case .openPreferences:
             return "openPreferences"
+        case .openExportSettings:
+            return "openExportSettings"
         case .grantAccessibility:
             return "grantAccessibility"
         case .openDataFolder:

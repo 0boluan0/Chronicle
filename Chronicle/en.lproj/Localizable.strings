@@ -112,6 +112,7 @@
 "self_check.details.issue.severity.warning" = "Review";
 "self_check.details.issue.action.run_check" = "Run Check";
 "self_check.details.issue.action.open_preferences" = "Open Settings";
+"self_check.details.issue.action.open_export_settings" = "Open Log Settings";
 "self_check.details.issue.action.grant_permission" = "Grant Permission";
 "self_check.details.issue.action.open_data" = "Open Local Data";
 "self_check.details.issue.action.create_bundle" = "Create Support Package";
