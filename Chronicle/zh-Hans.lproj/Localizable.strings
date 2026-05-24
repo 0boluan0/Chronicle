@@ -1019,8 +1019,10 @@
 "preferences.sidebar.guide.progress.value" = "%d/%d 就绪";
 "preferences.sidebar.guide.progress.start" = "开始设置";
 "preferences.sidebar.guide.progress.in_progress" = "继续完成";
+"preferences.sidebar.guide.progress.issues" = "需要修复";
 "preferences.sidebar.guide.progress.ready" = "已就绪";
 "preferences.sidebar.guide.progress.start_detail" = "每一步都确认一次，Chronicle 日常使用前会更可预期。";
+"preferences.sidebar.guide.progress.issues_detail" = "设置或导出问题需要先修复，今日日志才可靠。";
 "preferences.sidebar.guide.progress.review_detail" = "至少一处设置还需要处理，完成后更接近可发布状态。";
 "preferences.sidebar.guide.progress.ready_detail" = "核心设置、输出、隐私和安全检查都已就位。";
 "preferences.sidebar.guide.current_label" = "当前步骤";
@@ -1060,6 +1062,7 @@
 "preferences.sidebar.guide.status.needs_review" = "需检查";
 "preferences.sidebar.guide.status.suggestions" = "有建议";
 "preferences.sidebar.guide.status.needs_folder" = "需目录";
+"preferences.sidebar.guide.status.save_failed" = "保存失败";
 "preferences.sidebar.guide.status.checking" = "检查中";
 "preferences.sidebar.guide.status.not_checked" = "未检查";
 "preferences.sidebar.guide.status.issues" = "有问题";

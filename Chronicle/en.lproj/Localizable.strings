@@ -1019,8 +1019,10 @@
 "preferences.sidebar.guide.progress.value" = "%d/%d ready";
 "preferences.sidebar.guide.progress.start" = "Start setup";
 "preferences.sidebar.guide.progress.in_progress" = "Keep going";
+"preferences.sidebar.guide.progress.issues" = "Needs repair";
 "preferences.sidebar.guide.progress.ready" = "Ready";
 "preferences.sidebar.guide.progress.start_detail" = "Finish each step once so Chronicle feels predictable before daily use.";
+"preferences.sidebar.guide.progress.issues_detail" = "A setup or export problem needs repair before daily logs are dependable.";
 "preferences.sidebar.guide.progress.review_detail" = "At least one setup area still needs attention before this build feels release-ready.";
 "preferences.sidebar.guide.progress.ready_detail" = "Core setup, output, privacy, and safety checks are in place.";
 "preferences.sidebar.guide.current_label" = "Current step";
@@ -1060,6 +1062,7 @@
 "preferences.sidebar.guide.status.needs_review" = "Needs review";
 "preferences.sidebar.guide.status.suggestions" = "Suggestions";
 "preferences.sidebar.guide.status.needs_folder" = "Needs folder";
+"preferences.sidebar.guide.status.save_failed" = "Save failed";
 "preferences.sidebar.guide.status.checking" = "Checking";
 "preferences.sidebar.guide.status.not_checked" = "Not checked";
 "preferences.sidebar.guide.status.issues" = "Issues";

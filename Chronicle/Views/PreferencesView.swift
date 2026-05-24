@@ -561,6 +561,9 @@ struct PreferencesView: View {
         if setupGuideReadyCount == setupGuideProgressTotal {
             return L("preferences.sidebar.guide.progress.ready")
         }
+        if setupGuideProgressHasCriticalIssue {
+            return L("preferences.sidebar.guide.progress.issues")
+        }
         if setupGuideReadyCount == 0 {
             return L("preferences.sidebar.guide.progress.start")
         }
@@ -570,6 +573,9 @@ struct PreferencesView: View {
     private var setupGuideProgressDetailKey: String {
         if setupGuideReadyCount == setupGuideProgressTotal {
             return "preferences.sidebar.guide.progress.ready_detail"
+        }
+        if setupGuideProgressHasCriticalIssue {
+            return "preferences.sidebar.guide.progress.issues_detail"
         }
         if setupGuideProgressReadiness.contains(where: { $0.needsAttention }) {
             return "preferences.sidebar.guide.progress.review_detail"
@@ -591,10 +597,17 @@ struct PreferencesView: View {
         if setupGuideReadyCount == setupGuideProgressTotal {
             return .success
         }
+        if setupGuideProgressHasCriticalIssue {
+            return .critical
+        }
         if setupGuideProgressReadiness.contains(where: { $0.needsAttention }) {
             return .warning
         }
         return setupGuideReadyCount == 0 ? .neutral : .info
+    }
+
+    private var setupGuideProgressHasCriticalIssue: Bool {
+        setupGuideProgressReadiness.contains { $0.isCritical }
     }
 
     private func setupGuideReadiness(for section: Section) -> PreferencesSetupReadiness {
@@ -627,6 +640,9 @@ struct PreferencesView: View {
             }
             return PreferencesSetupReadiness(titleKey: "preferences.sidebar.guide.status.ready", systemImage: "checkmark", tone: .success)
         case .export:
+            if reportSettings.dailyExportFailed(for: Date()) {
+                return PreferencesSetupReadiness(titleKey: "preferences.sidebar.guide.status.save_failed", systemImage: "exclamationmark.triangle.fill", tone: .critical)
+            }
             if reportSettings.allExportFoldersConfigured {
                 return PreferencesSetupReadiness(titleKey: "preferences.sidebar.guide.status.ready", systemImage: "checkmark", tone: .success)
             }
@@ -879,7 +895,18 @@ private struct PreferencesSetupReadiness {
             "preferences.sidebar.guide.status.needs_permission",
             "preferences.sidebar.guide.status.needs_review",
             "preferences.sidebar.guide.status.needs_folder",
+            "preferences.sidebar.guide.status.save_failed",
             "preferences.sidebar.guide.status.not_checked",
+            "preferences.sidebar.guide.status.issues":
+            return true
+        default:
+            return false
+        }
+    }
+
+    var isCritical: Bool {
+        switch titleKey {
+        case "preferences.sidebar.guide.status.save_failed",
             "preferences.sidebar.guide.status.issues":
             return true
         default:
