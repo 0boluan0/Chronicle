@@ -45,38 +45,18 @@ struct PreferencesPageLayout<Content: View>: View {
 
     private var pageHeader: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.sm
-            ) {
+            ViewThatFits(in: .horizontal) {
                 HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
-                    IconWell(
-                        systemImage: systemImage,
-                        tone: tone,
-                        accessibilityLabel: L("preferences.page.header")
-                    )
-
-                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-                        Text(titleKey)
-                            .font(DesignSystem.Typography.title)
-                            .foregroundColor(DesignSystem.Colors.primaryText)
-                            .lineLimit(1)
-
-                        if let descriptionKey {
-                            Text(descriptionKey)
-                                .font(DesignSystem.Typography.caption)
-                                .foregroundColor(DesignSystem.Colors.secondaryText)
-                                .lineLimit(3)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                if let statusText {
-                    StatusPill(statusText, systemImage: statusSystemImage, tone: tone)
+                    pageHeaderLead
                         .frame(maxWidth: .infinity, alignment: .leading)
+
+                    pageHeaderStatus
+                        .fixedSize(horizontal: true, vertical: false)
+                }
+
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    pageHeaderLead
+                    pageHeaderStatus
                 }
             }
 
@@ -86,6 +66,39 @@ struct PreferencesPageLayout<Content: View>: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("preferences.pageHeader")
+    }
+
+    private var pageHeaderLead: some View {
+        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+            IconWell(
+                systemImage: systemImage,
+                tone: tone,
+                accessibilityLabel: L("preferences.page.header")
+            )
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                Text(titleKey)
+                    .font(DesignSystem.Typography.title)
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if let descriptionKey {
+                    Text(descriptionKey)
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var pageHeaderStatus: some View {
+        if let statusText {
+            StatusPill(statusText, systemImage: statusSystemImage, tone: tone)
+        }
     }
 }
 
