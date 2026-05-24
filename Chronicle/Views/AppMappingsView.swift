@@ -14,14 +14,19 @@ private struct ActiveMappingFilterChip: Identifiable {
     let systemImage: String
 }
 
+private enum MappingFilterScope: String, Hashable {
+    case all
+    case uncategorized
+    case untagged
+}
+
 struct AppMappingsView: View {
     @EnvironmentObject private var appState: AppState
 
     @State private var appMappings: [AppMappingRow] = []
     @State private var tags: [TagRow] = []
     @State private var searchText = ""
-    @State private var showUncategorizedOnly = false
-    @State private var showUntaggedOnly = false
+    @State private var mappingFilterScope: MappingFilterScope = .all
     @State private var lastActionMessage: StatusMessage?
     @State private var isLoadingMappings = false
     @State private var hasMoreMappings = false
@@ -626,14 +631,12 @@ struct AppMappingsView: View {
 
     private func showUntaggedMappings() {
         searchText = ""
-        showUncategorizedOnly = false
-        showUntaggedOnly = true
+        mappingFilterScope = .untagged
     }
 
     private func showUncategorizedMappings() {
         searchText = ""
-        showUntaggedOnly = false
-        showUncategorizedOnly = true
+        mappingFilterScope = .uncategorized
     }
 
     private func showAllMappings() {
@@ -642,14 +645,12 @@ struct AppMappingsView: View {
 
     private func focusMapping(_ mapping: AppMappingRow) {
         searchText = mapping.appName
-        showUntaggedOnly = false
-        showUncategorizedOnly = false
+        mappingFilterScope = .all
     }
 
     private func clearMappingFilters() {
         searchText = ""
-        showUntaggedOnly = false
-        showUncategorizedOnly = false
+        mappingFilterScope = .all
     }
 
     private func focusMetric(
@@ -693,7 +694,7 @@ struct AppMappingsView: View {
                     mappingRefreshButton
                 }
 
-                mappingFilterToggles
+                mappingFilterScopePicker
 
                 if mappingFiltersAreActive {
                     mappingActiveFiltersStrip
@@ -787,18 +788,25 @@ struct AppMappingsView: View {
         .accessibilityIdentifier("appMappings.refresh")
     }
 
-    private var mappingFilterToggles: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 150), spacing: DesignSystem.Spacing.md, alignment: .leading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            Toggle(L("apps.filter.uncategorized"), isOn: showUncategorizedOnlyBinding)
-                .toggleStyle(.checkbox)
+    private var mappingFilterScopePicker: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+            Text("apps.filter.scope")
+                .font(.caption2.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .lineLimit(1)
 
-            Toggle(L("apps.filter.untagged"), isOn: showUntaggedOnlyBinding)
-                .toggleStyle(.checkbox)
+            Picker(L("apps.filter.scope"), selection: $mappingFilterScope) {
+                Text("apps.filter.all").tag(MappingFilterScope.all)
+                Text("apps.filter.untagged").tag(MappingFilterScope.untagged)
+                Text("apps.filter.uncategorized").tag(MappingFilterScope.uncategorized)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .frame(minWidth: 260, maxWidth: 420, alignment: .leading)
+            .help(L("apps.filter.scope.help"))
+            .accessibilityIdentifier("appMappings.filterScope")
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var mappingActiveFiltersStrip: some View {
@@ -896,7 +904,7 @@ struct AppMappingsView: View {
             )
         }
 
-        if showUntaggedOnly {
+        if mappingFilterScope == .untagged {
             chips.append(
                 ActiveMappingFilterChip(
                     id: "untagged",
@@ -906,7 +914,7 @@ struct AppMappingsView: View {
             )
         }
 
-        if showUncategorizedOnly {
+        if mappingFilterScope == .uncategorized {
             chips.append(
                 ActiveMappingFilterChip(
                     id: "uncategorized",
@@ -924,30 +932,6 @@ struct AppMappingsView: View {
             format: L("apps.filters.active_detail"),
             filteredMappings.count,
             appMappings.count
-        )
-    }
-
-    private var showUncategorizedOnlyBinding: Binding<Bool> {
-        Binding(
-            get: { showUncategorizedOnly },
-            set: { isOn in
-                showUncategorizedOnly = isOn
-                if isOn {
-                    showUntaggedOnly = false
-                }
-            }
-        )
-    }
-
-    private var showUntaggedOnlyBinding: Binding<Bool> {
-        Binding(
-            get: { showUntaggedOnly },
-            set: { isOn in
-                showUntaggedOnly = isOn
-                if isOn {
-                    showUncategorizedOnly = false
-                }
-            }
         )
     }
 
@@ -1290,8 +1274,7 @@ struct AppMappingsView: View {
 
     private var mappingFiltersAreActive: Bool {
         hasSearchFilter
-            || showUntaggedOnly
-            || showUncategorizedOnly
+            || mappingFilterScope != .all
     }
 
     private var hasSearchFilter: Bool {
@@ -1324,8 +1307,9 @@ struct AppMappingsView: View {
     }
 
     private func shouldShow(mapping: AppMappingRow) -> Bool {
-        if !searchText.isEmpty {
-            let needle = searchText.lowercased()
+        let trimmedSearch = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedSearch.isEmpty {
+            let needle = trimmedSearch.lowercased()
             let matchName = mapping.appName.lowercased().contains(needle)
             let matchBundle = mapping.bundleId.lowercased().contains(needle)
             let matchCategory = tagName(for: mapping)?.lowercased().contains(needle) ?? false
@@ -1333,13 +1317,13 @@ struct AppMappingsView: View {
                 return false
             }
         }
-        if showUncategorizedOnly {
+        if mappingFilterScope == .uncategorized {
             guard let uncategorizedTagId else { return false }
             if mapping.tagId != uncategorizedTagId {
                 return false
             }
         }
-        if showUntaggedOnly {
+        if mappingFilterScope == .untagged {
             if mapping.tagId != nil {
                 return false
             }

@@ -2801,6 +2801,9 @@
 "apps.filters.active_detail" = "%d / %d 个应用匹配当前筛选。需要回到完整应用库时，可以一键清空。";
 "apps.filters.search_chip" = "搜索：%@";
 "apps.search.placeholder" = "搜索应用或分类";
+"apps.filter.scope" = "整理范围";
+"apps.filter.scope.help" = "选择整理列表中显示哪些应用映射。";
+"apps.filter.all" = "全部";
 "apps.filter.uncategorized" = "未分类";
 "apps.filter.untagged" = "无分类";
 "apps.visible_count" = "显示 %d / %d";

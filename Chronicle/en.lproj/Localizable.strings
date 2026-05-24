@@ -2802,6 +2802,9 @@
 "apps.filters.active_detail" = "%d of %d apps match these filters. Clear them when you want the full app library again.";
 "apps.filters.search_chip" = "Search: %@";
 "apps.search.placeholder" = "Search apps or categories";
+"apps.filter.scope" = "Review scope";
+"apps.filter.scope.help" = "Choose which app mappings are shown in the review list.";
+"apps.filter.all" = "All";
 "apps.filter.uncategorized" = "Uncategorized";
 "apps.filter.untagged" = "No category";
 "apps.visible_count" = "%d of %d visible";
