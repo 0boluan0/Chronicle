@@ -2190,6 +2190,13 @@
 "reports.closeout.brief.cues_value" = "%d 条线索";
 "reports.closeout.brief.cues_detail" = "笔记和专注区间会引导日志。";
 "reports.closeout.brief.cues_empty_detail" = "时间线缺语境时，补一条备注。";
+"reports.closeout.brief.blocks_title" = "工作块";
+"reports.closeout.brief.blocks_empty" = "暂无区间";
+"reports.closeout.brief.blocks_empty_detail" = "连续活跃工作达到 25 分钟后，这里会出现可复盘区间。";
+"reports.closeout.brief.blocks_fragmented_detail" = "已有活动，但仍分散在多个应用或分类里。";
+"reports.closeout.brief.blocks_detail" = "%@ · %@ 会更容易总结。";
+"reports.closeout.brief.blocks_time_range" = "%@-%@";
+"reports.closeout.brief.blocks_untagged" = "未分类";
 "reports.closeout.brief.labels_title" = "分类";
 "reports.closeout.brief.labels_ready" = "分类就绪";
 "reports.closeout.brief.labels_value" = "%d 条未分类";

@@ -778,6 +778,8 @@ final class ChronicleUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Closeout brief"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Captured work"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Review cues"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Work blocks"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["No block yet"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Categories"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["reports.closeout.confidence"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Save confidence"].waitForExistence(timeout: 5))

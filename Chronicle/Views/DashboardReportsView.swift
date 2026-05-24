@@ -788,6 +788,14 @@ struct ReportsWorkspaceView: View {
                 )
 
                 closeoutBriefItem(
+                    titleKey: "reports.closeout.brief.blocks_title",
+                    value: closeoutBlocksValue,
+                    detail: closeoutBlocksDetail,
+                    systemImage: closeoutSnapshot.workBlocks.isEmpty ? "square.split.2x2" : "rectangle.stack.fill",
+                    tone: closeoutSnapshot.workBlocks.isEmpty ? .neutral : .success
+                )
+
+                closeoutBriefItem(
                     titleKey: "reports.closeout.brief.labels_title",
                     value: closeoutLabelsValue,
                     detail: closeoutLabelsDetail,
@@ -2778,6 +2786,14 @@ struct ReportsWorkspaceView: View {
         return formatter
     }()
 
+    private static let blockTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        return formatter
+    }()
+
     private func reportFolderHeader<Actions: View, Toggles: View>(
         systemImage: String,
         folderPath: String,
@@ -4499,6 +4515,35 @@ struct ReportsWorkspaceView: View {
             : L("reports.closeout.brief.cues_empty_detail")
     }
 
+    private var closeoutBlocksValue: String {
+        guard let block = closeoutSnapshot.topWorkBlock else {
+            return L("reports.closeout.brief.blocks_empty")
+        }
+        return formatDuration(block.durationSeconds)
+    }
+
+    private var closeoutBlocksDetail: String {
+        guard let block = closeoutSnapshot.topWorkBlock else {
+            if closeoutSnapshot.activeSeconds <= 0 {
+                return L("reports.closeout.brief.blocks_empty_detail")
+            }
+            return L("reports.closeout.brief.blocks_fragmented_detail")
+        }
+        return String(
+            format: L("reports.closeout.brief.blocks_detail"),
+            block.title,
+            closeoutBlockTimeRange(block)
+        )
+    }
+
+    private func closeoutBlockTimeRange(_ block: WorkBlockInsight) -> String {
+        String(
+            format: L("reports.closeout.brief.blocks_time_range"),
+            Self.blockTimeFormatter.string(from: Date(timeIntervalSince1970: TimeInterval(block.startTime))),
+            Self.blockTimeFormatter.string(from: Date(timeIntervalSince1970: TimeInterval(block.endTime)))
+        )
+    }
+
     private var closeoutLabelsValue: String {
         if closeoutSnapshot.untaggedActiveCount <= 0 {
             return L("reports.closeout.brief.labels_ready")
@@ -4752,23 +4797,47 @@ struct ReportsWorkspaceView: View {
             searchQuery: nil
         )
 
+        let group = DispatchGroup()
+        var timelineItems: [TimelineItem] = []
+        var tagRows: [TagRow] = []
+        var snapshotError: String?
+
+        group.enter()
         AggregationService.shared.fetchTimelineItems(
             rangeStart: bounds.start,
             rangeEnd: bounds.end,
             filters: filters,
             limit: nil
         ) { result in
-            DispatchQueue.main.async {
-                switch result {
-                case .success(let items):
-                    self.closeoutSnapshot = CloseoutSnapshot(items: items, bounds: bounds)
-                    self.closeoutSnapshotError = nil
-                    self.showCloseoutSnapshotIssueDetails = false
-                case .failure(let error):
-                    self.closeoutSnapshotError = error.localizedDescription
-                }
-                AppLogger.log("Reports closeout snapshot refresh: \(reason)", category: "ui")
+            switch result {
+            case .success(let items):
+                timelineItems = items
+            case .failure(let error):
+                snapshotError = error.localizedDescription
             }
+            group.leave()
+        }
+
+        group.enter()
+        AggregationService.shared.fetchTags { result in
+            switch result {
+            case .success(let rows):
+                tagRows = rows
+            case .failure(let error):
+                snapshotError = error.localizedDescription
+            }
+            group.leave()
+        }
+
+        group.notify(queue: .main) {
+            if let snapshotError {
+                self.closeoutSnapshotError = snapshotError
+            } else {
+                self.closeoutSnapshot = CloseoutSnapshot(items: timelineItems, bounds: bounds, tags: tagRows)
+                self.closeoutSnapshotError = nil
+                self.showCloseoutSnapshotIssueDetails = false
+            }
+            AppLogger.log("Reports closeout snapshot refresh: \(reason)", category: "ui")
         }
     }
 
@@ -4784,13 +4853,15 @@ private struct CloseoutSnapshot: Equatable {
     let sessionCount: Int
     let cueCount: Int
     let untaggedActiveCount: Int
+    let workBlocks: [WorkBlockInsight]
 
     static let empty = CloseoutSnapshot(
         activeSeconds: 0,
         idleSeconds: 0,
         sessionCount: 0,
         cueCount: 0,
-        untaggedActiveCount: 0
+        untaggedActiveCount: 0,
+        workBlocks: []
     )
 
     init(
@@ -4798,25 +4869,33 @@ private struct CloseoutSnapshot: Equatable {
         idleSeconds: Int64,
         sessionCount: Int,
         cueCount: Int,
-        untaggedActiveCount: Int
+        untaggedActiveCount: Int,
+        workBlocks: [WorkBlockInsight]
     ) {
         self.activeSeconds = activeSeconds
         self.idleSeconds = idleSeconds
         self.sessionCount = sessionCount
         self.cueCount = cueCount
         self.untaggedActiveCount = untaggedActiveCount
+        self.workBlocks = workBlocks
     }
 
-    init(items: [TimelineItem], bounds: (start: Int64, end: Int64)) {
+    var topWorkBlock: WorkBlockInsight? {
+        workBlocks.first
+    }
+
+    init(items: [TimelineItem], bounds: (start: Int64, end: Int64), tags: [TagRow]) {
         var activeSeconds: Int64 = 0
         var idleSeconds: Int64 = 0
         var sessionCount = 0
         var cueCount = 0
         var untaggedActiveCount = 0
+        var activities: [ActivityRow] = []
 
         for item in items {
             switch item {
             case .activity(let activity):
+                activities.append(activity)
                 sessionCount += 1
                 let duration = Self.clippedDuration(activity: activity, bounds: bounds)
                 if activity.isIdle {
@@ -4837,6 +4916,13 @@ private struct CloseoutSnapshot: Equatable {
         self.sessionCount = sessionCount
         self.cueCount = cueCount
         self.untaggedActiveCount = untaggedActiveCount
+        self.workBlocks = WorkBlockInsightBuilder.build(
+            activities: activities,
+            tags: tags,
+            rangeStart: bounds.start,
+            rangeEnd: bounds.end,
+            untaggedTitle: L("reports.closeout.brief.blocks_untagged")
+        )
     }
 
     private static func clippedDuration(activity: ActivityRow, bounds: (start: Int64, end: Int64)) -> Int64 {

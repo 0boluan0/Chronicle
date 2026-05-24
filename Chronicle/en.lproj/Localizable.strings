@@ -2191,6 +2191,13 @@
 "reports.closeout.brief.cues_value" = "%d cues";
 "reports.closeout.brief.cues_detail" = "Notes and focus blocks will guide the log.";
 "reports.closeout.brief.cues_empty_detail" = "Add a note if the timeline misses context.";
+"reports.closeout.brief.blocks_title" = "Work blocks";
+"reports.closeout.brief.blocks_empty" = "No block yet";
+"reports.closeout.brief.blocks_empty_detail" = "A 25-minute block appears after enough continuous active work.";
+"reports.closeout.brief.blocks_fragmented_detail" = "Activity is present but still fragmented across apps or categories.";
+"reports.closeout.brief.blocks_detail" = "%@ · %@ will be easy to summarize.";
+"reports.closeout.brief.blocks_time_range" = "%@-%@";
+"reports.closeout.brief.blocks_untagged" = "Untagged";
 "reports.closeout.brief.labels_title" = "Categories";
 "reports.closeout.brief.labels_ready" = "Categories ready";
 "reports.closeout.brief.labels_value" = "%d uncategorized";
