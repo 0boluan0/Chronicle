@@ -516,6 +516,13 @@
 "onboarding.exports.outcome.markdown_detail" = "Write daily logs to your folder.";
 "onboarding.exports.outcome.local_title" = "Local and changeable";
 "onboarding.exports.outcome.local_detail" = "Nothing uploads; change later.";
+"onboarding.exports.auto_title" = "Daily auto-save";
+"onboarding.exports.auto_status.needs_folder" = "Needs folder";
+"onboarding.exports.auto_status.on" = "Auto-save on";
+"onboarding.exports.auto_status.manual" = "Manual";
+"onboarding.exports.auto_detail.needs_folder" = "Choose a folder first, then decide whether Chronicle should save one daily log automatically.";
+"onboarding.exports.auto_detail.on" = "Chronicle will try one daily Markdown save after the day changes, using this folder.";
+"onboarding.exports.auto_detail.manual" = "Keep saving from Today or Reports when you want to review the log first.";
 "onboarding.privacy.title" = "Privacy and Permissions";
 "onboarding.privacy.body" = "Choose whether Chronicle should capture window titles. The app still works fully offline if you leave this off.";
 "onboarding.privacy.choice.title" = "Privacy choice";

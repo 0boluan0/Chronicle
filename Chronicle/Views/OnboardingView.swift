@@ -1066,6 +1066,8 @@ struct OnboardingView: View {
 
                     exportOutcomeStrip
 
+                    exportAutoSaveRow
+
                     Divider()
 
                     Text(String(format: L("reports.folder.label"), reportSettings.dailyFolderDisplayPath))
@@ -1221,6 +1223,63 @@ struct OnboardingView: View {
                 .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .accessibilityIdentifier("onboarding.exports.statusRow")
+    }
+
+    private var exportAutoSaveRow: some View {
+        RowSurface(tone: exportAutoSaveTone, isSelected: hasDailyExportFolderConfigured && reportSettings.enableAutoDailyExport) {
+            LazyVGrid(
+                columns: adaptiveColumns(minimum: 240, spacing: DesignSystem.Spacing.md),
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                exportAutoSaveCopy
+                exportAutoSaveControls
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+        }
+        .accessibilityIdentifier("onboarding.exports.autoSave")
+    }
+
+    private var exportAutoSaveCopy: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            IconWell(
+                systemImage: exportAutoSaveIconName,
+                tone: exportAutoSaveTone,
+                accessibilityLabel: L("onboarding.exports.auto_title")
+            )
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("onboarding.exports.auto_title")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(LocalizedStringKey(exportAutoSaveDetailKey))
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var exportAutoSaveControls: some View {
+        HStack(spacing: DesignSystem.Spacing.sm) {
+            StatusPill(
+                exportAutoSaveStatusText,
+                systemImage: exportAutoSaveIconName,
+                tone: exportAutoSaveTone
+            )
+
+            Toggle("reports.daily.auto", isOn: $reportSettings.enableAutoDailyExport)
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .disabled(!hasDailyExportFolderConfigured)
+                .accessibilityIdentifier("onboarding.exports.autoSaveToggle")
+        }
     }
 
     private var exportFolderStatusCopy: some View {
@@ -2225,6 +2284,43 @@ struct OnboardingView: View {
 
     private var exportTone: DesignSystem.StatusTone {
         hasDailyExportFolderConfigured ? .success : .warning
+    }
+
+    private var exportAutoSaveStatusText: String {
+        if !hasDailyExportFolderConfigured {
+            return L("onboarding.exports.auto_status.needs_folder")
+        }
+        if reportSettings.enableAutoDailyExport {
+            return L("onboarding.exports.auto_status.on")
+        }
+        return L("onboarding.exports.auto_status.manual")
+    }
+
+    private var exportAutoSaveDetailKey: String {
+        if !hasDailyExportFolderConfigured {
+            return "onboarding.exports.auto_detail.needs_folder"
+        }
+        if reportSettings.enableAutoDailyExport {
+            return "onboarding.exports.auto_detail.on"
+        }
+        return "onboarding.exports.auto_detail.manual"
+    }
+
+    private var exportAutoSaveIconName: String {
+        if !hasDailyExportFolderConfigured {
+            return "folder.badge.plus"
+        }
+        if reportSettings.enableAutoDailyExport {
+            return "arrow.triangle.2.circlepath.circle.fill"
+        }
+        return "hand.tap"
+    }
+
+    private var exportAutoSaveTone: DesignSystem.StatusTone {
+        if !hasDailyExportFolderConfigured {
+            return .warning
+        }
+        return reportSettings.enableAutoDailyExport ? .success : .neutral
     }
 
     private var titleCaptureStatusText: String {
