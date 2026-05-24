@@ -645,14 +645,21 @@ struct SupportPreferencesView: View {
         @ViewBuilder actions: () -> Actions
     ) -> some View {
         RowSurface(tone: tone) {
-            LazyVGrid(
-                columns: adaptiveColumns(minimum: 240, spacing: DesignSystem.Spacing.md),
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.sm
-            ) {
-                supportPathText(systemImage: systemImage, tone: tone, title: title, detail: detail)
-                actions()
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+                    supportPathText(systemImage: systemImage, tone: tone, title: title, detail: detail)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                    actions()
+                        .fixedSize(horizontal: true, vertical: false)
+                }
+
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    supportPathText(systemImage: systemImage, tone: tone, title: title, detail: detail)
+
+                    actions()
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
         }
         .accessibilityIdentifier(accessibilityIdentifier)
