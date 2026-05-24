@@ -129,16 +129,25 @@ struct QuickMarkerEntryView: View {
     private var activeFocusReminderView: some View {
         if appState.quickMarkerMode == .point, let openSpan {
             RowSurface(tone: .warning, isHovering: false) {
-                LazyVGrid(
-                    columns: adaptiveColumns(minimum: 220, spacing: DesignSystem.Spacing.md),
-                    alignment: .leading,
-                    spacing: DesignSystem.Spacing.sm
-                ) {
-                    activeFocusReminderCopy(openSpan)
-                    activeFocusReminderActions(openSpan)
-                }
+                activeFocusReminderContent(openSpan)
             }
             .accessibilityIdentifier("quickMarker.activeReminder")
+        }
+    }
+
+    private func activeFocusReminderContent(_ span: MarkerSpanRow) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                activeFocusReminderCopy(span)
+
+                activeFocusReminderActions(span)
+                    .frame(width: 176, alignment: .topLeading)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                activeFocusReminderCopy(span)
+                activeFocusReminderActions(span)
+            }
         }
     }
 
@@ -168,11 +177,7 @@ struct QuickMarkerEntryView: View {
     }
 
     private func activeFocusReminderActions(_ span: MarkerSpanRow) -> some View {
-        LazyVGrid(
-            columns: adaptiveColumns(minimum: 112, spacing: DesignSystem.Spacing.sm),
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
+        VStack(spacing: DesignSystem.Spacing.sm) {
             Button {
                 stopOpenSpan(span)
             } label: {
@@ -182,7 +187,7 @@ struct QuickMarkerEntryView: View {
             .controlSize(.small)
             .tint(DesignSystem.StatusTone.warning.color)
             .disabled(isSubmitting)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity)
             .accessibilityIdentifier("quickMarker.activeReminder.stop")
 
             Button {
@@ -192,9 +197,10 @@ struct QuickMarkerEntryView: View {
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity)
             .accessibilityIdentifier("quickMarker.activeReminder.openIntervalMode")
         }
+        .frame(maxWidth: .infinity)
     }
 
     private var modeSelector: some View {
