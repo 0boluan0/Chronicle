@@ -566,7 +566,7 @@ struct AppMappingsView: View {
             Button {
                 showUntaggedMappings()
             } label: {
-                Label(L("apps.review.show_untagged"), systemImage: "exclamationmark.triangle.fill")
+                mappingActionLabel(L("apps.review.show_untagged"), systemImage: "exclamationmark.triangle.fill")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -576,7 +576,7 @@ struct AppMappingsView: View {
             Button {
                 showUncategorizedMappings()
             } label: {
-                Label(L("apps.review.show_uncategorized"), systemImage: "folder.badge.questionmark")
+                mappingActionLabel(L("apps.review.show_uncategorized"), systemImage: "folder.badge.questionmark")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -586,7 +586,7 @@ struct AppMappingsView: View {
             Button {
                 showAllMappings()
             } label: {
-                Label(L("apps.review.show_all"), systemImage: "rectangle.grid.1x2")
+                mappingActionLabel(L("apps.review.show_all"), systemImage: "rectangle.grid.1x2")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -601,7 +601,7 @@ struct AppMappingsView: View {
             Button {
                 showUncategorizedMappings()
             } label: {
-                Label(L("apps.review.show_uncategorized"), systemImage: "folder.badge.questionmark")
+                mappingActionLabel(L("apps.review.show_uncategorized"), systemImage: "folder.badge.questionmark")
             }
             .buttonStyle(.bordered)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -612,11 +612,23 @@ struct AppMappingsView: View {
             Button {
                 showAllMappings()
             } label: {
-                Label(L("apps.review.show_all"), systemImage: "rectangle.grid.1x2")
+                mappingActionLabel(L("apps.review.show_all"), systemImage: "rectangle.grid.1x2")
             }
             .buttonStyle(.bordered)
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("appMappings.filterAll")
+        }
+    }
+
+    private func mappingActionLabel(_ title: String, systemImage: String) -> some View {
+        Label {
+            Text(title)
+                .lineLimit(2)
+                .minimumScaleFactor(0.86)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: systemImage)
         }
     }
 
@@ -775,7 +787,7 @@ struct AppMappingsView: View {
         Button {
             reloadData()
         } label: {
-            Label(L("actions.refresh"), systemImage: "arrow.clockwise")
+            mappingActionLabel(L("actions.refresh"), systemImage: "arrow.clockwise")
         }
         .buttonStyle(.bordered)
         .disabled(isLoadingMappings)
@@ -871,7 +883,7 @@ struct AppMappingsView: View {
         Button {
             clearMappingFilters()
         } label: {
-            Label(L("apps.empty.action.clear_filters"), systemImage: "xmark.circle")
+            mappingActionLabel(L("apps.empty.action.clear_filters"), systemImage: "xmark.circle")
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
@@ -1049,7 +1061,7 @@ struct AppMappingsView: View {
                     Button {
                         loadMappings(reset: false)
                     } label: {
-                        Label(L("common.load_more"), systemImage: "plus.circle")
+                        mappingActionLabel(L("common.load_more"), systemImage: "plus.circle")
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(DesignSystem.Colors.accentSkyBlue)
@@ -1157,7 +1169,7 @@ struct AppMappingsView: View {
             Button {
                 AppWindowRouter.shared.open(.dashboard)
             } label: {
-                Label(L("apps.empty.action.open_today"), systemImage: "rectangle.3.group")
+                mappingActionLabel(L("apps.empty.action.open_today"), systemImage: "rectangle.3.group")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -1167,7 +1179,7 @@ struct AppMappingsView: View {
             Button {
                 clearMappingFilters()
             } label: {
-                Label(L("apps.empty.action.clear_filters"), systemImage: "line.3.horizontal.decrease.circle")
+                mappingActionLabel(L("apps.empty.action.clear_filters"), systemImage: "line.3.horizontal.decrease.circle")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -1184,7 +1196,7 @@ struct AppMappingsView: View {
                     appState.trackingPaused = false
                     AppWindowRouter.shared.open(.dashboard)
                 } label: {
-                    Label(L("apps.empty.action.resume_capture"), systemImage: "play.fill")
+                    mappingActionLabel(L("apps.empty.action.resume_capture"), systemImage: "play.fill")
                 }
                 .buttonStyle(.bordered)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -1193,7 +1205,7 @@ struct AppMappingsView: View {
                 Button {
                     AppWindowRouter.shared.open(.settings(.support))
                 } label: {
-                    Label(L("apps.empty.action.check_capture"), systemImage: "checkmark.shield")
+                    mappingActionLabel(L("apps.empty.action.check_capture"), systemImage: "checkmark.shield")
                 }
                 .buttonStyle(.bordered)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -1203,7 +1215,7 @@ struct AppMappingsView: View {
             Button {
                 reloadData()
             } label: {
-                Label(L("actions.refresh"), systemImage: "arrow.clockwise")
+                mappingActionLabel(L("actions.refresh"), systemImage: "arrow.clockwise")
             }
             .buttonStyle(.bordered)
             .disabled(isLoadingMappings)
