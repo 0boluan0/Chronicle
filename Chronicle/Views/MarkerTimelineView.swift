@@ -160,14 +160,9 @@ struct MarkerTimelineView: View {
     }
 
     private var markerReviewActions: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 152), spacing: DesignSystem.Spacing.sm)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
+        ActionButtonGrid(minimumItemWidth: 152) {
             markerReviewActionButtons
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var markerReviewPath: some View {
@@ -575,11 +570,7 @@ struct MarkerTimelineView: View {
                 markerTimelineEmptyPrompts
             }
 
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 160), spacing: DesignSystem.Spacing.sm)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.sm
-            ) {
+            ActionButtonGrid(minimumItemWidth: 160) {
                 markerTimelineEmptyActions
             }
         }
