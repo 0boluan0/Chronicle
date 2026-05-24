@@ -76,14 +76,16 @@ struct WeeklyOverviewView: View {
                 Text("overview.weekly_chart.title")
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text("overview.weekly_chart.detail")
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
+                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             StatusPill(
                 String(format: L("overview.weekly_chart.status"), rows.count),
@@ -147,25 +149,27 @@ struct WeeklyOverviewView: View {
                 Text(titleKey)
                     .font(.caption2.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(value)
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
                     .lineLimit(2)
-                    .minimumScaleFactor(0.86)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(detail)
                     .font(.caption2)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
+                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer(minLength: 0)
         }
         .padding(DesignSystem.Spacing.sm)
-        .frame(maxWidth: .infinity, minHeight: 82, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: 94, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
                 .fill(tone.color.opacity(0.07))
@@ -187,25 +191,27 @@ struct WeeklyOverviewView: View {
                 Text("overview.weekly_chart.insight.read_title")
                     .font(.caption2.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text("overview.weekly_chart.insight.read_value")
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
                     .lineLimit(2)
-                    .minimumScaleFactor(0.86)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text("overview.weekly_chart.insight.read_detail")
                     .font(.caption2)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
+                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Spacer(minLength: 0)
         }
         .padding(DesignSystem.Spacing.sm)
-        .frame(maxWidth: .infinity, minHeight: 82, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: 94, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
                 .fill(DesignSystem.Colors.background.opacity(0.50))
@@ -218,26 +224,19 @@ struct WeeklyOverviewView: View {
     }
 
     private var chartLegend: some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
-            WeeklyLegendItem(
-                title: L("overview.weekly_chart.legend.low"),
-                color: DesignSystem.StatusTone.info.color,
-                intensity: 0.20
-            )
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.md) {
+                weeklyLegendScale
 
-            WeeklyLegendItem(
-                title: L("overview.weekly_chart.legend.high"),
-                color: DesignSystem.StatusTone.info.color,
-                intensity: 0.68
-            )
+                Spacer(minLength: DesignSystem.Spacing.sm)
 
-            Spacer(minLength: DesignSystem.Spacing.sm)
+                weeklyLegendTotalLabel
+            }
 
-            Label(L("overview.weekly_chart.legend.total"), systemImage: "chart.bar.fill")
-                .font(.caption2.weight(.medium))
-                .foregroundColor(DesignSystem.Colors.secondaryText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.85)
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                weeklyLegendScale
+                weeklyLegendTotalLabel
+            }
         }
         .padding(.horizontal, DesignSystem.Spacing.sm)
         .padding(.vertical, 6)
@@ -250,6 +249,35 @@ struct WeeklyOverviewView: View {
                 .stroke(DesignSystem.Colors.separator.opacity(0.30), lineWidth: 1)
         )
         .accessibilityIdentifier("overview.weeklyChart.legend")
+    }
+
+    private var weeklyLegendScale: some View {
+        HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.md) {
+            WeeklyLegendItem(
+                title: L("overview.weekly_chart.legend.low"),
+                color: DesignSystem.StatusTone.info.color,
+                intensity: 0.20
+            )
+
+            WeeklyLegendItem(
+                title: L("overview.weekly_chart.legend.high"),
+                color: DesignSystem.StatusTone.info.color,
+                intensity: 0.68
+            )
+        }
+    }
+
+    private var weeklyLegendTotalLabel: some View {
+        Label {
+            Text(L("overview.weekly_chart.legend.total"))
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: "chart.bar.fill")
+        }
+        .font(.caption2.weight(.medium))
+        .foregroundColor(DesignSystem.Colors.secondaryText)
     }
 
     private var headerRow: some View {
@@ -388,8 +416,8 @@ private struct WeeklyLegendItem: View {
             Text(title)
                 .font(.caption2.weight(.medium))
                 .foregroundColor(DesignSystem.Colors.secondaryText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.85)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }
@@ -453,6 +481,7 @@ private struct WeeklyRowView: View {
                 .foregroundColor(DesignSystem.Colors.primaryText)
                 .lineLimit(2)
                 .truncationMode(.tail)
+                .fixedSize(horizontal: false, vertical: true)
 
             HStack(spacing: 5) {
                 Image(systemName: "clock")
@@ -464,6 +493,7 @@ private struct WeeklyRowView: View {
                     .foregroundColor(DesignSystem.Colors.secondaryText)
                     .monospacedDigit()
                     .lineLimit(1)
+                    .help(durationText(seconds: row.totalSeconds))
             }
 
             GeometryReader { geo in
