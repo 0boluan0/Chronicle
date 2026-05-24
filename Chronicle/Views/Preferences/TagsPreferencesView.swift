@@ -65,7 +65,7 @@ struct TagsPreferencesView: View {
             }
             .pickerStyle(.segmented)
             .tint(DesignSystem.Colors.accentSkyBlue)
-            .frame(width: 360)
+            .frame(maxWidth: 360, alignment: .leading)
 
             Divider()
 
@@ -95,29 +95,7 @@ struct TagsPreferencesView: View {
     private var setupGuide: some View {
         SectionCard {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
-                    IconWell(
-                        systemImage: setupStage.systemImage,
-                        tone: setupStage.tone,
-                        accessibilityLabel: L("tags.setup.title")
-                    )
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("tags.setup.title")
-                            .font(.headline)
-                        Text(setupStage.detailKey)
-                            .font(DesignSystem.Typography.caption)
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
-                    }
-
-                    Spacer()
-
-                    StatusPill(
-                        L(setupStage.statusKey),
-                        systemImage: setupStage.statusIcon,
-                        tone: setupStage.tone
-                    )
-                }
+                setupGuideHeader
 
                 LazyVGrid(
                     columns: [GridItem(.adaptive(minimum: 150), spacing: DesignSystem.Spacing.md)],
@@ -154,41 +132,109 @@ struct TagsPreferencesView: View {
 
                 taggingSetupNextStep
 
-                HStack(spacing: DesignSystem.Spacing.sm) {
-                    Button {
-                        runPrimarySetupAction()
-                    } label: {
-                        Label(L(setupStage.actionKey), systemImage: setupStage.actionIcon)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(DesignSystem.Colors.accentSkyBlue)
-                    .accessibilityIdentifier("tags.setup.primaryAction")
-
-                    Button {
-                        openAppMappings()
-                    } label: {
-                        Label(L("tags.setup.action.apps"), systemImage: "rectangle.grid.1x2")
-                    }
-                    .buttonStyle(.bordered)
-                    .accessibilityIdentifier("tags.setup.reviewApps")
-
-                    Button {
-                        openAutomationRules()
-                    } label: {
-                        Label(L("tags.setup.action.automation"), systemImage: "sparkles")
-                    }
-                    .buttonStyle(.bordered)
-                    .accessibilityIdentifier("tags.setup.reviewAutomation")
-
-                    if isLoadingSetupSummary {
-                        ProgressView()
-                            .controlSize(.small)
-                    }
-
-                    Spacer()
-                }
+                setupActionGroup
             }
         }
+    }
+
+    private var setupGuideHeader: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+                setupGuideLead
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                setupStatusPill
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                setupGuideLead
+                setupStatusPill
+            }
+        }
+        .accessibilityIdentifier("tags.setup.header")
+    }
+
+    private var setupGuideLead: some View {
+        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+            IconWell(
+                systemImage: setupStage.systemImage,
+                tone: setupStage.tone,
+                accessibilityLabel: L("tags.setup.title")
+            )
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("tags.setup.title")
+                    .font(.headline)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(setupStage.detailKey)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private var setupStatusPill: some View {
+        StatusPill(
+            L(setupStage.statusKey),
+            systemImage: setupStage.statusIcon,
+            tone: setupStage.tone
+        )
+    }
+
+    private var setupActionGroup: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 170), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            Button {
+                runPrimarySetupAction()
+            } label: {
+                setupActionLabel(L(setupStage.actionKey), systemImage: setupStage.actionIcon)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(DesignSystem.Colors.accentSkyBlue)
+            .accessibilityIdentifier("tags.setup.primaryAction")
+
+            Button {
+                openAppMappings()
+            } label: {
+                setupActionLabel(L("tags.setup.action.apps"), systemImage: "rectangle.grid.1x2")
+            }
+            .buttonStyle(.bordered)
+            .accessibilityIdentifier("tags.setup.reviewApps")
+
+            Button {
+                openAutomationRules()
+            } label: {
+                setupActionLabel(L("tags.setup.action.automation"), systemImage: "sparkles")
+            }
+            .buttonStyle(.bordered)
+            .accessibilityIdentifier("tags.setup.reviewAutomation")
+
+            if isLoadingSetupSummary {
+                ProgressView()
+                    .controlSize(.small)
+            }
+        }
+        .accessibilityIdentifier("tags.setup.actions")
+    }
+
+    private func setupActionLabel(_ title: String, systemImage: String) -> some View {
+        Label {
+            Text(title)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: systemImage)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var taggingSetupNextStep: some View {

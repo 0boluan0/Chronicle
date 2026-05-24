@@ -56,6 +56,8 @@ final class ChronicleUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["3. Automation"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Recommended next"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Use the app list as a release check."].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["tags.setup.header"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["tags.setup.actions"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["tags.setup.nextStep"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["tags.setup.nextAction"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["tags.setup.primaryAction"].waitForExistence(timeout: 5))
