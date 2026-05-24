@@ -2069,7 +2069,7 @@ struct ReportsWorkspaceView: View {
 
     private var csvDestinationControls: some View {
         LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 150), spacing: DesignSystem.Spacing.sm)],
+            columns: [GridItem(.adaptive(minimum: 170), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
             alignment: .leading,
             spacing: DesignSystem.Spacing.sm
         ) {
@@ -2084,7 +2084,7 @@ struct ReportsWorkspaceView: View {
         Button {
             chooseCsvFolder()
         } label: {
-            Label(L("reports.choose_folder"), systemImage: "folder.badge.plus")
+            reportFolderActionLabel(L("reports.choose_folder"), systemImage: "folder.badge.plus")
         }
         .buttonStyle(.bordered)
         .accessibilityIdentifier("reports.chooseCsvFolder")
@@ -2094,7 +2094,7 @@ struct ReportsWorkspaceView: View {
         Button {
             csvStatus = handleOpenFolder(result: ReportService.shared.openCsvFolder())
         } label: {
-            Label(L("reports.open_folder"), systemImage: "folder")
+            reportFolderActionLabel(L("reports.open_folder"), systemImage: "folder")
         }
         .buttonStyle(.bordered)
         .accessibilityIdentifier("reports.daily.preview")
@@ -2522,7 +2522,7 @@ struct ReportsWorkspaceView: View {
                         Button {
                             chooseDailyFolder()
                         } label: {
-                            Label(L("reports.choose_folder"), systemImage: "folder.badge.plus")
+                            reportFolderActionLabel(L("reports.choose_folder"), systemImage: "folder.badge.plus")
                         }
                         .buttonStyle(.bordered)
                         .accessibilityIdentifier("reports.chooseDailyFolder")
@@ -2530,14 +2530,14 @@ struct ReportsWorkspaceView: View {
                         Button {
                             dailyStatus = handleOpenFolder(result: ReportService.shared.openDailyFolder())
                         } label: {
-                            Label(L("reports.open_folder"), systemImage: "folder")
+                            reportFolderActionLabel(L("reports.open_folder"), systemImage: "folder")
                         }
                         .buttonStyle(.bordered)
 
                         Button {
                             generateDaily(date: Date())
                         } label: {
-                            Label(L("reports.daily.generate_today"), systemImage: "doc.badge.plus")
+                            reportFolderActionLabel(L("reports.daily.generate_today"), systemImage: "doc.badge.plus")
                         }
                         .buttonStyle(.borderedProminent)
                         .accessibilityIdentifier("reports.generateDailyToday")
@@ -2600,7 +2600,7 @@ struct ReportsWorkspaceView: View {
                         Button {
                             chooseWeeklyFolder()
                         } label: {
-                            Label(L("reports.choose_folder"), systemImage: "folder.badge.plus")
+                            reportFolderActionLabel(L("reports.choose_folder"), systemImage: "folder.badge.plus")
                         }
                         .buttonStyle(.bordered)
                         .accessibilityIdentifier("reports.chooseWeeklyFolder")
@@ -2608,7 +2608,7 @@ struct ReportsWorkspaceView: View {
                         Button {
                             weeklyStatus = handleOpenFolder(result: ReportService.shared.openWeeklyFolder())
                         } label: {
-                            Label(L("reports.open_folder"), systemImage: "folder")
+                            reportFolderActionLabel(L("reports.open_folder"), systemImage: "folder")
                         }
                         .buttonStyle(.bordered)
                     },
@@ -2884,18 +2884,30 @@ struct ReportsWorkspaceView: View {
         @ViewBuilder toggles: () -> Toggles
     ) -> some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.md)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.md
-            ) {
-                reportFolderHeaderCopy(
-                    systemImage: systemImage,
-                    folderPath: folderPath,
-                    folderStatus: folderStatus,
-                    folderStatusIdentifier: folderStatusIdentifier
-                )
-                reportFolderActions(actions)
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                    reportFolderHeaderCopy(
+                        systemImage: systemImage,
+                        folderPath: folderPath,
+                        folderStatus: folderStatus,
+                        folderStatusIdentifier: folderStatusIdentifier
+                    )
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    reportFolderActions(actions)
+                        .frame(width: 360, alignment: .leading)
+                }
+
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+                    reportFolderHeaderCopy(
+                        systemImage: systemImage,
+                        folderPath: folderPath,
+                        folderStatus: folderStatus,
+                        folderStatusIdentifier: folderStatusIdentifier
+                    )
+
+                    reportFolderActions(actions)
+                }
             }
 
             Divider()
@@ -2950,11 +2962,23 @@ struct ReportsWorkspaceView: View {
 
     private func reportFolderActions<Actions: View>(_ actions: () -> Actions) -> some View {
         LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 142), spacing: DesignSystem.Spacing.sm)],
+            columns: [GridItem(.adaptive(minimum: 170), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
             alignment: .leading,
             spacing: DesignSystem.Spacing.sm
         ) {
             actions()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func reportFolderActionLabel(_ title: String, systemImage: String) -> some View {
+        Label {
+            Text(title)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        } icon: {
+            Image(systemName: systemImage)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
