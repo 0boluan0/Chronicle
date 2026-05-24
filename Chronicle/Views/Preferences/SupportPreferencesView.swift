@@ -646,7 +646,7 @@ struct SupportPreferencesView: View {
     ) -> some View {
         RowSurface(tone: tone) {
             ViewThatFits(in: .horizontal) {
-                HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+                HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
                     supportPathText(systemImage: systemImage, tone: tone, title: title, detail: detail)
                         .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -671,7 +671,7 @@ struct SupportPreferencesView: View {
         title: LocalizedStringKey,
         detail: LocalizedStringKey
     ) -> some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
             IconWell(systemImage: systemImage, tone: tone)
 
             VStack(alignment: .leading, spacing: 3) {
@@ -679,12 +679,14 @@ struct SupportPreferencesView: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
                     .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(detail)
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
                     .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -745,7 +747,7 @@ struct SupportPreferencesView: View {
         title: String,
         detail: String
     ) -> some View {
-        HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
             IconWell(systemImage: systemImage, tone: tone)
 
             VStack(alignment: .leading, spacing: 3) {
@@ -753,13 +755,16 @@ struct SupportPreferencesView: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
                     .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(detail)
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
                     .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
+                    .help(detail)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -1061,7 +1066,11 @@ struct SupportPreferencesView: View {
             Text(text)
                 .font(DesignSystem.Typography.caption)
                 .foregroundColor(DesignSystem.Colors.secondaryText)
+                .lineLimit(3)
+                .truncationMode(.middle)
+                .fixedSize(horizontal: false, vertical: true)
                 .textSelection(.enabled)
+                .help(text)
         }
     }
 
