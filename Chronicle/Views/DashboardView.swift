@@ -433,16 +433,19 @@ struct DashboardView: View {
 
     private var sidebarTodayControlPanel: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
-                Text("dashboard.sidebar.control_title")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
+                    sidebarTodayControlTitle
 
-                Spacer(minLength: 0)
+                    Spacer(minLength: 0)
 
-                StatusPill(sidebarTodayStatusText, systemImage: sidebarTodayStatusIconName, tone: sidebarTodayStatusTone)
-                    .layoutPriority(1)
+                    sidebarTodayControlStatus
+                }
+
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                    sidebarTodayControlTitle
+                    sidebarTodayControlStatus
+                }
             }
 
             sidebarTodayStatus
@@ -468,6 +471,18 @@ struct DashboardView: View {
         )
         .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
         .accessibilityIdentifier("dashboard.sidebar.todayControl")
+    }
+
+    private var sidebarTodayControlTitle: some View {
+        Text("dashboard.sidebar.control_title")
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.primary)
+            .lineLimit(1)
+    }
+
+    private var sidebarTodayControlStatus: some View {
+        StatusPill(sidebarTodayStatusText, systemImage: sidebarTodayStatusIconName, tone: sidebarTodayStatusTone)
+            .fixedSize(horizontal: true, vertical: false)
     }
 
     private var sidebarQuickActionGrid: some View {
