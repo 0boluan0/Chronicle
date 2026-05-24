@@ -530,7 +530,9 @@ struct TimelineView: View {
                 spacing: DesignSystem.Spacing.xs
             ) {
                 timelineGroupTitle(group)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 timelineGroupPills(summary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             if let hint = timelineGroupHint(for: summary) {
@@ -546,17 +548,36 @@ struct TimelineView: View {
     }
 
     private func timelineGroupTitle(_ group: TimelineGroup) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.sm) {
-            Text(group.label)
-                .font(.headline.weight(.semibold))
-                .foregroundColor(DesignSystem.Colors.primaryText)
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.sm) {
+                timelineGroupLabel(group)
 
-            StatusPill(
-                String(format: L("timeline.group.item_count"), group.items.count),
-                systemImage: "list.bullet",
-                tone: .neutral
-            )
+                StatusPill(
+                    String(format: L("timeline.group.item_count"), group.items.count),
+                    systemImage: "list.bullet",
+                    tone: .neutral
+                )
+                .fixedSize(horizontal: true, vertical: false)
+            }
+
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                timelineGroupLabel(group)
+
+                StatusPill(
+                    String(format: L("timeline.group.item_count"), group.items.count),
+                    systemImage: "list.bullet",
+                    tone: .neutral
+                )
+            }
         }
+    }
+
+    private func timelineGroupLabel(_ group: TimelineGroup) -> some View {
+        Text(group.label)
+            .font(.headline.weight(.semibold))
+            .foregroundColor(DesignSystem.Colors.primaryText)
+            .lineLimit(2)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     @ViewBuilder
