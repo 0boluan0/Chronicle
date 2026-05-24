@@ -115,6 +115,7 @@ struct QuickMarkerEntryView: View {
         Label {
             Text(title)
                 .lineLimit(2)
+                .minimumScaleFactor(0.86)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
         } icon: {
@@ -1040,7 +1041,7 @@ struct QuickMarkerEntryView: View {
         Button {
             stopOpenSpan(openSpan)
         } label: {
-            Label(L("quick_marker.session_stop"), systemImage: "stop.circle")
+            quickMarkerActionLabel(L("quick_marker.session_stop"), systemImage: "stop.circle")
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
