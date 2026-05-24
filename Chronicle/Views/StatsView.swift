@@ -966,6 +966,8 @@ struct StatsView: View {
                         tone: .neutral
                     )
                     .padding(.vertical, DesignSystem.Spacing.xs)
+
+                    deepWorkEmptyPath
                 } else {
                     ForEach(deepWorkBlocks) { block in
                         HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
@@ -1060,6 +1062,32 @@ struct StatsView: View {
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
+        }
+    }
+
+    private var deepWorkEmptyPath: some View {
+        statsEmptyPath(accessibilityIdentifier: "stats.deepWork.emptyPath") {
+            statsEmptyPathItem(
+                titleKey: "stats.deep_work.empty.path.focus_title",
+                detailKey: "stats.deep_work.empty.path.focus_detail",
+                systemImage: "rectangle.3.group.fill",
+                tone: .success,
+                accessibilityIdentifier: "stats.deepWork.emptyPath.focus"
+            )
+            statsEmptyPathItem(
+                titleKey: "stats.deep_work.empty.path.switching_title",
+                detailKey: "stats.deep_work.empty.path.switching_detail",
+                systemImage: "arrow.triangle.2.circlepath",
+                tone: .warning,
+                accessibilityIdentifier: "stats.deepWork.emptyPath.switching"
+            )
+            statsEmptyPathItem(
+                titleKey: "stats.deep_work.empty.path.note_title",
+                detailKey: "stats.deep_work.empty.path.note_detail",
+                systemImage: "note.text",
+                tone: .info,
+                accessibilityIdentifier: "stats.deepWork.emptyPath.note"
+            )
         }
     }
 

@@ -2284,6 +2284,12 @@
 "stats.deep_work.title" = "深工作块";
 "stats.deep_work.empty" = "未发现深工作块。";
 "stats.deep_work.empty_hint" = "深工作块定义为同一分类连续 >=25 分钟且切换较少。";
+"stats.deep_work.empty.path.focus_title" = "保持同一主线";
+"stats.deep_work.empty.path.focus_detail" = "同一宽分类连续 25 分钟以上后会形成深工作块。";
+"stats.deep_work.empty.path.switching_title" = "减少切换";
+"stats.deep_work.empty.path.switching_detail" = "频繁应用跳转会打断区块，即使任务本身相关。";
+"stats.deep_work.empty.path.note_title" = "补一条备注";
+"stats.deep_work.empty.path.note_detail" = "如果这段工作重要，先留下语境，方便之后复盘。";
 "stats.deep_work.open_dashboard" = "打开今天";
 "stats.deep_work.switches" = "切换 %d 次";
 "stats.idle_suppression.active" = "空闲抑制生效中：%@";

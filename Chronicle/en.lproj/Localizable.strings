@@ -2284,6 +2284,12 @@
 "stats.deep_work.title" = "Deep Work Blocks";
 "stats.deep_work.empty" = "No deep work blocks found.";
 "stats.deep_work.empty_hint" = "Deep work blocks are contiguous same-category sessions >= 25 minutes with low switching.";
+"stats.deep_work.empty.path.focus_title" = "Hold one lane";
+"stats.deep_work.empty.path.focus_detail" = "Stay in the same broad category for 25 minutes or more.";
+"stats.deep_work.empty.path.switching_title" = "Reduce switching";
+"stats.deep_work.empty.path.switching_detail" = "Short app hops can break a block even when the work is related.";
+"stats.deep_work.empty.path.note_title" = "Leave a note";
+"stats.deep_work.empty.path.note_detail" = "Add context when the work matters before a block appears.";
 "stats.deep_work.open_dashboard" = "Open Today";
 "stats.deep_work.switches" = "%d switches";
 "stats.idle_suppression.active" = "Idle suppression active: %@";
