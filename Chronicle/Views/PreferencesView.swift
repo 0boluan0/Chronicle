@@ -248,6 +248,8 @@ struct PreferencesView: View {
 
                 setupGuideProgressSummary
 
+                setupGuideFocusCard
+
                 setupGuideCurrentStep
 
                 Divider()
@@ -369,6 +371,75 @@ struct PreferencesView: View {
         )
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("preferences.sidebar.guide.progress")
+    }
+
+    private var setupGuideFocusCard: some View {
+        let readiness = setupGuideFocusReadiness
+
+        return Button {
+            openSetupGuideFocus()
+        } label: {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                Image(systemName: setupGuideFocusIconName)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(readiness.tone.color)
+                    .frame(width: 18, height: 18)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Label {
+                        Text("preferences.sidebar.guide.focus.title")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    } icon: {
+                        Image(systemName: "scope")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(readiness.tone.color)
+                    }
+                    .labelStyle(.titleAndIcon)
+
+                    Text(LocalizedStringKey(setupGuideFocusTitleKey))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Text(LocalizedStringKey(setupGuideFocusDetailKey))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    StatusPill(
+                        L(setupGuideFocusActionKey),
+                        systemImage: setupGuideFocusActionIconName,
+                        tone: readiness.tone
+                    )
+                    .padding(.top, 2)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Image(systemName: "arrow.right.circle.fill")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(readiness.tone.color)
+                    .padding(.top, 1)
+            }
+            .padding(DesignSystem.Spacing.sm)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                    .fill(readiness.tone.color.opacity(0.08))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                    .stroke(readiness.tone.color.opacity(0.22), lineWidth: 1)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.sm))
+        }
+        .buttonStyle(.plain)
+        .help("\(L(setupGuideFocusTitleKey)): \(L(setupGuideFocusDetailKey))")
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("preferences.sidebar.guide.focus")
     }
 
     private var setupGuideProgressPill: some View {
@@ -662,6 +733,119 @@ struct PreferencesView: View {
         reportSettings.dailyExportFailed(for: Date())
     }
 
+    private var setupGuideFocusSection: Section? {
+        setupGuideProgressSections.first { setupGuideReadiness(for: $0).needsAttention }
+    }
+
+    private var setupGuideFocusReadiness: PreferencesSetupReadiness {
+        guard let section = setupGuideFocusSection else {
+            return PreferencesSetupReadiness(
+                titleKey: "preferences.sidebar.guide.status.ready",
+                systemImage: "checkmark.seal.fill",
+                tone: .success
+            )
+        }
+        return setupGuideReadiness(for: section)
+    }
+
+    private var setupGuideFocusIconName: String {
+        setupGuideFocusReadiness.systemImage
+    }
+
+    private var setupGuideFocusTitleKey: String {
+        guard let section = setupGuideFocusSection else {
+            return "preferences.sidebar.guide.focus.ready_title"
+        }
+        switch section {
+        case .general:
+            return "preferences.sidebar.guide.focus.general_title"
+        case .privacy:
+            return "preferences.sidebar.guide.focus.privacy_title"
+        case .tags:
+            return "preferences.sidebar.guide.focus.tags_title"
+        case .export:
+            return setupGuideDailyLogSaveFailed
+                ? "preferences.sidebar.guide.focus.logs_failed_title"
+                : "preferences.sidebar.guide.focus.logs_title"
+        case .support:
+            return "preferences.sidebar.guide.focus.health_title"
+#if DEBUG
+        case .debug:
+            return "preferences.sidebar.guide.focus.ready_title"
+#endif
+        }
+    }
+
+    private var setupGuideFocusDetailKey: String {
+        guard let section = setupGuideFocusSection else {
+            return "preferences.sidebar.guide.focus.ready_detail"
+        }
+        switch section {
+        case .general:
+            return "preferences.sidebar.guide.focus.general_detail"
+        case .privacy:
+            return "preferences.sidebar.guide.focus.privacy_detail"
+        case .tags:
+            return "preferences.sidebar.guide.focus.tags_detail"
+        case .export:
+            return setupGuideDailyLogSaveFailed
+                ? "preferences.sidebar.guide.focus.logs_failed_detail"
+                : "preferences.sidebar.guide.focus.logs_detail"
+        case .support:
+            return "preferences.sidebar.guide.focus.health_detail"
+#if DEBUG
+        case .debug:
+            return "preferences.sidebar.guide.focus.ready_detail"
+#endif
+        }
+    }
+
+    private var setupGuideFocusActionKey: String {
+        guard let section = setupGuideFocusSection else {
+            return "preferences.sidebar.guide.focus.action_today"
+        }
+        switch section {
+        case .general:
+            return "preferences.sidebar.guide.focus.action_general"
+        case .privacy:
+            return "preferences.sidebar.guide.focus.action_privacy"
+        case .tags:
+            return "preferences.sidebar.guide.focus.action_tags"
+        case .export:
+            return setupGuideDailyLogSaveFailed
+                ? "preferences.sidebar.guide.next.retry_daily_log"
+                : "preferences.sidebar.guide.focus.action_logs"
+        case .support:
+            return "preferences.sidebar.guide.focus.action_health"
+#if DEBUG
+        case .debug:
+            return "preferences.sidebar.guide.focus.action_today"
+#endif
+        }
+    }
+
+    private var setupGuideFocusActionIconName: String {
+        guard let section = setupGuideFocusSection else {
+            return "sun.max"
+        }
+        switch section {
+        case .export where setupGuideDailyLogSaveFailed:
+            return "arrow.clockwise"
+        case .privacy:
+            return "hand.raised"
+        case .tags:
+            return "rectangle.split.3x1"
+        case .support:
+            return "stethoscope"
+#if DEBUG
+        case .debug:
+            return "sun.max"
+#endif
+        default:
+            return "arrow.forward"
+        }
+    }
+
     private func setupGuideReadiness(for section: Section) -> PreferencesSetupReadiness {
         switch section {
         case .general:
@@ -847,6 +1031,23 @@ struct PreferencesView: View {
         case .debug:
             selectedSectionRaw = Section.support.rawValue
 #endif
+        }
+    }
+
+    private func openSetupGuideFocus() {
+        guard let section = setupGuideFocusSection else {
+            AppWindowRouter.shared.open(.dashboard)
+            return
+        }
+
+        switch section {
+        case .tags:
+            PreferencesNavigationDestination.tagsRules.apply()
+            selectedSectionRaw = Section.tags.rawValue
+        case .export where setupGuideDailyLogSaveFailed:
+            AppWindowRouter.shared.openDashboard(destination: .reports)
+        default:
+            selectedSectionRaw = section.rawValue
         }
     }
 
