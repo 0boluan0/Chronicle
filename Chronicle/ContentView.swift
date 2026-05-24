@@ -888,50 +888,6 @@ struct ContentView: View {
         .accessibilityIdentifier(accessibilityIdentifier)
     }
 
-    private var selfCheckStatusView: some View {
-        SectionCard(title: "popover.self_check.title") {
-            HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
-                Image(systemName: selfCheckIconName)
-                    .font(.title3.weight(.semibold))
-                    .foregroundColor(selfCheckTone.color)
-                    .frame(width: 24)
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(selfCheckHeadline)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundColor(DesignSystem.Colors.primaryText)
-                        .lineLimit(2)
-
-                    Text(selfCheckDetail)
-                        .font(DesignSystem.Typography.caption)
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                        .lineLimit(2)
-                }
-
-                Spacer()
-
-                Button {
-                    healthCheckService.runQuickChecks()
-                } label: {
-                    popoverActionLabel(L("popover.self_check.run"), systemImage: "checkmark.shield")
-                }
-                .buttonStyle(.bordered)
-                .disabled(healthCheckService.isRunning)
-                .accessibilityIdentifier("popover.runSelfCheck")
-
-                if shouldShowSelfCheckDetailsButton {
-                    Button {
-                        showSelfCheckDetails = true
-                    } label: {
-                        popoverActionLabel(L("popover.self_check.details"), systemImage: "doc.text.magnifyingglass")
-                    }
-                    .buttonStyle(.bordered)
-                    .accessibilityIdentifier("popover.selfCheckDetails")
-                }
-            }
-        }
-    }
-
     private var dailySnapshotView: some View {
         SectionCard(title: "popover.daily_snapshot.title") {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
@@ -2170,19 +2126,6 @@ struct ContentView: View {
         } else {
             exportDailyNow()
         }
-    }
-
-    @ViewBuilder
-    private func snapshotMetric(titleKey: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(LocalizedStringKey(titleKey))
-                .font(DesignSystem.Typography.caption)
-                .foregroundColor(DesignSystem.Colors.secondaryText)
-            Text(value)
-                .font(.subheadline.weight(.semibold))
-                .foregroundColor(DesignSystem.Colors.primaryText)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func snapshotContextItem(titleKey: LocalizedStringKey, value: String, systemImage: String) -> some View {
