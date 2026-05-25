@@ -280,6 +280,9 @@
 "self_check.details.evidence.exports" = "日志保存";
 "self_check.details.evidence.exports_ready" = "日志保存设置没有缺失目录问题。";
 "self_check.details.evidence.exports_attention" = "已启用的日志保存仍需要设置目标目录。";
+"self_check.details.evidence.runtime" = "运行队列";
+"self_check.details.evidence.runtime_ready" = "本地写入与汇总队列当前已清空。";
+"self_check.details.evidence.runtime_active" = "仍有本地任务排队；判断复盘界面是否滞后前，可以稍等片刻。";
 "self_check.details.evidence.data_quality" = "复盘准确性";
 "self_check.details.evidence.data_quality_ready" = "近期检查未发现异常会话或时间顺序问题。";
 "self_check.details.evidence.data_quality_attention" = "Chronicle 发现了可能影响复盘准确性的时间线结构警告。";

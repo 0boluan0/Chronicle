@@ -280,6 +280,9 @@
 "self_check.details.evidence.exports" = "Log saving";
 "self_check.details.evidence.exports_ready" = "Saved-log settings do not have a missing-folder problem.";
 "self_check.details.evidence.exports_attention" = "An enabled saved log still needs a destination folder.";
+"self_check.details.evidence.runtime" = "Runtime queues";
+"self_check.details.evidence.runtime_ready" = "Local write and summary queues are clear right now.";
+"self_check.details.evidence.runtime_active" = "Local work is still queued. Wait a moment before judging a stale review screen.";
 "self_check.details.evidence.data_quality" = "Review accuracy";
 "self_check.details.evidence.data_quality_ready" = "Recent checks did not find broken sessions or time-order problems.";
 "self_check.details.evidence.data_quality_attention" = "Chronicle found timeline-shape warnings that may affect review accuracy.";

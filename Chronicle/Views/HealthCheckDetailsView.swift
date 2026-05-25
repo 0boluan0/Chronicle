@@ -2128,6 +2128,13 @@ struct HealthCheckDetailsView: View {
         let dailyReady = !autoDailyEnabled || metricBool("daily_export_folder_configured", in: metrics)
         let weeklyReady = !autoWeeklyEnabled || metricBool("weekly_export_folder_configured", in: metrics)
         let exportReady = dailyReady && weeklyReady
+        let runtimeBacklog = metricInt("runtime_db_write_backlog", in: metrics)
+            + metricInt("runtime_aggregation_backlog", in: metrics)
+        let runtimeAverageMs = max(
+            metricInt("runtime_db_write_average_latency_ms", in: metrics),
+            metricInt("runtime_aggregation_average_latency_ms", in: metrics)
+        )
+        let runtimeReady = runtimeBacklog == 0
 
         return [
             HealthEvidenceItem(
@@ -2165,6 +2172,15 @@ struct HealthCheckDetailsView: View {
                 systemImage: "arrow.up.doc",
                 tone: exportReady ? .success : .warning,
                 accessibilitySuffix: "exports"
+            ),
+            HealthEvidenceItem(
+                titleKey: "self_check.details.evidence.runtime",
+                detailKey: runtimeReady ? "self_check.details.evidence.runtime_ready" : "self_check.details.evidence.runtime_active",
+                statusText: String(format: L("debug.runtime.latency_value"), runtimeBacklog, runtimeAverageMs),
+                statusIconName: runtimeReady ? "checkmark" : "arrow.triangle.2.circlepath",
+                systemImage: "gauge",
+                tone: runtimeReady ? .success : .info,
+                accessibilitySuffix: "runtime"
             ),
             HealthEvidenceItem(
                 titleKey: "self_check.details.evidence.data_quality",

@@ -59,6 +59,10 @@ final class HealthCheckService: ObservableObject {
         metrics["auto_weekly_export_enabled"] = reportSettings.enableAutoWeeklyExport ? "true" : "false"
         metrics["daily_export_folder_configured"] = reportSettings.dailyFolderBookmark == nil ? "false" : "true"
         metrics["weekly_export_folder_configured"] = reportSettings.weeklyFolderBookmark == nil ? "false" : "true"
+        metrics["runtime_db_write_backlog"] = "\(appState.runtimePerformance.dbWriteBacklog)"
+        metrics["runtime_db_write_average_latency_ms"] = "\(appState.runtimePerformance.dbWriteAverageLatencyMs)"
+        metrics["runtime_aggregation_backlog"] = "\(appState.runtimePerformance.aggregationBacklog)"
+        metrics["runtime_aggregation_average_latency_ms"] = "\(appState.runtimePerformance.aggregationAverageLatencyMs)"
 
         if !dbFolderWritable {
             issues.append(

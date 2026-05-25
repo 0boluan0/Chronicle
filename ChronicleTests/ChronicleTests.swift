@@ -906,6 +906,33 @@ final class ChronicleTests: XCTestCase {
         XCTAssertEqual(report?.issues.filter { $0.severity == .error }.count, 0)
     }
 
+    func testHealthCheckAugmentsRuntimePerformanceMetrics() {
+        let previousRuntimePerformance = AppState.shared.runtimePerformance
+        defer { AppState.shared.runtimePerformance = previousRuntimePerformance }
+
+        AppState.shared.runtimePerformance = RuntimePerformanceSnapshot(
+            dbWriteBacklog: 2,
+            dbWriteLastLatencyMs: 40,
+            dbWriteAverageLatencyMs: 30,
+            dbWriteMaxLatencyMs: 60,
+            dbWriteSampleCount: 3,
+            aggregationBacklog: 1,
+            aggregationLastLatencyMs: 80,
+            aggregationAverageLatencyMs: 50,
+            aggregationMaxLatencyMs: 90,
+            aggregationSampleCount: 2
+        )
+
+        let report = HealthCheckService.augmentedReport(
+            from: HealthCheckReport(checkedAt: Date(timeIntervalSince1970: 0), issues: [], metrics: [:])
+        )
+
+        XCTAssertEqual(report.metrics["runtime_db_write_backlog"], "2")
+        XCTAssertEqual(report.metrics["runtime_db_write_average_latency_ms"], "30")
+        XCTAssertEqual(report.metrics["runtime_aggregation_backlog"], "1")
+        XCTAssertEqual(report.metrics["runtime_aggregation_average_latency_ms"], "50")
+    }
+
     func testInitializationIsIdempotentAndSeedsDefaults() {
         let url = makeTempDatabaseURL("idempotent-init")
         let first = DatabaseService.makeTestInstance(databaseURL: url)
@@ -1435,6 +1462,9 @@ final class ChronicleTests: XCTestCase {
             "popover.self_check.title",
             "self_check.details.summary_title",
             "self_check.details.evidence_title",
+            "self_check.details.evidence.runtime",
+            "self_check.details.evidence.runtime_ready",
+            "self_check.details.evidence.runtime_active",
             "self_check.details.status.ready",
             "self_check.details.issue.not_run_detail",
             "self_check.details.issue_triage.title",
