@@ -12,6 +12,7 @@ import UserNotifications
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private enum MenuNextStepState {
+        case savingDailyLog
         case resumeCapture
         case chooseFolder
         case retryDailyLog
@@ -20,6 +21,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
         var titleKey: String {
             switch self {
+            case .savingDailyLog:
+                return "menu.next_step.saving_daily_log"
             case .resumeCapture:
                 return "menu.next_step.resume_capture"
             case .chooseFolder:
@@ -35,6 +38,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
         var symbolName: String {
             switch self {
+            case .savingDailyLog:
+                return "arrow.clockwise"
             case .resumeCapture:
                 return "play.fill"
             case .chooseFolder:
@@ -45,6 +50,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 return "checkmark.seal"
             case .addContext:
                 return "square.and.pencil"
+            }
+        }
+
+        var isEnabled: Bool {
+            switch self {
+            case .savingDailyLog:
+                return false
+            case .resumeCapture, .chooseFolder, .retryDailyLog, .reviewSavedLog, .addContext:
+                return true
             }
         }
     }
@@ -385,6 +399,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         let title = L(presentation.titleKey)
         exportItem?.title = title
         exportItem?.image = menuImage(systemSymbolName: presentation.symbolName, accessibilityText: title)
+        exportItem?.isEnabled = !DailyLogExportAction.isRunning
     }
 
     private func updateDynamicStatusMenuItems() {
@@ -397,6 +412,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         let settings = ReportSettings.shared
         let now = Date()
 
+        if DailyLogExportAction.isRunning {
+            return .savingDailyLog
+        }
         if appState.trackingPaused {
             return .resumeCapture
         }
@@ -421,7 +439,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         let title = L(state.titleKey)
         menuNextStepItem?.title = title
         menuNextStepItem?.image = menuImage(systemSymbolName: state.symbolName, accessibilityText: title)
-        menuNextStepItem?.isEnabled = true
+        menuNextStepItem?.isEnabled = state.isEnabled
     }
 
     private func updateStatusItemAppearance() {
@@ -554,6 +572,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             AppWindowRouter.shared.openDashboard(destination: .reports)
         case .addContext:
             AppWindowRouter.shared.open(.quickMarker)
+        case .savingDailyLog:
+            break
         }
     }
 
@@ -697,9 +717,13 @@ enum DailyLogExportAction {
         let symbolName: String
     }
 
+    static private(set) var isRunning = false
     private static var feedbackToken: UUID?
 
     static func presentation(settings: ReportSettings = .shared, now: Date = Date()) -> Presentation {
+        if isRunning {
+            return Presentation(titleKey: "menu.exporting", symbolName: "arrow.clockwise")
+        }
         if settings.dailyFolderBookmark == nil {
             return Presentation(titleKey: "menu.export_setup", symbolName: "folder.badge.plus")
         }
@@ -713,6 +737,11 @@ enum DailyLogExportAction {
     }
 
     static func perform(onStateChanged: (() -> Void)? = nil) {
+        guard !isRunning else {
+            presentFeedback(message: L("menu.exporting"), isError: false)
+            onStateChanged?()
+            return
+        }
         TelemetryService.shared.increment("menu_export_daily_clicked")
         guard ReportSettings.shared.dailyFolderBookmark != nil else {
             presentFeedback(message: L("reports.folder.not_set"), isError: true)
@@ -721,9 +750,12 @@ enum DailyLogExportAction {
             return
         }
 
+        isRunning = true
+        onStateChanged?()
         presentFeedback(message: L("menu.exporting"), isError: false)
         ReportService.shared.generateDailyReport(date: Date()) { result in
             DispatchQueue.main.async {
+                isRunning = false
                 switch result {
                 case .success(let info):
                     let message = String(format: L("export.now.success"), info.fileName)

@@ -51,6 +51,7 @@ struct AppWindowRouterCommands: Commands {
                 DailyLogExportAction.perform()
             }
             .keyboardShortcut("e", modifiers: [.command])
+            .disabled(DailyLogExportAction.isRunning)
 
             Divider()
 

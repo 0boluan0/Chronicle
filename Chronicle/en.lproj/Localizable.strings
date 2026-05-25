@@ -26,6 +26,7 @@
 "menu.next_step.retry_daily_log" = "Next: Retry Daily Log";
 "menu.next_step.review_saved_log" = "Next: Review Saved Log";
 "menu.next_step.add_context" = "Next: Add Context";
+"menu.next_step.saving_daily_log" = "Saving Daily Log…";
 "about.credits" = "Offline work journal for capturing a local timeline, adding context, and saving reviewable Markdown closeouts.";
 
 "popover.open_dashboard" = "Open Today";

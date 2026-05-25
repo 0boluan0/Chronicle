@@ -26,6 +26,7 @@
 "menu.next_step.retry_daily_log" = "下一步：重试今日日志";
 "menu.next_step.review_saved_log" = "下一步：查看已保存日志";
 "menu.next_step.add_context" = "下一步：补一条语境";
+"menu.next_step.saving_daily_log" = "正在保存今日日志…";
 "about.credits" = "离线工作日志，用于记录本地时间线、补充语境，并保存可复查的 Markdown 复盘。";
 
 "popover.open_dashboard" = "打开今天";
