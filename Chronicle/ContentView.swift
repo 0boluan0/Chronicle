@@ -21,7 +21,6 @@ struct ContentView: View {
     @State private var now = Date()
     @State private var showSelfCheckDetails = false
     @State private var showPauseTrackingConfirmation = false
-    @State private var isDailyExportRunning = false
     private let reminderRefreshTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
 
     var body: some View {
@@ -1400,7 +1399,7 @@ struct ContentView: View {
     }
 
     private var dailySnapshotGuidance: DailySnapshotGuidanceKind {
-        if isDailyExportRunning {
+        if DailyLogExportAction.isRunning {
             return .exporting
         }
         if dailySnapshot.activeSeconds >= 15 * 60 && dailySnapshot.reviewCueCount == 0 && !dailyLogExportFailedToday {
@@ -1658,7 +1657,7 @@ struct ContentView: View {
     }
 
     private var nextActionKind: PopoverNextActionKind {
-        if isDailyExportRunning {
+        if DailyLogExportAction.isRunning {
             return .savingDailyLog
         }
         if appState.trackingPaused {
@@ -1780,11 +1779,11 @@ struct ContentView: View {
     }
 
     private var primaryNextActionIsExporting: Bool {
-        isDailyExportRunning && nextActionKind.primaryActionRunsDailyExport
+        DailyLogExportAction.isRunning && nextActionKind.primaryActionRunsDailyExport
     }
 
     private var dailySnapshotPrimaryActionIsExporting: Bool {
-        isDailyExportRunning && dailySnapshotPrimaryActionRunsExport
+        DailyLogExportAction.isRunning && dailySnapshotPrimaryActionRunsExport
     }
 
     private var dailySnapshotPrimaryActionRunsExport: Bool {
@@ -1792,7 +1791,7 @@ struct ContentView: View {
     }
 
     private func snapshotGuidanceActionIsExporting(_ guidance: DailySnapshotGuidanceKind) -> Bool {
-        isDailyExportRunning && guidance.runsDailyExport
+        DailyLogExportAction.isRunning && guidance.runsDailyExport
     }
 
     private var exportNowStatus: StatusMessage? {
@@ -1813,7 +1812,7 @@ struct ContentView: View {
     }
 
     private var dailyLogMetricValue: String {
-        if isDailyExportRunning {
+        if DailyLogExportAction.isRunning {
             return L("popover.command_center.log_saving")
         }
         if !hasDailyExportFolderConfigured {
@@ -1829,7 +1828,7 @@ struct ContentView: View {
     }
 
     private var dailyLogMetricIconName: String {
-        if isDailyExportRunning {
+        if DailyLogExportAction.isRunning {
             return "arrow.clockwise"
         }
         if !hasDailyExportFolderConfigured {
@@ -1845,7 +1844,7 @@ struct ContentView: View {
     }
 
     private var dailyLogMetricTone: DesignSystem.StatusTone {
-        if isDailyExportRunning {
+        if DailyLogExportAction.isRunning {
             return .info
         }
         if !hasDailyExportFolderConfigured {
@@ -1895,7 +1894,7 @@ struct ContentView: View {
     }
 
     private var commandCenterLoopTitleKey: String {
-        if isDailyExportRunning {
+        if DailyLogExportAction.isRunning {
             return "popover.command_center.progress.exporting_title"
         }
         if appState.trackingPaused {
@@ -1920,7 +1919,7 @@ struct ContentView: View {
     }
 
     private var commandCenterLoopDetailKey: String {
-        if isDailyExportRunning {
+        if DailyLogExportAction.isRunning {
             return "popover.command_center.progress.exporting_detail"
         }
         if appState.trackingPaused {
@@ -1945,7 +1944,7 @@ struct ContentView: View {
     }
 
     private var commandCenterLoopIconName: String {
-        if isDailyExportRunning {
+        if DailyLogExportAction.isRunning {
             return "arrow.clockwise"
         }
         if appState.trackingPaused {
@@ -1970,7 +1969,7 @@ struct ContentView: View {
     }
 
     private var commandCenterLoopTone: DesignSystem.StatusTone {
-        if isDailyExportRunning {
+        if DailyLogExportAction.isRunning {
             return .info
         }
         if appState.trackingPaused || !hasDailyExportFolderConfigured || dailyLogExportFailedToday {
@@ -2047,7 +2046,7 @@ struct ContentView: View {
     }
 
     private var commandCenterLogStepIconName: String {
-        if isDailyExportRunning {
+        if DailyLogExportAction.isRunning {
             return "arrow.clockwise"
         }
         if !hasDailyExportFolderConfigured {
@@ -2063,7 +2062,7 @@ struct ContentView: View {
     }
 
     private var commandCenterLogStepTone: DesignSystem.StatusTone {
-        if isDailyExportRunning {
+        if DailyLogExportAction.isRunning {
             return .info
         }
         if !hasDailyExportFolderConfigured {
@@ -2653,34 +2652,8 @@ struct ContentView: View {
     }
 
     private func exportDailyNow() {
-        TelemetryService.shared.increment("export_daily_clicked")
-        guard !isDailyExportRunning else { return }
-        guard hasDailyExportFolderConfigured else {
-            appState.exportNowMessage = L("reports.folder.not_set")
-            appState.exportNowMessageIsError = true
-            openExportPreferences()
-            return
-        }
-        isDailyExportRunning = true
-        appState.exportNowMessage = L("menu.exporting")
-        appState.exportNowMessageIsError = false
-        ReportService.shared.generateDailyReport(date: Date()) { result in
-            DispatchQueue.main.async {
-                isDailyExportRunning = false
-                switch result {
-                case .success(let info):
-                    let message = String(format: L("export.now.success"), info.fileName)
-                    ReportSettings.shared.recordExportResult(kind: .daily, message: message, isError: false)
-                    appState.exportNowMessage = message
-                    appState.exportNowMessageIsError = false
-                case .failure(let error):
-                    let message = String(format: L("export.now.failed"), error.localizedDescription)
-                    ReportSettings.shared.recordExportResult(kind: .daily, message: message, isError: true)
-                    appState.exportNowMessage = message
-                    appState.exportNowMessageIsError = true
-                    AppLogger.log("Popover daily export failed: \(error.localizedDescription)", category: "report")
-                }
-            }
+        DailyLogExportAction.perform(source: .popover) {
+            refreshDailySnapshot(reason: "daily export state changed")
         }
     }
 

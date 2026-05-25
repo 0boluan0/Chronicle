@@ -712,6 +712,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 }
 
 enum DailyLogExportAction {
+    enum Source {
+        case menu
+        case popover
+
+        var clickedEvent: String {
+            switch self {
+            case .menu:
+                return "menu_export_daily_clicked"
+            case .popover:
+                return "export_daily_clicked"
+            }
+        }
+
+        var successEvent: String {
+            switch self {
+            case .menu:
+                return "menu_export_daily_success"
+            case .popover:
+                return "export_daily_success"
+            }
+        }
+
+        var failureEvent: String {
+            switch self {
+            case .menu:
+                return "menu_export_daily_failure"
+            case .popover:
+                return "export_daily_failure"
+            }
+        }
+    }
+
     struct Presentation {
         let titleKey: String
         let symbolName: String
@@ -740,13 +772,13 @@ enum DailyLogExportAction {
         return Presentation(titleKey: "menu.export_now", symbolName: "doc.badge.plus")
     }
 
-    static func perform(onStateChanged: (() -> Void)? = nil) {
+    static func perform(source: Source = .menu, onStateChanged: (() -> Void)? = nil) {
         guard !isRunning else {
             presentFeedback(message: L("menu.exporting"), isError: false)
             onStateChanged?()
             return
         }
-        TelemetryService.shared.increment("menu_export_daily_clicked")
+        TelemetryService.shared.increment(source.clickedEvent)
         guard ReportSettings.shared.dailyFolderBookmark != nil else {
             presentFeedback(message: L("reports.folder.not_set"), isError: true)
             onStateChanged?()
@@ -764,13 +796,13 @@ enum DailyLogExportAction {
                 case .success(let info):
                     let message = String(format: L("export.now.success"), info.fileName)
                     ReportSettings.shared.recordExportResult(kind: .daily, message: message, isError: false)
-                    TelemetryService.shared.increment("menu_export_daily_success")
+                    TelemetryService.shared.increment(source.successEvent)
                     presentFeedback(message: message, isError: false)
                     onStateChanged?()
                 case .failure(let error):
                     let message = String(format: L("export.now.failed"), error.localizedDescription)
                     ReportSettings.shared.recordExportResult(kind: .daily, message: message, isError: true)
-                    TelemetryService.shared.increment("menu_export_daily_failure")
+                    TelemetryService.shared.increment(source.failureEvent)
                     presentFeedback(message: message, isError: true)
                     onStateChanged?()
                     AppLogger.log("Export now failed: \(error.localizedDescription)", category: "report")
