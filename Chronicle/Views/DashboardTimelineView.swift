@@ -77,6 +77,7 @@ struct DashboardTimelineView: View {
     @State private var tags: [TagRow] = []
     @State private var rules: [RuleRow] = []
     @State private var isLoading = false
+    @State private var timelineRefreshSequence = 0
     @State private var displayLimit = 200
     @State private var lastRefresh: Date?
     @State private var activeTagPickerActivityId: Int64?
@@ -259,11 +260,17 @@ struct DashboardTimelineView: View {
             Button {
                 refreshData(reason: "timeline issue retry")
             } label: {
-                timelineActionLabel(L("timeline.error.retry"), systemImage: "arrow.clockwise")
+                timelineBusyActionLabel(
+                    isBusy: isLoading,
+                    busyTitle: L("timeline.next.action.loading"),
+                    idleTitle: L("timeline.error.retry"),
+                    systemImage: "arrow.clockwise"
+                )
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
             .tint(DesignSystem.Colors.accentSkyBlue)
+            .disabled(isLoading)
             .accessibilityIdentifier("dashboard.timeline.retryLoad")
 
             Button {
@@ -1484,9 +1491,15 @@ struct DashboardTimelineView: View {
             displayLimit += 200
             refreshData(reason: "load more", resetLimit: false)
         } label: {
-            timelineActionLabel(L("common.load_more"), systemImage: "arrow.down.circle")
+            timelineBusyActionLabel(
+                isBusy: isLoading,
+                busyTitle: L("timeline.next.action.loading"),
+                idleTitle: L("common.load_more"),
+                systemImage: "arrow.down.circle"
+            )
         }
         .buttonStyle(.bordered)
+        .disabled(isLoading)
         .accessibilityIdentifier("dashboard.timeline.loadMore")
     }
 
@@ -3950,6 +3963,8 @@ struct DashboardTimelineView: View {
     }
 
     private func refreshData(reason: String, resetLimit: Bool = true) {
+        timelineRefreshSequence += 1
+        let refreshSequence = timelineRefreshSequence
         isLoading = true
         if resetLimit {
             displayLimit = 200
@@ -4004,6 +4019,8 @@ struct DashboardTimelineView: View {
         }
 
         group.notify(queue: .main) {
+            guard refreshSequence == self.timelineRefreshSequence else { return }
+
             self.activities = newItems.compactMap { if case .activity(let a) = $0 { return a }; return nil }
             self.markers = newItems.compactMap { if case .marker(let m) = $0 { return m }; return nil }
             self.markerSpans = newItems.compactMap { if case .markerSpan(let s) = $0 { return s }; return nil }
