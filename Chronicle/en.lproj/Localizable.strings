@@ -755,6 +755,8 @@
 "dashboard.sidebar.next_step.add_context_detail" = "Chronicle has captured the day; one decision, blocker, or takeaway will make the daily log easier to trust.";
 "dashboard.sidebar.next_step.needs_folder_title" = "Choose where logs should live.";
 "dashboard.sidebar.next_step.needs_folder_detail" = "Today has captured context, but the daily log needs a folder before it can be saved.";
+"dashboard.sidebar.next_step.saving_title" = "Saving today’s log.";
+"dashboard.sidebar.next_step.saving_detail" = "Chronicle is writing the Markdown file now. Keep this open or continue reviewing while the save finishes.";
 "dashboard.sidebar.next_step.review_title" = "Close out today when ready.";
 "dashboard.sidebar.next_step.review_detail" = "Captured work and notes are ready to check before saving the daily log.";
 "dashboard.sidebar.next_step.failed_title" = "Daily log save failed.";
@@ -771,6 +773,7 @@
 "dashboard.sidebar.next_step.open_support" = "Open Support";
 "dashboard.sidebar.next_step.add_context" = "Add Context";
 "dashboard.sidebar.next_step.set_log_folder" = "Set Log Folder";
+"dashboard.sidebar.next_step.saving_button" = "Saving Daily Log…";
 "dashboard.sidebar.next_step.review_daily_log" = "Review Daily Log";
 "dashboard.sidebar.next_step.retry_daily_log" = "Retry Save";
 "dashboard.sidebar.next_step.open_log_folder" = "Open Log Folder";
@@ -783,6 +786,7 @@
 "dashboard.sidebar.today_evidence.log_title" = "Log";
 "dashboard.sidebar.today_evidence.log_value.not_set" = "Not set";
 "dashboard.sidebar.today_evidence.log_value.ready" = "Ready";
+"dashboard.sidebar.today_evidence.log_value.saving" = "Saving";
 "dashboard.sidebar.today_evidence.log_value.failed" = "Failed";
 "dashboard.sidebar.today_evidence.log_value.saved" = "Saved";
 "dashboard.sidebar.today_evidence.log_value.waiting" = "Waiting";

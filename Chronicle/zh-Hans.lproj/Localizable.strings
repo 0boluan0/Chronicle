@@ -755,6 +755,8 @@
 "dashboard.sidebar.next_step.add_context_detail" = "Chronicle 已经记录到今天的活动；补一条决定、卡点或收获，今日日志会更可信。";
 "dashboard.sidebar.next_step.needs_folder_title" = "先选择日志保存位置。";
 "dashboard.sidebar.next_step.needs_folder_detail" = "今天已经有记录语境，但今日日志需要先有文件夹才能保存。";
+"dashboard.sidebar.next_step.saving_title" = "正在保存今日日志。";
+"dashboard.sidebar.next_step.saving_detail" = "Chronicle 正在写入 Markdown 文件；可以停留在这里，也可以继续查看复盘内容。";
 "dashboard.sidebar.next_step.review_title" = "准备好时完成今天。";
 "dashboard.sidebar.next_step.review_detail" = "工作记录和笔记已经可以检查，确认后就能保存成今日日志。";
 "dashboard.sidebar.next_step.failed_title" = "今日日志保存失败。";
@@ -771,6 +773,7 @@
 "dashboard.sidebar.next_step.open_support" = "打开支持";
 "dashboard.sidebar.next_step.add_context" = "补充上下文";
 "dashboard.sidebar.next_step.set_log_folder" = "设置日志文件夹";
+"dashboard.sidebar.next_step.saving_button" = "正在保存今日日志…";
 "dashboard.sidebar.next_step.review_daily_log" = "查看今日日志";
 "dashboard.sidebar.next_step.retry_daily_log" = "重试保存";
 "dashboard.sidebar.next_step.open_log_folder" = "打开日志文件夹";
@@ -783,6 +786,7 @@
 "dashboard.sidebar.today_evidence.log_title" = "日志";
 "dashboard.sidebar.today_evidence.log_value.not_set" = "未设置";
 "dashboard.sidebar.today_evidence.log_value.ready" = "可保存";
+"dashboard.sidebar.today_evidence.log_value.saving" = "保存中";
 "dashboard.sidebar.today_evidence.log_value.failed" = "失败";
 "dashboard.sidebar.today_evidence.log_value.saved" = "已保存";
 "dashboard.sidebar.today_evidence.log_value.waiting" = "等待中";

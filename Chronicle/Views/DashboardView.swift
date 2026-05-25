@@ -10,6 +10,7 @@ import SwiftUI
 struct DashboardView: View {
     private enum SidebarNextStepState {
         case startToday
+        case savingDailyLog
         case paused
         case captureIssue
         case addContext
@@ -167,6 +168,7 @@ struct DashboardView: View {
 
     @EnvironmentObject private var appState: AppState
     @ObservedObject private var reportSettings = ReportSettings.shared
+    @ObservedObject private var dailyExportState = DailyLogExportAction.state
     @AppStorage("dashboard.selectedSection") private var selectedSectionRaw = Section.defaultSelection.rawValue
     @State private var sidebarTodaySummary = AggregationSummary(
         totalSeconds: 0,
@@ -393,6 +395,8 @@ struct DashboardView: View {
 
     private var sidebarCurrentFlowStep: SidebarFlowStep {
         switch sidebarNextStepState {
+        case .savingDailyLog:
+            return .log
         case .paused, .captureIssue, .startToday:
             return .today
         case .addContext:
@@ -751,6 +755,9 @@ struct DashboardView: View {
     }
 
     private var sidebarNextStepState: SidebarNextStepState {
+        if dailyExportState.isRunning {
+            return .savingDailyLog
+        }
         if sidebarCaptureHasError {
             return .captureIssue
         }
@@ -777,6 +784,8 @@ struct DashboardView: View {
 
     private func performSidebarNextStep() {
         switch sidebarNextStepState {
+        case .savingDailyLog:
+            selectedSectionRaw = Section.reports.rawValue
         case .paused:
             appState.trackingPaused = false
             selectedSectionRaw = Section.overview.rawValue
@@ -834,10 +843,11 @@ struct DashboardView: View {
                 Button {
                     performSidebarNextStep()
                 } label: {
-                    sidebarActionLabel(sidebarNextStepButtonTitleKey, systemImage: sidebarNextStepButtonIconName)
+                    sidebarNextStepButtonLabel
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
+                .disabled(sidebarNextStepButtonIsDisabled)
                 .accessibilityIdentifier("dashboard.sidebar.nextStep.primary")
             }
         }
@@ -957,7 +967,8 @@ struct DashboardView: View {
                 systemImage: sidebarLogIconName,
                 tone: sidebarLogTone,
                 helpKey: "dashboard.sidebar.today_evidence.log_help",
-                accessibilityIdentifier: "dashboard.sidebar.todayEvidence.log"
+                accessibilityIdentifier: "dashboard.sidebar.todayEvidence.log",
+                isLoading: dailyExportState.isRunning
             ) {
                 openSidebarLogEvidence()
             }
@@ -1036,6 +1047,8 @@ struct DashboardView: View {
 
     private var sidebarNextStepHeadlineStringKey: String {
         switch sidebarNextStepState {
+        case .savingDailyLog:
+            return "dashboard.sidebar.next_step.saving_title"
         case .paused:
             return "dashboard.sidebar.next_step.paused_title"
         case .captureIssue:
@@ -1061,6 +1074,8 @@ struct DashboardView: View {
 
     private var sidebarNextStepDetailStringKey: String {
         switch sidebarNextStepState {
+        case .savingDailyLog:
+            return "dashboard.sidebar.next_step.saving_detail"
         case .paused:
             return "dashboard.sidebar.next_step.paused_detail"
         case .captureIssue:
@@ -1082,6 +1097,8 @@ struct DashboardView: View {
 
     private var sidebarNextStepButtonTitleKey: LocalizedStringKey {
         switch sidebarNextStepState {
+        case .savingDailyLog:
+            return "dashboard.sidebar.next_step.saving_button"
         case .paused:
             return "dashboard.sidebar.next_step.resume_capture"
         case .captureIssue:
@@ -1101,8 +1118,23 @@ struct DashboardView: View {
         }
     }
 
+    @ViewBuilder
+    private var sidebarNextStepButtonLabel: some View {
+        if dailyExportState.isRunning {
+            ProgressActionButtonLabel(sidebarNextStepButtonTitleKey)
+        } else {
+            sidebarActionLabel(sidebarNextStepButtonTitleKey, systemImage: sidebarNextStepButtonIconName)
+        }
+    }
+
+    private var sidebarNextStepButtonIsDisabled: Bool {
+        dailyExportState.isRunning
+    }
+
     private var sidebarNextStepIconName: String {
         switch sidebarNextStepState {
+        case .savingDailyLog:
+            return "arrow.clockwise"
         case .paused:
             return "pause.circle.fill"
         case .captureIssue:
@@ -1124,6 +1156,8 @@ struct DashboardView: View {
 
     private var sidebarNextStepButtonIconName: String {
         switch sidebarNextStepState {
+        case .savingDailyLog:
+            return "arrow.clockwise"
         case .paused:
             return "play.fill"
         case .captureIssue:
@@ -1145,6 +1179,8 @@ struct DashboardView: View {
 
     private var sidebarNextStepTone: DesignSystem.StatusTone {
         switch sidebarNextStepState {
+        case .savingDailyLog:
+            return .info
         case .paused:
             return .warning
         case .captureIssue:
@@ -1256,6 +1292,8 @@ struct DashboardView: View {
 
     private var sidebarReadinessTone: DesignSystem.StatusTone {
         switch sidebarNextStepState {
+        case .savingDailyLog:
+            return .info
         case .captureIssue:
             return .critical
         case .logFailed:
@@ -1283,6 +1321,9 @@ struct DashboardView: View {
     }
 
     private var sidebarLogValueText: String {
+        if dailyExportState.isRunning {
+            return L("dashboard.sidebar.today_evidence.log_value.saving")
+        }
         if sidebarDailyExportedToday {
             return L("dashboard.sidebar.today_evidence.log_value.saved")
         }
@@ -1299,6 +1340,9 @@ struct DashboardView: View {
     }
 
     private var sidebarLogIconName: String {
+        if dailyExportState.isRunning {
+            return "arrow.clockwise"
+        }
         if sidebarDailyExportedToday {
             return "checkmark.seal"
         }
@@ -1315,6 +1359,9 @@ struct DashboardView: View {
     }
 
     private var sidebarLogTone: DesignSystem.StatusTone {
+        if dailyExportState.isRunning {
+            return .info
+        }
         if sidebarDailyExportedToday {
             return .success
         }
@@ -1331,6 +1378,9 @@ struct DashboardView: View {
     }
 
     private var sidebarQuickLogTitleKey: String {
+        if dailyExportState.isRunning {
+            return "dashboard.sidebar.next_step.saving_button"
+        }
         if sidebarDailyExportedToday {
             return "dashboard.sidebar.next_step.open_log_folder"
         }
@@ -1347,6 +1397,9 @@ struct DashboardView: View {
     }
 
     private var sidebarQuickLogHelpKey: String {
+        if dailyExportState.isRunning {
+            return "dashboard.sidebar.next_step.saving_detail"
+        }
         if sidebarDailyExportedToday {
             return "dashboard.sidebar.next_step.saved_detail"
         }
@@ -1363,6 +1416,11 @@ struct DashboardView: View {
     }
 
     private func openSidebarLogEvidence() {
+        if dailyExportState.isRunning {
+            selectedSectionRaw = Section.reports.rawValue
+            return
+        }
+
         if sidebarDailyExportedToday {
             if case .failure = ReportService.shared.openDailyFolder() {
                 selectedSectionRaw = Section.reports.rawValue
