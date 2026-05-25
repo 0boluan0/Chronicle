@@ -17,6 +17,7 @@ struct ContentView: View {
     @AppStorage("telemetry.dailyReviewReminderLastShownDay") private var lastDailyReviewReminderShownDay = ""
     @State private var dailySnapshot = DailySnapshot.empty
     @State private var isSnapshotLoading = false
+    @State private var snapshotRefreshSequence = 0
     @State private var now = Date()
     @State private var showSelfCheckDetails = false
     @State private var showPauseTrackingConfirmation = false
@@ -917,8 +918,7 @@ struct ContentView: View {
         SectionCard(title: "popover.daily_snapshot.title") {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
                 if isSnapshotLoading {
-                    ProgressView()
-                        .controlSize(.small)
+                    dailySnapshotRefreshStatusView
                 }
 
                 if dailySnapshotIsEmpty {
@@ -930,6 +930,47 @@ struct ContentView: View {
                 snapshotWorkBlockStrip
             }
         }
+    }
+
+    private var dailySnapshotRefreshStatusView: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+            ProgressView()
+                .controlSize(.small)
+                .padding(.top, 1)
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("popover.daily_snapshot.refreshing.title")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(1)
+
+                Text("popover.daily_snapshot.refreshing.detail")
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            StatusPill(
+                L("popover.daily_snapshot.refreshing.status"),
+                systemImage: "arrow.clockwise",
+                tone: .info
+            )
+            .fixedSize(horizontal: true, vertical: false)
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(DesignSystem.StatusTone.info.color.opacity(0.07))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(DesignSystem.StatusTone.info.color.opacity(0.18), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("popover.dailySnapshot.refreshing")
     }
 
     private var dailySnapshotEmptyState: some View {
@@ -2367,6 +2408,8 @@ struct ContentView: View {
     }
 
     private func refreshDailySnapshot(reason: String) {
+        snapshotRefreshSequence += 1
+        let refreshSequence = snapshotRefreshSequence
         isSnapshotLoading = true
         AppLogger.log("Refresh daily snapshot reason=\(reason)", category: "ui")
         let now = Date()
@@ -2484,6 +2527,8 @@ struct ContentView: View {
         }
 
         group.notify(queue: .main) {
+            guard refreshSequence == self.snapshotRefreshSequence else { return }
+
             let today = todaySummary ?? .init(
                 totalSeconds: 0,
                 activeSeconds: 0,

@@ -305,6 +305,9 @@
 "popover.daily_snapshot.empty_open_today" = "打开今天";
 "popover.daily_snapshot.empty_resume_capture" = "恢复记录";
 "popover.daily_snapshot.empty_check_capture" = "检查记录";
+"popover.daily_snapshot.refreshing.title" = "正在刷新今天";
+"popover.daily_snapshot.refreshing.detail" = "保留上一版快照，同时同步最近记录到的活动。";
+"popover.daily_snapshot.refreshing.status" = "更新中";
 "popover.daily_snapshot.empty.path.capture_title" = "继续工作";
 "popover.daily_snapshot.empty.path.capture_detail" = "记录到活动后，这里会自动变成今天的概览。";
 "popover.daily_snapshot.empty.path.context_title" = "补充语境";

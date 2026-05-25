@@ -305,6 +305,9 @@
 "popover.daily_snapshot.empty_open_today" = "Open Today";
 "popover.daily_snapshot.empty_resume_capture" = "Resume Capture";
 "popover.daily_snapshot.empty_check_capture" = "Check Capture";
+"popover.daily_snapshot.refreshing.title" = "Refreshing today";
+"popover.daily_snapshot.refreshing.detail" = "Keeping the last snapshot visible while Chronicle catches up with recent activity.";
+"popover.daily_snapshot.refreshing.status" = "Updating";
 "popover.daily_snapshot.empty.path.capture_title" = "Capture work";
 "popover.daily_snapshot.empty.path.capture_detail" = "Keep working; this card updates after activity appears.";
 "popover.daily_snapshot.empty.path.context_title" = "Add context";
