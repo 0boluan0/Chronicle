@@ -54,6 +54,8 @@ struct SupportPreferencesView: View {
 
                     Divider()
 
+                    supportReadinessFacts
+
                     supportReadinessPath
 
                     readinessActionGroup
@@ -399,6 +401,83 @@ struct SupportPreferencesView: View {
                 .stroke(readinessTone.color.opacity(0.16), lineWidth: 1)
         )
         .accessibilityIdentifier("support.readiness.path")
+    }
+
+    private var supportReadinessFacts: some View {
+        LazyVGrid(
+            columns: adaptiveColumns(minimum: 160, spacing: DesignSystem.Spacing.sm),
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            supportReadinessFact(
+                titleKey: "support.readiness.facts.checked_title",
+                value: supportReadinessCheckedText,
+                systemImage: "clock",
+                tone: supportReadinessCheckedTone,
+                accessibilityIdentifier: "support.readiness.facts.checked"
+            )
+
+            supportReadinessFact(
+                titleKey: "support.readiness.facts.issues_title",
+                value: supportReadinessIssueText,
+                systemImage: readinessIssueFactIconName,
+                tone: supportReadinessIssueTone,
+                accessibilityIdentifier: "support.readiness.facts.issues"
+            )
+
+            supportReadinessFact(
+                titleKey: "support.readiness.facts.package_title",
+                value: supportReadinessPackageText,
+                systemImage: "shippingbox",
+                tone: supportReadinessPackageTone,
+                accessibilityIdentifier: "support.readiness.facts.package"
+            )
+        }
+        .accessibilityIdentifier("support.readiness.facts")
+    }
+
+    private func supportReadinessFact(
+        titleKey: LocalizedStringKey,
+        value: String,
+        systemImage: String,
+        tone: DesignSystem.StatusTone,
+        accessibilityIdentifier: String
+    ) -> some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: systemImage)
+                .font(.caption.weight(.semibold))
+                .foregroundColor(tone.color)
+                .frame(width: 16, height: 18)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(titleKey)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(value)
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .help(value)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, DesignSystem.Spacing.sm)
+        .padding(.vertical, 7)
+        .frame(maxWidth: .infinity, minHeight: 54, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .fill(tone.color.opacity(0.065))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .stroke(tone.color.opacity(0.16), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     private func supportReadinessPathItem(
@@ -1256,6 +1335,117 @@ struct SupportPreferencesView: View {
             case .warning:
                 result.warnings += 1
             }
+        }
+    }
+
+    private var supportReadinessCheckedText: String {
+        switch readinessState {
+        case .running:
+            return L("support.readiness.facts.checked.running")
+        case .failed:
+            return L("support.readiness.facts.checked.failed")
+        case .notRun:
+            return L("support.readiness.facts.checked.not_run")
+        case .blocked, .attention, .ready:
+            guard let report = healthCheck.lastReport else {
+                return L("support.readiness.facts.checked.not_run")
+            }
+            return Self.timeFormatter.string(from: report.checkedAt)
+        }
+    }
+
+    private var supportReadinessCheckedTone: DesignSystem.StatusTone {
+        switch readinessState {
+        case .running:
+            return .info
+        case .failed:
+            return .critical
+        case .notRun:
+            return .neutral
+        case .blocked, .attention, .ready:
+            return readinessTone
+        }
+    }
+
+    private var supportReadinessIssueText: String {
+        switch readinessState {
+        case .running:
+            return L("support.readiness.facts.issues.running")
+        case .failed:
+            return L("support.readiness.facts.issues.failed")
+        case .notRun:
+            return L("support.readiness.facts.issues.not_run")
+        case .blocked, .attention, .ready:
+            guard let report = healthCheck.lastReport else {
+                return L("support.readiness.facts.issues.not_run")
+            }
+            let counts = issueCounts(for: report)
+            if counts.errors == 0 && counts.warnings == 0 {
+                return L("support.readiness.facts.issues.none")
+            }
+            if counts.errors > 0 && counts.warnings > 0 {
+                return String(format: L("support.readiness.facts.issues.errors_warnings"), counts.errors, counts.warnings)
+            }
+            if counts.errors > 0 {
+                return String(format: L("support.readiness.facts.issues.errors"), counts.errors)
+            }
+            return String(format: L("support.readiness.facts.issues.warnings"), counts.warnings)
+        }
+    }
+
+    private var supportReadinessIssueTone: DesignSystem.StatusTone {
+        switch readinessState {
+        case .blocked, .failed:
+            return .critical
+        case .attention:
+            return .warning
+        case .running:
+            return .info
+        case .ready:
+            return .success
+        case .notRun:
+            return .neutral
+        }
+    }
+
+    private var readinessIssueFactIconName: String {
+        switch readinessState {
+        case .blocked, .failed:
+            return "xmark.octagon.fill"
+        case .attention:
+            return "exclamationmark.triangle.fill"
+        case .running:
+            return "waveform.path.ecg"
+        case .ready:
+            return "checkmark.seal.fill"
+        case .notRun:
+            return "list.bullet.clipboard"
+        }
+    }
+
+    private var supportReadinessPackageText: String {
+        switch readinessState {
+        case .running:
+            return L("support.readiness.facts.package.wait")
+        case .failed, .blocked, .attention:
+            return L("support.readiness.facts.package.useful")
+        case .ready:
+            return L("support.readiness.facts.package.optional")
+        case .notRun:
+            return L("support.readiness.facts.package.run_first")
+        }
+    }
+
+    private var supportReadinessPackageTone: DesignSystem.StatusTone {
+        switch readinessState {
+        case .failed, .blocked, .attention:
+            return .info
+        case .running:
+            return .neutral
+        case .ready:
+            return .success
+        case .notRun:
+            return .neutral
         }
     }
 
