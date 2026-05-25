@@ -383,6 +383,52 @@ struct ActionButtonLabel: View {
     }
 }
 
+struct ProgressActionButtonLabel: View {
+    private let title: Text
+    private let maxLines: Int
+    private let minimumScaleFactor: CGFloat
+    private let fillsWidth: Bool
+
+    init(
+        _ title: String,
+        maxLines: Int = 2,
+        minimumScaleFactor: CGFloat = 0.86,
+        fillsWidth: Bool = true
+    ) {
+        self.title = Text(verbatim: title)
+        self.maxLines = maxLines
+        self.minimumScaleFactor = minimumScaleFactor
+        self.fillsWidth = fillsWidth
+    }
+
+    init(
+        _ titleKey: LocalizedStringKey,
+        maxLines: Int = 2,
+        minimumScaleFactor: CGFloat = 0.86,
+        fillsWidth: Bool = true
+    ) {
+        self.title = Text(titleKey)
+        self.maxLines = maxLines
+        self.minimumScaleFactor = minimumScaleFactor
+        self.fillsWidth = fillsWidth
+    }
+
+    var body: some View {
+        HStack(spacing: DesignSystem.Spacing.xs) {
+            ProgressView()
+                .controlSize(.small)
+                .accessibilityHidden(true)
+
+            title
+                .lineLimit(maxLines)
+                .minimumScaleFactor(minimumScaleFactor)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: fillsWidth ? .infinity : nil, alignment: .leading)
+    }
+}
+
 struct ActionButtonGrid<Content: View>: View {
     private let minimumItemWidth: CGFloat
     private let spacing: CGFloat

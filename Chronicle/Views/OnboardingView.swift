@@ -704,17 +704,7 @@ struct OnboardingView: View {
     }
 
     private func onboardingProgressActionLabel(_ title: String) -> some View {
-        HStack(spacing: DesignSystem.Spacing.xs) {
-            ProgressView()
-                .controlSize(.small)
-                .accessibilityHidden(true)
-
-            Text(verbatim: title)
-                .lineLimit(2)
-                .minimumScaleFactor(0.86)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-        }
+        ProgressActionButtonLabel(title, fillsWidth: false)
     }
 
     private var valueContent: some View {

@@ -637,17 +637,7 @@ struct AppMappingsView: View {
         systemImage: String
     ) -> some View {
         if isLoading {
-            HStack(spacing: DesignSystem.Spacing.xs) {
-                ProgressView()
-                    .controlSize(.small)
-                    .accessibilityHidden(true)
-
-                Text(verbatim: loadingTitle)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.86)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+            ProgressActionButtonLabel(loadingTitle, fillsWidth: false)
         } else {
             mappingActionLabel(idleTitle, systemImage: systemImage)
         }

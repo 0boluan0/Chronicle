@@ -289,17 +289,7 @@ struct DashboardTimelineView: View {
         systemImage: String
     ) -> some View {
         if isBusy {
-            HStack(spacing: DesignSystem.Spacing.xs) {
-                ProgressView()
-                    .controlSize(.small)
-                    .accessibilityHidden(true)
-
-                Text(verbatim: busyTitle)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.86)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+            ProgressActionButtonLabel(busyTitle)
         } else {
             timelineActionLabel(idleTitle, systemImage: systemImage)
         }

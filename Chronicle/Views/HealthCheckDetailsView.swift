@@ -353,18 +353,7 @@ struct HealthCheckDetailsView: View {
     }
 
     private func healthProgressActionLabel(_ title: String) -> some View {
-        HStack(spacing: DesignSystem.Spacing.xs) {
-            ProgressView()
-                .controlSize(.small)
-                .accessibilityHidden(true)
-
-            Text(verbatim: title)
-                .lineLimit(2)
-                .minimumScaleFactor(0.85)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        ProgressActionButtonLabel(title, minimumScaleFactor: 0.85)
     }
 
     private var readinessSummarySection: some View {
