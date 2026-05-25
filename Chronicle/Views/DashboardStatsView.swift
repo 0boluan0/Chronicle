@@ -71,6 +71,12 @@ struct DashboardStatsView: View {
         .onChange(of: appState.dateRangeMode) { _, _ in
             refreshStats(reason: "range changed")
         }
+        .onChange(of: appState.includeIdleInCharts) { _, _ in
+            refreshStats(reason: "chart idle scope changed")
+        }
+        .onChange(of: appState.countOverlaysInTotals) { _, _ in
+            refreshStats(reason: "overlay total setting changed")
+        }
         .sheet(isPresented: $showIdleSuppressionExplanation) {
             idleSuppressionExplanationSheet
         }
@@ -2305,11 +2311,13 @@ struct DashboardStatsView: View {
         let refreshSequence = statsRefreshSequence
         isLoading = true
         let bounds = rangeBounds
+        let includeIdleInCharts = appState.includeIdleInCharts
+        let countOverlaysInTotals = appState.countOverlaysInTotals
 
         let group = DispatchGroup()
         let filters = AggregationFilters(
             includeIdle: true,
-            countOverlaysInTotals: appState.countOverlaysInTotals,
+            countOverlaysInTotals: countOverlaysInTotals,
             tagId: nil,
             appName: nil,
             bundleId: nil,
@@ -2340,7 +2348,7 @@ struct DashboardStatsView: View {
             rangeEnd: bounds.end,
             filters: filters,
             limit: 10,
-            includeIdle: appState.includeIdleInCharts
+            includeIdle: includeIdleInCharts
         ) { result in
             switch result {
             case .success(let items):
@@ -2357,7 +2365,7 @@ struct DashboardStatsView: View {
             rangeEnd: bounds.end,
             filters: filters,
             limit: 10,
-            includeIdle: appState.includeIdleInCharts
+            includeIdle: includeIdleInCharts
         ) { result in
             switch result {
             case .success(let items):

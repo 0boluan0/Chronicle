@@ -99,6 +99,12 @@ struct StatsView: View {
         .onChange(of: appState.dateRangeMode) { _, _ in
             refreshStats(reason: "range changed")
         }
+        .onChange(of: appState.includeIdleInCharts) { _, _ in
+            refreshStats(reason: "chart idle scope changed")
+        }
+        .onChange(of: appState.countOverlaysInTotals) { _, _ in
+            refreshStats(reason: "overlay total setting changed")
+        }
         .sheet(isPresented: $showIdleSuppressionExplanation) {
             idleSuppressionExplanationSheet
         }
@@ -1417,10 +1423,12 @@ struct StatsView: View {
         let refreshSequence = statsRefreshSequence
         isLoading = true
         let bounds = appState.dateRangeMode.bounds(for: appState.selectedDate)
+        let includeIdleInCharts = appState.includeIdleInCharts
+        let countOverlaysInTotals = appState.countOverlaysInTotals
         let group = DispatchGroup()
         let filters = AggregationFilters(
             includeIdle: true,
-            countOverlaysInTotals: appState.countOverlaysInTotals,
+            countOverlaysInTotals: countOverlaysInTotals,
             tagId: nil,
             appName: nil,
             bundleId: nil,
@@ -1450,7 +1458,7 @@ struct StatsView: View {
             rangeEnd: bounds.end,
             filters: filters,
             limit: 8,
-            includeIdle: appState.includeIdleInCharts
+            includeIdle: includeIdleInCharts
         ) { result in
             if case .success(let items) = result {
                 topAppsResult = items
@@ -1466,7 +1474,7 @@ struct StatsView: View {
             rangeEnd: bounds.end,
             filters: filters,
             limit: 6,
-            includeIdle: appState.includeIdleInCharts
+            includeIdle: includeIdleInCharts
         ) { result in
             if case .success(let items) = result {
                 topTagsResult = items
