@@ -127,6 +127,14 @@ struct ReportsWorkspaceView: View {
     @State private var pendingTemplateReset: ReportTemplateResetTarget?
     @FocusState private var dailyNotesFocused: Bool
 
+    private var dailyReportIsGenerating: Bool {
+        dailyStatus?.text == L("reports.status.generating")
+    }
+
+    private var weeklyReportIsGenerating: Bool {
+        weeklyStatus?.text == L("reports.status.generating")
+    }
+
     var body: some View {
         Group {
             if useScrollView {
@@ -1509,9 +1517,14 @@ struct ReportsWorkspaceView: View {
             Button {
                 generateDaily(date: Date())
             } label: {
-                reportActionButtonLabel(L("reports.daily.generate_today"), systemImage: "doc.badge.plus")
+                reportGeneratingActionButtonLabel(
+                    isGenerating: dailyReportIsGenerating,
+                    idleTitle: L("reports.daily.generate_today"),
+                    systemImage: "doc.badge.plus"
+                )
             }
             .buttonStyle(.borderedProminent)
+            .disabled(dailyReportIsGenerating)
             .accessibilityIdentifier("reports.plan.generateDailyToday")
         }
     }
@@ -1538,9 +1551,14 @@ struct ReportsWorkspaceView: View {
             Button {
                 generateWeekly(date: Date())
             } label: {
-                reportActionButtonLabel(L("reports.weekly.generate_this"), systemImage: "calendar.badge.plus")
+                reportGeneratingActionButtonLabel(
+                    isGenerating: weeklyReportIsGenerating,
+                    idleTitle: L("reports.weekly.generate_this"),
+                    systemImage: "calendar.badge.plus"
+                )
             }
             .buttonStyle(.borderedProminent)
+            .disabled(weeklyReportIsGenerating)
             .accessibilityIdentifier("reports.plan.generateWeekly")
         }
     }
@@ -2977,9 +2995,14 @@ struct ReportsWorkspaceView: View {
         Button {
             generateDaily(date: appState.selectedDate)
         } label: {
-            reportActionButtonLabel(L("reports.daily.generate_selected"), systemImage: "calendar.badge.checkmark")
+            reportGeneratingActionButtonLabel(
+                isGenerating: dailyReportIsGenerating,
+                idleTitle: L("reports.daily.generate_selected"),
+                systemImage: "calendar.badge.checkmark"
+            )
         }
         .buttonStyle(.borderedProminent)
+        .disabled(dailyReportIsGenerating)
         .accessibilityIdentifier("reports.generateDailySelected")
     }
 
@@ -2987,9 +3010,14 @@ struct ReportsWorkspaceView: View {
         Button {
             generateDaily(date: Date())
         } label: {
-            reportActionButtonLabel(L("reports.daily.generate_today"), systemImage: "doc.badge.plus")
+            reportGeneratingActionButtonLabel(
+                isGenerating: dailyReportIsGenerating,
+                idleTitle: L("reports.daily.generate_today"),
+                systemImage: "doc.badge.plus"
+            )
         }
         .buttonStyle(.borderedProminent)
+        .disabled(dailyReportIsGenerating)
         .accessibilityIdentifier("reports.generateDailyTodayBottom")
     }
 
@@ -3092,9 +3120,14 @@ struct ReportsWorkspaceView: View {
         Button {
             generateWeekly(date: appState.selectedDate)
         } label: {
-            reportActionButtonLabel(L("reports.weekly.generate_selected"), systemImage: "calendar.badge.checkmark")
+            reportGeneratingActionButtonLabel(
+                isGenerating: weeklyReportIsGenerating,
+                idleTitle: L("reports.weekly.generate_selected"),
+                systemImage: "calendar.badge.checkmark"
+            )
         }
         .buttonStyle(.borderedProminent)
+        .disabled(weeklyReportIsGenerating)
         .accessibilityIdentifier("reports.generateWeeklySelected")
     }
 
@@ -3102,14 +3135,28 @@ struct ReportsWorkspaceView: View {
         Button {
             generateWeekly(date: Date())
         } label: {
-            reportActionButtonLabel(L("reports.weekly.generate_this"), systemImage: "calendar.badge.plus")
+            reportGeneratingActionButtonLabel(
+                isGenerating: weeklyReportIsGenerating,
+                idleTitle: L("reports.weekly.generate_this"),
+                systemImage: "calendar.badge.plus"
+            )
         }
         .buttonStyle(.borderedProminent)
+        .disabled(weeklyReportIsGenerating)
         .accessibilityIdentifier("reports.generateWeeklyCurrent")
     }
 
     private func reportActionButtonLabel(_ title: String, systemImage: String) -> some View {
         ActionButtonLabel(title, systemImage: systemImage)
+    }
+
+    @ViewBuilder
+    private func reportGeneratingActionButtonLabel(isGenerating: Bool, idleTitle: String, systemImage: String) -> some View {
+        if isGenerating {
+            ProgressActionButtonLabel(L("reports.status.generating"))
+        } else {
+            reportActionButtonLabel(idleTitle, systemImage: systemImage)
+        }
     }
 
     private func reportCompactActionLabel(_ title: String, systemImage: String) -> some View {
