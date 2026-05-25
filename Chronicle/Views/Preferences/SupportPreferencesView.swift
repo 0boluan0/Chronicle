@@ -750,10 +750,11 @@ struct SupportPreferencesView: View {
             .accessibilityIdentifier("support.releaseSafety.runCheck")
         case .running:
             Button {} label: {
-                supportActionLabel(L("popover.self_check.running"), systemImage: "waveform.path.ecg")
+                supportRunningActionLabel(L("popover.self_check.running"))
             }
             .buttonStyle(.borderedProminent)
             .disabled(true)
+            .accessibilityIdentifier("support.releaseSafety.running")
         case .blocked, .attention, .ready:
             Button {
                 showHealthReport = true
@@ -794,10 +795,11 @@ struct SupportPreferencesView: View {
             .accessibilityIdentifier("support.path.runSelfCheck")
         case .running:
             Button {} label: {
-                supportActionLabel(L("popover.self_check.running"), systemImage: "waveform.path.ecg")
+                supportRunningActionLabel(L("popover.self_check.running"))
             }
-                .buttonStyle(.bordered)
-                .disabled(true)
+            .buttonStyle(.bordered)
+            .disabled(true)
+            .accessibilityIdentifier("support.path.running")
         case .blocked, .attention, .ready:
             Button {
                 showHealthReport = true
@@ -986,10 +988,11 @@ struct SupportPreferencesView: View {
             .accessibilityIdentifier("support.runSelfCheck")
         case .running:
             Button {} label: {
-                supportActionLabel(L("popover.self_check.running"), systemImage: "waveform.path.ecg")
+                supportRunningActionLabel(L("popover.self_check.running"))
             }
-                .buttonStyle(.borderedProminent)
-                .disabled(true)
+            .buttonStyle(.borderedProminent)
+            .disabled(true)
+            .accessibilityIdentifier("support.running")
         case .blocked, .attention:
             Button {
                 showHealthReport = true
@@ -1051,6 +1054,20 @@ struct SupportPreferencesView: View {
 
     private func supportActionLabel(_ title: String, systemImage: String) -> some View {
         ActionButtonLabel(title, systemImage: systemImage, fillsWidth: false)
+    }
+
+    private func supportRunningActionLabel(_ title: String) -> some View {
+        HStack(spacing: DesignSystem.Spacing.xs) {
+            ProgressView()
+                .controlSize(.small)
+                .accessibilityHidden(true)
+
+            Text(verbatim: title)
+                .lineLimit(2)
+                .minimumScaleFactor(0.86)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        }
     }
 
     private func responsiveActionGroup<Content: View>(@ViewBuilder content: () -> Content) -> some View {
