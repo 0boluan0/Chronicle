@@ -2895,6 +2895,8 @@
 "apps.list.title" = "整理应用";
 "apps.load_more.title" = "还有更多应用";
 "apps.load_more.detail" = "当前已载入 %d 个应用；需要继续整理时可加载下一批。";
+"apps.loading.title" = "正在加载应用分类。";
+"apps.loading.detail" = "Chronicle 正在读取已保存的应用映射和日志分区，然后再显示整理队列。";
 "apps.empty" = "暂无应用分类。";
 "apps.empty_hint" = "使用 Chronicle 一段时间后，影响日志分类的应用会出现在这里。";
 "apps.empty.path.capture_title" = "正常使用应用";

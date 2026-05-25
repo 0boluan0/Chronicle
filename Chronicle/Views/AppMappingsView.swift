@@ -1076,7 +1076,9 @@ struct AppMappingsView: View {
 
     private var mappingList: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            if filteredMappings.isEmpty {
+            if isLoadingMappings && appMappings.isEmpty {
+                mappingLoadingState
+            } else if filteredMappings.isEmpty {
                 mappingEmptyState
             } else {
                 ForEach($appMappings) { $mapping in
@@ -1096,6 +1098,50 @@ struct AppMappingsView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var mappingLoadingState: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            EmptyStateView(
+                title: L("apps.loading.title"),
+                subtitle: L("apps.loading.detail"),
+                systemImage: "arrow.triangle.2.circlepath",
+                tone: .info
+            )
+
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                ProgressView()
+                    .controlSize(.small)
+                    .accessibilityHidden(true)
+
+                Text("apps.action.refreshing")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.StatusTone.info.color)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.86)
+            }
+            .padding(.horizontal, DesignSystem.Spacing.sm)
+            .padding(.vertical, 7)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                    .fill(DesignSystem.StatusTone.info.color.opacity(0.07))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                    .stroke(DesignSystem.StatusTone.info.color.opacity(0.18), lineWidth: 1)
+            )
+            .accessibilityElement(children: .combine)
+        }
+        .padding(DesignSystem.Spacing.md)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(DesignSystem.Colors.cardBackground)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(DesignSystem.Colors.separator.opacity(0.35), lineWidth: 1)
+        )
+        .accessibilityIdentifier("appMappings.loadingState")
     }
 
     private var mappingEmptyState: some View {
