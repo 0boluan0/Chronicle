@@ -21,6 +21,7 @@ struct ContentView: View {
     @State private var now = Date()
     @State private var showSelfCheckDetails = false
     @State private var showPauseTrackingConfirmation = false
+    @State private var isDailyExportRunning = false
     private let reminderRefreshTimer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
 
     var body: some View {
@@ -813,6 +814,15 @@ struct ContentView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    @ViewBuilder
+    private func popoverDailyExportActionLabel(isRunning: Bool, titleKey: String, systemImage: String) -> some View {
+        if isRunning {
+            ProgressActionButtonLabel(L("menu.exporting"))
+        } else {
+            popoverActionLabel(L(titleKey), systemImage: systemImage)
+        }
+    }
+
     private var trackingPrivacyGuardrailView: some View {
         RowSurface(tone: popoverPrivacyTone) {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
@@ -1242,10 +1252,15 @@ struct ContentView: View {
                 Button {
                     runDailySnapshotPrimaryAction()
                 } label: {
-                    popoverActionLabel(L(dailySnapshotPrimaryActionKey), systemImage: dailySnapshotPrimaryActionIcon)
+                    popoverDailyExportActionLabel(
+                        isRunning: dailySnapshotPrimaryActionIsExporting,
+                        titleKey: dailySnapshotPrimaryActionKey,
+                        systemImage: dailySnapshotPrimaryActionIcon
+                    )
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(DesignSystem.Colors.accentSkyBlue)
+                .disabled(dailySnapshotPrimaryActionIsExporting)
                 .accessibilityIdentifier("popover.primaryAction")
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -1367,17 +1382,27 @@ struct ContentView: View {
     }
 
     private func snapshotReviewGuidanceAction(_ guidance: DailySnapshotGuidanceKind) -> some View {
-        Button {
+        let actionIsExporting = snapshotGuidanceActionIsExporting(guidance)
+
+        return Button {
             runSnapshotGuidanceAction(guidance)
         } label: {
-            popoverActionLabel(L(guidance.actionKey), systemImage: guidance.actionIcon)
+            popoverDailyExportActionLabel(
+                isRunning: actionIsExporting,
+                titleKey: guidance.actionKey,
+                systemImage: guidance.actionIcon
+            )
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
+        .disabled(actionIsExporting)
         .accessibilityIdentifier(guidance.accessibilityIdentifier)
     }
 
     private var dailySnapshotGuidance: DailySnapshotGuidanceKind {
+        if isDailyExportRunning {
+            return .exporting
+        }
         if dailySnapshot.activeSeconds >= 15 * 60 && dailySnapshot.reviewCueCount == 0 && !dailyLogExportFailedToday {
             return .needsContext
         }
@@ -1413,6 +1438,8 @@ struct ContentView: View {
             AppWindowRouter.shared.open(.quickMarker)
         case .building:
             openDashboardTimeline()
+        case .exporting:
+            break
         }
     }
 
@@ -1579,13 +1606,20 @@ struct ContentView: View {
     }
 
     private var primaryNextActionButton: some View {
-        Button {
+        let actionIsExporting = primaryNextActionIsExporting
+
+        return Button {
             runPrimaryNextAction()
         } label: {
-            popoverActionLabel(L(nextActionKind.primaryActionKey), systemImage: nextActionKind.primaryActionIcon)
+            popoverDailyExportActionLabel(
+                isRunning: actionIsExporting,
+                titleKey: nextActionKind.primaryActionKey,
+                systemImage: nextActionKind.primaryActionIcon
+            )
         }
         .buttonStyle(.borderedProminent)
         .tint(DesignSystem.Colors.accentSkyBlue)
+        .disabled(actionIsExporting)
         .accessibilityIdentifier(nextActionKind.primaryAccessibilityIdentifier)
     }
 
@@ -1624,6 +1658,9 @@ struct ContentView: View {
     }
 
     private var nextActionKind: PopoverNextActionKind {
+        if isDailyExportRunning {
+            return .savingDailyLog
+        }
         if appState.trackingPaused {
             return .resumeTracking
         }
@@ -1674,6 +1711,8 @@ struct ContentView: View {
             AppWindowRouter.shared.open(.dashboard)
         case .ready:
             exportDailyNow()
+        case .savingDailyLog:
+            break
         }
     }
 
@@ -1701,6 +1740,8 @@ struct ContentView: View {
             AppWindowRouter.shared.open(.quickMarker)
         case .ready:
             openDashboardTimeline()
+        case .savingDailyLog:
+            break
         }
     }
 
@@ -1738,6 +1779,22 @@ struct ContentView: View {
         reportSettings.dailyFolderBookmark != nil
     }
 
+    private var primaryNextActionIsExporting: Bool {
+        isDailyExportRunning && nextActionKind.primaryActionRunsDailyExport
+    }
+
+    private var dailySnapshotPrimaryActionIsExporting: Bool {
+        isDailyExportRunning && dailySnapshotPrimaryActionRunsExport
+    }
+
+    private var dailySnapshotPrimaryActionRunsExport: Bool {
+        hasDailyExportFolderConfigured && !dailyLogSavedToday
+    }
+
+    private func snapshotGuidanceActionIsExporting(_ guidance: DailySnapshotGuidanceKind) -> Bool {
+        isDailyExportRunning && guidance.runsDailyExport
+    }
+
     private var exportNowStatus: StatusMessage? {
         guard let message = appState.exportNowMessage?.trimmingCharacters(in: .whitespacesAndNewlines),
               !message.isEmpty else {
@@ -1756,6 +1813,9 @@ struct ContentView: View {
     }
 
     private var dailyLogMetricValue: String {
+        if isDailyExportRunning {
+            return L("popover.command_center.log_saving")
+        }
         if !hasDailyExportFolderConfigured {
             return L("popover.command_center.log_needs_folder")
         }
@@ -1769,6 +1829,9 @@ struct ContentView: View {
     }
 
     private var dailyLogMetricIconName: String {
+        if isDailyExportRunning {
+            return "arrow.clockwise"
+        }
         if !hasDailyExportFolderConfigured {
             return "folder.badge.questionmark"
         }
@@ -1782,6 +1845,9 @@ struct ContentView: View {
     }
 
     private var dailyLogMetricTone: DesignSystem.StatusTone {
+        if isDailyExportRunning {
+            return .info
+        }
         if !hasDailyExportFolderConfigured {
             return .warning
         }
@@ -1829,6 +1895,9 @@ struct ContentView: View {
     }
 
     private var commandCenterLoopTitleKey: String {
+        if isDailyExportRunning {
+            return "popover.command_center.progress.exporting_title"
+        }
         if appState.trackingPaused {
             return "popover.command_center.progress.paused_title"
         }
@@ -1851,6 +1920,9 @@ struct ContentView: View {
     }
 
     private var commandCenterLoopDetailKey: String {
+        if isDailyExportRunning {
+            return "popover.command_center.progress.exporting_detail"
+        }
         if appState.trackingPaused {
             return "popover.command_center.progress.paused_detail"
         }
@@ -1873,6 +1945,9 @@ struct ContentView: View {
     }
 
     private var commandCenterLoopIconName: String {
+        if isDailyExportRunning {
+            return "arrow.clockwise"
+        }
         if appState.trackingPaused {
             return "pause.circle.fill"
         }
@@ -1895,6 +1970,9 @@ struct ContentView: View {
     }
 
     private var commandCenterLoopTone: DesignSystem.StatusTone {
+        if isDailyExportRunning {
+            return .info
+        }
         if appState.trackingPaused || !hasDailyExportFolderConfigured || dailyLogExportFailedToday {
             return .warning
         }
@@ -1969,6 +2047,9 @@ struct ContentView: View {
     }
 
     private var commandCenterLogStepIconName: String {
+        if isDailyExportRunning {
+            return "arrow.clockwise"
+        }
         if !hasDailyExportFolderConfigured {
             return "folder.badge.questionmark"
         }
@@ -1982,6 +2063,9 @@ struct ContentView: View {
     }
 
     private var commandCenterLogStepTone: DesignSystem.StatusTone {
+        if isDailyExportRunning {
+            return .info
+        }
         if !hasDailyExportFolderConfigured {
             return .warning
         }
@@ -2570,16 +2654,19 @@ struct ContentView: View {
 
     private func exportDailyNow() {
         TelemetryService.shared.increment("export_daily_clicked")
+        guard !isDailyExportRunning else { return }
         guard hasDailyExportFolderConfigured else {
             appState.exportNowMessage = L("reports.folder.not_set")
             appState.exportNowMessageIsError = true
             openExportPreferences()
             return
         }
+        isDailyExportRunning = true
         appState.exportNowMessage = L("menu.exporting")
         appState.exportNowMessageIsError = false
         ReportService.shared.generateDailyReport(date: Date()) { result in
             DispatchQueue.main.async {
+                isDailyExportRunning = false
                 switch result {
                 case .success(let info):
                     let message = String(format: L("export.now.success"), info.fileName)
@@ -2721,6 +2808,7 @@ private enum DailySnapshotGuidanceKind {
     case readyWithContext
     case needsContext
     case building
+    case exporting
 
     var titleKey: String {
         switch self {
@@ -2736,6 +2824,8 @@ private enum DailySnapshotGuidanceKind {
             return "popover.daily_snapshot.guidance.context_title"
         case .building:
             return "popover.daily_snapshot.guidance.building_title"
+        case .exporting:
+            return "popover.daily_snapshot.guidance.exporting_title"
         }
     }
 
@@ -2753,6 +2843,8 @@ private enum DailySnapshotGuidanceKind {
             return "popover.daily_snapshot.guidance.context_detail"
         case .building:
             return "popover.daily_snapshot.guidance.building_detail"
+        case .exporting:
+            return "popover.daily_snapshot.guidance.exporting_detail"
         }
     }
 
@@ -2770,6 +2862,8 @@ private enum DailySnapshotGuidanceKind {
             return "popover.daily_snapshot.guidance.status.context"
         case .building:
             return "popover.daily_snapshot.guidance.status.building"
+        case .exporting:
+            return "popover.daily_snapshot.guidance.status.exporting"
         }
     }
 
@@ -2787,6 +2881,8 @@ private enum DailySnapshotGuidanceKind {
             return "note.text.badge.plus"
         case .building:
             return "clock"
+        case .exporting:
+            return "arrow.clockwise"
         }
     }
 
@@ -2804,6 +2900,8 @@ private enum DailySnapshotGuidanceKind {
             return "plus"
         case .building:
             return "record.circle"
+        case .exporting:
+            return "arrow.clockwise"
         }
     }
 
@@ -2815,6 +2913,8 @@ private enum DailySnapshotGuidanceKind {
             return .info
         case .saved, .readyWithContext:
             return .success
+        case .exporting:
+            return .info
         }
     }
 
@@ -2832,6 +2932,8 @@ private enum DailySnapshotGuidanceKind {
             return "popover.action.quick_marker"
         case .building:
             return "popover.action.review_timeline"
+        case .exporting:
+            return "menu.exporting"
         }
     }
 
@@ -2849,6 +2951,8 @@ private enum DailySnapshotGuidanceKind {
             return "note.text"
         case .building:
             return "clock"
+        case .exporting:
+            return "arrow.clockwise"
         }
     }
 
@@ -2866,11 +2970,23 @@ private enum DailySnapshotGuidanceKind {
             return "popover.dailySnapshot.guidance.addNote"
         case .building:
             return "popover.dailySnapshot.guidance.reviewTimeline"
+        case .exporting:
+            return "popover.dailySnapshot.guidance.exporting"
+        }
+    }
+
+    var runsDailyExport: Bool {
+        switch self {
+        case .failed, .readyWithContext, .exporting:
+            return true
+        case .setupExports, .saved, .needsContext, .building:
+            return false
         }
     }
 }
 
 private enum PopoverNextActionKind {
+    case savingDailyLog
     case resumeTracking
     case setupExports
     case retryDailyLog
@@ -2883,6 +2999,8 @@ private enum PopoverNextActionKind {
 
     var titleKey: String {
         switch self {
+        case .savingDailyLog:
+            return "popover.next_actions.saving_title"
         case .resumeTracking:
             return "popover.next_actions.resume_title"
         case .setupExports:
@@ -2906,6 +3024,8 @@ private enum PopoverNextActionKind {
 
     var detailKey: String {
         switch self {
+        case .savingDailyLog:
+            return "popover.next_actions.saving_detail"
         case .resumeTracking:
             return "popover.next_actions.resume_detail"
         case .setupExports:
@@ -2929,6 +3049,8 @@ private enum PopoverNextActionKind {
 
     var statusKey: String {
         switch self {
+        case .savingDailyLog:
+            return "popover.next_actions.status.saving"
         case .resumeTracking:
             return "popover.next_actions.status.paused"
         case .setupExports:
@@ -2952,6 +3074,8 @@ private enum PopoverNextActionKind {
 
     var primaryActionKey: String {
         switch self {
+        case .savingDailyLog:
+            return "menu.exporting"
         case .resumeTracking:
             return "popover.tracking.resume"
         case .setupExports:
@@ -2975,6 +3099,8 @@ private enum PopoverNextActionKind {
 
     var primaryActionIcon: String {
         switch self {
+        case .savingDailyLog:
+            return "arrow.clockwise"
         case .resumeTracking:
             return "play.fill"
         case .setupExports:
@@ -2998,6 +3124,8 @@ private enum PopoverNextActionKind {
 
     var secondaryActionKey: String? {
         switch self {
+        case .savingDailyLog:
+            return nil
         case .resumeTracking:
             return "popover.action.quick_marker"
         case .setupExports:
@@ -3021,6 +3149,8 @@ private enum PopoverNextActionKind {
 
     var secondaryActionIcon: String {
         switch self {
+        case .savingDailyLog:
+            return "arrow.clockwise"
         case .resumeTracking:
             return "note.text"
         case .setupExports:
@@ -3044,6 +3174,8 @@ private enum PopoverNextActionKind {
 
     var primaryAccessibilityIdentifier: String {
         switch self {
+        case .savingDailyLog:
+            return "popover.nextActionSavingDailyLog"
         case .resumeTracking:
             return "popover.nextActionResumeTracking"
         case .setupExports:
@@ -3067,6 +3199,8 @@ private enum PopoverNextActionKind {
 
     var secondaryAccessibilityIdentifier: String {
         switch self {
+        case .savingDailyLog:
+            return "popover.nextActionSavingDailyLogSecondary"
         case .resumeTracking:
             return "popover.nextActionQuickMarker"
         case .setupExports:
@@ -3090,6 +3224,8 @@ private enum PopoverNextActionKind {
 
     var systemImage: String {
         switch self {
+        case .savingDailyLog:
+            return "arrow.clockwise"
         case .resumeTracking:
             return "pause.circle.fill"
         case .setupExports:
@@ -3113,6 +3249,8 @@ private enum PopoverNextActionKind {
 
     var statusIcon: String {
         switch self {
+        case .savingDailyLog:
+            return "arrow.clockwise"
         case .resumeTracking:
             return "pause.fill"
         case .setupExports:
@@ -3136,12 +3274,23 @@ private enum PopoverNextActionKind {
 
     var tone: DesignSystem.StatusTone {
         switch self {
+        case .savingDailyLog:
+            return .info
         case .resumeTracking, .setupExports, .retryDailyLog, .dailyReview, .setupTags, .addContext:
             return .warning
         case .firstMarker:
             return .info
         case .ready, .saved:
             return .success
+        }
+    }
+
+    var primaryActionRunsDailyExport: Bool {
+        switch self {
+        case .savingDailyLog, .retryDailyLog, .dailyReview, .ready:
+            return true
+        case .resumeTracking, .setupExports, .saved, .setupTags, .addContext, .firstMarker:
+            return false
         }
     }
 }

@@ -62,6 +62,7 @@
 "popover.command_center.log_not_saved" = "未保存";
 "popover.command_center.log_failed" = "保存失败";
 "popover.command_center.log_saved" = "已保存";
+"popover.command_center.log_saving" = "保存中";
 "popover.command_center.current_app" = "当前";
 "popover.command_center.flow.capture" = "记录";
 "popover.command_center.flow.context" = "语境";
@@ -81,6 +82,8 @@
 "popover.command_center.progress.failed_detail" = "上次保存失败。检查文件夹或导出状态后，再重试保存。";
 "popover.command_center.progress.saved_title" = "今天已经收尾。";
 "popover.command_center.progress.saved_detail" = "日志已保存；只有今天发生变化时再补笔记。";
+"popover.command_center.progress.exporting_title" = "正在保存今日日志。";
+"popover.command_center.progress.exporting_detail" = "Chronicle 正在写入每日 Markdown 日志。";
 "popover.privacy.title" = "隐私防线";
 "popover.privacy.status.app_only" = "仅应用级";
 "popover.privacy.status.permission_needed" = "需要权限";
@@ -347,12 +350,15 @@
 "popover.daily_snapshot.guidance.context_detail" = "保存今天前，先补一条决策、阻塞或结果笔记。";
 "popover.daily_snapshot.guidance.building_title" = "记录还在形成中。";
 "popover.daily_snapshot.guidance.building_detail" = "可以继续工作；想确认 Chronicle 看到了什么时再打开时间线。";
+"popover.daily_snapshot.guidance.exporting_title" = "正在保存今日日志。";
+"popover.daily_snapshot.guidance.exporting_detail" = "Chronicle 正在写入今天的 Markdown 日志；完成后按钮会自动恢复。";
 "popover.daily_snapshot.guidance.status.setup" = "设目录";
 "popover.daily_snapshot.guidance.status.failed" = "重试";
 "popover.daily_snapshot.guidance.status.saved" = "已保存";
 "popover.daily_snapshot.guidance.status.ready" = "可收尾";
 "popover.daily_snapshot.guidance.status.context" = "缺笔记";
 "popover.daily_snapshot.guidance.status.building" = "记录中";
+"popover.daily_snapshot.guidance.status.exporting" = "保存中";
 "popover.action.quick_marker" = "+ 添加笔记";
 "popover.action.review_timeline" = "复盘时间线";
 "popover.action.export_daily" = "保存今日日志";
@@ -380,6 +386,8 @@
 "popover.next_actions.first_marker_detail" = "先打开今天确认 Chronicle 正在等待；只有这段工作已经有明确目的时，再加一条笔记。";
 "popover.next_actions.ready_title" = "可以保存今日日志。";
 "popover.next_actions.ready_detail" = "活动、语境和日志目录都已准备好。可以直接保存；需要确认时再复盘时间线。";
+"popover.next_actions.saving_title" = "正在保存今日日志。";
+"popover.next_actions.saving_detail" = "Chronicle 正在写入 Markdown 文件，完成后会在这里显示结果。";
 "popover.next_actions.status.paused" = "已暂停";
 "popover.next_actions.status.setup" = "需设置";
 "popover.next_actions.status.retry" = "重试";
@@ -389,6 +397,7 @@
 "popover.next_actions.status.context" = "缺笔记";
 "popover.next_actions.status.capture" = "记录";
 "popover.next_actions.status.ready" = "可保存";
+"popover.next_actions.status.saving" = "保存中";
 "popover.tracking.title" = "记录状态";
 "popover.tracking.running" = "追踪进行中。";
 "popover.tracking.paused" = "追踪已暂停。";

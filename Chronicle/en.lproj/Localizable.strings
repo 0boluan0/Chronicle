@@ -62,6 +62,7 @@
 "popover.command_center.log_not_saved" = "Not saved";
 "popover.command_center.log_failed" = "Save failed";
 "popover.command_center.log_saved" = "Saved";
+"popover.command_center.log_saving" = "Saving";
 "popover.command_center.current_app" = "Current";
 "popover.command_center.flow.capture" = "Capture";
 "popover.command_center.flow.context" = "Context";
@@ -81,6 +82,8 @@
 "popover.command_center.progress.failed_detail" = "The last save failed. Retry after checking the folder or export status.";
 "popover.command_center.progress.saved_title" = "Today is closed out.";
 "popover.command_center.progress.saved_detail" = "Your log is saved; add another note only if the day changes.";
+"popover.command_center.progress.exporting_title" = "Saving today’s log.";
+"popover.command_center.progress.exporting_detail" = "Chronicle is writing the daily Markdown log now.";
 "popover.privacy.title" = "Privacy guardrail";
 "popover.privacy.status.app_only" = "App-only";
 "popover.privacy.status.permission_needed" = "Permission needed";
@@ -347,12 +350,15 @@
 "popover.daily_snapshot.guidance.context_detail" = "Add one note about the decision, blocker, or outcome before saving today.";
 "popover.daily_snapshot.guidance.building_title" = "Capture is still warming up.";
 "popover.daily_snapshot.guidance.building_detail" = "Keep working or check the timeline when you want to confirm what Chronicle has seen.";
+"popover.daily_snapshot.guidance.exporting_title" = "Saving daily log.";
+"popover.daily_snapshot.guidance.exporting_detail" = "Chronicle is writing today’s Markdown log. The buttons will unlock when it finishes.";
 "popover.daily_snapshot.guidance.status.setup" = "Set folder";
 "popover.daily_snapshot.guidance.status.failed" = "Retry";
 "popover.daily_snapshot.guidance.status.saved" = "Saved";
 "popover.daily_snapshot.guidance.status.ready" = "Ready";
 "popover.daily_snapshot.guidance.status.context" = "Needs note";
 "popover.daily_snapshot.guidance.status.building" = "Building";
+"popover.daily_snapshot.guidance.status.exporting" = "Saving";
 "popover.action.quick_marker" = "+ Add Note";
 "popover.action.review_timeline" = "Review Timeline";
 "popover.action.export_daily" = "Save Daily Log";
@@ -380,6 +386,8 @@
 "popover.next_actions.first_marker_detail" = "Open Today to confirm Chronicle is waiting; add a note only if this session already has a purpose.";
 "popover.next_actions.ready_title" = "Ready to save today’s log.";
 "popover.next_actions.ready_detail" = "Activity, context, and the log folder are ready. Save now, or review the timeline first.";
+"popover.next_actions.saving_title" = "Saving today’s log.";
+"popover.next_actions.saving_detail" = "Chronicle is writing the Markdown file and will show the result here.";
 "popover.next_actions.status.paused" = "Paused";
 "popover.next_actions.status.setup" = "Setup needed";
 "popover.next_actions.status.retry" = "Retry";
@@ -389,6 +397,7 @@
 "popover.next_actions.status.context" = "Needs note";
 "popover.next_actions.status.capture" = "Capture";
 "popover.next_actions.status.ready" = "Ready to save";
+"popover.next_actions.status.saving" = "Saving";
 "popover.tracking.title" = "Recording";
 "popover.tracking.running" = "Tracking is running.";
 "popover.tracking.paused" = "Tracking is paused.";
