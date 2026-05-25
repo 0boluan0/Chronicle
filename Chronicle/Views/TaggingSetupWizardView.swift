@@ -271,21 +271,17 @@ struct TaggingSetupWizardView: View {
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
             }
-        } else if let statusMessage, !statusMessage.isEmpty {
-            HStack(alignment: .top, spacing: 8) {
-                Image(systemName: statusIsError ? "exclamationmark.triangle.fill" : "checkmark.circle.fill")
-                    .foregroundColor(statusIsError ? Color(nsColor: .systemRed) : DesignSystem.StatusTone.success.color)
-                    .frame(width: 16, height: 16)
-                Text(statusMessage)
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(statusIsError ? .red : DesignSystem.Colors.secondaryText)
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .textSelection(.enabled)
-                    .help(statusMessage)
-                    .accessibilityIdentifier("wizard.status")
-            }
+        } else if let wizardStatus {
+            StatusBannerView(status: wizardStatus, accessibilityIdentifier: "wizard.status")
         }
+    }
+
+    private var wizardStatus: StatusMessage? {
+        guard let message = statusMessage?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !message.isEmpty else {
+            return nil
+        }
+        return StatusMessage(text: message, isError: statusIsError)
     }
 
     private var wizardIntro: some View {
