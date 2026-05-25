@@ -50,6 +50,7 @@ struct DashboardOverviewView: View {
     @State private var weekDayLabelsState: [String] = []
     @State private var weekDayStartsState: [Int64] = []
     @State private var isLoading = false
+    @State private var overviewRefreshSequence = 0
     @State private var lastRefresh: Date?
     @State private var mode: OverviewMode = .apps
     @State private var topN = 8
@@ -3008,6 +3009,8 @@ struct DashboardOverviewView: View {
     }
 
     private func refreshData(reason: String) {
+        overviewRefreshSequence += 1
+        let refreshSequence = overviewRefreshSequence
         isLoading = true
         let bounds = rangeBounds
         let includeIdle = appState.includeIdleInTimeline
@@ -3176,6 +3179,8 @@ struct DashboardOverviewView: View {
         }
 
         group.notify(queue: .main) {
+            guard refreshSequence == self.overviewRefreshSequence else { return }
+
             newReviewWorkBlocks = WorkBlockInsightBuilder.build(
                 activities: workBlockActivities,
                 tags: workBlockTags,
