@@ -1276,12 +1276,6 @@ struct ContentView: View {
                 }
             }
             .accessibilityIdentifier("popover.dailySnapshot.actions")
-
-            if !hasDailyExportFolderConfigured {
-                Text(L("popover.export_status.setup_hint"))
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-            }
         }
     }
 
@@ -1796,12 +1790,45 @@ struct ContentView: View {
     }
 
     private var exportNowStatus: StatusMessage? {
-        guard let message = appState.exportNowMessage?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !message.isEmpty else {
-            return nil
+        if let message = appState.exportNowMessage?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !message.isEmpty {
+            return StatusMessage(text: message, isError: appState.exportNowMessageIsError)
         }
 
-        return StatusMessage(text: message, isError: appState.exportNowMessageIsError)
+        if dailyExportState.isRunning {
+            return StatusMessage(text: L("popover.export_status.saving"), isError: false)
+        }
+        if !hasDailyExportFolderConfigured {
+            return StatusMessage(text: L("popover.export_status.setup_hint"), isError: false)
+        }
+        if dailyLogExportFailedToday {
+            return StatusMessage(text: lastDailyExportFailureText, isError: true)
+        }
+        if dailyLogSavedToday {
+            return StatusMessage(
+                text: String(format: L("popover.export_status.saved_today"), lastDailyExportTimeText),
+                isError: false
+            )
+        }
+        return StatusMessage(text: L("popover.export_status.ready"), isError: false)
+    }
+
+    private var lastDailyExportFailureText: String {
+        let message = reportSettings.lastDailyExportMessage?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let detail: String
+        if let message, !message.isEmpty {
+            detail = message
+        } else {
+            detail = L("popover.export_status.failure_unknown")
+        }
+        return String(format: L("popover.export_status.failed_today"), lastDailyExportTimeText, detail)
+    }
+
+    private var lastDailyExportTimeText: String {
+        guard reportSettings.lastDailyExportAt > 0 else {
+            return L("popover.export_status.time_unknown")
+        }
+        return Self.timeFormatter.string(from: Date(timeIntervalSince1970: reportSettings.lastDailyExportAt))
     }
 
     private var dailyLogSavedToday: Bool {

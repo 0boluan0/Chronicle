@@ -367,6 +367,12 @@
 "popover.action.setup_exports" = "Set Log Folder";
 "popover.action.open_daily_folder" = "Open Log Folder";
 "popover.export_status.setup_hint" = "Choose a daily log folder first, then save your first daily log.";
+"popover.export_status.saving" = "Saving today's daily log.";
+"popover.export_status.ready" = "Daily log folder is ready. Save today's Markdown when the timeline looks right.";
+"popover.export_status.saved_today" = "Daily log saved at %@.";
+"popover.export_status.failed_today" = "Last daily log save failed at %@: %@";
+"popover.export_status.time_unknown" = "unknown time";
+"popover.export_status.failure_unknown" = "Open log settings and retry.";
 "popover.next_actions.title" = "Next Step";
 "popover.next_actions.ready" = "Today is being captured. Open Today to review it, or keep working.";
 "popover.next_actions.resume_title" = "Resume capture before the day gets stale.";

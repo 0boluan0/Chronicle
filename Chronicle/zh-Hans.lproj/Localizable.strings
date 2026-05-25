@@ -367,6 +367,12 @@
 "popover.action.setup_exports" = "设置日志目录";
 "popover.action.open_daily_folder" = "打开日志目录";
 "popover.export_status.setup_hint" = "先选择今日日志保存位置，再保存第一份日志。";
+"popover.export_status.saving" = "正在保存今日日志。";
+"popover.export_status.ready" = "日志目录已就绪；时间线确认后即可保存今天的 Markdown。";
+"popover.export_status.saved_today" = "今日日志已在 %@ 保存。";
+"popover.export_status.failed_today" = "上次今日日志保存失败（%@）：%@";
+"popover.export_status.time_unknown" = "未知时间";
+"popover.export_status.failure_unknown" = "打开日志设置后重试。";
 "popover.next_actions.title" = "下一步";
 "popover.next_actions.ready" = "今天正在记录中。可以打开今天复盘，也可以继续工作。";
 "popover.next_actions.resume_title" = "先恢复记录，别让今天断档。";
