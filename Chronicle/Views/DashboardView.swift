@@ -177,6 +177,7 @@ struct DashboardView: View {
         markerSessionsCount: 0
     )
     @State private var isSidebarTodaySummaryLoading = false
+    @State private var sidebarTodaySummaryRefreshSequence = 0
 
     private var selectedSection: Section {
         get {
@@ -933,7 +934,8 @@ struct DashboardView: View {
                 systemImage: "clock",
                 tone: sidebarHasTodayActivity ? .success : .neutral,
                 helpKey: "dashboard.sidebar.today_evidence.captured_help",
-                accessibilityIdentifier: "dashboard.sidebar.todayEvidence.captured"
+                accessibilityIdentifier: "dashboard.sidebar.todayEvidence.captured",
+                isLoading: isSidebarTodaySummaryLoading
             ) {
                 selectedSectionRaw = Section.timeline.rawValue
             }
@@ -970,6 +972,7 @@ struct DashboardView: View {
         tone: DesignSystem.StatusTone,
         helpKey: String,
         accessibilityIdentifier: String,
+        isLoading: Bool = false,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
@@ -987,14 +990,22 @@ struct DashboardView: View {
                         .minimumScaleFactor(0.86)
                         .fixedSize(horizontal: false, vertical: true)
 
-                    Text(value)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.86)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .monospacedDigit()
-                        .help(value)
+                    HStack(alignment: .center, spacing: 4) {
+                        if isLoading {
+                            ProgressView()
+                                .controlSize(.small)
+                                .accessibilityHidden(true)
+                        }
+
+                        Text(value)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.primary)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.86)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .monospacedDigit()
+                    }
+                    .help(value)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -1396,6 +1407,8 @@ struct DashboardView: View {
     }
 
     private func refreshSidebarTodaySummary(reason: String) {
+        sidebarTodaySummaryRefreshSequence += 1
+        let refreshSequence = sidebarTodaySummaryRefreshSequence
         isSidebarTodaySummaryLoading = true
         AppLogger.log("Refresh dashboard sidebar summary reason=\(reason)", category: "ui")
 
@@ -1415,6 +1428,8 @@ struct DashboardView: View {
             filters: filters
         ) { result in
             DispatchQueue.main.async {
+                guard refreshSequence == self.sidebarTodaySummaryRefreshSequence else { return }
+
                 if case .success(let summary) = result {
                     self.sidebarTodaySummary = summary
                 }
