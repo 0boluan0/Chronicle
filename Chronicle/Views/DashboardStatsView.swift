@@ -28,6 +28,7 @@ struct DashboardStatsView: View {
     @AppStorage("dashboard.selectedSection") private var selectedDashboardSectionRaw = DashboardView.Section.defaultSelection.rawValue
     @State private var rangeStats = RangeStats.empty
     @State private var isLoading = false
+    @State private var statsRefreshSequence = 0
     @State private var lastRefresh: Date?
     @State private var showStatsIssueDetails = false
     @State private var showIdleSuppressionExplanation = false
@@ -2300,8 +2301,8 @@ struct DashboardStatsView: View {
     }
 
     private func refreshStats(reason: String) {
-        guard !isLoading else { return }
-
+        statsRefreshSequence += 1
+        let refreshSequence = statsRefreshSequence
         isLoading = true
         let bounds = rangeBounds
 
@@ -2401,6 +2402,8 @@ struct DashboardStatsView: View {
         }
 
         group.notify(queue: .main) {
+            guard refreshSequence == self.statsRefreshSequence else { return }
+
             let workBlocks = WorkBlockInsightBuilder.build(
                 activities: activities,
                 tags: tagRows,
