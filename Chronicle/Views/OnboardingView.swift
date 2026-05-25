@@ -1108,12 +1108,7 @@ struct OnboardingView: View {
                         }
                     }
 
-                    if let exportStatusMessage, !exportStatusMessage.isEmpty {
-                        Text(exportStatusMessage)
-                            .font(DesignSystem.Typography.caption)
-                            .foregroundColor(exportStatusIsError ? .red : DesignSystem.Colors.secondaryText)
-                            .textSelection(.enabled)
-                    }
+                    StatusBannerView(status: exportStatus, accessibilityIdentifier: "onboarding.exportStatus")
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -2302,6 +2297,14 @@ struct OnboardingView: View {
 
     private var exportTone: DesignSystem.StatusTone {
         hasDailyExportFolderConfigured ? .success : .warning
+    }
+
+    private var exportStatus: StatusMessage? {
+        guard let message = exportStatusMessage?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !message.isEmpty else {
+            return nil
+        }
+        return StatusMessage(text: message, isError: exportStatusIsError)
     }
 
     private var exportAutoSaveStatusText: String {
