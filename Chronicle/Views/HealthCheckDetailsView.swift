@@ -272,10 +272,7 @@ struct HealthCheckDetailsView: View {
                 Button {
                     createFeedbackBundle()
                 } label: {
-                    healthActionLabel(
-                        isCreatingFeedbackBundle ? L("self_check.details.bundle_creating") : L("self_check.details.bundle_create"),
-                        systemImage: "shippingbox"
-                    )
+                    feedbackBundleActionLabel
                 }
                 .buttonStyle(.bordered)
                 .disabled(isCreatingFeedbackBundle)
@@ -344,6 +341,30 @@ struct HealthCheckDetailsView: View {
 
     private func healthActionLabel(_ title: String, systemImage: String) -> some View {
         ActionButtonLabel(title, systemImage: systemImage, minimumScaleFactor: 0.85)
+    }
+
+    @ViewBuilder
+    private var feedbackBundleActionLabel: some View {
+        if isCreatingFeedbackBundle {
+            healthProgressActionLabel(L("self_check.details.bundle_creating"))
+        } else {
+            healthActionLabel(L("self_check.details.bundle_create"), systemImage: "shippingbox")
+        }
+    }
+
+    private func healthProgressActionLabel(_ title: String) -> some View {
+        HStack(spacing: DesignSystem.Spacing.xs) {
+            ProgressView()
+                .controlSize(.small)
+                .accessibilityHidden(true)
+
+            Text(verbatim: title)
+                .lineLimit(2)
+                .minimumScaleFactor(0.85)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var readinessSummarySection: some View {
@@ -579,10 +600,21 @@ struct HealthCheckDetailsView: View {
         Button {
             performReadinessNextAction()
         } label: {
-            healthActionLabel(L(readinessNextActionButtonKey), systemImage: readinessNextActionButtonIconName)
+            readinessNextActionButtonLabel
         }
         .disabled(readinessNextActionIsDisabled)
         .accessibilityIdentifier("selfCheck.readiness.nextAction.primary")
+    }
+
+    @ViewBuilder
+    private var readinessNextActionButtonLabel: some View {
+        if readinessState == .running {
+            healthProgressActionLabel(L(readinessNextActionButtonKey))
+        } else if readinessRecommendedIssueAction == .createSupportPackage && isCreatingFeedbackBundle {
+            healthProgressActionLabel(L("self_check.details.bundle_creating"))
+        } else {
+            healthActionLabel(L(readinessNextActionButtonKey), systemImage: readinessNextActionButtonIconName)
+        }
     }
 
     private var readinessRepairPath: some View {
@@ -1312,11 +1344,20 @@ struct HealthCheckDetailsView: View {
         Button {
             performIssueAction(action)
         } label: {
-            healthActionLabel(L(action.titleKey), systemImage: action.systemImage)
+            issueActionLabel(action)
         }
         .disabled(action == .createSupportPackage && isCreatingFeedbackBundle)
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityIdentifier("selfCheck.issue.action.\(action.accessibilitySuffix)")
+    }
+
+    @ViewBuilder
+    private func issueActionLabel(_ action: HealthIssueAction) -> some View {
+        if action == .createSupportPackage && isCreatingFeedbackBundle {
+            healthProgressActionLabel(L("self_check.details.bundle_creating"))
+        } else {
+            healthActionLabel(L(action.titleKey), systemImage: action.systemImage)
+        }
     }
 
     private func performIssueAction(_ action: HealthIssueAction) {
