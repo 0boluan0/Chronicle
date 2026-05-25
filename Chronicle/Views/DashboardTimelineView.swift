@@ -281,6 +281,30 @@ struct DashboardTimelineView: View {
         ActionButtonLabel(title, systemImage: systemImage)
     }
 
+    @ViewBuilder
+    private func timelineBusyActionLabel(
+        isBusy: Bool,
+        busyTitle: String,
+        idleTitle: String,
+        systemImage: String
+    ) -> some View {
+        if isBusy {
+            HStack(spacing: DesignSystem.Spacing.xs) {
+                ProgressView()
+                    .controlSize(.small)
+                    .accessibilityHidden(true)
+
+                Text(verbatim: busyTitle)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.86)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        } else {
+            timelineActionLabel(idleTitle, systemImage: systemImage)
+        }
+    }
+
     private var reviewFocusCard: some View {
         SectionCard(title: "timeline.focus.title") {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
@@ -2140,9 +2164,11 @@ struct DashboardTimelineView: View {
         Button {
             applyBatchOverride()
         } label: {
-            timelineActionLabel(
-                isApplyingBatchOverride ? L("timeline.batch.applying") : L("timeline.batch.apply"),
-                systemImage: isApplyingBatchOverride ? "hourglass" : "checkmark.circle.fill"
+            timelineBusyActionLabel(
+                isBusy: isApplyingBatchOverride,
+                busyTitle: L("timeline.batch.applying"),
+                idleTitle: L("timeline.batch.apply"),
+                systemImage: "checkmark.circle.fill"
             )
         }
         .buttonStyle(.borderedProminent)
@@ -2155,9 +2181,11 @@ struct DashboardTimelineView: View {
         Button {
             undoLastBatch()
         } label: {
-            timelineActionLabel(
-                isUndoingBatchOverride ? L("timeline.batch.undoing") : L("timeline.batch.undo"),
-                systemImage: isUndoingBatchOverride ? "hourglass" : "arrow.uturn.backward.circle"
+            timelineBusyActionLabel(
+                isBusy: isUndoingBatchOverride,
+                busyTitle: L("timeline.batch.undoing"),
+                idleTitle: L("timeline.batch.undo"),
+                systemImage: "arrow.uturn.backward.circle"
             )
         }
         .buttonStyle(.bordered)
@@ -2323,9 +2351,11 @@ struct DashboardTimelineView: View {
             Button {
                 submitInlineNote(for: activity)
             } label: {
-                timelineActionLabel(
-                    inlineNoteIsSubmitting ? L("timeline.row.saving_note") : L("timeline.row.save_note"),
-                    systemImage: inlineNoteIsSubmitting ? "hourglass" : "checkmark"
+                timelineBusyActionLabel(
+                    isBusy: inlineNoteIsSubmitting,
+                    busyTitle: L("timeline.row.saving_note"),
+                    idleTitle: L("timeline.row.save_note"),
+                    systemImage: "checkmark"
                 )
             }
             .buttonStyle(.borderedProminent)
