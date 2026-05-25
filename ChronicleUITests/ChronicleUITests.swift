@@ -1290,6 +1290,7 @@ final class ChronicleUITests: XCTestCase {
         app.buttons["onboarding.skipExports"].click()
         XCTAssertTrue(app.staticTexts["Privacy and Permissions"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["onboarding.privacy.captureRow"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["onboarding.privacy.safety"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["onboarding.privacy.outcome"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Choose the amount of context Chronicle keeps"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["onboarding.permissions.row"].waitForExistence(timeout: 5))
