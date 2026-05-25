@@ -637,7 +637,11 @@ struct ContentView: View {
             Button {
                 healthCheckService.runQuickChecks()
             } label: {
-                popoverActionLabel(L("popover.self_check.run"), systemImage: "checkmark.shield")
+                if healthCheckService.isRunning {
+                    ProgressActionButtonLabel(L("popover.self_check.running"))
+                } else {
+                    popoverActionLabel(L("popover.self_check.run"), systemImage: "checkmark.shield")
+                }
             }
             .buttonStyle(.bordered)
             .controlSize(.small)
