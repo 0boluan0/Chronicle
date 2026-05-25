@@ -1036,6 +1036,9 @@
 "overview.selection.time" = "Time";
 "overview.selection.range" = "Range";
 "overview.selection.duration" = "Duration";
+"overview.selection.timeline_target" = "Timeline target";
+"overview.selection.timeline_target.block" = "Exact block";
+"overview.selection.timeline_target.day" = "Selected day";
 "overview.selection.idle" = "Idle";
 "overview.selection.overlay" = "Short switch";
 "overview.selection.clear" = "Clear Selection";

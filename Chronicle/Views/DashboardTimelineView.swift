@@ -146,11 +146,11 @@ struct DashboardTimelineView: View {
             refreshData(reason: "activity tracker")
         }
         .onChange(of: appState.selectedDate) { _, _ in
-            appState.clearTimelineFocusRange()
+            clearTimelineFocusRangeIfNeeded()
             refreshData(reason: "date changed")
         }
         .onChange(of: appState.dateRangeMode) { _, _ in
-            appState.clearTimelineFocusRange()
+            clearTimelineFocusRangeIfNeeded()
             refreshData(reason: "range changed")
         }
         .confirmationDialog(
@@ -3248,6 +3248,14 @@ struct DashboardTimelineView: View {
 
     private func timelineFocusOverlaps(start: Int64, end: Int64, focusRange: TimelineFocusRange) -> Bool {
         start < focusRange.endTime && end > focusRange.startTime
+    }
+
+    private func clearTimelineFocusRangeIfNeeded() {
+        guard let focusRange = appState.timelineFocusRange else { return }
+        let bounds = rangeBounds
+        if focusRange.endTime <= bounds.start || focusRange.startTime >= bounds.end {
+            appState.clearTimelineFocusRange()
+        }
     }
 
     private var visibleItems: [TimelineItem] {

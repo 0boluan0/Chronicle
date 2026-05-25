@@ -1660,6 +1660,11 @@ struct DashboardOverviewView: View {
                             value: selection.durationText,
                             systemImage: "timer"
                         )
+                        selectionInfoItem(
+                            title: L("overview.selection.timeline_target"),
+                            value: selectionTimelineTargetText(selection),
+                            systemImage: selection.rangeLabel == nil ? "scope" : "calendar"
+                        )
                     }
 
                     selectionActionRow
@@ -1869,7 +1874,7 @@ struct DashboardOverviewView: View {
 
     private var selectionOpenTimelineButton: some View {
         Button {
-            selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
+            openTimelineForSelection()
         } label: {
             overviewSelectionActionLabel(L("overview.selection.open_timeline"), systemImage: "clock")
         }
@@ -1877,6 +1882,38 @@ struct DashboardOverviewView: View {
         .tint(DesignSystem.Colors.accentSkyBlue)
         .controlSize(.small)
         .accessibilityIdentifier("dashboard.overview.selection.openTimeline")
+    }
+
+    private func selectionTimelineTargetText(_ selection: GanttSelection) -> String {
+        selection.rangeLabel == nil
+            ? L("overview.selection.timeline_target.block")
+            : L("overview.selection.timeline_target.day")
+    }
+
+    private func openTimelineForSelection() {
+        guard let selection else {
+            selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
+            return
+        }
+
+        appState.selectedDate = Date(timeIntervalSince1970: TimeInterval(selection.start))
+        appState.dateRangeMode = .day
+        appState.searchQuery = ""
+        appState.selectedTagFilterId = -1
+        appState.selectedAppFilterName = "All Apps"
+
+        if selection.rangeLabel == nil {
+            appState.includeIdleInTimeline = selection.isIdle
+            appState.focusTimelineRange(
+                title: selection.title,
+                startTime: selection.start,
+                endTime: selection.end
+            )
+        } else {
+            appState.clearTimelineFocusRange()
+        }
+
+        selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
     }
 
     private var selectionAddNoteButton: some View {
