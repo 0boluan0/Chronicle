@@ -26,6 +26,7 @@ struct StatsView: View {
     @State private var recentMarkers: [MarkerRow] = []
     @State private var recentMarkerSpans: [MarkerSpanRow] = []
     @State private var isLoading = false
+    @State private var statsRefreshSequence = 0
     @State private var lastRefresh: Date?
     @State private var showIdleSuppressionExplanation = false
     @State private var showStatsIssueDetails = false
@@ -183,12 +184,17 @@ struct StatsView: View {
             Button {
                 refreshStats(reason: "stats issue retry")
             } label: {
-                statsActionLabel(L("dashboard.stats.error.retry"), systemImage: "arrow.clockwise")
+                if isLoading {
+                    ProgressActionButtonLabel(L("dashboard.stats.review.progress.loading"))
+                } else {
+                    statsActionLabel(L("dashboard.stats.error.retry"), systemImage: "arrow.clockwise")
+                }
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
             .tint(DesignSystem.Colors.accentSkyBlue)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .disabled(isLoading)
             .accessibilityIdentifier("stats.retryLoad")
 
             Button {
@@ -1407,6 +1413,8 @@ struct StatsView: View {
     }
 
     private func refreshStats(reason: String) {
+        statsRefreshSequence += 1
+        let refreshSequence = statsRefreshSequence
         isLoading = true
         let bounds = appState.dateRangeMode.bounds(for: appState.selectedDate)
         let group = DispatchGroup()
@@ -1499,6 +1507,8 @@ struct StatsView: View {
         }
 
         group.notify(queue: .main) {
+            guard refreshSequence == self.statsRefreshSequence else { return }
+
             let markers = timelineItems.compactMap { item -> MarkerRow? in
                 if case .marker(let marker) = item { return marker }
                 return nil
