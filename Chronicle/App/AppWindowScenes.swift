@@ -18,6 +18,7 @@ struct AppWindowRouterCommands: Commands {
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
     @ObservedObject private var reportSettings = ReportSettings.shared
+    @ObservedObject private var dailyExportState = DailyLogExportAction.state
 
     var body: some Commands {
         AppWindowRouter.shared.registerSceneHandlers(
@@ -47,11 +48,11 @@ struct AppWindowRouterCommands: Commands {
             }
             .keyboardShortcut("r", modifiers: [.command, .shift])
 
-            Button(L(DailyLogExportAction.presentation(settings: reportSettings).titleKey)) {
+            Button(L(DailyLogExportAction.presentation(settings: reportSettings, isRunning: dailyExportState.isRunning).titleKey)) {
                 DailyLogExportAction.perform()
             }
             .keyboardShortcut("e", modifiers: [.command])
-            .disabled(DailyLogExportAction.isRunning)
+            .disabled(dailyExportState.isRunning)
 
             Divider()
 

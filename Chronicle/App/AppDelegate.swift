@@ -711,6 +711,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 }
 
+final class DailyLogExportState: ObservableObject {
+    @Published fileprivate(set) var isRunning = false
+
+    fileprivate func setRunning(_ value: Bool) {
+        isRunning = value
+    }
+}
+
 enum DailyLogExportAction {
     enum Source {
         case menu
@@ -749,7 +757,8 @@ enum DailyLogExportAction {
         let symbolName: String
     }
 
-    static private(set) var isRunning = false
+    static let state = DailyLogExportState()
+    static var isRunning: Bool { state.isRunning }
     private static var feedbackToken: UUID?
 
     static func presentation(
@@ -786,12 +795,12 @@ enum DailyLogExportAction {
             return
         }
 
-        isRunning = true
+        state.setRunning(true)
         onStateChanged?()
         presentFeedback(message: L("menu.exporting"), isError: false)
         ReportService.shared.generateDailyReport(date: Date()) { result in
             DispatchQueue.main.async {
-                isRunning = false
+                state.setRunning(false)
                 switch result {
                 case .success(let info):
                     let message = String(format: L("export.now.success"), info.fileName)

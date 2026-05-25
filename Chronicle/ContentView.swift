@@ -12,6 +12,7 @@ struct ContentView: View {
     @EnvironmentObject private var appState: AppState
     @ObservedObject private var reportSettings = ReportSettings.shared
     @ObservedObject private var healthCheckService = HealthCheckService.shared
+    @ObservedObject private var dailyExportState = DailyLogExportAction.state
 
     @AppStorage("popover.dailyReviewReminderDismissedDay") private var dismissedDailyReviewDay = ""
     @AppStorage("telemetry.dailyReviewReminderLastShownDay") private var lastDailyReviewReminderShownDay = ""
@@ -1399,7 +1400,7 @@ struct ContentView: View {
     }
 
     private var dailySnapshotGuidance: DailySnapshotGuidanceKind {
-        if DailyLogExportAction.isRunning {
+        if dailyExportState.isRunning {
             return .exporting
         }
         if dailySnapshot.activeSeconds >= 15 * 60 && dailySnapshot.reviewCueCount == 0 && !dailyLogExportFailedToday {
@@ -1657,7 +1658,7 @@ struct ContentView: View {
     }
 
     private var nextActionKind: PopoverNextActionKind {
-        if DailyLogExportAction.isRunning {
+        if dailyExportState.isRunning {
             return .savingDailyLog
         }
         if appState.trackingPaused {
@@ -1779,11 +1780,11 @@ struct ContentView: View {
     }
 
     private var primaryNextActionIsExporting: Bool {
-        DailyLogExportAction.isRunning && nextActionKind.primaryActionRunsDailyExport
+        dailyExportState.isRunning && nextActionKind.primaryActionRunsDailyExport
     }
 
     private var dailySnapshotPrimaryActionIsExporting: Bool {
-        DailyLogExportAction.isRunning && dailySnapshotPrimaryActionRunsExport
+        dailyExportState.isRunning && dailySnapshotPrimaryActionRunsExport
     }
 
     private var dailySnapshotPrimaryActionRunsExport: Bool {
@@ -1791,7 +1792,7 @@ struct ContentView: View {
     }
 
     private func snapshotGuidanceActionIsExporting(_ guidance: DailySnapshotGuidanceKind) -> Bool {
-        DailyLogExportAction.isRunning && guidance.runsDailyExport
+        dailyExportState.isRunning && guidance.runsDailyExport
     }
 
     private var exportNowStatus: StatusMessage? {
@@ -1812,7 +1813,7 @@ struct ContentView: View {
     }
 
     private var dailyLogMetricValue: String {
-        if DailyLogExportAction.isRunning {
+        if dailyExportState.isRunning {
             return L("popover.command_center.log_saving")
         }
         if !hasDailyExportFolderConfigured {
@@ -1828,7 +1829,7 @@ struct ContentView: View {
     }
 
     private var dailyLogMetricIconName: String {
-        if DailyLogExportAction.isRunning {
+        if dailyExportState.isRunning {
             return "arrow.clockwise"
         }
         if !hasDailyExportFolderConfigured {
@@ -1844,7 +1845,7 @@ struct ContentView: View {
     }
 
     private var dailyLogMetricTone: DesignSystem.StatusTone {
-        if DailyLogExportAction.isRunning {
+        if dailyExportState.isRunning {
             return .info
         }
         if !hasDailyExportFolderConfigured {
@@ -1894,7 +1895,7 @@ struct ContentView: View {
     }
 
     private var commandCenterLoopTitleKey: String {
-        if DailyLogExportAction.isRunning {
+        if dailyExportState.isRunning {
             return "popover.command_center.progress.exporting_title"
         }
         if appState.trackingPaused {
@@ -1919,7 +1920,7 @@ struct ContentView: View {
     }
 
     private var commandCenterLoopDetailKey: String {
-        if DailyLogExportAction.isRunning {
+        if dailyExportState.isRunning {
             return "popover.command_center.progress.exporting_detail"
         }
         if appState.trackingPaused {
@@ -1944,7 +1945,7 @@ struct ContentView: View {
     }
 
     private var commandCenterLoopIconName: String {
-        if DailyLogExportAction.isRunning {
+        if dailyExportState.isRunning {
             return "arrow.clockwise"
         }
         if appState.trackingPaused {
@@ -1969,7 +1970,7 @@ struct ContentView: View {
     }
 
     private var commandCenterLoopTone: DesignSystem.StatusTone {
-        if DailyLogExportAction.isRunning {
+        if dailyExportState.isRunning {
             return .info
         }
         if appState.trackingPaused || !hasDailyExportFolderConfigured || dailyLogExportFailedToday {
@@ -2046,7 +2047,7 @@ struct ContentView: View {
     }
 
     private var commandCenterLogStepIconName: String {
-        if DailyLogExportAction.isRunning {
+        if dailyExportState.isRunning {
             return "arrow.clockwise"
         }
         if !hasDailyExportFolderConfigured {
@@ -2062,7 +2063,7 @@ struct ContentView: View {
     }
 
     private var commandCenterLogStepTone: DesignSystem.StatusTone {
-        if DailyLogExportAction.isRunning {
+        if dailyExportState.isRunning {
             return .info
         }
         if !hasDailyExportFolderConfigured {
