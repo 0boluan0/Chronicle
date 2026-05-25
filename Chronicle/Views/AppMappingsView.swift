@@ -629,6 +629,30 @@ struct AppMappingsView: View {
         ActionButtonLabel(title, systemImage: systemImage, fillsWidth: false)
     }
 
+    @ViewBuilder
+    private func mappingLoadingActionLabel(
+        isLoading: Bool,
+        loadingTitle: String,
+        idleTitle: String,
+        systemImage: String
+    ) -> some View {
+        if isLoading {
+            HStack(spacing: DesignSystem.Spacing.xs) {
+                ProgressView()
+                    .controlSize(.small)
+                    .accessibilityHidden(true)
+
+                Text(verbatim: loadingTitle)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.86)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        } else {
+            mappingActionLabel(idleTitle, systemImage: systemImage)
+        }
+    }
+
     private func showUntaggedMappings() {
         searchText = ""
         mappingFilterScope = .untagged
@@ -780,7 +804,12 @@ struct AppMappingsView: View {
         Button {
             reloadData()
         } label: {
-            mappingActionLabel(L("actions.refresh"), systemImage: "arrow.clockwise")
+            mappingLoadingActionLabel(
+                isLoading: isLoadingMappings,
+                loadingTitle: L("apps.action.refreshing"),
+                idleTitle: L("actions.refresh"),
+                systemImage: "arrow.clockwise"
+            )
         }
         .buttonStyle(.bordered)
         .disabled(isLoadingMappings)
@@ -1037,7 +1066,12 @@ struct AppMappingsView: View {
                     Button {
                         loadMappings(reset: false)
                     } label: {
-                        mappingActionLabel(L("common.load_more"), systemImage: "plus.circle")
+                        mappingLoadingActionLabel(
+                            isLoading: isLoadingMappings,
+                            loadingTitle: L("apps.action.loading_more"),
+                            idleTitle: L("common.load_more"),
+                            systemImage: "plus.circle"
+                        )
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(DesignSystem.Colors.accentSkyBlue)
@@ -1224,7 +1258,12 @@ struct AppMappingsView: View {
             Button {
                 reloadData()
             } label: {
-                mappingActionLabel(L("actions.refresh"), systemImage: "arrow.clockwise")
+                mappingLoadingActionLabel(
+                    isLoading: isLoadingMappings,
+                    loadingTitle: L("apps.action.refreshing"),
+                    idleTitle: L("actions.refresh"),
+                    systemImage: "arrow.clockwise"
+                )
             }
             .buttonStyle(.bordered)
             .disabled(isLoadingMappings)

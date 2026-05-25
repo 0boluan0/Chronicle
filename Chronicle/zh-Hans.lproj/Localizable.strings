@@ -2824,6 +2824,8 @@
 
 "Apps" = "应用";
 "actions.refresh" = "刷新";
+"apps.action.refreshing" = "刷新中";
+"apps.action.loading_more" = "加载中";
 "apps.page.subtitle" = "先决定每个应用未来在今日日志里出现的位置，再按需要更新已保存活动。";
 "apps.page.rule_note" = "窗口标题规则命中时仍会优先生效，应用分类是稳定的默认归类。";
 "apps.summary.needs_review" = "需要处理";

@@ -2825,6 +2825,8 @@
 
 "Apps" = "Apps";
 "actions.refresh" = "Refresh";
+"apps.action.refreshing" = "Refreshing";
+"apps.action.loading_more" = "Loading more";
 "apps.page.subtitle" = "Choose where each app should appear in future daily logs, then update saved activity only when needed.";
 "apps.page.rule_note" = "Window-title rules still win when they match, so app categories act as the reliable default.";
 "apps.summary.needs_review" = "Needs Review";
