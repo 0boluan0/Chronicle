@@ -52,6 +52,8 @@ struct MarkerTimelineView: View {
 
     @State private var groups: [MarkerTimelineGroupData] = []
     @State private var searchText = ""
+    @State private var isRefreshingMarkers = false
+    @State private var markerRefreshSequence = 0
     @State private var lastRefresh: Date?
     @State private var expandedGroupIds: Set<String> = []
     @State private var hoverX: CGFloat?
@@ -799,6 +801,9 @@ struct MarkerTimelineView: View {
     }
 
     private var markerReviewHeadlineKey: LocalizedStringKey {
+        if isRefreshingMarkers && groups.isEmpty {
+            return "markers.review.loading_title"
+        }
         if groups.isEmpty {
             return "markers.review.empty_title"
         }
@@ -815,6 +820,9 @@ struct MarkerTimelineView: View {
     }
 
     private var markerReviewDetailKey: LocalizedStringKey {
+        if isRefreshingMarkers && groups.isEmpty {
+            return "markers.review.loading_detail"
+        }
         if groups.isEmpty {
             return "markers.review.empty_detail"
         }
@@ -831,6 +839,9 @@ struct MarkerTimelineView: View {
     }
 
     private var markerReviewStatusText: String {
+        if isRefreshingMarkers {
+            return L("markers.review.status.loading")
+        }
         if groups.isEmpty {
             return L("markers.review.status.empty")
         }
@@ -847,6 +858,9 @@ struct MarkerTimelineView: View {
     }
 
     private var markerReviewStatusIconName: String {
+        if isRefreshingMarkers {
+            return "arrow.triangle.2.circlepath"
+        }
         if groups.isEmpty {
             return "bookmark.slash"
         }
@@ -863,6 +877,9 @@ struct MarkerTimelineView: View {
     }
 
     private var markerReviewIconName: String {
+        if isRefreshingMarkers && groups.isEmpty {
+            return "arrow.triangle.2.circlepath"
+        }
         if groups.isEmpty {
             return "bookmark.slash"
         }
@@ -879,6 +896,9 @@ struct MarkerTimelineView: View {
     }
 
     private var markerReviewTone: DesignSystem.StatusTone {
+        if isRefreshingMarkers {
+            return .info
+        }
         if groups.isEmpty {
             return .neutral
         }
@@ -892,6 +912,10 @@ struct MarkerTimelineView: View {
     }
 
     private func refreshMarkers(reason: String) {
+        markerRefreshSequence += 1
+        let refreshSequence = markerRefreshSequence
+        isRefreshingMarkers = true
+
         let group = DispatchGroup()
         var notes: [MarkerRow] = []
         var spans: [MarkerSpanRow] = []
@@ -920,6 +944,8 @@ struct MarkerTimelineView: View {
         }
 
         group.notify(queue: .main) {
+            guard refreshSequence == self.markerRefreshSequence else { return }
+
             if let errorMessage {
                 self.appState.lastDbErrorMessage = errorMessage
             }
@@ -927,6 +953,7 @@ struct MarkerTimelineView: View {
             self.groups = nextGroups
             let ids = Set(nextGroups.map { $0.id })
             self.expandedGroupIds = self.expandedGroupIds.intersection(ids)
+            self.isRefreshingMarkers = false
             self.lastRefresh = Date()
             AppLogger.log("Marker timeline refresh: \(reason)", category: "ui")
         }

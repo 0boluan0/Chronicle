@@ -2040,6 +2040,8 @@
 "markers.visible_groups" = "显示 %d / %d 组";
 "markers.grid" = "网格";
 "markers.review.title" = "复盘笔记";
+"markers.review.loading_title" = "正在刷新复盘笔记。";
+"markers.review.loading_detail" = "Chronicle 正在加载这个范围内的笔记和专注区间。";
 "markers.review.empty_title" = "这个范围还没有复盘笔记。";
 "markers.review.empty_detail" = "工作时添加快速笔记或专注区间，之后就能在这里还原当天语境。";
 "markers.review.filtered_title" = "搜索隐藏了所有笔记。";
@@ -2055,6 +2057,7 @@
 "markers.review.status.live" = "进行中";
 "markers.review.status.dense" = "较密集";
 "markers.review.status.ready" = "可复盘";
+"markers.review.status.loading" = "刷新中";
 "markers.review.find_title" = "找到某个时刻";
 "markers.review.find_detail" = "当前显示 %d / %d 组笔记。";
 "markers.review.search_active" = "搜索中";

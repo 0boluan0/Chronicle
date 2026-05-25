@@ -2040,6 +2040,8 @@
 "markers.visible_groups" = "%d of %d visible";
 "markers.grid" = "Grid";
 "markers.review.title" = "Review Notes";
+"markers.review.loading_title" = "Refreshing review notes.";
+"markers.review.loading_detail" = "Chronicle is loading notes and focus blocks for this range.";
 "markers.review.empty_title" = "No review notes in this range yet.";
 "markers.review.empty_detail" = "Add quick notes or focus blocks while working, then use this page to reconstruct the day.";
 "markers.review.filtered_title" = "Search is hiding every note.";
@@ -2055,6 +2057,7 @@
 "markers.review.status.live" = "Live";
 "markers.review.status.dense" = "Dense";
 "markers.review.status.ready" = "Ready";
+"markers.review.status.loading" = "Refreshing";
 "markers.review.find_title" = "Find a moment";
 "markers.review.find_detail" = "%d of %d note groups visible.";
 "markers.review.search_active" = "Search active";
