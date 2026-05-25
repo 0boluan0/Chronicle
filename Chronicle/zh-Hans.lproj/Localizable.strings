@@ -1447,6 +1447,9 @@
 "support.update_channel.checksum_title" = "校验文件";
 "support.update_channel.checksum_detail" = "需要验证下载的 DMG 时，使用同名 .sha256 文件。";
 "support.update_channel.checksum_status" = ".sha256";
+"support.update_channel.candidate_title" = "候选版本门槛";
+"support.update_channel.candidate_detail" = "只有发布说明、校验、健康检查和回退证据都清楚时，才优先使用候选版本。";
+"support.update_channel.candidate_status" = "先看证据";
 "support.update_channel.install_title" = "首次打开检查";
 "support.update_channel.install_detail" = "如果 macOS 提示候选版本未签名，先确认发布来源和校验文件，再从 Finder 手动打开。";
 "support.update_channel.install_status" = "用户确认";
@@ -1465,6 +1468,7 @@
 "support.update_channel.checklist.current" = "当前版本：%@";
 "support.update_channel.checklist.source" = "打开最新 GitHub Release，同时下载 DMG 和匹配的 .sha256：";
 "support.update_channel.checklist.verify" = "替换应用前，用匹配的校验文件验证下载的 DMG。";
+"support.update_channel.checklist.release_notes" = "阅读发布说明；只有验证记录和已知限制写清楚时，才使用候选版本。";
 "support.update_channel.checklist.first_launch" = "如果 macOS 拦截未签名候选版本，先确认发布来源和校验文件，再用 Finder > 打开。";
 "support.update_channel.checklist.backup" = "替换 Chronicle 前，确保上一个版本和本地数据文件夹仍可找回。";
 "support.update_channel.checklist.health" = "启动后运行应用健康检查，并确认今日日志导出仍可用。";

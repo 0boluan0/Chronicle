@@ -1447,6 +1447,9 @@
 "support.update_channel.checksum_title" = "Verification file";
 "support.update_channel.checksum_detail" = "Use the matching .sha256 file when you want to verify a downloaded DMG.";
 "support.update_channel.checksum_status" = ".sha256";
+"support.update_channel.candidate_title" = "Candidate gate";
+"support.update_channel.candidate_detail" = "Prefer a release candidate only after notes, checksum, health, and rollback evidence are present.";
+"support.update_channel.candidate_status" = "Evidence first";
 "support.update_channel.install_title" = "First launch check";
 "support.update_channel.install_detail" = "If macOS warns about an unsigned candidate, open it from Finder only after checking the release source and checksum.";
 "support.update_channel.install_status" = "User-approved";
@@ -1465,6 +1468,7 @@
 "support.update_channel.checklist.current" = "Current build: %@";
 "support.update_channel.checklist.source" = "Open the latest GitHub Release and download the DMG plus matching .sha256:";
 "support.update_channel.checklist.verify" = "Verify the downloaded DMG with the matching checksum before replacing the app.";
+"support.update_channel.checklist.release_notes" = "Read the release notes and only use a candidate when validation and known limitations are documented.";
 "support.update_channel.checklist.first_launch" = "If macOS blocks an unsigned candidate, use Finder > Open only after verifying the release source and checksum.";
 "support.update_channel.checklist.backup" = "Keep the previous build and local data folder reachable before replacing Chronicle.";
 "support.update_channel.checklist.health" = "After launch, run App Health and confirm daily log export still works.";

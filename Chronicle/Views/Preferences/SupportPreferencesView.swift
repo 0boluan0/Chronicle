@@ -676,6 +676,15 @@ struct SupportPreferencesView: View {
                     )
 
                     supportChecklistItem(
+                        systemImage: "flag",
+                        tone: .warning,
+                        titleKey: "support.update_channel.candidate_title",
+                        detailKey: "support.update_channel.candidate_detail",
+                        status: L("support.update_channel.candidate_status"),
+                        accessibilityIdentifier: "support.updateChannel.candidate"
+                    )
+
+                    supportChecklistItem(
                         systemImage: "hand.raised",
                         tone: .warning,
                         titleKey: "support.update_channel.install_title",
@@ -1198,6 +1207,7 @@ struct SupportPreferencesView: View {
             L("support.update_channel.checklist.source"),
             latestReleaseURL.absoluteString,
             L("support.update_channel.checklist.verify"),
+            L("support.update_channel.checklist.release_notes"),
             L("support.update_channel.checklist.first_launch"),
             L("support.update_channel.checklist.backup"),
             L("support.update_channel.checklist.health")
