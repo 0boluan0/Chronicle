@@ -55,9 +55,9 @@ struct StatusBannerView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .accessibilityElement(children: .combine)
+                .accessibilityIdentifier(accessibilityIdentifier ?? "")
             }
         }
-        .accessibilityIdentifier(accessibilityIdentifier ?? "")
     }
 
     private func titleKey(for status: StatusMessage) -> String {
