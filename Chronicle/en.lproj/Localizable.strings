@@ -341,6 +341,7 @@
 "popover.daily_snapshot.work_block.empty_status" = "No block yet";
 "popover.daily_snapshot.work_block.status" = "%@ block";
 "popover.daily_snapshot.work_block.open" = "Review Stats";
+"popover.daily_snapshot.work_block.open_timeline" = "Open in Timeline";
 "popover.daily_snapshot.work_block.time_range" = "%@-%@";
 "popover.daily_snapshot.guidance.setup_title" = "Daily log needs a home.";
 "popover.daily_snapshot.guidance.setup_detail" = "Choose a folder once so today can become a saved log instead of just a timeline.";

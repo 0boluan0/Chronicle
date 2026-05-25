@@ -341,6 +341,7 @@
 "popover.daily_snapshot.work_block.empty_status" = "暂无区间";
 "popover.daily_snapshot.work_block.status" = "%@ 区间";
 "popover.daily_snapshot.work_block.open" = "查看统计";
+"popover.daily_snapshot.work_block.open_timeline" = "在时间线查看";
 "popover.daily_snapshot.work_block.time_range" = "%@-%@";
 "popover.daily_snapshot.guidance.setup_title" = "今日日志还需要保存位置。";
 "popover.daily_snapshot.guidance.setup_detail" = "先选一次文件夹，今天的记录才能从时间线变成可保存的日志。";

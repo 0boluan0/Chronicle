@@ -1719,6 +1719,7 @@ final class ChronicleTests: XCTestCase {
             "popover.daily_snapshot.work_block.empty_status",
             "popover.daily_snapshot.work_block.status",
             "popover.daily_snapshot.work_block.open",
+            "popover.daily_snapshot.work_block.open_timeline",
             "popover.daily_snapshot.work_block.time_range",
             "popover.daily_snapshot.guidance.setup_title",
             "popover.daily_snapshot.guidance.setup_detail",

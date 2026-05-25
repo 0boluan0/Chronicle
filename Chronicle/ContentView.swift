@@ -1441,13 +1441,13 @@ struct ContentView: View {
                 )
 
                 Button {
-                    openDashboardStats()
+                    runSnapshotWorkBlockAction()
                 } label: {
-                    popoverActionLabel(L("popover.daily_snapshot.work_block.open"), systemImage: "chart.bar")
+                    popoverActionLabel(L(snapshotWorkBlockActionTitleKey), systemImage: snapshotWorkBlockActionIconName)
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
-                .accessibilityIdentifier("popover.dailySnapshot.workBlock.openStats")
+                .accessibilityIdentifier(snapshotWorkBlockActionAccessibilityIdentifier)
             }
         }
         .accessibilityIdentifier("popover.dailySnapshot.workBlock")
@@ -1867,6 +1867,25 @@ struct ContentView: View {
     private func openDashboardTimeline() {
         UserDefaults.standard.set(DashboardView.Section.timeline.rawValue, forKey: "dashboard.selectedSection")
         AppWindowRouter.shared.open(.dashboard)
+    }
+
+    private func openDashboardTimeline(filteredByWorkBlock block: WorkBlockInsight) {
+        appState.selectedDate = Date(timeIntervalSince1970: TimeInterval(block.startTime))
+        appState.dateRangeMode = .day
+        appState.searchQuery = ""
+        appState.includeIdleInTimeline = false
+        appState.focusTimelineRange(title: block.title, startTime: block.startTime, endTime: block.endTime)
+
+        if let tagId = block.tagId {
+            appState.selectedTagFilterId = tagId
+            appState.selectedAppFilterName = "All Apps"
+        } else {
+            let appName = block.primaryAppName.trimmingCharacters(in: .whitespacesAndNewlines)
+            appState.selectedTagFilterId = -1
+            appState.selectedAppFilterName = appName.isEmpty ? "All Apps" : appName
+        }
+
+        openDashboardTimeline()
     }
 
     private func openDashboardMarkers() {
@@ -2637,6 +2656,30 @@ struct ContentView: View {
             format: L("popover.daily_snapshot.work_block.status"),
             formatDuration(block.durationSeconds)
         )
+    }
+
+    private var snapshotWorkBlockActionTitleKey: String {
+        dailySnapshot.topWorkBlock == nil
+            ? "popover.daily_snapshot.work_block.open"
+            : "popover.daily_snapshot.work_block.open_timeline"
+    }
+
+    private var snapshotWorkBlockActionIconName: String {
+        dailySnapshot.topWorkBlock == nil ? "chart.bar" : "scope"
+    }
+
+    private var snapshotWorkBlockActionAccessibilityIdentifier: String {
+        dailySnapshot.topWorkBlock == nil
+            ? "popover.dailySnapshot.workBlock.openStats"
+            : "popover.dailySnapshot.workBlock.openTimeline"
+    }
+
+    private func runSnapshotWorkBlockAction() {
+        guard let block = dailySnapshot.topWorkBlock else {
+            openDashboardStats()
+            return
+        }
+        openDashboardTimeline(filteredByWorkBlock: block)
     }
 
     private func snapshotWorkBlockTimeRange(_ block: WorkBlockInsight) -> String {
