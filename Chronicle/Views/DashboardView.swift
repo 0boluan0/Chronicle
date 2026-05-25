@@ -353,7 +353,7 @@ struct DashboardView: View {
             .padding(.horizontal, 4)
             .background(
                 RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                    .fill(color.opacity(isSelected || isCurrent || isComplete ? 0.12 : 0.05))
+                    .fill(color.opacity(isSelected || isCurrent || isComplete || isFailed ? 0.12 : 0.05))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
@@ -442,6 +442,7 @@ struct DashboardView: View {
         let isComplete = step.map { sidebarFlowStepIsComplete($0) } ?? false
         let isCurrent = step.map { sidebarCurrentFlowStep == $0 && !isComplete } ?? false
         let isFailed = step.map { sidebarFlowStepIsFailed($0) } ?? false
+        let isEmphasized = isSelected || isCurrent || isFailed
         let iconColor = sidebarRowIconColor(
             isSelected: isSelected,
             isComplete: isComplete,
@@ -451,13 +452,13 @@ struct DashboardView: View {
 
         return HStack(spacing: 10) {
             Image(systemName: section.systemImage)
-                .font(.body.weight(isSelected || isCurrent ? .semibold : .regular))
+                .font(.body.weight(isEmphasized ? .semibold : .regular))
                 .foregroundStyle(iconColor)
                 .frame(width: 18)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(section.titleKey)
-                    .fontWeight(isSelected || isCurrent ? .semibold : .regular)
+                    .fontWeight(isEmphasized ? .semibold : .regular)
                     .lineLimit(1)
                 Text(section.subtitleKey)
                     .font(.caption)
