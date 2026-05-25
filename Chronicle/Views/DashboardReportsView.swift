@@ -594,13 +594,15 @@ struct ReportsWorkspaceView: View {
         } label: {
             if closeoutNextActionState == .loading {
                 ProgressActionButtonLabel(L(closeoutPrimaryActionTitleKey))
+            } else if closeoutPrimaryActionIsGenerating {
+                ProgressActionButtonLabel(L("reports.status.generating"))
             } else {
                 reportActionButtonLabel(L(closeoutPrimaryActionTitleKey), systemImage: closeoutPrimaryActionIconName)
             }
         }
         .buttonStyle(.borderedProminent)
         .tint(closeoutNextActionTone.color)
-        .disabled(closeoutNextActionState == .loading)
+        .disabled(closeoutNextActionState == .loading || closeoutPrimaryActionIsGenerating)
         .accessibilityIdentifier(closeoutPrimaryActionAccessibilityIdentifier)
     }
 
@@ -656,9 +658,13 @@ struct ReportsWorkspaceView: View {
                 Button {
                     generateDaily(date: Date())
                 } label: {
-                    reportActionButtonLabel(L("reports.closeout.action.save_today"), systemImage: "doc.badge.plus")
+                    closeoutGenerateActionLabel(
+                        idleTitle: L("reports.closeout.action.save_today"),
+                        systemImage: "doc.badge.plus"
+                    )
                 }
                 .buttonStyle(.bordered)
+                .disabled(dailyReportIsGenerating)
                 .accessibilityIdentifier("reports.closeout.generateToday")
             }
         case .ready:
@@ -690,11 +696,24 @@ struct ReportsWorkspaceView: View {
                 Button {
                     generateDaily(date: Date())
                 } label: {
-                    reportActionButtonLabel(L("reports.closeout.action.regenerate"), systemImage: "arrow.clockwise")
+                    closeoutGenerateActionLabel(
+                        idleTitle: L("reports.closeout.action.regenerate"),
+                        systemImage: "arrow.clockwise"
+                    )
                 }
                 .buttonStyle(.bordered)
+                .disabled(dailyReportIsGenerating)
                 .accessibilityIdentifier("reports.closeout.generateToday")
             }
+        }
+    }
+
+    @ViewBuilder
+    private func closeoutGenerateActionLabel(idleTitle: String, systemImage: String) -> some View {
+        if dailyReportIsGenerating {
+            ProgressActionButtonLabel(L("reports.status.generating"))
+        } else {
+            reportActionButtonLabel(idleTitle, systemImage: systemImage)
         }
     }
 
@@ -3602,6 +3621,7 @@ struct ReportsWorkspaceView: View {
     }
 
     private func generateDaily(date: Date) {
+        guard !dailyReportIsGenerating else { return }
         TelemetryService.shared.increment("export_daily_clicked")
         dailyStatus = StatusMessage(text: L("reports.status.generating"), isError: false)
         ReportService.shared.generateDailyReport(date: date, notes: dailyNotes) { result in
@@ -5112,6 +5132,10 @@ struct ReportsWorkspaceView: View {
         case .saved:
             return "reports.closeout.openDailyFolder"
         }
+    }
+
+    private var closeoutPrimaryActionIsGenerating: Bool {
+        dailyReportIsGenerating && (closeoutNextActionState == .saveFailed || closeoutNextActionState == .ready)
     }
 
     private func performCloseoutPrimaryAction() {
