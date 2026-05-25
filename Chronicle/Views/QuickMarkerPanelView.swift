@@ -9,7 +9,8 @@ import Combine
 import SwiftUI
 
 struct QuickMarkerPanelView: View {
-    private enum RouteAction: String, Identifiable {
+    private enum PendingPanelAction: String, Identifiable {
+        case close
         case dailyLog
         case timeline
 
@@ -24,7 +25,7 @@ struct QuickMarkerPanelView: View {
     @State private var contextDate = Date()
     @State private var draftText = ""
     @State private var isCloseHovering = false
-    @State private var pendingRouteAction: RouteAction?
+    @State private var pendingPanelAction: PendingPanelAction?
 
     var body: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
@@ -38,7 +39,7 @@ struct QuickMarkerPanelView: View {
         .padding(DesignSystem.Spacing.lg)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(DesignSystem.Colors.background)
-        .onExitCommand(perform: onClose)
+        .onExitCommand(perform: requestClosePanel)
         .onAppear {
             contextDate = Date()
         }
@@ -47,14 +48,14 @@ struct QuickMarkerPanelView: View {
         }
         .confirmationDialog(
             L("quick_marker.route.unsaved.title"),
-            isPresented: unsavedRouteConfirmationBinding,
+            isPresented: unsavedPanelConfirmationBinding,
             titleVisibility: .visible
         ) {
             Button(L("quick_marker.route.unsaved.leave"), role: .destructive) {
-                confirmPendingRouteAction()
+                confirmPendingPanelAction()
             }
             Button(L("actions.cancel"), role: .cancel) {
-                pendingRouteAction = nil
+                pendingPanelAction = nil
             }
         } message: {
             Text("quick_marker.route.unsaved.message")
@@ -103,7 +104,7 @@ struct QuickMarkerPanelView: View {
             showsOutcomeStrip: false,
             onDraftChange: { draftText = $0 },
             onSubmit: AppRuntime.isUITestMode ? nil : onClose,
-            onCancel: onClose
+            onCancel: requestClosePanel
         )
         .accessibilityIdentifier("quickMarker.primaryCapture")
     }
@@ -334,7 +335,7 @@ struct QuickMarkerPanelView: View {
 
     private var headerCloseButton: some View {
         Button {
-            onClose()
+            requestClosePanel()
         } label: {
             Image(systemName: "xmark")
                 .font(.caption.weight(.semibold))
@@ -895,20 +896,28 @@ struct QuickMarkerPanelView: View {
         reportSettings.dailyExportFailed(for: contextDate)
     }
 
-    private var unsavedRouteConfirmationBinding: Binding<Bool> {
+    private var unsavedPanelConfirmationBinding: Binding<Bool> {
         Binding(
-            get: { pendingRouteAction != nil },
+            get: { pendingPanelAction != nil },
             set: { isPresented in
                 if !isPresented {
-                    pendingRouteAction = nil
+                    pendingPanelAction = nil
                 }
             }
         )
     }
 
+    private func requestClosePanel() {
+        guard !draftHasContext else {
+            pendingPanelAction = .close
+            return
+        }
+        onClose()
+    }
+
     private func requestDailyLogRouteAction() {
         guard !draftHasContext else {
-            pendingRouteAction = .dailyLog
+            pendingPanelAction = .dailyLog
             return
         }
         performDailyLogRouteAction()
@@ -916,17 +925,19 @@ struct QuickMarkerPanelView: View {
 
     private func requestOpenTodayTimeline() {
         guard !draftHasContext else {
-            pendingRouteAction = .timeline
+            pendingPanelAction = .timeline
             return
         }
         openTodayTimeline()
     }
 
-    private func confirmPendingRouteAction() {
-        guard let action = pendingRouteAction else { return }
-        pendingRouteAction = nil
+    private func confirmPendingPanelAction() {
+        guard let action = pendingPanelAction else { return }
+        pendingPanelAction = nil
 
         switch action {
+        case .close:
+            onClose()
         case .dailyLog:
             performDailyLogRouteAction()
         case .timeline:
