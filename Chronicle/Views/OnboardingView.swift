@@ -703,6 +703,20 @@ struct OnboardingView: View {
         ActionButtonLabel(title, systemImage: systemImage, fillsWidth: false)
     }
 
+    private func onboardingProgressActionLabel(_ title: String) -> some View {
+        HStack(spacing: DesignSystem.Spacing.xs) {
+            ProgressView()
+                .controlSize(.small)
+                .accessibilityHidden(true)
+
+            Text(verbatim: title)
+                .lineLimit(2)
+                .minimumScaleFactor(0.86)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
     private var valueContent: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
             workdayHero
@@ -1955,12 +1969,21 @@ struct OnboardingView: View {
         Button {
             healthCheckService.runQuickChecks()
         } label: {
-            onboardingActionLabel(L("onboarding.finish.check_health"), systemImage: "checkmark.shield")
+            finishHealthCheckButtonLabel
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
         .disabled(healthCheckService.isRunning)
         .accessibilityIdentifier("onboarding.finish.checkHealth")
+    }
+
+    @ViewBuilder
+    private var finishHealthCheckButtonLabel: some View {
+        if healthCheckService.isRunning {
+            onboardingProgressActionLabel(L("self_check.details.status.running"))
+        } else {
+            onboardingActionLabel(L("onboarding.finish.check_health"), systemImage: "checkmark.shield")
+        }
     }
 
     @ViewBuilder
