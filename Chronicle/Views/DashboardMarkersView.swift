@@ -347,8 +347,8 @@ struct DashboardMarkersView: View {
     private var cueCaptureCopy: some View {
         HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
             IconWell(
-                systemImage: "note.text",
-                tone: .info,
+                systemImage: cueCaptureHeaderIconName,
+                tone: cueCaptureTone,
                 accessibilityLabel: L("markers.capture.title")
             )
 
@@ -1007,6 +1007,25 @@ struct DashboardMarkersView: View {
             return "checkmark.seal"
         }
         return "checkmark.circle"
+    }
+
+    private var cueCaptureHeaderIconName: String {
+        if cueSummaryError != nil || cueDailyLogFailedForRange {
+            return "exclamationmark.triangle.fill"
+        }
+        if isLoadingCueSummary {
+            return "arrow.triangle.2.circlepath"
+        }
+        if cueSummary.ongoingCount > 0 {
+            return "record.circle"
+        }
+        if cueDailyLogSavedForRange {
+            return "checkmark.seal.fill"
+        }
+        if cueSummary.totalCount == 0 {
+            return "note.text"
+        }
+        return "bookmark.fill"
     }
 
     private var cueCaptureTone: DesignSystem.StatusTone {
