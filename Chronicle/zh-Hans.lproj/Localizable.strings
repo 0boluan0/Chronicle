@@ -1039,6 +1039,7 @@
 "overview.selection.timeline_target" = "时间线目标";
 "overview.selection.timeline_target.block" = "精确片段";
 "overview.selection.timeline_target.day" = "选中日期";
+"overview.selection.timeline_target.filtered_day" = "选中日期与轨道";
 "overview.selection.idle" = "空闲";
 "overview.selection.overlay" = "短切换";
 "overview.selection.clear" = "清空选择";

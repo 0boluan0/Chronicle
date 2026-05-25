@@ -1885,9 +1885,13 @@ struct DashboardOverviewView: View {
     }
 
     private func selectionTimelineTargetText(_ selection: GanttSelection) -> String {
-        selection.rangeLabel == nil
-            ? L("overview.selection.timeline_target.block")
-            : L("overview.selection.timeline_target.day")
+        if selection.rangeLabel == nil {
+            return L("overview.selection.timeline_target.block")
+        }
+        if selectionHasTimelineFilter(selection) {
+            return L("overview.selection.timeline_target.filtered_day")
+        }
+        return L("overview.selection.timeline_target.day")
     }
 
     private func openTimelineForSelection() {
@@ -1901,6 +1905,7 @@ struct DashboardOverviewView: View {
         appState.searchQuery = ""
         appState.selectedTagFilterId = -1
         appState.selectedAppFilterName = "All Apps"
+        applyTimelineFilters(for: selection)
 
         if selection.rangeLabel == nil {
             appState.includeIdleInTimeline = selection.isIdle
@@ -1914,6 +1919,28 @@ struct DashboardOverviewView: View {
         }
 
         selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
+    }
+
+    private func applyTimelineFilters(for selection: GanttSelection) {
+        if let tagFilterId = selection.timelineTagFilterId {
+            appState.selectedTagFilterId = tagFilterId
+            appState.selectedAppFilterName = "All Apps"
+            return
+        }
+
+        guard let appFilterName = selection.timelineAppFilterName?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !appFilterName.isEmpty else {
+            return
+        }
+        appState.selectedTagFilterId = -1
+        appState.selectedAppFilterName = appFilterName
+    }
+
+    private func selectionHasTimelineFilter(_ selection: GanttSelection) -> Bool {
+        if selection.timelineTagFilterId != nil {
+            return true
+        }
+        return !(selection.timelineAppFilterName?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
     }
 
     private var selectionAddNoteButton: some View {
@@ -2983,7 +3010,14 @@ struct DashboardOverviewView: View {
             let totalSeconds = dailyTotals.reduce(0, +)
             let title = names[key] ?? key
             let color = colorForApp(title)
-            return WeeklyRowData(id: key, title: title, color: color, dailyTotals: dailyTotals, totalSeconds: totalSeconds)
+            return WeeklyRowData(
+                id: key,
+                title: title,
+                color: color,
+                dailyTotals: dailyTotals,
+                totalSeconds: totalSeconds,
+                timelineAppFilterName: title
+            )
         }
 
         return rows.sorted { $0.totalSeconds > $1.totalSeconds }.prefix(topN).map { $0 }
@@ -3026,7 +3060,14 @@ struct DashboardOverviewView: View {
                 title = String(format: L("Tag %d"), key)
                 color = Color.gray.opacity(0.6)
             }
-            return WeeklyRowData(id: "tag-\(key)", title: title, color: color, dailyTotals: dailyTotals, totalSeconds: totalSeconds)
+            return WeeklyRowData(
+                id: "tag-\(key)",
+                title: title,
+                color: color,
+                dailyTotals: dailyTotals,
+                totalSeconds: totalSeconds,
+                timelineTagFilterId: key == -1 ? -2 : key
+            )
         }
 
         return rows.sorted { $0.totalSeconds > $1.totalSeconds }.prefix(topN).map { $0 }
@@ -3419,7 +3460,9 @@ struct DashboardOverviewView: View {
                             title: row.title,
                             color: Color(hex: row.colorHex ?? "") ?? neutralRowColor,
                             dailyTotals: row.dailyTotals,
-                            totalSeconds: row.totalSeconds
+                            totalSeconds: row.totalSeconds,
+                            timelineAppFilterName: row.timelineAppFilterName,
+                            timelineTagFilterId: row.timelineTagFilterId
                         )
                     }
                 case .failure(let error):

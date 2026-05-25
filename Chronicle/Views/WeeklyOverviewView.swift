@@ -13,6 +13,26 @@ struct WeeklyRowData: Identifiable {
     let color: Color
     let dailyTotals: [Int64]
     let totalSeconds: Int64
+    let timelineAppFilterName: String?
+    let timelineTagFilterId: Int64?
+
+    init(
+        id: String,
+        title: String,
+        color: Color,
+        dailyTotals: [Int64],
+        totalSeconds: Int64,
+        timelineAppFilterName: String? = nil,
+        timelineTagFilterId: Int64? = nil
+    ) {
+        self.id = id
+        self.title = title
+        self.color = color
+        self.dailyTotals = dailyTotals
+        self.totalSeconds = totalSeconds
+        self.timelineAppFilterName = timelineAppFilterName
+        self.timelineTagFilterId = timelineTagFilterId
+    }
 }
 
 struct WeeklyOverviewView: View {
@@ -655,7 +675,9 @@ private struct WeeklyRowView: View {
             end: end,
             durationText: TimeFormatters.durationText(start: 0, end: value),
             isIdle: false,
-            isOverlay: false
+            isOverlay: false,
+            timelineAppFilterName: row.timelineAppFilterName,
+            timelineTagFilterId: row.timelineTagFilterId
         )
     }
 

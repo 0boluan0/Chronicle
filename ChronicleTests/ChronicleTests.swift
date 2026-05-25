@@ -2670,6 +2670,7 @@ final class ChronicleTests: XCTestCase {
             "overview.selection.timeline_target",
             "overview.selection.timeline_target.block",
             "overview.selection.timeline_target.day",
+            "overview.selection.timeline_target.filtered_day",
             "overview.selection.open_timeline",
             "overview.selection.add_note",
             "overview.mode.tags",

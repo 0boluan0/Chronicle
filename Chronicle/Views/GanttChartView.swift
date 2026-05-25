@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct GanttSelection: Identifiable {
-    let id = UUID()
+    let id: UUID
     let title: String
     let subtitle: String?
     let rangeLabel: String?
@@ -17,6 +17,33 @@ struct GanttSelection: Identifiable {
     let durationText: String
     let isIdle: Bool
     let isOverlay: Bool
+    let timelineAppFilterName: String?
+    let timelineTagFilterId: Int64?
+
+    init(
+        title: String,
+        subtitle: String?,
+        rangeLabel: String?,
+        start: Int64,
+        end: Int64,
+        durationText: String,
+        isIdle: Bool,
+        isOverlay: Bool,
+        timelineAppFilterName: String? = nil,
+        timelineTagFilterId: Int64? = nil
+    ) {
+        self.id = UUID()
+        self.title = title
+        self.subtitle = subtitle
+        self.rangeLabel = rangeLabel
+        self.start = start
+        self.end = end
+        self.durationText = durationText
+        self.isIdle = isIdle
+        self.isOverlay = isOverlay
+        self.timelineAppFilterName = timelineAppFilterName
+        self.timelineTagFilterId = timelineTagFilterId
+    }
 }
 
 struct GanttSegmentData: Identifiable {

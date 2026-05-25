@@ -1039,6 +1039,7 @@
 "overview.selection.timeline_target" = "Timeline target";
 "overview.selection.timeline_target.block" = "Exact block";
 "overview.selection.timeline_target.day" = "Selected day";
+"overview.selection.timeline_target.filtered_day" = "Selected day + row";
 "overview.selection.idle" = "Idle";
 "overview.selection.overlay" = "Short switch";
 "overview.selection.clear" = "Clear Selection";

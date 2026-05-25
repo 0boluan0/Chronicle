@@ -51,6 +51,8 @@ nonisolated struct WeeklyBucketRow: Identifiable {
     let colorHex: String?
     let dailyTotals: [Int64]
     let totalSeconds: Int64
+    let timelineAppFilterName: String?
+    let timelineTagFilterId: Int64?
 }
 
 enum AggregationGanttMode {
@@ -573,6 +575,8 @@ final class AggregationService {
             var totals: [String: Int64] = [:]
             var titles: [String: String] = [:]
             var colors: [String: String?] = [:]
+            var appFilters: [String: String] = [:]
+            var tagFilters: [String: Int64] = [:]
 
             for activity in filteredActivities {
                 let durationByDay = self.splitDurationByDay(
@@ -590,15 +594,18 @@ final class AggregationService {
                     key = activity.bundleId ?? activity.appName
                     title = activity.appName
                     colorHex = nil
+                    appFilters[key] = activity.appName
                 case .tags:
                     if let tagId = activity.tagId, let tag = tagLookup[tagId] {
                         key = "tag-\(tagId)"
                         title = tag.name
                         colorHex = tag.color
+                        tagFilters[key] = tagId
                     } else {
                         key = "tag-untagged"
                         title = L("stats.untagged")
                         colorHex = nil
+                        tagFilters[key] = -2
                     }
                 }
 
@@ -623,7 +630,9 @@ final class AggregationService {
                     title: titles[key] ?? key,
                     colorHex: colors[key] ?? nil,
                     dailyTotals: buckets[key] ?? Array(repeating: 0, count: dayStarts.count),
-                    totalSeconds: totals[key] ?? 0
+                    totalSeconds: totals[key] ?? 0,
+                    timelineAppFilterName: appFilters[key],
+                    timelineTagFilterId: tagFilters[key]
                 )
             }
 
