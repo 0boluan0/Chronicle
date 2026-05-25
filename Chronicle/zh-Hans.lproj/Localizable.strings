@@ -2896,6 +2896,12 @@
 "apps.empty.path.review_detail" = "应用出现后再指定日志分区。";
 "apps.empty_filtered" = "没有应用匹配当前筛选。";
 "apps.empty_filtered_hint" = "清空搜索或筛选以查看更多应用。";
+"apps.empty_filtered.path.clear_title" = "清空当前视图";
+"apps.empty_filtered.path.clear_detail" = "判断应用库之前，先移除搜索和范围筛选。";
+"apps.empty_filtered.path.scope_title" = "扩大整理范围";
+"apps.empty_filtered.path.scope_detail" = "队列看起来为空时，先切回全部应用。";
+"apps.empty_filtered.path.refresh_title" = "记录后刷新";
+"apps.empty_filtered.path.refresh_detail" = "如果打开本页后使用了新应用，可以重新载入。";
 "apps.empty.action.open_today" = "打开今天";
 "apps.empty.action.resume_capture" = "恢复记录";
 "apps.empty.action.check_capture" = "检查记录";

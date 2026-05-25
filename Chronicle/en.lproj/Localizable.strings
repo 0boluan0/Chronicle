@@ -2897,6 +2897,12 @@
 "apps.empty.path.review_detail" = "Assign log sections once apps appear.";
 "apps.empty_filtered" = "No apps match the current filters.";
 "apps.empty_filtered_hint" = "Clear search or filters to review more apps.";
+"apps.empty_filtered.path.clear_title" = "Clear the current view";
+"apps.empty_filtered.path.clear_detail" = "Remove search and scope filters before judging the app library.";
+"apps.empty_filtered.path.scope_title" = "Broaden review scope";
+"apps.empty_filtered.path.scope_detail" = "Switch back to All when the queue looks empty.";
+"apps.empty_filtered.path.refresh_title" = "Refresh after capture";
+"apps.empty_filtered.path.refresh_detail" = "Reload if new apps were used after this page opened.";
 "apps.empty.action.open_today" = "Open Today";
 "apps.empty.action.resume_capture" = "Resume Capture";
 "apps.empty.action.check_capture" = "Check Capture";

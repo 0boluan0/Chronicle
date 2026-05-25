@@ -1085,6 +1085,8 @@ struct AppMappingsView: View {
 
             if appMappings.isEmpty {
                 mappingEmptyPath
+            } else {
+                mappingFilteredEmptyPath
             }
 
             LazyVGrid(
@@ -1137,6 +1139,37 @@ struct AppMappingsView: View {
             )
         }
         .accessibilityIdentifier("appMappings.emptyPath")
+    }
+
+    private var mappingFilteredEmptyPath: some View {
+        LazyVGrid(
+            columns: [GridItem(.adaptive(minimum: 168), spacing: DesignSystem.Spacing.sm)],
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            mappingReviewPathItem(
+                titleKey: "apps.empty_filtered.path.clear_title",
+                detailKey: "apps.empty_filtered.path.clear_detail",
+                systemImage: "line.3.horizontal.decrease.circle",
+                tone: .warning,
+                accessibilityIdentifier: "appMappings.emptyFilteredPath.clear"
+            )
+            mappingReviewPathItem(
+                titleKey: "apps.empty_filtered.path.scope_title",
+                detailKey: "apps.empty_filtered.path.scope_detail",
+                systemImage: "slider.horizontal.3",
+                tone: .info,
+                accessibilityIdentifier: "appMappings.emptyFilteredPath.scope"
+            )
+            mappingReviewPathItem(
+                titleKey: "apps.empty_filtered.path.refresh_title",
+                detailKey: "apps.empty_filtered.path.refresh_detail",
+                systemImage: "arrow.clockwise",
+                tone: .neutral,
+                accessibilityIdentifier: "appMappings.emptyFilteredPath.refresh"
+            )
+        }
+        .accessibilityIdentifier("appMappings.emptyFilteredPath")
     }
 
     @ViewBuilder
