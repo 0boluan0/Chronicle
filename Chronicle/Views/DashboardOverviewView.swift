@@ -24,6 +24,7 @@ struct DashboardOverviewView: View {
     }
 
     private enum ReviewActionState {
+        case loading
         case empty
         case needsTags
         case needsMarkers
@@ -34,10 +35,22 @@ struct DashboardOverviewView: View {
     }
 
     private enum WeeklyReviewState {
+        case loading
         case noData
         case needsFolder
         case ready
         case saved
+    }
+
+    private struct OverviewDataContext: Equatable {
+        let rangeStart: Int64
+        let rangeEnd: Int64
+        let isDailyView: Bool
+        let mode: OverviewMode
+        let topN: Int
+        let gridIntervalMinutes: Int
+        let includeIdle: Bool
+        let countOverlaysInTotals: Bool
     }
 
     @EnvironmentObject private var appState: AppState
@@ -62,6 +75,7 @@ struct DashboardOverviewView: View {
     @State private var reviewTopApps: [TopItem] = []
     @State private var reviewTopTags: [TopItem] = []
     @State private var reviewWorkBlocks: [WorkBlockInsight] = []
+    @State private var loadedOverviewContext: OverviewDataContext?
     @State private var weeklyReportStatus: String?
     @State private var weeklyReportStatusIsError = false
     @State private var isGeneratingWeeklyReport = false
@@ -180,7 +194,13 @@ struct DashboardOverviewView: View {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                 activityMapHeader
 
-                if hasActivityRows {
+                if shouldShowOverviewLoadingState {
+                    activityMapLoadingState
+
+                    Divider()
+
+                    controlsView
+                } else if hasActivityRows {
                     activityChart
                         .frame(minHeight: 180)
 
@@ -205,6 +225,51 @@ struct DashboardOverviewView: View {
             }
         }
         .accessibilityIdentifier("dashboard.overview.activityMap")
+    }
+
+    private var activityMapLoadingState: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            EmptyStateView(
+                title: L("overview.activity_map.loading_title"),
+                subtitle: L("overview.activity_map.loading_detail"),
+                systemImage: "arrow.triangle.2.circlepath",
+                tone: .info
+            )
+
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                ProgressView()
+                    .controlSize(.small)
+                    .accessibilityHidden(true)
+
+                Text("overview.activity_map.status.loading")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.StatusTone.info.color)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.86)
+            }
+            .padding(.horizontal, DesignSystem.Spacing.sm)
+            .padding(.vertical, 7)
+            .background(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                    .fill(DesignSystem.StatusTone.info.color.opacity(0.07))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                    .stroke(DesignSystem.StatusTone.info.color.opacity(0.18), lineWidth: 1)
+            )
+            .accessibilityElement(children: .combine)
+        }
+        .padding(DesignSystem.Spacing.lg)
+        .frame(maxWidth: .infinity, minHeight: 160, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(DesignSystem.Colors.background.opacity(0.52))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(DesignSystem.Colors.separator.opacity(0.36), lineWidth: 1)
+        )
+        .accessibilityIdentifier("dashboard.overview.activityMap.loading")
     }
 
     private var activityMapHeader: some View {
@@ -779,9 +844,9 @@ struct DashboardOverviewView: View {
                 titleKey: "overview.review.path.capture_title",
                 detailKey: reviewPathCaptureDetailKey,
                 systemImage: "record.circle",
-                tone: reviewActiveSeconds > 0 ? .success : .neutral,
+                tone: reviewActionState == .loading ? .info : (reviewActiveSeconds > 0 ? .success : .neutral),
                 isComplete: reviewActiveSeconds > 0,
-                isCurrent: reviewActiveSeconds == 0,
+                isCurrent: reviewActionState == .loading || reviewActiveSeconds == 0,
                 accessibilityIdentifier: "dashboard.overview.path.capture"
             )
             reviewPathStep(
@@ -904,11 +969,14 @@ struct DashboardOverviewView: View {
         }
         .buttonStyle(.borderedProminent)
         .tint(DesignSystem.Colors.accentSkyBlue)
+        .disabled(reviewActionState == .loading)
         .accessibilityIdentifier(primaryReviewActionAccessibilityIdentifier)
     }
 
     private var primaryReviewActionTitleKey: String {
         switch reviewActionState {
+        case .loading:
+            return "overview.review.loading_action"
         case .empty:
             if appState.trackingPaused {
                 return "overview.review.resume_capture"
@@ -931,6 +999,8 @@ struct DashboardOverviewView: View {
 
     private var primaryReviewActionIconName: String {
         switch reviewActionState {
+        case .loading:
+            return "arrow.triangle.2.circlepath"
         case .empty:
             if appState.trackingPaused {
                 return "play.fill"
@@ -953,6 +1023,8 @@ struct DashboardOverviewView: View {
 
     private var primaryReviewActionAccessibilityIdentifier: String {
         switch reviewActionState {
+        case .loading:
+            return "dashboard.overview.loading"
         case .empty:
             if appState.trackingPaused {
                 return "dashboard.overview.resumeCapture"
@@ -975,6 +1047,8 @@ struct DashboardOverviewView: View {
 
     private func performPrimaryReviewAction() {
         switch reviewActionState {
+        case .loading:
+            return
         case .empty:
             if appState.trackingPaused {
                 appState.trackingPaused = false
@@ -1001,10 +1075,14 @@ struct DashboardOverviewView: View {
             overviewActionLabel(L(secondaryReviewActionTitleKey), systemImage: secondaryReviewActionIconName)
         }
         .buttonStyle(.bordered)
+        .disabled(reviewActionState == .loading)
         .accessibilityIdentifier(secondaryReviewActionAccessibilityIdentifier)
     }
 
     private var secondaryReviewActionTitleKey: String {
+        if reviewActionState == .loading {
+            return "overview.review.open_timeline"
+        }
         if reviewActionState == .saveFailed {
             return "overview.review.open_export"
         }
@@ -1015,6 +1093,9 @@ struct DashboardOverviewView: View {
     }
 
     private var secondaryReviewActionIconName: String {
+        if reviewActionState == .loading {
+            return "clock"
+        }
         if reviewActionState == .saveFailed {
             return "gearshape"
         }
@@ -1025,6 +1106,9 @@ struct DashboardOverviewView: View {
     }
 
     private var secondaryReviewActionAccessibilityIdentifier: String {
+        if reviewActionState == .loading {
+            return "dashboard.overview.openTimeline"
+        }
         if reviewActionState == .saveFailed {
             return "dashboard.overview.openLogSettings"
         }
@@ -1035,6 +1119,9 @@ struct DashboardOverviewView: View {
     }
 
     private func performSecondaryReviewAction() {
+        if reviewActionState == .loading {
+            return
+        }
         if reviewActionState == .saveFailed {
             AppWindowRouter.shared.open(.settings(.export))
             return
@@ -1328,6 +1415,14 @@ struct DashboardOverviewView: View {
     @ViewBuilder
     private var weeklySummaryPrimaryAction: some View {
         switch weeklyReviewState {
+        case .loading:
+            Button {} label: {
+                ProgressActionButtonLabel(L("overview.weekly_summary.status.loading"))
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(DesignSystem.Colors.accentSkyBlue)
+            .disabled(true)
+            .accessibilityIdentifier("dashboard.overview.weeklySummary.loading")
         case .noData:
             Button {
                 selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
@@ -1370,7 +1465,7 @@ struct DashboardOverviewView: View {
 
     private var weeklySummarySecondaryActions: some View {
         ActionButtonGrid(minimumItemWidth: 170) {
-            if weeklyReviewState != .needsFolder {
+            if weeklyReviewState != .loading && weeklyReviewState != .needsFolder {
                 Button {
                     AppWindowRouter.shared.open(.settings(.export))
                 } label: {
@@ -1902,6 +1997,9 @@ struct DashboardOverviewView: View {
     }
 
     private var activityMapStatusText: String {
+        if shouldShowOverviewLoadingState {
+            return L("overview.activity_map.status.loading")
+        }
         guard hasActivityRows else {
             if appState.trackingPaused {
                 return L("overview.activity_map.status.paused")
@@ -1915,6 +2013,9 @@ struct DashboardOverviewView: View {
     }
 
     private var activityMapStatusIconName: String {
+        if shouldShowOverviewLoadingState {
+            return "arrow.triangle.2.circlepath"
+        }
         guard hasActivityRows else {
             if appState.trackingPaused {
                 return "pause.circle.fill"
@@ -1928,6 +2029,9 @@ struct DashboardOverviewView: View {
     }
 
     private var activityMapStatusTone: DesignSystem.StatusTone {
+        if shouldShowOverviewLoadingState {
+            return .info
+        }
         guard hasActivityRows else {
             if appState.trackingPaused {
                 return .warning
@@ -2035,22 +2139,37 @@ struct DashboardOverviewView: View {
     }
 
     private var markerTimelineStatusText: String {
-        markerTimelineCueCount == 0 ? L("markers.review.status.empty") : L("markers.review.status.ready")
+        if shouldShowOverviewLoadingState {
+            return L("markers.review.status.loading")
+        }
+        return markerTimelineCueCount == 0 ? L("markers.review.status.empty") : L("markers.review.status.ready")
     }
 
     private var markerTimelineDetailKey: String {
-        markerTimelineCueCount == 0 ? "markers.review.empty_detail" : "markers.review.ready_detail"
+        if shouldShowOverviewLoadingState {
+            return "markers.review.loading_detail"
+        }
+        return markerTimelineCueCount == 0 ? "markers.review.empty_detail" : "markers.review.ready_detail"
     }
 
     private var markerTimelineStatusIconName: String {
-        markerTimelineCueCount == 0 ? "note.text" : "checkmark.circle"
+        if shouldShowOverviewLoadingState {
+            return "arrow.triangle.2.circlepath"
+        }
+        return markerTimelineCueCount == 0 ? "note.text" : "checkmark.circle"
     }
 
     private var markerTimelineTone: DesignSystem.StatusTone {
-        markerTimelineCueCount == 0 ? .neutral : .info
+        if shouldShowOverviewLoadingState {
+            return .info
+        }
+        return markerTimelineCueCount == 0 ? .neutral : .info
     }
 
     private var weeklyReviewState: WeeklyReviewState {
+        if shouldShowOverviewLoadingState {
+            return .loading
+        }
         if weeklyTotalSeconds == 0 {
             return .noData
         }
@@ -2064,11 +2183,17 @@ struct DashboardOverviewView: View {
     }
 
     private var weeklyTotalSeconds: Int64 {
-        weeklyRows.reduce(0) { $0 + $1.totalSeconds }
+        if shouldShowOverviewLoadingState {
+            return 0
+        }
+        return weeklyRows.reduce(0) { $0 + $1.totalSeconds }
     }
 
     private var weeklyCueCount: Int {
-        weeklyMarkerCount + weeklySpanCount
+        if shouldShowOverviewLoadingState {
+            return 0
+        }
+        return weeklyMarkerCount + weeklySpanCount
     }
 
     private var weeklyFolderReady: Bool {
@@ -2088,6 +2213,9 @@ struct DashboardOverviewView: View {
     }
 
     private var weeklyTopFocusValue: String {
+        if shouldShowOverviewLoadingState {
+            return L("overview.weekly_summary.loading_metric")
+        }
         guard let topRow = weeklyRows.max(by: { $0.totalSeconds < $1.totalSeconds }) else {
             return L("overview.weekly_summary.none")
         }
@@ -2096,6 +2224,8 @@ struct DashboardOverviewView: View {
 
     private var weeklySummaryHeadlineKey: String {
         switch weeklyReviewState {
+        case .loading:
+            return "overview.weekly_summary.loading_title"
         case .noData:
             return "overview.weekly_summary.empty_title"
         case .needsFolder:
@@ -2109,6 +2239,8 @@ struct DashboardOverviewView: View {
 
     private var weeklySummaryDetailKey: String {
         switch weeklyReviewState {
+        case .loading:
+            return "overview.weekly_summary.loading_detail"
         case .noData:
             return "overview.weekly_summary.empty_detail"
         case .needsFolder:
@@ -2122,6 +2254,8 @@ struct DashboardOverviewView: View {
 
     private var weeklySummaryStatusText: String {
         switch weeklyReviewState {
+        case .loading:
+            return L("overview.weekly_summary.status.loading")
         case .noData:
             return L("overview.weekly_summary.status.no_data")
         case .needsFolder:
@@ -2135,6 +2269,8 @@ struct DashboardOverviewView: View {
 
     private var weeklySummaryStatusIconName: String {
         switch weeklyReviewState {
+        case .loading:
+            return "arrow.triangle.2.circlepath"
         case .noData:
             return "clock"
         case .needsFolder:
@@ -2148,6 +2284,8 @@ struct DashboardOverviewView: View {
 
     private var weeklySummaryIconName: String {
         switch weeklyReviewState {
+        case .loading:
+            return "arrow.triangle.2.circlepath"
         case .noData:
             return "calendar"
         case .needsFolder:
@@ -2161,6 +2299,8 @@ struct DashboardOverviewView: View {
 
     private var weeklySummaryTone: DesignSystem.StatusTone {
         switch weeklyReviewState {
+        case .loading:
+            return .info
         case .noData:
             return .neutral
         case .needsFolder:
@@ -2173,21 +2313,33 @@ struct DashboardOverviewView: View {
     }
 
     private var reviewActiveSeconds: Int64 {
-        reviewSummary?.activeSeconds ?? 0
+        if shouldShowOverviewLoadingState {
+            return 0
+        }
+        return reviewSummary?.activeSeconds ?? 0
     }
 
     private var reviewMarkerCount: Int {
+        if shouldShowOverviewLoadingState {
+            return 0
+        }
         guard let reviewSummary else { return 0 }
         return reviewSummary.markerNotesCount + reviewSummary.markerSessionsCount
     }
 
     private var primaryFocusItem: TopItem? {
+        if shouldShowOverviewLoadingState {
+            return nil
+        }
         let source = mode == .apps ? reviewTopApps : reviewTopTags
         return source.first
     }
 
     private var reviewTopWorkBlock: WorkBlockInsight? {
-        reviewWorkBlocks.first
+        if shouldShowOverviewLoadingState {
+            return nil
+        }
+        return reviewWorkBlocks.first
     }
 
     private var reviewFocusValue: String {
@@ -2212,12 +2364,18 @@ struct DashboardOverviewView: View {
     }
 
     private var reviewUntaggedSeconds: Int64 {
-        reviewTopTags
+        if shouldShowOverviewLoadingState {
+            return 0
+        }
+        return reviewTopTags
             .filter { $0.tagId == nil }
             .reduce(Int64(0)) { $0 + $1.durationSeconds }
     }
 
     private var reviewActionState: ReviewActionState {
+        if shouldShowOverviewLoadingState {
+            return .loading
+        }
         if dailyLogSaveFailedForSelectedDay {
             return .saveFailed
         }
@@ -2269,7 +2427,10 @@ struct DashboardOverviewView: View {
     }
 
     private var reviewReadinessProgressText: String {
-        String(
+        if reviewActionState == .loading {
+            return L("overview.review.readiness.loading_value")
+        }
+        return String(
             format: L("overview.review.readiness.value"),
             reviewReadinessReadyCount,
             reviewReadinessTotalCount
@@ -2277,10 +2438,16 @@ struct DashboardOverviewView: View {
     }
 
     private var reviewReadinessStatusIconName: String {
-        reviewReadinessReadyCount == reviewReadinessTotalCount ? "checkmark.circle.fill" : "circle.dashed"
+        if reviewActionState == .loading {
+            return "arrow.triangle.2.circlepath"
+        }
+        return reviewReadinessReadyCount == reviewReadinessTotalCount ? "checkmark.circle.fill" : "circle.dashed"
     }
 
     private var reviewReadinessTitleKey: String {
+        if reviewActionState == .loading {
+            return "overview.review.readiness.loading_title"
+        }
         if appState.trackingPaused {
             return "overview.review.readiness.paused_title"
         }
@@ -2288,6 +2455,8 @@ struct DashboardOverviewView: View {
             return "overview.review.readiness.check_title"
         }
         switch reviewActionState {
+        case .loading:
+            return "overview.review.readiness.loading_title"
         case .empty:
             return "overview.review.readiness.empty_title"
         case .needsTags:
@@ -2306,10 +2475,15 @@ struct DashboardOverviewView: View {
     }
 
     private var reviewReadinessDetailKey: String {
+        if reviewActionState == .loading {
+            return "overview.review.readiness.loading_detail"
+        }
         if appState.trackingPaused {
             return "overview.review.readiness.paused_detail"
         }
         switch reviewActionState {
+        case .loading:
+            return "overview.review.readiness.loading_detail"
         case .empty:
             return captureHasError ? "overview.review.readiness.check_detail" : "overview.review.readiness.empty_detail"
         case .needsTags:
@@ -2328,10 +2502,15 @@ struct DashboardOverviewView: View {
     }
 
     private var reviewReadinessIconName: String {
+        if reviewActionState == .loading {
+            return "arrow.triangle.2.circlepath"
+        }
         if appState.trackingPaused {
             return "pause.circle.fill"
         }
         switch reviewActionState {
+        case .loading:
+            return "arrow.triangle.2.circlepath"
         case .empty:
             return captureHasError ? "stethoscope" : "record.circle"
         case .needsTags:
@@ -2350,6 +2529,9 @@ struct DashboardOverviewView: View {
     }
 
     private var reviewReadinessTone: DesignSystem.StatusTone {
+        if reviewActionState == .loading {
+            return .info
+        }
         if appState.trackingPaused {
             return .warning
         }
@@ -2361,6 +2543,8 @@ struct DashboardOverviewView: View {
 
     private var reviewContextTone: DesignSystem.StatusTone {
         switch reviewActionState {
+        case .loading:
+            return .neutral
         case .empty:
             return .neutral
         case .needsTags:
@@ -2394,6 +2578,9 @@ struct DashboardOverviewView: View {
     }
 
     private var reviewPathCaptureDetailKey: String {
+        if reviewActionState == .loading {
+            return "overview.review.path.capture_loading"
+        }
         if reviewActiveSeconds > 0 {
             return "overview.review.path.capture_done"
         }
@@ -2402,6 +2589,8 @@ struct DashboardOverviewView: View {
 
     private var reviewPathContextDetailKey: String {
         switch reviewActionState {
+        case .loading:
+            return "overview.review.path.context_loading"
         case .empty:
             return "overview.review.path.context_waiting"
         case .needsTags:
@@ -2421,6 +2610,8 @@ struct DashboardOverviewView: View {
 
     private var reviewPathCloseoutDetailKey: String {
         switch reviewActionState {
+        case .loading:
+            return "overview.review.path.closeout_loading"
         case .saved:
             return "overview.review.path.closeout_done"
         case .saveFailed:
@@ -2436,6 +2627,8 @@ struct DashboardOverviewView: View {
 
     private var reviewPathCloseoutIconName: String {
         switch reviewActionState {
+        case .loading:
+            return "doc.text.magnifyingglass"
         case .needsFolder:
             return "folder.badge.plus"
         case .saveFailed:
@@ -2449,6 +2642,8 @@ struct DashboardOverviewView: View {
 
     private var reviewHeadlineKey: String {
         switch reviewActionState {
+        case .loading:
+            return "overview.review.loading_title"
         case .empty:
             return "overview.review.empty_title"
         case .needsTags:
@@ -2468,6 +2663,8 @@ struct DashboardOverviewView: View {
 
     private var reviewDetailKey: String {
         switch reviewActionState {
+        case .loading:
+            return "overview.review.loading_detail"
         case .empty:
             return captureNeedsAttention ? "overview.review.empty_attention_detail" : "overview.review.empty_detail"
         case .needsTags:
@@ -2487,6 +2684,8 @@ struct DashboardOverviewView: View {
 
     private var reviewSuggestedNextDetailKey: String {
         switch reviewActionState {
+        case .loading:
+            return "overview.review.suggested.loading_detail"
         case .empty:
             return captureNeedsAttention ? "overview.review.suggested.empty_attention_detail" : "overview.review.suggested.empty_detail"
         case .needsTags:
@@ -2506,6 +2705,8 @@ struct DashboardOverviewView: View {
 
     private var reviewTone: DesignSystem.StatusTone {
         switch reviewActionState {
+        case .loading:
+            return .info
         case .empty:
             return .neutral
         case .needsTags:
@@ -2525,6 +2726,8 @@ struct DashboardOverviewView: View {
 
     private var reviewIconName: String {
         switch reviewActionState {
+        case .loading:
+            return "arrow.triangle.2.circlepath"
         case .empty:
             return "questionmark.circle"
         case .needsTags:
@@ -2544,6 +2747,8 @@ struct DashboardOverviewView: View {
 
     private var reviewStatusIconName: String {
         switch reviewActionState {
+        case .loading:
+            return "arrow.triangle.2.circlepath"
         case .empty:
             return "clock"
         case .needsTags:
@@ -2563,6 +2768,8 @@ struct DashboardOverviewView: View {
 
     private var reviewStatusText: String {
         switch reviewActionState {
+        case .loading:
+            return L("overview.review.status.loading")
         case .empty:
             return L("overview.review.status.empty")
         case .needsTags:
@@ -2599,13 +2806,35 @@ struct DashboardOverviewView: View {
         overviewRangeMode.bounds(for: appState.selectedDate)
     }
 
+    private var currentOverviewContext: OverviewDataContext {
+        let bounds = rangeBounds
+        return OverviewDataContext(
+            rangeStart: bounds.start,
+            rangeEnd: bounds.end,
+            isDailyView: isDailyView,
+            mode: mode,
+            topN: topN,
+            gridIntervalMinutes: gridIntervalMinutes,
+            includeIdle: appState.includeIdleInTimeline,
+            countOverlaysInTotals: appState.countOverlaysInTotals
+        )
+    }
+
+    private var isShowingCurrentOverviewData: Bool {
+        loadedOverviewContext == currentOverviewContext
+    }
+
+    private var shouldShowOverviewLoadingState: Bool {
+        isLoading && !isShowingCurrentOverviewData
+    }
+
     private var dailyRows: [GanttRowData] {
-        dailyRowsState
+        shouldShowOverviewLoadingState ? [] : dailyRowsState
     }
 
 
     private var weeklyRows: [WeeklyRowData] {
-        weeklyRowsState
+        shouldShowOverviewLoadingState ? [] : weeklyRowsState
     }
 
 
@@ -3011,10 +3240,11 @@ struct DashboardOverviewView: View {
     private func refreshData(reason: String) {
         overviewRefreshSequence += 1
         let refreshSequence = overviewRefreshSequence
+        let dataContext = currentOverviewContext
         isLoading = true
-        let bounds = rangeBounds
-        let includeIdle = appState.includeIdleInTimeline
-        let ganttMode: AggregationGanttMode = mode == .apps ? .apps : .tags
+        let bounds = (start: dataContext.rangeStart, end: dataContext.rangeEnd)
+        let includeIdle = dataContext.includeIdle
+        let ganttMode: AggregationGanttMode = dataContext.mode == .apps ? .apps : .tags
 
         let group = DispatchGroup()
         var newDailyRows: [GanttRowData] = []
@@ -3032,8 +3262,8 @@ struct DashboardOverviewView: View {
         var errorMessage: String?
 
         let reviewFilters = AggregationFilters(
-            includeIdle: appState.includeIdleInTimeline,
-            countOverlaysInTotals: appState.countOverlaysInTotals,
+            includeIdle: dataContext.includeIdle,
+            countOverlaysInTotals: dataContext.countOverlaysInTotals,
             tagId: nil,
             appName: nil,
             bundleId: nil,
@@ -3111,7 +3341,7 @@ struct DashboardOverviewView: View {
             group.leave()
         }
 
-        if isDailyView {
+        if dataContext.isDailyView {
             group.enter()
             AggregationService.shared.computeGanttRows(
                 rangeStart: bounds.start,
@@ -3198,6 +3428,7 @@ struct DashboardOverviewView: View {
             self.reviewTopApps = newReviewTopApps
             self.reviewTopTags = newReviewTopTags
             self.reviewWorkBlocks = newReviewWorkBlocks
+            self.loadedOverviewContext = dataContext
             self.isLoading = false
             self.lastRefresh = Date()
             if let errorMessage {

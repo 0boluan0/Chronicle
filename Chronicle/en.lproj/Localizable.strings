@@ -785,6 +785,8 @@
 "overview.weekly_summary.title" = "Weekly Review";
 "overview.weekly_summary.top_focus" = "Top focus: %@ · %@";
 "overview.weekly_summary.empty" = "No tracked sessions this week yet.";
+"overview.weekly_summary.loading_title" = "Refreshing the selected week.";
+"overview.weekly_summary.loading_detail" = "Chronicle is reloading activity, notes, and weekly summary status before showing the rollup.";
 "overview.weekly_summary.empty_title" = "No week to review yet.";
 "overview.weekly_summary.empty_detail" = "Keep Chronicle running during the week, then return here when there is activity to roll up.";
 "overview.weekly_summary.needs_folder_title" = "Choose a weekly summary folder.";
@@ -794,6 +796,7 @@
 "overview.weekly_summary.saved_title" = "This week already has a saved summary.";
 "overview.weekly_summary.saved_detail" = "Open the folder to inspect it, or regenerate after adding more notes or categories.";
 "overview.weekly_summary.status.no_data" = "Waiting";
+"overview.weekly_summary.status.loading" = "Refreshing";
 "overview.weekly_summary.status.needs_folder" = "Needs folder";
 "overview.weekly_summary.status.ready" = "Ready";
 "overview.weekly_summary.status.saved" = "Saved";
@@ -803,6 +806,7 @@
 "overview.weekly_summary.total" = "Total";
 "overview.weekly_summary.focus" = "Top focus";
 "overview.weekly_summary.focus_value" = "%@ · %@";
+"overview.weekly_summary.loading_metric" = "Checking";
 "overview.weekly_summary.none" = "None yet";
 "overview.weekly_summary.cues" = "Notes";
 "overview.weekly_summary.generate" = "Save Weekly Summary";
@@ -816,6 +820,9 @@
 "overview.activity_map.weekly_title" = "Week Activity Map";
 "overview.activity_map.daily_detail" = "Scan what Chronicle captured today, then click a block to inspect the exact time span.";
 "overview.activity_map.weekly_detail" = "Compare the selected week by day before opening a timeline slice or saving a summary.";
+"overview.activity_map.loading_title" = "Loading this range.";
+"overview.activity_map.loading_detail" = "Chronicle is reading local activity, categories, notes, and focus blocks before drawing the map.";
+"overview.activity_map.status.loading" = "Refreshing";
 "overview.activity_map.status.waiting" = "Waiting";
 "overview.activity_map.status.paused" = "Paused";
 "overview.activity_map.status.check" = "Check capture";
@@ -892,6 +899,8 @@
 "overview.command.capture.error_value" = "Needs check";
 "overview.command.capture.ready_value" = "Ready";
 "overview.review.title" = "Today workspace";
+"overview.review.loading_title" = "Refreshing this workspace.";
+"overview.review.loading_detail" = "Chronicle is reloading activity, categories, notes, and closeout status for the selected range.";
 "overview.review.empty_title" = "No activity to review yet.";
 "overview.review.empty_detail" = "Chronicle is ready. Start working and the timeline will fill in; add a note now if this session already has a purpose.";
 "overview.review.empty_attention_detail" = "Capture needs attention before the timeline can fill in reliably. You can still add a note manually.";
@@ -908,6 +917,7 @@
 "overview.review.saved_title" = "Today's log is saved.";
 "overview.review.saved_detail" = "The day is closed out. Open the saved log, or add more notes and review it again.";
 "overview.review.suggested_next" = "Suggested next";
+"overview.review.suggested.loading_detail" = "Wait for the refresh to finish before choosing the next closeout step.";
 "overview.review.suggested.empty_detail" = "Capture is ready. Leave Chronicle open, or add the first note if you already know what this session should remember.";
 "overview.review.suggested.empty_attention_detail" = "No activity has reached the timeline yet, so first confirm capture is healthy.";
 "overview.review.suggested.tags_detail" = "Some apps are still uncategorized, so the daily log will be harder to scan.";
@@ -917,6 +927,9 @@
 "overview.review.suggested.failed_detail" = "Retry from Daily Log first; if the folder changed, open log settings before saving again.";
 "overview.review.suggested.saved_detail" = "The day is already closed out; open the saved log if you want to inspect the result.";
 "overview.review.readiness.value" = "%d of %d ready";
+"overview.review.readiness.loading_value" = "Checking";
+"overview.review.readiness.loading_title" = "Checking the selected range.";
+"overview.review.readiness.loading_detail" = "Activity, categories, notes, and log status are being refreshed.";
 "overview.review.readiness.paused_title" = "Capture is paused.";
 "overview.review.readiness.paused_detail" = "Resume capture before today's timeline can become trustworthy.";
 "overview.review.readiness.check_title" = "Check capture first.";
@@ -936,6 +949,7 @@
 "overview.review.readiness.saved_title" = "Today is closed out.";
 "overview.review.readiness.saved_detail" = "The saved log is ready to inspect or reuse in your review workflow.";
 "overview.review.status.empty" = "Waiting";
+"overview.review.status.loading" = "Refreshing";
 "overview.review.status.needs_tags" = "Needs categories";
 "overview.review.status.needs_markers" = "Needs notes";
 "overview.review.status.needs_folder" = "Needs folder";
@@ -954,6 +968,7 @@
 "overview.review.open_timeline" = "Open Timeline";
 "overview.review.open_export" = "Log Settings";
 "overview.review.check_capture" = "Check Capture";
+"overview.review.loading_action" = "Refreshing";
 "overview.review.resume_capture" = "Resume Capture";
 "overview.review.review_categories" = "Classify Apps";
 "overview.review.add_marker" = "Add Note";
@@ -962,15 +977,18 @@
 "overview.review.retry_daily_log" = "Retry Daily Log";
 "overview.review.open_saved_log" = "Open Daily Log";
 "overview.review.path.capture_title" = "Capture";
+"overview.review.path.capture_loading" = "Reading activity for this range.";
 "overview.review.path.capture_done" = "Chronicle has activity to review.";
 "overview.review.path.capture_ready" = "Leave Chronicle open while you work.";
 "overview.review.path.capture_attention" = "Check capture before relying on the timeline.";
 "overview.review.path.context_title" = "Add context";
+"overview.review.path.context_loading" = "Checking categories and notes.";
 "overview.review.path.context_waiting" = "Context comes after activity appears.";
 "overview.review.path.context_tags" = "Classify today's apps before saving.";
 "overview.review.path.context_markers" = "Add a note or focus block.";
 "overview.review.path.context_done" = "Categories and context are ready.";
 "overview.review.path.closeout_title" = "Daily log";
+"overview.review.path.closeout_loading" = "Checking log status.";
 "overview.review.path.closeout_ready" = "Save today's log when the check looks right.";
 "overview.review.path.closeout_needs_folder" = "Choose a folder before the first save.";
 "overview.review.path.closeout_waiting" = "Ready after capture and context.";

@@ -785,6 +785,8 @@
 "overview.weekly_summary.title" = "周复盘";
 "overview.weekly_summary.top_focus" = "本周主要投入：%@ · %@";
 "overview.weekly_summary.empty" = "本周暂无追踪会话。";
+"overview.weekly_summary.loading_title" = "正在刷新所选周。";
+"overview.weekly_summary.loading_detail" = "Chronicle 正在重新读取活动、笔记和周总结状态，然后再显示汇总。";
 "overview.weekly_summary.empty_title" = "本周还没有可复盘内容。";
 "overview.weekly_summary.empty_detail" = "让 Chronicle 在本周工作时保持运行，有活动后这里会变成周复盘入口。";
 "overview.weekly_summary.needs_folder_title" = "先选择周总结文件夹。";
@@ -794,6 +796,7 @@
 "overview.weekly_summary.saved_title" = "本周总结已保存。";
 "overview.weekly_summary.saved_detail" = "可以打开文件夹检查；如果又补了备注或分类，再重新生成。";
 "overview.weekly_summary.status.no_data" = "等待记录";
+"overview.weekly_summary.status.loading" = "正在刷新";
 "overview.weekly_summary.status.needs_folder" = "需要文件夹";
 "overview.weekly_summary.status.ready" = "可生成";
 "overview.weekly_summary.status.saved" = "已保存";
@@ -803,6 +806,7 @@
 "overview.weekly_summary.total" = "总时长";
 "overview.weekly_summary.focus" = "主要投入";
 "overview.weekly_summary.focus_value" = "%@ · %@";
+"overview.weekly_summary.loading_metric" = "正在检查";
 "overview.weekly_summary.none" = "暂无";
 "overview.weekly_summary.cues" = "笔记";
 "overview.weekly_summary.generate" = "保存周总结";
@@ -816,6 +820,9 @@
 "overview.activity_map.weekly_title" = "本周活动地图";
 "overview.activity_map.daily_detail" = "先扫一眼 Chronicle 今天捕获到的结构，再点击时间块查看具体片段。";
 "overview.activity_map.weekly_detail" = "按天比较所选周的投入，再进入时间线或保存周总结。";
+"overview.activity_map.loading_title" = "正在加载这个范围。";
+"overview.activity_map.loading_detail" = "Chronicle 正在读取本地活动、分类、笔记和专注区间，然后再绘制活动地图。";
+"overview.activity_map.status.loading" = "正在刷新";
 "overview.activity_map.status.waiting" = "等待记录";
 "overview.activity_map.status.paused" = "已暂停";
 "overview.activity_map.status.check" = "检查记录";
@@ -892,6 +899,8 @@
 "overview.command.capture.error_value" = "需检查";
 "overview.command.capture.ready_value" = "就绪";
 "overview.review.title" = "今日工作台";
+"overview.review.loading_title" = "正在刷新这个工作台。";
+"overview.review.loading_detail" = "Chronicle 正在重新读取所选范围的活动、分类、笔记和收尾状态。";
 "overview.review.empty_title" = "还没有可复盘的活动。";
 "overview.review.empty_detail" = "Chronicle 已准备好。开始工作后时间线会自动累积；如果这段工作已经有明确目的，也可以先补一条笔记。";
 "overview.review.empty_attention_detail" = "记录状态需要先检查，时间线才可靠；你仍然可以手动补一条笔记。";
@@ -908,6 +917,7 @@
 "overview.review.saved_title" = "今日日志已保存。";
 "overview.review.saved_detail" = "今天已经收尾。可以打开日志检查，或补充笔记后再次复盘。";
 "overview.review.suggested_next" = "建议下一步";
+"overview.review.suggested.loading_detail" = "先等刷新完成，再决定下一步收尾动作。";
 "overview.review.suggested.empty_detail" = "记录已经就绪。保持 Chronicle 打开；如果已经知道这段工作要记住什么，可以先加第一条笔记。";
 "overview.review.suggested.empty_attention_detail" = "时间线还没有活动，先确认记录功能是否正常。";
 "overview.review.suggested.tags_detail" = "还有一些应用未分类，直接生成今日日志会比较难读。";
@@ -917,6 +927,9 @@
 "overview.review.suggested.failed_detail" = "先从今日日志重试；如果文件夹变过，保存前先打开日志设置。";
 "overview.review.suggested.saved_detail" = "今天已经收尾；需要检查结果时打开已保存日志。";
 "overview.review.readiness.value" = "%d/%d 项就绪";
+"overview.review.readiness.loading_value" = "正在检查";
+"overview.review.readiness.loading_title" = "正在检查所选范围。";
+"overview.review.readiness.loading_detail" = "活动、分类、笔记和日志状态正在刷新。";
 "overview.review.readiness.paused_title" = "记录已暂停。";
 "overview.review.readiness.paused_detail" = "先恢复记录，今天的时间线才会变得可信。";
 "overview.review.readiness.check_title" = "先检查记录。";
@@ -936,6 +949,7 @@
 "overview.review.readiness.saved_title" = "今天已经收尾。";
 "overview.review.readiness.saved_detail" = "已保存的日志可以直接检查，或进入你的复盘流程。";
 "overview.review.status.empty" = "等待记录";
+"overview.review.status.loading" = "正在刷新";
 "overview.review.status.needs_tags" = "需要分类";
 "overview.review.status.needs_markers" = "需要笔记";
 "overview.review.status.needs_folder" = "需要目录";
@@ -954,6 +968,7 @@
 "overview.review.open_timeline" = "查看时间线";
 "overview.review.open_export" = "日志设置";
 "overview.review.check_capture" = "检查记录";
+"overview.review.loading_action" = "正在刷新";
 "overview.review.resume_capture" = "恢复记录";
 "overview.review.review_categories" = "整理应用分类";
 "overview.review.add_marker" = "添加笔记";
@@ -962,15 +977,18 @@
 "overview.review.retry_daily_log" = "重试今日日志";
 "overview.review.open_saved_log" = "打开今日日志";
 "overview.review.path.capture_title" = "记录";
+"overview.review.path.capture_loading" = "正在读取这个范围的活动。";
 "overview.review.path.capture_done" = "Chronicle 已有可复盘活动。";
 "overview.review.path.capture_ready" = "工作时保持 Chronicle 打开即可。";
 "overview.review.path.capture_attention" = "先检查记录状态，再依赖时间线。";
 "overview.review.path.context_title" = "补语境";
+"overview.review.path.context_loading" = "正在检查分类和笔记。";
 "overview.review.path.context_waiting" = "有活动后再补充语境。";
 "overview.review.path.context_tags" = "保存前先整理今天的应用分类。";
 "overview.review.path.context_markers" = "添加笔记或专注区间。";
 "overview.review.path.context_done" = "分类和语境已就绪。";
 "overview.review.path.closeout_title" = "今日日志";
+"overview.review.path.closeout_loading" = "正在检查日志状态。";
 "overview.review.path.closeout_ready" = "检查结果没问题时，保存今日日志。";
 "overview.review.path.closeout_needs_folder" = "第一次保存前先选择文件夹。";
 "overview.review.path.closeout_waiting" = "完成记录和语境后可收工。";
