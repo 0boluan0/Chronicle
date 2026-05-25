@@ -2373,6 +2373,8 @@
 "reports.closeout.title" = "今日日志";
 "reports.closeout.setup_title" = "先选择今日日志保存位置。";
 "reports.closeout.setup_detail" = "Chronicle 需要一个本地目录，才能保存今天的复盘记录。";
+"reports.closeout.loading_title" = "正在检查今日收尾。";
+"reports.closeout.loading_detail" = "Chronicle 正在刷新今天的时间线、笔记、分类和保存状态，然后再推荐下一步。";
 "reports.closeout.ready_title" = "今天可以收工复盘了。";
 "reports.closeout.ready_detail" = "检查结果看起来没问题时，直接保存今日日志；需要确认时仍可先预览。";
 "reports.closeout.done_title" = "今日日志已保存。";
@@ -2380,6 +2382,7 @@
 "reports.closeout.failed_title" = "上次保存失败。";
 "reports.closeout.failed_detail" = "重试保存今日日志；如果文件夹权限失效，可以打开日志设置重新选择。";
 "reports.closeout.status.ready" = "可保存";
+"reports.closeout.status.loading" = "正在检查";
 "reports.closeout.status.failed" = "保存失败";
 "reports.closeout.status.done" = "已完成";
 "reports.closeout.destination" = "保存位置";
@@ -2417,6 +2420,9 @@
 "reports.closeout.path.progress" = "%d/%d 就绪";
 "reports.closeout.brief.title" = "收工检查";
 "reports.closeout.brief.detail" = "保存前先确认时间线是否足够还原今天。";
+"reports.closeout.brief.loading_title" = "正在刷新收尾依据。";
+"reports.closeout.brief.loading_detail" = "Chronicle 正在检查已捕获工作、复盘线索、工作块和未分类活动。";
+"reports.closeout.brief.loading_status" = "正在检查";
 "reports.closeout.brief.captured_title" = "已捕获工作";
 "reports.closeout.brief.captured_empty" = "暂无活跃工作";
 "reports.closeout.brief.captured_empty_detail" = "工作时保持 Chronicle 运行。";
@@ -2453,6 +2459,7 @@
 "reports.closeout.confidence.title" = "保存把握";
 "reports.closeout.confidence.detail" = "确认明天再看这份日志时，内容仍然能读懂。";
 "reports.closeout.confidence.status.needs_timeline" = "需要时间线";
+"reports.closeout.confidence.status.loading" = "正在检查";
 "reports.closeout.confidence.status.review_labels" = "检查分类";
 "reports.closeout.confidence.status.add_context" = "需要时补语境";
 "reports.closeout.confidence.status.ready" = "可以保存";
@@ -2493,6 +2500,8 @@
 "reports.closeout.include.notes_empty" = "语境不足时再补充即可。";
 "reports.closeout.next.destination_title" = "先选择保存位置。";
 "reports.closeout.next.destination_detail" = "日志文件夹只需设置一次，之后收工会变成一条清晰的复盘流程。";
+"reports.closeout.next.loading_title" = "正在检查今日收尾。";
+"reports.closeout.next.loading_detail" = "先等 Chronicle 刷新完今天的时间线和语境，再保存今日日志。";
 "reports.closeout.next.timeline_title" = "保存前先补一条备注。";
 "reports.closeout.next.timeline_detail" = "今天还没有捕获到工作内容；如果仍需要一份日志，先补语境，或先检查时间线。";
 "reports.closeout.next.labels_title" = "保存前先检查分类。";
@@ -2508,6 +2517,7 @@
 "reports.closeout.next.done_title" = "今日日志已保存。";
 "reports.closeout.next.done_detail" = "打开文件夹检查结果，或补充收工备注后重新生成。";
 "reports.closeout.next.status.setup" = "需要设置";
+"reports.closeout.next.status.loading" = "正在检查";
 "reports.closeout.next.status.check" = "需要检查";
 "reports.closeout.next.status.timeline" = "补充语境";
 "reports.closeout.next.status.labels" = "先检查";
@@ -2516,6 +2526,7 @@
 "reports.closeout.next.status.failed" = "保存失败";
 "reports.closeout.next.status.saved" = "已保存";
 "reports.closeout.action.choose_folder" = "选择文件夹";
+"reports.closeout.action.loading" = "正在检查";
 "reports.closeout.action.add_note" = "添加备注";
 "reports.closeout.action.review_categories" = "检查分类";
 "reports.closeout.action.open_timeline" = "打开时间线";

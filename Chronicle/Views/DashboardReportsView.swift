@@ -39,6 +39,7 @@ private enum ReportTemplateResetTarget {
 }
 
 private enum CloseoutNextActionState {
+    case loading
     case needsFolder
     case checkIssue
     case saveFailed
@@ -122,6 +123,8 @@ struct ReportsWorkspaceView: View {
     @State private var selectedWeeklyPreset: ReportTemplatePreset = .retrospective
     @State private var closeoutSnapshot = CloseoutSnapshot.empty
     @State private var closeoutSnapshotError: String?
+    @State private var isCloseoutSnapshotLoading = false
+    @State private var closeoutSnapshotRefreshSequence = 0
     @State private var showCloseoutSnapshotIssueDetails = false
     @State private var reviewReminderNotificationStatus: StatusMessage?
     @State private var pendingTemplateReset: ReportTemplateResetTarget?
@@ -589,16 +592,23 @@ struct ReportsWorkspaceView: View {
         Button {
             performCloseoutPrimaryAction()
         } label: {
-            reportActionButtonLabel(L(closeoutPrimaryActionTitleKey), systemImage: closeoutPrimaryActionIconName)
+            if closeoutNextActionState == .loading {
+                ProgressActionButtonLabel(L(closeoutPrimaryActionTitleKey))
+            } else {
+                reportActionButtonLabel(L(closeoutPrimaryActionTitleKey), systemImage: closeoutPrimaryActionIconName)
+            }
         }
         .buttonStyle(.borderedProminent)
         .tint(closeoutNextActionTone.color)
+        .disabled(closeoutNextActionState == .loading)
         .accessibilityIdentifier(closeoutPrimaryActionAccessibilityIdentifier)
     }
 
     @ViewBuilder
     private var closeoutSecondaryActionButtons: some View {
         switch closeoutNextActionState {
+        case .loading:
+            EmptyView()
         case .needsFolder:
             EmptyView()
         case .checkIssue:
@@ -894,6 +904,11 @@ struct ReportsWorkspaceView: View {
             systemImage: "checklist",
             tone: closeoutBriefTone
         ) {
+            if isCloseoutSnapshotLoading {
+                closeoutBriefLoadingView
+                Divider()
+            }
+
             LazyVGrid(
                 columns: [GridItem(.adaptive(minimum: 175), spacing: DesignSystem.Spacing.md)],
                 alignment: .leading,
@@ -946,6 +961,47 @@ struct ReportsWorkspaceView: View {
             }
         }
         .accessibilityIdentifier("reports.closeout.brief")
+    }
+
+    private var closeoutBriefLoadingView: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            ProgressView()
+                .controlSize(.small)
+                .padding(.top, 2)
+                .accessibilityHidden(true)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("reports.closeout.brief.loading_title")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+
+                Text("reports.closeout.brief.loading_detail")
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 0)
+
+            StatusPill(
+                L("reports.closeout.brief.loading_status"),
+                systemImage: "arrow.triangle.2.circlepath",
+                tone: .info
+            )
+            .fixedSize(horizontal: true, vertical: false)
+        }
+        .padding(DesignSystem.Spacing.sm)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .fill(DesignSystem.StatusTone.info.color.opacity(0.07))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
+                .stroke(DesignSystem.StatusTone.info.color.opacity(0.18), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("reports.closeout.brief.loading")
     }
 
     private func closeoutBriefIssueView(message: String) -> some View {
@@ -1016,6 +1072,7 @@ struct ReportsWorkspaceView: View {
             reportActionButtonLabel(L("reports.closeout.brief.issue.retry"), systemImage: "arrow.clockwise")
         }
         .buttonStyle(.bordered)
+        .disabled(isCloseoutSnapshotLoading)
         .accessibilityIdentifier("reports.closeout.brief.issue.retry")
     }
 
@@ -4750,6 +4807,9 @@ struct ReportsWorkspaceView: View {
         if dailyExportFailedToday {
             return "reports.closeout.failed_title"
         }
+        if isCloseoutSnapshotLoading {
+            return "reports.closeout.loading_title"
+        }
         return "reports.closeout.ready_title"
     }
 
@@ -4762,6 +4822,9 @@ struct ReportsWorkspaceView: View {
         }
         if dailyExportFailedToday {
             return "reports.closeout.failed_detail"
+        }
+        if isCloseoutSnapshotLoading {
+            return "reports.closeout.loading_detail"
         }
         return "reports.closeout.ready_detail"
     }
@@ -4776,6 +4839,9 @@ struct ReportsWorkspaceView: View {
         if dailyExportFailedToday {
             return .critical
         }
+        if isCloseoutSnapshotLoading {
+            return .info
+        }
         return .info
     }
 
@@ -4788,6 +4854,9 @@ struct ReportsWorkspaceView: View {
         }
         if dailyExportFailedToday {
             return "exclamationmark.triangle.fill"
+        }
+        if isCloseoutSnapshotLoading {
+            return "arrow.triangle.2.circlepath"
         }
         return "doc.badge.plus"
     }
@@ -4802,6 +4871,9 @@ struct ReportsWorkspaceView: View {
         if dailyExportFailedToday {
             return L("reports.closeout.status.failed")
         }
+        if isCloseoutSnapshotLoading {
+            return L("reports.closeout.status.loading")
+        }
         return L("reports.closeout.status.ready")
     }
 
@@ -4815,11 +4887,16 @@ struct ReportsWorkspaceView: View {
         if dailyExportFailedToday {
             return "exclamationmark.triangle.fill"
         }
+        if isCloseoutSnapshotLoading {
+            return "arrow.triangle.2.circlepath"
+        }
         return "doc.badge.plus"
     }
 
     private var closeoutNextActionTitleKey: String {
         switch closeoutNextActionState {
+        case .loading:
+            return "reports.closeout.next.loading_title"
         case .needsFolder:
             return "reports.closeout.next.destination_title"
         case .checkIssue:
@@ -4841,6 +4918,8 @@ struct ReportsWorkspaceView: View {
 
     private var closeoutNextActionDetailKey: String {
         switch closeoutNextActionState {
+        case .loading:
+            return "reports.closeout.next.loading_detail"
         case .needsFolder:
             return "reports.closeout.next.destination_detail"
         case .checkIssue:
@@ -4862,6 +4941,8 @@ struct ReportsWorkspaceView: View {
 
     private var closeoutNextActionIconName: String {
         switch closeoutNextActionState {
+        case .loading:
+            return "arrow.triangle.2.circlepath"
         case .needsFolder:
             return "folder.badge.plus"
         case .checkIssue:
@@ -4883,6 +4964,8 @@ struct ReportsWorkspaceView: View {
 
     private var closeoutNextActionStatusText: String {
         switch closeoutNextActionState {
+        case .loading:
+            return L("reports.closeout.next.status.loading")
         case .needsFolder:
             return L("reports.closeout.next.status.setup")
         case .checkIssue:
@@ -4904,6 +4987,8 @@ struct ReportsWorkspaceView: View {
 
     private var closeoutNextActionStatusIconName: String {
         switch closeoutNextActionState {
+        case .loading:
+            return "arrow.triangle.2.circlepath"
         case .needsFolder:
             return "folder.badge.plus"
         case .checkIssue:
@@ -4923,6 +5008,8 @@ struct ReportsWorkspaceView: View {
 
     private var closeoutNextActionTone: DesignSystem.StatusTone {
         switch closeoutNextActionState {
+        case .loading:
+            return .info
         case .needsFolder, .checkIssue, .needsTimeline, .reviewLabels:
             return .warning
         case .saveFailed:
@@ -4944,6 +5031,9 @@ struct ReportsWorkspaceView: View {
         if dailyExportFailedToday {
             return .saveFailed
         }
+        if isCloseoutSnapshotLoading {
+            return .loading
+        }
         if closeoutSnapshotError != nil {
             return .checkIssue
         }
@@ -4961,6 +5051,8 @@ struct ReportsWorkspaceView: View {
 
     private var closeoutPrimaryActionTitleKey: String {
         switch closeoutNextActionState {
+        case .loading:
+            return "reports.closeout.action.loading"
         case .needsFolder:
             return "reports.closeout.action.choose_folder"
         case .checkIssue:
@@ -4982,6 +5074,8 @@ struct ReportsWorkspaceView: View {
 
     private var closeoutPrimaryActionIconName: String {
         switch closeoutNextActionState {
+        case .loading:
+            return "arrow.triangle.2.circlepath"
         case .needsFolder:
             return "folder.badge.plus"
         case .checkIssue:
@@ -5001,6 +5095,8 @@ struct ReportsWorkspaceView: View {
 
     private var closeoutPrimaryActionAccessibilityIdentifier: String {
         switch closeoutNextActionState {
+        case .loading:
+            return "reports.closeout.loading"
         case .needsFolder:
             return "reports.closeout.chooseDailyFolder"
         case .checkIssue:
@@ -5020,6 +5116,8 @@ struct ReportsWorkspaceView: View {
 
     private func performCloseoutPrimaryAction() {
         switch closeoutNextActionState {
+        case .loading:
+            return
         case .needsFolder:
             chooseDailyFolder()
         case .checkIssue:
@@ -5038,6 +5136,9 @@ struct ReportsWorkspaceView: View {
     }
 
     private var closeoutBriefTone: DesignSystem.StatusTone {
+        if isCloseoutSnapshotLoading {
+            return .info
+        }
         if closeoutSnapshotError != nil {
             return .warning
         }
@@ -5055,6 +5156,9 @@ struct ReportsWorkspaceView: View {
     }
 
     private var closeoutSaveConfidenceStatusText: String {
+        if isCloseoutSnapshotLoading {
+            return L("reports.closeout.confidence.status.loading")
+        }
         if closeoutSnapshot.activeSeconds <= 0 {
             return L("reports.closeout.confidence.status.needs_timeline")
         }
@@ -5068,6 +5172,9 @@ struct ReportsWorkspaceView: View {
     }
 
     private var closeoutSaveConfidenceIconName: String {
+        if isCloseoutSnapshotLoading {
+            return "arrow.triangle.2.circlepath"
+        }
         if closeoutSnapshot.activeSeconds <= 0 {
             return "clock.badge.exclamationmark"
         }
@@ -5081,6 +5188,9 @@ struct ReportsWorkspaceView: View {
     }
 
     private var closeoutSaveConfidenceTone: DesignSystem.StatusTone {
+        if isCloseoutSnapshotLoading {
+            return .info
+        }
         if closeoutSnapshot.activeSeconds <= 0 || closeoutSnapshot.untaggedActiveCount > 0 {
             return .warning
         }
@@ -5529,6 +5639,10 @@ struct ReportsWorkspaceView: View {
     private func refreshCloseoutSnapshot(reason: String) {
         guard mode == .dashboard else { return }
 
+        closeoutSnapshotRefreshSequence += 1
+        let refreshSequence = closeoutSnapshotRefreshSequence
+        isCloseoutSnapshotLoading = true
+
         let bounds = DateRangeMode.day.bounds(for: Date())
         let filters = AggregationFilters(
             includeIdle: true,
@@ -5584,6 +5698,9 @@ struct ReportsWorkspaceView: View {
         }
 
         group.notify(queue: .main) {
+            guard refreshSequence == self.closeoutSnapshotRefreshSequence else { return }
+
+            self.isCloseoutSnapshotLoading = false
             if let snapshotError {
                 self.closeoutSnapshotError = snapshotError
             } else {

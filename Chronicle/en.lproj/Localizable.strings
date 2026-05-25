@@ -2374,6 +2374,8 @@
 "reports.closeout.title" = "Daily Log";
 "reports.closeout.setup_title" = "Choose a daily log folder first.";
 "reports.closeout.setup_detail" = "Chronicle needs one local destination before it can save today's review.";
+"reports.closeout.loading_title" = "Checking today's closeout.";
+"reports.closeout.loading_detail" = "Chronicle is refreshing today's timeline, notes, categories, and save status before recommending the next step.";
 "reports.closeout.ready_title" = "Ready to close out today.";
 "reports.closeout.ready_detail" = "Save today's log when the check looks right; preview is still available before saving.";
 "reports.closeout.done_title" = "Today's log is saved.";
@@ -2381,6 +2383,7 @@
 "reports.closeout.failed_title" = "The last save failed.";
 "reports.closeout.failed_detail" = "Retry the daily log save, or open log settings if the folder permission needs to be refreshed.";
 "reports.closeout.status.ready" = "Ready to save";
+"reports.closeout.status.loading" = "Checking";
 "reports.closeout.status.failed" = "Save failed";
 "reports.closeout.status.done" = "Done";
 "reports.closeout.destination" = "Destination";
@@ -2418,6 +2421,9 @@
 "reports.closeout.path.progress" = "%d/%d ready";
 "reports.closeout.brief.title" = "Closeout brief";
 "reports.closeout.brief.detail" = "Before saving, check whether the timeline has enough story.";
+"reports.closeout.brief.loading_title" = "Refreshing closeout evidence.";
+"reports.closeout.brief.loading_detail" = "Chronicle is checking captured work, review cues, work blocks, and uncategorized activity.";
+"reports.closeout.brief.loading_status" = "Checking";
 "reports.closeout.brief.captured_title" = "Captured work";
 "reports.closeout.brief.captured_empty" = "No active work yet";
 "reports.closeout.brief.captured_empty_detail" = "Keep Chronicle running while you work.";
@@ -2454,6 +2460,7 @@
 "reports.closeout.confidence.title" = "Save confidence";
 "reports.closeout.confidence.detail" = "Check whether tomorrow's log will still make sense.";
 "reports.closeout.confidence.status.needs_timeline" = "Needs timeline";
+"reports.closeout.confidence.status.loading" = "Checking";
 "reports.closeout.confidence.status.review_labels" = "Review categories";
 "reports.closeout.confidence.status.add_context" = "Add context if needed";
 "reports.closeout.confidence.status.ready" = "Looks ready";
@@ -2494,6 +2501,8 @@
 "reports.closeout.include.notes_empty" = "Add notes only when context is missing.";
 "reports.closeout.next.destination_title" = "Choose a destination first.";
 "reports.closeout.next.destination_detail" = "Set the daily log folder once, then closeout will become a one-click review flow.";
+"reports.closeout.next.loading_title" = "Checking today's closeout.";
+"reports.closeout.next.loading_detail" = "Wait for Chronicle to finish refreshing today's timeline and context before saving.";
 "reports.closeout.next.timeline_title" = "Add a note before saving.";
 "reports.closeout.next.timeline_detail" = "There is no captured work yet. Add context if this day still needs a log, or check the timeline first.";
 "reports.closeout.next.labels_title" = "Review categories before saving.";
@@ -2509,6 +2518,7 @@
 "reports.closeout.next.done_title" = "Today's log is saved.";
 "reports.closeout.next.done_detail" = "Open the folder to inspect it, or regenerate after adding more closeout notes.";
 "reports.closeout.next.status.setup" = "Setup needed";
+"reports.closeout.next.status.loading" = "Checking";
 "reports.closeout.next.status.check" = "Check needed";
 "reports.closeout.next.status.timeline" = "Add context";
 "reports.closeout.next.status.labels" = "Review first";
@@ -2517,6 +2527,7 @@
 "reports.closeout.next.status.failed" = "Save failed";
 "reports.closeout.next.status.saved" = "Saved";
 "reports.closeout.action.choose_folder" = "Choose folder";
+"reports.closeout.action.loading" = "Checking";
 "reports.closeout.action.add_note" = "Add note";
 "reports.closeout.action.review_categories" = "Review categories";
 "reports.closeout.action.open_timeline" = "Open Timeline";
