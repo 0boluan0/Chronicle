@@ -181,7 +181,11 @@ struct QuickMarkerEntryView: View {
             Button {
                 stopOpenSpan(span)
             } label: {
-                quickMarkerActionLabel(L("quick_marker.session_stop"), systemImage: "stop.circle")
+                if isSubmitting {
+                    quickMarkerBusyActionLabel
+                } else {
+                    quickMarkerActionLabel(L("quick_marker.session_stop"), systemImage: "stop.circle")
+                }
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
@@ -393,17 +397,26 @@ struct QuickMarkerEntryView: View {
         .accessibilityIdentifier("quickMarker.submit")
     }
 
+    @ViewBuilder
     private var captureSubmitLabel: some View {
-        Label {
-            Text(submitButtonLabel)
-                .lineLimit(2)
-                .minimumScaleFactor(0.85)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-        } icon: {
-            Image(systemName: submitButtonIconName)
+        if isSubmitting {
+            quickMarkerBusyActionLabel
+        } else {
+            Label {
+                Text(submitButtonLabel)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.85)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            } icon: {
+                Image(systemName: submitButtonIconName)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var quickMarkerBusyActionLabel: some View {
+        ProgressActionButtonLabel(L("quick_marker.action.recording"))
     }
 
     private var clearTextButton: some View {
@@ -896,6 +909,7 @@ struct QuickMarkerEntryView: View {
         }
         .buttonStyle(.bordered)
         .help(suggestion.text)
+        .disabled(isSubmitting)
         .accessibilityLabel("\(L(suggestion.kind.labelKey)) \(suggestion.text)")
         .accessibilityIdentifier("quickMarker.recent.\(suggestion.kind.rawValue)")
     }
@@ -1017,6 +1031,7 @@ struct QuickMarkerEntryView: View {
         }
         .buttonStyle(.plain)
         .contentShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.md))
+        .disabled(isSubmitting)
         .accessibilityIdentifier("quickMarker.starter.\(starter.id)")
     }
 
@@ -1087,7 +1102,11 @@ struct QuickMarkerEntryView: View {
         Button {
             stopOpenSpan(openSpan)
         } label: {
-            quickMarkerActionLabel(L("quick_marker.session_stop"), systemImage: "stop.circle")
+            if isSubmitting {
+                quickMarkerBusyActionLabel
+            } else {
+                quickMarkerActionLabel(L("quick_marker.session_stop"), systemImage: "stop.circle")
+            }
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
