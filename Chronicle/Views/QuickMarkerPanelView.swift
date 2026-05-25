@@ -21,6 +21,7 @@ struct QuickMarkerPanelView: View {
 
     @EnvironmentObject private var appState: AppState
     @ObservedObject private var reportSettings = ReportSettings.shared
+    @ObservedObject private var dailyExportState = DailyLogExportAction.state
     @AppStorage("dashboard.selectedSection") private var selectedDashboardSectionRaw = DashboardView.Section.defaultSelection.rawValue
     @State private var contextDate = Date()
     @State private var draftText = ""
@@ -446,11 +447,12 @@ struct QuickMarkerPanelView: View {
                 Button {
                     requestDailyLogRouteAction()
                 } label: {
-                    panelActionLabel(L(dailyLogRouteActionTitleKey), systemImage: dailyLogRouteActionIconName)
+                    dailyLogRouteActionLabel
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
                 .tint(DesignSystem.Colors.accentSkyBlue)
+                .disabled(dailyExportState.isRunning)
                 .frame(maxWidth: .infinity)
                 .accessibilityIdentifier("quickMarker.route.dailyLogAction")
 
@@ -714,6 +716,9 @@ struct QuickMarkerPanelView: View {
     }
 
     private var reviewLoopStatusText: String {
+        if dailyExportState.isRunning {
+            return L("quick_marker.loop.status.saving")
+        }
         if dailyLogFailedToday {
             return L("quick_marker.loop.status.failed")
         }
@@ -730,6 +735,9 @@ struct QuickMarkerPanelView: View {
     }
 
     private var reviewLoopDetailKey: String {
+        if dailyExportState.isRunning {
+            return "quick_marker.loop.detail.saving"
+        }
         if dailyLogFailedToday {
             return "quick_marker.loop.detail.failed"
         }
@@ -746,6 +754,9 @@ struct QuickMarkerPanelView: View {
     }
 
     private var reviewLoopStatusIconName: String {
+        if dailyExportState.isRunning {
+            return "arrow.clockwise"
+        }
         if dailyLogFailedToday {
             return "exclamationmark.triangle.fill"
         }
@@ -762,6 +773,9 @@ struct QuickMarkerPanelView: View {
     }
 
     private var reviewLoopIconName: String {
+        if dailyExportState.isRunning {
+            return "arrow.clockwise"
+        }
         if dailyLogFailedToday {
             return "exclamationmark.triangle.fill"
         }
@@ -775,6 +789,9 @@ struct QuickMarkerPanelView: View {
     }
 
     private var reviewLoopTone: DesignSystem.StatusTone {
+        if dailyExportState.isRunning {
+            return .info
+        }
         if dailyLogFailedToday {
             return .critical
         }
@@ -785,6 +802,9 @@ struct QuickMarkerPanelView: View {
     }
 
     private var dailyLogContextDetail: String {
+        if dailyExportState.isRunning {
+            return L("quick_marker.context.log_saving")
+        }
         if dailyLogFailedToday {
             return L("quick_marker.context.log_failed")
         }
@@ -798,6 +818,9 @@ struct QuickMarkerPanelView: View {
     }
 
     private var dailyLogContextIconName: String {
+        if dailyExportState.isRunning {
+            return "arrow.clockwise"
+        }
         if dailyLogFailedToday {
             return "exclamationmark.triangle.fill"
         }
@@ -811,6 +834,9 @@ struct QuickMarkerPanelView: View {
     }
 
     private var dailyLogContextTone: DesignSystem.StatusTone {
+        if dailyExportState.isRunning {
+            return .info
+        }
         if dailyLogFailedToday {
             return .critical
         }
@@ -824,6 +850,9 @@ struct QuickMarkerPanelView: View {
     }
 
     private var dailyLogRouteTitleKey: LocalizedStringKey {
+        if dailyExportState.isRunning {
+            return "quick_marker.route.closeout_saving_title"
+        }
         if dailyLogFailedToday {
             return "quick_marker.route.closeout_failed_title"
         }
@@ -837,6 +866,9 @@ struct QuickMarkerPanelView: View {
     }
 
     private var dailyLogRouteDetailKey: LocalizedStringKey {
+        if dailyExportState.isRunning {
+            return "quick_marker.route.closeout_saving_detail"
+        }
         if dailyLogFailedToday {
             return "quick_marker.route.closeout_failed_detail"
         }
@@ -850,6 +882,9 @@ struct QuickMarkerPanelView: View {
     }
 
     private var dailyLogRouteIconName: String {
+        if dailyExportState.isRunning {
+            return "arrow.clockwise"
+        }
         if dailyLogFailedToday {
             return "exclamationmark.triangle.fill"
         }
@@ -863,6 +898,9 @@ struct QuickMarkerPanelView: View {
     }
 
     private var dailyLogRouteActionTitleKey: String {
+        if dailyExportState.isRunning {
+            return "quick_marker.status.saving_daily_log"
+        }
         if reportSettings.dailyFolderBookmark == nil {
             return "quick_marker.status.set_log_folder"
         }
@@ -876,6 +914,9 @@ struct QuickMarkerPanelView: View {
     }
 
     private var dailyLogRouteActionIconName: String {
+        if dailyExportState.isRunning {
+            return "arrow.clockwise"
+        }
         if reportSettings.dailyFolderBookmark == nil {
             return "folder.badge.plus"
         }
@@ -886,6 +927,15 @@ struct QuickMarkerPanelView: View {
             return "doc.text.magnifyingglass"
         }
         return "doc.text"
+    }
+
+    @ViewBuilder
+    private var dailyLogRouteActionLabel: some View {
+        if dailyExportState.isRunning {
+            ProgressActionButtonLabel(L(dailyLogRouteActionTitleKey))
+        } else {
+            panelActionLabel(L(dailyLogRouteActionTitleKey), systemImage: dailyLogRouteActionIconName)
+        }
     }
 
     private var dailyLogSavedToday: Bool {

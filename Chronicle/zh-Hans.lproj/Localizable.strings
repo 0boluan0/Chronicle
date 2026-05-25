@@ -2171,8 +2171,10 @@
 "quick_marker.context.log_ready" = "可收尾";
 "quick_marker.context.log_needs_folder" = "需文件夹";
 "quick_marker.context.log_failed" = "保存失败";
+"quick_marker.context.log_saving" = "保存中";
 "quick_marker.loop.title" = "今日闭环";
 "quick_marker.loop.progress" = "%d/%d 就绪";
+"quick_marker.loop.status.saving" = "正在保存";
 "quick_marker.loop.status.needs_folder" = "需文件夹";
 "quick_marker.loop.status.needs_context" = "补语境";
 "quick_marker.loop.status.ready" = "可保存";
@@ -2183,6 +2185,7 @@
 "quick_marker.loop.detail.ready" = "这条记录已有语境，今日日志保存位置也已就绪。";
 "quick_marker.loop.detail.saved" = "今天的日志已经保存；只有当天脉络变化时再补语境。";
 "quick_marker.loop.detail.failed" = "这条记录仍会本地保存，但上次 Markdown 今日日志保存失败。先保留语境，再重试今日日志。";
+"quick_marker.loop.detail.saving" = "Chronicle 正在写入 Markdown 今日日志；快速记录仍可用，但今日日志跳转会先暂停。";
 "quick_marker.loop.step.time_title" = "时间";
 "quick_marker.loop.step.context_title" = "语境";
 "quick_marker.loop.step.log_title" = "日志";
@@ -2200,6 +2203,8 @@
 "quick_marker.route.closeout_setup_detail" = "先选择保存位置。";
 "quick_marker.route.closeout_failed_title" = "重试今日日志";
 "quick_marker.route.closeout_failed_detail" = "上次 Markdown 保存失败。保留这条语境后，再重试今日日志。";
+"quick_marker.route.closeout_saving_title" = "正在保存日志";
+"quick_marker.route.closeout_saving_detail" = "等待当前 Markdown 保存完成后，再打开今日日志。";
 "quick_marker.route.unsaved.title" = "仍有未保存文字，要离开吗？";
 "quick_marker.route.unsaved.message" = "快速记录里的文字还没有保存。仍要离开吗？";
 "quick_marker.route.unsaved.leave" = "不保存并离开";
@@ -2330,6 +2335,7 @@
 "quick_marker.status.open_daily_log" = "打开今日日志";
 "quick_marker.status.set_log_folder" = "设置日志目录";
 "quick_marker.status.retry_daily_log" = "重试今日日志";
+"quick_marker.status.saving_daily_log" = "正在保存今日日志…";
 "Top Apps" = "常用应用";
 "No tracked activity yet." = "暂无追踪数据。";
 "Top Tags" = "常用分类";
