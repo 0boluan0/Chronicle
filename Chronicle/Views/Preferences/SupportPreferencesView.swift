@@ -243,10 +243,7 @@ struct SupportPreferencesView: View {
                         Button {
                             createFeedbackBundle(target: .feedback)
                         } label: {
-                            supportActionLabel(
-                                isCreatingFeedbackBundle ? L("support.feedback.creating") : L("support.feedback.create_bundle"),
-                                systemImage: "shippingbox"
-                            )
+                            feedbackBundleActionLabel
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(DesignSystem.Colors.accentSkyBlue)
@@ -322,10 +319,7 @@ struct SupportPreferencesView: View {
                     Button {
                         createFeedbackBundle(target: .supportPath)
                     } label: {
-                        supportActionLabel(
-                            isCreatingFeedbackBundle ? L("support.feedback.creating") : L("support.feedback.create_bundle"),
-                            systemImage: "shippingbox"
-                        )
+                        feedbackBundleActionLabel
                     }
                     .buttonStyle(.bordered)
                     .disabled(isCreatingFeedbackBundle)
@@ -750,7 +744,7 @@ struct SupportPreferencesView: View {
             .accessibilityIdentifier("support.releaseSafety.runCheck")
         case .running:
             Button {} label: {
-                supportRunningActionLabel(L("popover.self_check.running"))
+                supportProgressActionLabel(L("popover.self_check.running"))
             }
             .buttonStyle(.borderedProminent)
             .disabled(true)
@@ -795,7 +789,7 @@ struct SupportPreferencesView: View {
             .accessibilityIdentifier("support.path.runSelfCheck")
         case .running:
             Button {} label: {
-                supportRunningActionLabel(L("popover.self_check.running"))
+                supportProgressActionLabel(L("popover.self_check.running"))
             }
             .buttonStyle(.bordered)
             .disabled(true)
@@ -988,7 +982,7 @@ struct SupportPreferencesView: View {
             .accessibilityIdentifier("support.runSelfCheck")
         case .running:
             Button {} label: {
-                supportRunningActionLabel(L("popover.self_check.running"))
+                supportProgressActionLabel(L("popover.self_check.running"))
             }
             .buttonStyle(.borderedProminent)
             .disabled(true)
@@ -1043,20 +1037,26 @@ struct SupportPreferencesView: View {
         Button {
             createFeedbackBundle(target: target)
         } label: {
-            supportActionLabel(
-                isCreatingFeedbackBundle ? L("support.feedback.creating") : L("support.feedback.create_bundle"),
-                systemImage: "shippingbox"
-            )
+            feedbackBundleActionLabel
         }
         .buttonStyle(.bordered)
         .disabled(isCreatingFeedbackBundle)
+    }
+
+    @ViewBuilder
+    private var feedbackBundleActionLabel: some View {
+        if isCreatingFeedbackBundle {
+            supportProgressActionLabel(L("support.feedback.creating"))
+        } else {
+            supportActionLabel(L("support.feedback.create_bundle"), systemImage: "shippingbox")
+        }
     }
 
     private func supportActionLabel(_ title: String, systemImage: String) -> some View {
         ActionButtonLabel(title, systemImage: systemImage, fillsWidth: false)
     }
 
-    private func supportRunningActionLabel(_ title: String) -> some View {
+    private func supportProgressActionLabel(_ title: String) -> some View {
         HStack(spacing: DesignSystem.Spacing.xs) {
             ProgressView()
                 .controlSize(.small)
