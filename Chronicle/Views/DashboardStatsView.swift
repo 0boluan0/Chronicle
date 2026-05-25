@@ -172,11 +172,16 @@ struct DashboardStatsView: View {
             Button {
                 refreshStats(reason: "stats issue retry")
             } label: {
-                statsActionLabel(L("dashboard.stats.error.retry"), systemImage: "arrow.clockwise")
+                statsLoadingActionLabel(
+                    isLoading: isLoading,
+                    idleTitle: L("dashboard.stats.error.retry"),
+                    systemImage: "arrow.clockwise"
+                )
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
             .tint(DesignSystem.Colors.accentSkyBlue)
+            .disabled(isLoading)
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("dashboard.stats.retryLoad")
 
@@ -194,6 +199,15 @@ struct DashboardStatsView: View {
 
     private func statsActionLabel(_ title: String, systemImage: String) -> some View {
         ActionButtonLabel(title, systemImage: systemImage)
+    }
+
+    @ViewBuilder
+    private func statsLoadingActionLabel(isLoading: Bool, idleTitle: String, systemImage: String) -> some View {
+        if isLoading {
+            ProgressActionButtonLabel(L("dashboard.stats.review.progress.loading"))
+        } else {
+            statsActionLabel(idleTitle, systemImage: systemImage)
+        }
     }
 
     private func statsCompactActionLabel(_ title: String, systemImage: String) -> some View {
@@ -2286,6 +2300,8 @@ struct DashboardStatsView: View {
     }
 
     private func refreshStats(reason: String) {
+        guard !isLoading else { return }
+
         isLoading = true
         let bounds = rangeBounds
 
