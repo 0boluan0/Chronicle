@@ -1198,6 +1198,7 @@ final class ChronicleTests: XCTestCase {
             "menu.next_step.retry_daily_log",
             "menu.next_step.review_saved_log",
             "menu.next_step.add_context",
+            "menu.next_step.saving_daily_log",
             "about.credits",
             "status.action_completed",
             "status.needs_attention",
@@ -3581,6 +3582,10 @@ final class ChronicleTests: XCTestCase {
         var presentation = DailyLogExportAction.presentation(settings: settings, now: selectedDate)
         XCTAssertEqual(presentation.titleKey, "menu.export_setup")
         XCTAssertEqual(presentation.symbolName, "folder.badge.plus")
+
+        presentation = DailyLogExportAction.presentation(settings: settings, now: selectedDate, isRunning: true)
+        XCTAssertEqual(presentation.titleKey, "menu.exporting")
+        XCTAssertEqual(presentation.symbolName, "arrow.clockwise")
 
         settings.dailyFolderBookmark = Data([1])
         presentation = DailyLogExportAction.presentation(settings: settings, now: selectedDate)

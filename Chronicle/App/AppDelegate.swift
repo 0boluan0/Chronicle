@@ -720,7 +720,11 @@ enum DailyLogExportAction {
     static private(set) var isRunning = false
     private static var feedbackToken: UUID?
 
-    static func presentation(settings: ReportSettings = .shared, now: Date = Date()) -> Presentation {
+    static func presentation(
+        settings: ReportSettings = .shared,
+        now: Date = Date(),
+        isRunning: Bool = Self.isRunning
+    ) -> Presentation {
         if isRunning {
             return Presentation(titleKey: "menu.exporting", symbolName: "arrow.clockwise")
         }
