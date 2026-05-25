@@ -40,6 +40,7 @@ private enum ReportTemplateResetTarget {
 
 private enum CloseoutNextActionState {
     case loading
+    case savingDailyLog
     case needsFolder
     case checkIssue
     case saveFailed
@@ -100,6 +101,7 @@ struct ReportsWorkspaceView: View {
 
     @EnvironmentObject private var appState: AppState
     @ObservedObject private var settings = ReportSettings.shared
+    @ObservedObject private var dailyExportState = DailyLogExportAction.state
     @AppStorage("reports.csv.selectedColumns") private var csvSelectedColumnsRaw = CSVExportColumn.defaultStorageValue
     @AppStorage("dashboard.selectedSection") private var selectedDashboardSectionRaw = DashboardView.Section.defaultSelection.rawValue
 
@@ -131,7 +133,7 @@ struct ReportsWorkspaceView: View {
     @FocusState private var dailyNotesFocused: Bool
 
     private var dailyReportIsGenerating: Bool {
-        dailyStatus?.text == L("reports.status.generating")
+        dailyExportState.isRunning || dailyStatus?.text == L("reports.status.generating")
     }
 
     private var weeklyReportIsGenerating: Bool {
@@ -592,7 +594,7 @@ struct ReportsWorkspaceView: View {
         Button {
             performCloseoutPrimaryAction()
         } label: {
-            if closeoutNextActionState == .loading {
+            if closeoutNextActionState == .loading || closeoutNextActionState == .savingDailyLog {
                 ProgressActionButtonLabel(L(closeoutPrimaryActionTitleKey))
             } else if closeoutPrimaryActionIsGenerating {
                 ProgressActionButtonLabel(L("reports.status.generating"))
@@ -602,14 +604,14 @@ struct ReportsWorkspaceView: View {
         }
         .buttonStyle(.borderedProminent)
         .tint(closeoutNextActionTone.color)
-        .disabled(closeoutNextActionState == .loading || closeoutPrimaryActionIsGenerating)
+        .disabled(closeoutNextActionState == .loading || closeoutNextActionState == .savingDailyLog || closeoutPrimaryActionIsGenerating)
         .accessibilityIdentifier(closeoutPrimaryActionAccessibilityIdentifier)
     }
 
     @ViewBuilder
     private var closeoutSecondaryActionButtons: some View {
         switch closeoutNextActionState {
-        case .loading:
+        case .loading, .savingDailyLog:
             EmptyView()
         case .needsFolder:
             EmptyView()
@@ -4822,6 +4824,9 @@ struct ReportsWorkspaceView: View {
         if !dailyFolderReady {
             return .warning
         }
+        if dailyReportIsGenerating {
+            return .info
+        }
         if dailyExportedToday {
             return .success
         }
@@ -4834,6 +4839,9 @@ struct ReportsWorkspaceView: View {
     private var closeoutHeadlineKey: String {
         if !dailyFolderReady {
             return "reports.closeout.setup_title"
+        }
+        if dailyReportIsGenerating {
+            return "reports.closeout.saving_title"
         }
         if dailyExportedToday {
             return "reports.closeout.done_title"
@@ -4851,6 +4859,9 @@ struct ReportsWorkspaceView: View {
         if !dailyFolderReady {
             return "reports.closeout.setup_detail"
         }
+        if dailyReportIsGenerating {
+            return "reports.closeout.saving_detail"
+        }
         if dailyExportedToday {
             return "reports.closeout.done_detail"
         }
@@ -4866,6 +4877,9 @@ struct ReportsWorkspaceView: View {
     private var closeoutTone: DesignSystem.StatusTone {
         if !dailyFolderReady {
             return .warning
+        }
+        if dailyReportIsGenerating {
+            return .info
         }
         if dailyExportedToday {
             return .success
@@ -4883,6 +4897,9 @@ struct ReportsWorkspaceView: View {
         if !dailyFolderReady {
             return "folder.badge.plus"
         }
+        if dailyReportIsGenerating {
+            return "arrow.clockwise"
+        }
         if dailyExportedToday {
             return "checkmark.seal.fill"
         }
@@ -4898,6 +4915,9 @@ struct ReportsWorkspaceView: View {
     private var closeoutStatusText: String {
         if !dailyFolderReady {
             return L("reports.readiness.needs_setup")
+        }
+        if dailyReportIsGenerating {
+            return L("reports.closeout.status.saving")
         }
         if dailyExportedToday {
             return L("reports.closeout.status.done")
@@ -4915,6 +4935,9 @@ struct ReportsWorkspaceView: View {
         if !dailyFolderReady {
             return "exclamationmark.triangle.fill"
         }
+        if dailyReportIsGenerating {
+            return "arrow.clockwise"
+        }
         if dailyExportedToday {
             return "checkmark"
         }
@@ -4931,6 +4954,8 @@ struct ReportsWorkspaceView: View {
         switch closeoutNextActionState {
         case .loading:
             return "reports.closeout.next.loading_title"
+        case .savingDailyLog:
+            return "reports.closeout.next.saving_title"
         case .needsFolder:
             return "reports.closeout.next.destination_title"
         case .checkIssue:
@@ -4954,6 +4979,8 @@ struct ReportsWorkspaceView: View {
         switch closeoutNextActionState {
         case .loading:
             return "reports.closeout.next.loading_detail"
+        case .savingDailyLog:
+            return "reports.closeout.next.saving_detail"
         case .needsFolder:
             return "reports.closeout.next.destination_detail"
         case .checkIssue:
@@ -4977,6 +5004,8 @@ struct ReportsWorkspaceView: View {
         switch closeoutNextActionState {
         case .loading:
             return "arrow.triangle.2.circlepath"
+        case .savingDailyLog:
+            return "arrow.clockwise"
         case .needsFolder:
             return "folder.badge.plus"
         case .checkIssue:
@@ -5000,6 +5029,8 @@ struct ReportsWorkspaceView: View {
         switch closeoutNextActionState {
         case .loading:
             return L("reports.closeout.next.status.loading")
+        case .savingDailyLog:
+            return L("reports.closeout.next.status.saving")
         case .needsFolder:
             return L("reports.closeout.next.status.setup")
         case .checkIssue:
@@ -5023,6 +5054,8 @@ struct ReportsWorkspaceView: View {
         switch closeoutNextActionState {
         case .loading:
             return "arrow.triangle.2.circlepath"
+        case .savingDailyLog:
+            return "arrow.clockwise"
         case .needsFolder:
             return "folder.badge.plus"
         case .checkIssue:
@@ -5042,7 +5075,7 @@ struct ReportsWorkspaceView: View {
 
     private var closeoutNextActionTone: DesignSystem.StatusTone {
         switch closeoutNextActionState {
-        case .loading:
+        case .loading, .savingDailyLog:
             return .info
         case .needsFolder, .checkIssue, .needsTimeline, .reviewLabels:
             return .warning
@@ -5058,6 +5091,9 @@ struct ReportsWorkspaceView: View {
     private var closeoutNextActionState: CloseoutNextActionState {
         if !dailyFolderReady {
             return .needsFolder
+        }
+        if dailyReportIsGenerating {
+            return .savingDailyLog
         }
         if dailyExportedToday {
             return .saved
@@ -5087,6 +5123,8 @@ struct ReportsWorkspaceView: View {
         switch closeoutNextActionState {
         case .loading:
             return "reports.closeout.action.loading"
+        case .savingDailyLog:
+            return "reports.closeout.action.saving"
         case .needsFolder:
             return "reports.closeout.action.choose_folder"
         case .checkIssue:
@@ -5110,6 +5148,8 @@ struct ReportsWorkspaceView: View {
         switch closeoutNextActionState {
         case .loading:
             return "arrow.triangle.2.circlepath"
+        case .savingDailyLog:
+            return "arrow.clockwise"
         case .needsFolder:
             return "folder.badge.plus"
         case .checkIssue:
@@ -5131,6 +5171,8 @@ struct ReportsWorkspaceView: View {
         switch closeoutNextActionState {
         case .loading:
             return "reports.closeout.loading"
+        case .savingDailyLog:
+            return "reports.closeout.savingDailyLog"
         case .needsFolder:
             return "reports.closeout.chooseDailyFolder"
         case .checkIssue:
@@ -5154,7 +5196,7 @@ struct ReportsWorkspaceView: View {
 
     private func performCloseoutPrimaryAction() {
         switch closeoutNextActionState {
-        case .loading:
+        case .loading, .savingDailyLog:
             return
         case .needsFolder:
             chooseDailyFolder()

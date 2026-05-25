@@ -2390,6 +2390,8 @@
 "reports.closeout.setup_detail" = "Chronicle needs one local destination before it can save today's review.";
 "reports.closeout.loading_title" = "Checking today's closeout.";
 "reports.closeout.loading_detail" = "Chronicle is refreshing today's timeline, notes, categories, and save status before recommending the next step.";
+"reports.closeout.saving_title" = "Saving today’s log.";
+"reports.closeout.saving_detail" = "Chronicle is writing the Markdown daily log. Save controls will unlock when the file finishes.";
 "reports.closeout.ready_title" = "Ready to close out today.";
 "reports.closeout.ready_detail" = "Save today's log when the check looks right; preview is still available before saving.";
 "reports.closeout.done_title" = "Today's log is saved.";
@@ -2398,6 +2400,7 @@
 "reports.closeout.failed_detail" = "Retry the daily log save, or open log settings if the folder permission needs to be refreshed.";
 "reports.closeout.status.ready" = "Ready to save";
 "reports.closeout.status.loading" = "Checking";
+"reports.closeout.status.saving" = "Saving";
 "reports.closeout.status.failed" = "Save failed";
 "reports.closeout.status.done" = "Done";
 "reports.closeout.destination" = "Destination";
@@ -2517,6 +2520,8 @@
 "reports.closeout.next.destination_detail" = "Set the daily log folder once, then closeout will become a one-click review flow.";
 "reports.closeout.next.loading_title" = "Checking today's closeout.";
 "reports.closeout.next.loading_detail" = "Wait for Chronicle to finish refreshing today's timeline and context before saving.";
+"reports.closeout.next.saving_title" = "Saving today’s log.";
+"reports.closeout.next.saving_detail" = "Chronicle is already writing the Markdown file, so save and retry buttons are paused until it finishes.";
 "reports.closeout.next.timeline_title" = "Add a note before saving.";
 "reports.closeout.next.timeline_detail" = "There is no captured work yet. Add context if this day still needs a log, or check the timeline first.";
 "reports.closeout.next.labels_title" = "Review categories before saving.";
@@ -2533,6 +2538,7 @@
 "reports.closeout.next.done_detail" = "Open the folder to inspect it, or regenerate after adding more closeout notes.";
 "reports.closeout.next.status.setup" = "Setup needed";
 "reports.closeout.next.status.loading" = "Checking";
+"reports.closeout.next.status.saving" = "Saving";
 "reports.closeout.next.status.check" = "Check needed";
 "reports.closeout.next.status.timeline" = "Add context";
 "reports.closeout.next.status.labels" = "Review first";
@@ -2542,6 +2548,7 @@
 "reports.closeout.next.status.saved" = "Saved";
 "reports.closeout.action.choose_folder" = "Choose folder";
 "reports.closeout.action.loading" = "Checking";
+"reports.closeout.action.saving" = "Saving";
 "reports.closeout.action.add_note" = "Add note";
 "reports.closeout.action.review_categories" = "Review categories";
 "reports.closeout.action.open_timeline" = "Open Timeline";
