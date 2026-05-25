@@ -135,6 +135,14 @@ struct ReportsWorkspaceView: View {
         weeklyStatus?.text == L("reports.status.generating")
     }
 
+    private var csvExportIsRunning: Bool {
+        csvStatus?.text == L("reports.status.exporting")
+    }
+
+    private var timesheetExportIsRunning: Bool {
+        timesheetStatus?.text == L("reports.status.exporting")
+    }
+
     var body: some View {
         Group {
             if useScrollView {
@@ -1577,17 +1585,27 @@ struct ReportsWorkspaceView: View {
             Button {
                 exportCsv()
             } label: {
-                reportActionButtonLabel(L("reports.export_now"), systemImage: "square.and.arrow.down")
+                reportExportingActionButtonLabel(
+                    isExporting: csvExportIsRunning,
+                    idleTitle: L("reports.export_now"),
+                    systemImage: "square.and.arrow.down"
+                )
             }
             .buttonStyle(.borderedProminent)
+            .disabled(csvExportIsRunning)
             .accessibilityIdentifier("reports.plan.exportCsv")
 
             Button {
                 exportTimesheet()
             } label: {
-                reportActionButtonLabel(L("reports.timesheet.export"), systemImage: "tablecells")
+                reportExportingActionButtonLabel(
+                    isExporting: timesheetExportIsRunning,
+                    idleTitle: L("reports.timesheet.export"),
+                    systemImage: "tablecells"
+                )
             }
             .buttonStyle(.bordered)
+            .disabled(timesheetExportIsRunning)
             .accessibilityIdentifier("reports.plan.exportTimesheet")
         }
     }
@@ -2167,10 +2185,15 @@ struct ReportsWorkspaceView: View {
                         Button {
                             exportCsv()
                         } label: {
-                            reportActionButtonLabel(L("reports.export_now"), systemImage: "square.and.arrow.down")
+                            reportExportingActionButtonLabel(
+                                isExporting: csvExportIsRunning,
+                                idleTitle: L("reports.export_now"),
+                                systemImage: "square.and.arrow.down"
+                            )
                         }
                         .buttonStyle(.borderedProminent)
                         .tint(DesignSystem.Colors.accentSkyBlue)
+                        .disabled(csvExportIsRunning)
                         .accessibilityIdentifier("reports.csv.guidance.export")
                     } else {
                         Button {
@@ -2384,9 +2407,14 @@ struct ReportsWorkspaceView: View {
         Button {
             exportCsv()
         } label: {
-            reportActionButtonLabel(L("reports.export_now"), systemImage: "square.and.arrow.down")
+            reportExportingActionButtonLabel(
+                isExporting: csvExportIsRunning,
+                idleTitle: L("reports.export_now"),
+                systemImage: "square.and.arrow.down"
+            )
         }
         .buttonStyle(.borderedProminent)
+        .disabled(csvExportIsRunning)
         .accessibilityIdentifier("reports.exportCsv")
     }
 
@@ -2394,9 +2422,14 @@ struct ReportsWorkspaceView: View {
         Button {
             exportTimesheet()
         } label: {
-            reportActionButtonLabel(L("reports.timesheet.export"), systemImage: "tablecells")
+            reportExportingActionButtonLabel(
+                isExporting: timesheetExportIsRunning,
+                idleTitle: L("reports.timesheet.export"),
+                systemImage: "tablecells"
+            )
         }
         .buttonStyle(.bordered)
+        .disabled(timesheetExportIsRunning)
         .accessibilityIdentifier("reports.exportTimesheet")
     }
 
@@ -3154,6 +3187,15 @@ struct ReportsWorkspaceView: View {
     private func reportGeneratingActionButtonLabel(isGenerating: Bool, idleTitle: String, systemImage: String) -> some View {
         if isGenerating {
             ProgressActionButtonLabel(L("reports.status.generating"))
+        } else {
+            reportActionButtonLabel(idleTitle, systemImage: systemImage)
+        }
+    }
+
+    @ViewBuilder
+    private func reportExportingActionButtonLabel(isExporting: Bool, idleTitle: String, systemImage: String) -> some View {
+        if isExporting {
+            ProgressActionButtonLabel(L("reports.status.exporting"))
         } else {
             reportActionButtonLabel(idleTitle, systemImage: systemImage)
         }
@@ -4266,6 +4308,8 @@ struct ReportsWorkspaceView: View {
     }
 
     private func exportCsv() {
+        guard !csvExportIsRunning else { return }
+
         TelemetryService.shared.increment("export_csv_clicked")
         csvStatus = StatusMessage(text: L("reports.status.exporting"), isError: false)
         let range = csvExportRange()
@@ -4289,6 +4333,8 @@ struct ReportsWorkspaceView: View {
     }
 
     private func exportTimesheet() {
+        guard !timesheetExportIsRunning else { return }
+
         TelemetryService.shared.increment("export_timesheet_clicked")
         timesheetStatus = StatusMessage(text: L("reports.status.exporting"), isError: false)
         let range = csvExportRange()
