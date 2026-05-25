@@ -1416,6 +1416,12 @@
 "support.update_channel.heading" = "手动更新，不后台下载。";
 "support.update_channel.detail" = "Chronicle 只会在你点击时打开 GitHub。替换应用前，把 DMG 和校验文件一起下载。";
 "support.update_channel.status" = "用户主动";
+"support.update_channel.facts.trigger_title" = "更新触发";
+"support.update_channel.facts.trigger_value" = "只在点击时打开";
+"support.update_channel.facts.verify_title" = "校验方式";
+"support.update_channel.facts.verify_value" = "DMG + .sha256";
+"support.update_channel.facts.recovery_title" = "回退入口";
+"support.update_channel.facts.recovery_value" = "历史版本";
 "support.update_channel.current_title" = "当前版本";
 "support.update_channel.current_detail" = "这台 Mac 正在运行的 Chronicle 版本。";
 "support.update_channel.source_title" = "发布来源";

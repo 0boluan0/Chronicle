@@ -409,7 +409,7 @@ struct SupportPreferencesView: View {
             alignment: .leading,
             spacing: DesignSystem.Spacing.sm
         ) {
-            supportReadinessFact(
+            supportFact(
                 titleKey: "support.readiness.facts.checked_title",
                 value: supportReadinessCheckedText,
                 systemImage: "clock",
@@ -417,7 +417,7 @@ struct SupportPreferencesView: View {
                 accessibilityIdentifier: "support.readiness.facts.checked"
             )
 
-            supportReadinessFact(
+            supportFact(
                 titleKey: "support.readiness.facts.issues_title",
                 value: supportReadinessIssueText,
                 systemImage: readinessIssueFactIconName,
@@ -425,7 +425,7 @@ struct SupportPreferencesView: View {
                 accessibilityIdentifier: "support.readiness.facts.issues"
             )
 
-            supportReadinessFact(
+            supportFact(
                 titleKey: "support.readiness.facts.package_title",
                 value: supportReadinessPackageText,
                 systemImage: "shippingbox",
@@ -436,7 +436,7 @@ struct SupportPreferencesView: View {
         .accessibilityIdentifier("support.readiness.facts")
     }
 
-    private func supportReadinessFact(
+    private func supportFact(
         titleKey: LocalizedStringKey,
         value: String,
         systemImage: String,
@@ -552,6 +552,8 @@ struct SupportPreferencesView: View {
                 )
 
                 Divider()
+
+                supportUpdateTrustFacts
 
                 LazyVGrid(
                     columns: adaptiveColumns(minimum: 220, spacing: DesignSystem.Spacing.sm),
@@ -767,6 +769,39 @@ struct SupportPreferencesView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityIdentifier("support.updateChannel")
+    }
+
+    private var supportUpdateTrustFacts: some View {
+        LazyVGrid(
+            columns: adaptiveColumns(minimum: 160, spacing: DesignSystem.Spacing.sm),
+            alignment: .leading,
+            spacing: DesignSystem.Spacing.sm
+        ) {
+            supportFact(
+                titleKey: "support.update_channel.facts.trigger_title",
+                value: L("support.update_channel.facts.trigger_value"),
+                systemImage: "hand.tap",
+                tone: .info,
+                accessibilityIdentifier: "support.updateChannel.facts.trigger"
+            )
+
+            supportFact(
+                titleKey: "support.update_channel.facts.verify_title",
+                value: L("support.update_channel.facts.verify_value"),
+                systemImage: "checkmark.shield",
+                tone: .success,
+                accessibilityIdentifier: "support.updateChannel.facts.verify"
+            )
+
+            supportFact(
+                titleKey: "support.update_channel.facts.recovery_title",
+                value: L("support.update_channel.facts.recovery_value"),
+                systemImage: "clock.arrow.circlepath",
+                tone: .warning,
+                accessibilityIdentifier: "support.updateChannel.facts.recovery"
+            )
+        }
+        .accessibilityIdentifier("support.updateChannel.facts")
     }
 
     private func supportChecklistItem(

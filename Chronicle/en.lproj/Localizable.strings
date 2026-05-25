@@ -1416,6 +1416,12 @@
 "support.update_channel.heading" = "Manual updates, no background downloads.";
 "support.update_channel.detail" = "Chronicle only opens GitHub when you ask. Download the DMG and checksum together before replacing the app.";
 "support.update_channel.status" = "User-initiated";
+"support.update_channel.facts.trigger_title" = "Update trigger";
+"support.update_channel.facts.trigger_value" = "Opens only on click";
+"support.update_channel.facts.verify_title" = "Verification";
+"support.update_channel.facts.verify_value" = "DMG + .sha256";
+"support.update_channel.facts.recovery_title" = "Rollback";
+"support.update_channel.facts.recovery_value" = "Release archive";
 "support.update_channel.current_title" = "Current build";
 "support.update_channel.current_detail" = "The version currently running on this Mac.";
 "support.update_channel.source_title" = "Release source";
