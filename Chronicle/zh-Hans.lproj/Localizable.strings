@@ -1394,6 +1394,7 @@
 "support.status.open_failed" = "打开失败：%@";
 "support.status.opened_latest_release" = "已在浏览器打开最新版本页面。";
 "support.status.opened_releases" = "已在浏览器打开 Release 页面。";
+"support.status.opened_release_checklist" = "已在浏览器打开发布检查清单。";
 "support.status.opened_data_safety_guide" = "已在浏览器打开数据安全指南。";
 "support.status.opened_migration_guide" = "已在浏览器打开迁移指南。";
 "support.status.opened_privacy_guide" = "已在浏览器打开隐私与权限指南。";
@@ -1461,6 +1462,7 @@
 "support.update_channel.recovery_status" = "可手动回退";
 "support.update_channel.open_latest" = "打开最新版";
 "support.update_channel.open_upgrade_guide" = "打开升级指南";
+"support.update_channel.open_release_checklist" = "打开发布检查清单";
 "support.update_channel.open_release_archive" = "打开历史版本";
 "support.update_channel.copy_checklist" = "复制更新检查清单";
 "support.update_channel.checklist_copied" = "已复制更新检查清单。";
@@ -1469,6 +1471,7 @@
 "support.update_channel.checklist.source" = "打开最新 GitHub Release，同时下载 DMG 和匹配的 .sha256：";
 "support.update_channel.checklist.verify" = "替换应用前，用匹配的校验文件验证下载的 DMG。";
 "support.update_channel.checklist.release_notes" = "阅读发布说明；只有验证记录和已知限制写清楚时，才使用候选版本。";
+"support.update_channel.checklist.release_checklist" = "信任候选版本前，先核对发布门槛：";
 "support.update_channel.checklist.first_launch" = "如果 macOS 拦截未签名候选版本，先确认发布来源和校验文件，再用 Finder > 打开。";
 "support.update_channel.checklist.backup" = "替换 Chronicle 前，确保上一个版本和本地数据文件夹仍可找回。";
 "support.update_channel.checklist.health" = "启动后运行应用健康检查，并确认今日日志导出仍可用。";

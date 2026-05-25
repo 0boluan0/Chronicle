@@ -30,6 +30,7 @@ struct SupportPreferencesView: View {
     private let dataSafetyGuideURL = URL(string: "https://github.com/0boluan0/Chronicle/blob/main/docs/data-safety.md")!
     private let migrationGuideURL = URL(string: "https://github.com/0boluan0/Chronicle/blob/main/docs/migrations-and-upgrades.md")!
     private let privacyPermissionsGuideURL = URL(string: "https://github.com/0boluan0/Chronicle/blob/main/docs/privacy-and-permissions.md")!
+    private let releaseChecklistURL = URL(string: "https://github.com/0boluan0/Chronicle/blob/main/docs/stable-release-checklist.md")!
 
     var body: some View {
         PreferencesPageLayout(
@@ -743,6 +744,19 @@ struct SupportPreferencesView: View {
                     .accessibilityIdentifier("support.updateChannel.openUpgradeGuide")
 
                     Button {
+                        open(
+                            url: releaseChecklistURL,
+                            target: .updateChannel,
+                            successKey: "support.status.opened_release_checklist",
+                            failureKey: "support.status.open_failed_url"
+                        )
+                    } label: {
+                        supportActionLabel(L("support.update_channel.open_release_checklist"), systemImage: "checklist.checked")
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("support.updateChannel.openReleaseChecklist")
+
+                    Button {
                         copyUpdateChecklist()
                     } label: {
                         supportActionLabel(L("support.update_channel.copy_checklist"), systemImage: "doc.on.doc")
@@ -839,7 +853,7 @@ struct SupportPreferencesView: View {
                         Text(detailKey)
                             .font(.caption2)
                             .foregroundColor(DesignSystem.Colors.secondaryText)
-                            .lineLimit(3)
+                            .lineLimit(4)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
@@ -847,7 +861,7 @@ struct SupportPreferencesView: View {
                 StatusPill(status, systemImage: systemImage, tone: tone)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, minHeight: 102, alignment: .topLeading)
+            .frame(maxWidth: .infinity, minHeight: 112, alignment: .topLeading)
         }
         .accessibilityIdentifier(accessibilityIdentifier)
     }
@@ -1208,6 +1222,8 @@ struct SupportPreferencesView: View {
             latestReleaseURL.absoluteString,
             L("support.update_channel.checklist.verify"),
             L("support.update_channel.checklist.release_notes"),
+            L("support.update_channel.checklist.release_checklist"),
+            releaseChecklistURL.absoluteString,
             L("support.update_channel.checklist.first_launch"),
             L("support.update_channel.checklist.backup"),
             L("support.update_channel.checklist.health")
