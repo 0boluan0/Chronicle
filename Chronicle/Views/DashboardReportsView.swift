@@ -3088,16 +3088,22 @@ struct ReportsWorkspaceView: View {
             reportActionButtonLabel(L("reports.preview"), systemImage: "doc.text.magnifyingglass")
         }
         .buttonStyle(.bordered)
-        .accessibilityIdentifier("reports.daily.copy")
+        .accessibilityIdentifier("reports.daily.preview")
     }
 
     private var dailyCopyButton: some View {
         Button {
             copyDailyToClipboard(date: appState.selectedDate)
         } label: {
-            reportActionButtonLabel(L("reports.daily.copy_selected"), systemImage: "doc.on.doc")
+            reportGeneratingActionButtonLabel(
+                isGenerating: dailyReportIsGenerating,
+                idleTitle: L("reports.daily.copy_selected"),
+                systemImage: "doc.on.doc"
+            )
         }
         .buttonStyle(.bordered)
+        .disabled(dailyReportIsGenerating)
+        .accessibilityIdentifier("reports.daily.copy")
     }
 
     private var dailyGenerateSelectedButton: some View {
@@ -3219,9 +3225,14 @@ struct ReportsWorkspaceView: View {
         Button {
             copyWeeklyToClipboard(date: appState.selectedDate)
         } label: {
-            reportActionButtonLabel(L("reports.weekly.copy_selected"), systemImage: "doc.on.doc")
+            reportGeneratingActionButtonLabel(
+                isGenerating: weeklyReportIsGenerating,
+                idleTitle: L("reports.weekly.copy_selected"),
+                systemImage: "doc.on.doc"
+            )
         }
         .buttonStyle(.bordered)
+        .disabled(weeklyReportIsGenerating)
         .accessibilityIdentifier("reports.weekly.copy")
     }
 
@@ -3643,6 +3654,7 @@ struct ReportsWorkspaceView: View {
     }
 
     private func copyDailyToClipboard(date: Date) {
+        guard !dailyReportIsGenerating else { return }
         TelemetryService.shared.increment("export_daily_copy_clicked")
         dailyStatus = StatusMessage(text: L("reports.status.generating"), isError: false)
         ReportService.shared.previewDailyReport(date: date, notes: dailyNotes) { result in
@@ -3660,6 +3672,7 @@ struct ReportsWorkspaceView: View {
     }
 
     private func generateWeekly(date: Date) {
+        guard !weeklyReportIsGenerating else { return }
         TelemetryService.shared.increment("export_weekly_clicked")
         weeklyStatus = StatusMessage(text: L("reports.status.generating"), isError: false)
         ReportService.shared.generateWeeklyReport(for: date, notes: weeklyNotes) { result in
@@ -3681,6 +3694,7 @@ struct ReportsWorkspaceView: View {
     }
 
     private func copyWeeklyToClipboard(date: Date) {
+        guard !weeklyReportIsGenerating else { return }
         TelemetryService.shared.increment("export_weekly_copy_clicked")
         weeklyStatus = StatusMessage(text: L("reports.status.generating"), isError: false)
         ReportService.shared.previewWeeklyReport(for: date, notes: weeklyNotes) { result in
