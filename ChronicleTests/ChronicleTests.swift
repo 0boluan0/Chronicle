@@ -326,6 +326,36 @@ final class ChronicleTests: XCTestCase {
         return items
     }
 
+    private func computeWeeklyBuckets(
+        aggregator: AggregationService,
+        weekStart: Date,
+        mode: AggregationGanttMode,
+        includeIdle: Bool = false
+    ) -> [WeeklyBucketRow] {
+        let expectation = XCTestExpectation(description: "compute weekly buckets")
+        var rows: [WeeklyBucketRow] = []
+        var error: Error?
+        aggregator.computeDailyBucketsForWeek(
+            weekStart: weekStart,
+            mode: mode,
+            limit: 10,
+            includeIdle: includeIdle
+        ) { result in
+            switch result {
+            case .success(let payload):
+                rows = payload.0
+            case .failure(let err):
+                error = err
+            }
+            expectation.fulfill()
+        }
+        wait(for: [expectation], timeout: 5)
+        if let error {
+            XCTFail("Compute weekly buckets failed: \(error)")
+        }
+        return rows
+    }
+
     func testReplayBasicSwitching() throws {
         let db = makeTestDatabase("basic")
         let events = try loadFixture("basic_switching")
@@ -889,6 +919,66 @@ final class ChronicleTests: XCTestCase {
         }
         wait(for: [topAppsExpectation], timeout: 5)
         XCTAssertTrue(topApps.allSatisfy { $0.name != "Idle" })
+    }
+
+    func testWeeklyBucketsCarryTimelineDrilldownFilters() throws {
+        let db = makeTestDatabase("weekly-drilldown")
+        let tags = fetchTags(db: db)
+        let tag = try XCTUnwrap(tags.first)
+
+        var calendar = Calendar.current
+        calendar.timeZone = .current
+        let anchorDate = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 5, day: 20, hour: 12)))
+        let weekStart = try XCTUnwrap(calendar.dateInterval(of: .weekOfYear, for: anchorDate)?.start)
+        let base = Int64(weekStart.timeIntervalSince1970) + 9 * 60 * 60
+        let untaggedAppName = "Chronicle Test Unmapped"
+        let taggedAppName = "Chronicle Test Tagged"
+
+        let insertExpectation = XCTestExpectation(description: "insert weekly drilldown activities")
+        let group = DispatchGroup()
+        group.enter()
+        db.insertActivity(
+            start: base,
+            end: base + 900,
+            appName: untaggedAppName,
+            windowTitle: nil,
+            isIdle: false,
+            tagId: nil,
+            bundleId: "com.chronicle.tests.unmapped"
+        ) { _ in
+            group.leave()
+        }
+        group.enter()
+        db.insertActivity(
+            start: base + 1_200,
+            end: base + 2_400,
+            appName: taggedAppName,
+            windowTitle: nil,
+            isIdle: false,
+            tagId: tag.id,
+            bundleId: "com.chronicle.tests.tagged"
+        ) { _ in
+            group.leave()
+        }
+        group.notify(queue: .main) {
+            insertExpectation.fulfill()
+        }
+        wait(for: [insertExpectation], timeout: 5)
+
+        let aggregator = AggregationService.makeTestInstance(database: db)
+        let appRows = computeWeeklyBuckets(aggregator: aggregator, weekStart: weekStart, mode: .apps)
+        let untaggedAppRow = try XCTUnwrap(appRows.first { $0.title == untaggedAppName })
+        XCTAssertEqual(untaggedAppRow.timelineAppFilterName, untaggedAppName)
+        XCTAssertNil(untaggedAppRow.timelineTagFilterId)
+
+        let tagRows = computeWeeklyBuckets(aggregator: aggregator, weekStart: weekStart, mode: .tags)
+        let taggedRow = try XCTUnwrap(tagRows.first { $0.timelineTagFilterId == tag.id })
+        XCTAssertEqual(taggedRow.title, tag.name)
+        XCTAssertNil(taggedRow.timelineAppFilterName)
+
+        let untaggedRow = try XCTUnwrap(tagRows.first { $0.id == "tag-untagged" })
+        XCTAssertEqual(untaggedRow.timelineTagFilterId, -2)
+        XCTAssertNil(untaggedRow.timelineAppFilterName)
     }
 
     func testHealthCheckOnFreshDatabase() {
