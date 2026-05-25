@@ -562,8 +562,8 @@ struct MarkerTimelineView: View {
             EmptyStateView(
                 title: groups.isEmpty ? L("markers.timeline.empty") : L("markers.timeline.empty_filtered"),
                 subtitle: groups.isEmpty ? L("markers.timeline.empty_detail") : L("markers.timeline.empty_filtered_detail"),
-                systemImage: "bookmark.slash",
-                tone: groups.isEmpty ? .neutral : .warning
+                systemImage: markerTimelineEmptyIconName,
+                tone: markerTimelineEmptyTone
             )
 
             if groups.isEmpty {
@@ -774,6 +774,14 @@ struct MarkerTimelineView: View {
         groups.isEmpty || filteredGroups.isEmpty ? .neutral : .success
     }
 
+    private var markerTimelineEmptyIconName: String {
+        groups.isEmpty ? "bookmark.slash" : "line.3.horizontal.decrease.circle"
+    }
+
+    private var markerTimelineEmptyTone: DesignSystem.StatusTone {
+        groups.isEmpty ? .neutral : .warning
+    }
+
     private var crowdedGroups: [MarkerTimelineGroupData] {
         filteredGroups.filter { $0.lanes.count > 3 }
     }
@@ -855,6 +863,12 @@ struct MarkerTimelineView: View {
     }
 
     private var markerReviewIconName: String {
+        if groups.isEmpty {
+            return "bookmark.slash"
+        }
+        if filteredGroups.isEmpty {
+            return "line.3.horizontal.decrease.circle"
+        }
         if totalOngoingCount > 0 {
             return "record.circle"
         }
