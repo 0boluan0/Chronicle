@@ -1349,6 +1349,7 @@ final class ChronicleUITests: XCTestCase {
         let chooseExportFolder = onboardingApp.buttons["onboarding.chooseExportFolder"]
         XCTAssertTrue(chooseExportFolder.waitForExistence(timeout: 5))
         chooseExportFolder.click()
+        XCTAssertTrue(onboardingApp.descendants(matching: .any)["onboarding.exportStatus"].waitForExistence(timeout: 5))
         XCTAssertTrue(onboardingApp.buttons["onboarding.openExportFolder"].waitForExistence(timeout: 5))
         onboardingApp.buttons["onboarding.next.exports"].click()
 
