@@ -50,26 +50,23 @@ struct DateNavigationHeader: View {
             HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.sm) {
                 titleText
 
+                dateStatusPill
+
                 if isLoading {
                     loadingIndicator
                 }
-
-                StatusPill(dateStatusText, systemImage: dateStatusIconName, tone: dateStatusTone)
-                    .accessibilityIdentifier("\(accessibilityPrefix).dateStatus")
-                    .fixedSize(horizontal: true, vertical: false)
             }
 
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-                HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.xs) {
-                    titleText
+                titleText
+
+                HStack(alignment: .center, spacing: DesignSystem.Spacing.xs) {
+                    dateStatusPill
 
                     if isLoading {
                         loadingIndicator
                     }
                 }
-
-                StatusPill(dateStatusText, systemImage: dateStatusIconName, tone: dateStatusTone)
-                    .accessibilityIdentifier("\(accessibilityPrefix).dateStatus")
             }
         }
     }
@@ -81,10 +78,35 @@ struct DateNavigationHeader: View {
             .fixedSize(horizontal: false, vertical: true)
     }
 
+    private var dateStatusPill: some View {
+        StatusPill(dateStatusText, systemImage: dateStatusIconName, tone: dateStatusTone)
+            .accessibilityIdentifier("\(accessibilityPrefix).dateStatus")
+            .fixedSize(horizontal: true, vertical: false)
+    }
+
     private var loadingIndicator: some View {
-        ProgressView()
-            .controlSize(.small)
-            .accessibilityHidden(true)
+        HStack(spacing: 5) {
+            ProgressView()
+                .controlSize(.mini)
+
+            Text("date_navigation.status.refreshing")
+                .font(.caption2.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.accentSkyBlue)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 7)
+        .padding(.vertical, 4)
+        .background(
+            Capsule()
+                .fill(DesignSystem.Colors.accentSkyBlue.opacity(0.10))
+        )
+        .overlay(
+            Capsule()
+                .stroke(DesignSystem.Colors.accentSkyBlue.opacity(0.24), lineWidth: 1)
+        )
+        .fixedSize(horizontal: true, vertical: false)
+        .accessibilityLabel(L("date_navigation.status.refreshing"))
+        .accessibilityIdentifier("\(accessibilityPrefix).refreshing")
     }
 
     private var dateControls: some View {
