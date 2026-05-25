@@ -2979,6 +2979,7 @@
 "tags.setup.status.apps" = "整理应用";
 "tags.setup.status.automation" = "有规则建议";
 "tags.setup.status.ready" = "已就绪";
+"tags.setup.refreshing" = "正在刷新设置";
 "tags.setup.metric.categories" = "分类数";
 "tags.setup.metric.apps" = "待整理应用";
 "tags.setup.metric.suggestions" = "规则建议";

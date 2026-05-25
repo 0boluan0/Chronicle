@@ -29,6 +29,7 @@ struct TagsPreferencesView: View {
 
     @State private var setupSummary = TagsSetupSummary()
     @State private var isLoadingSetupSummary = false
+    @State private var setupSummaryRefreshSequence = 0
 
     private var selection: Subsection {
         Subsection(rawValue: selectedSubsectionRaw) ?? .tagsRules
@@ -216,11 +217,37 @@ struct TagsPreferencesView: View {
             .accessibilityIdentifier("tags.setup.reviewAutomation")
 
             if isLoadingSetupSummary {
-                ProgressView()
-                    .controlSize(.small)
+                setupRefreshingPill
             }
         }
         .accessibilityIdentifier("tags.setup.actions")
+    }
+
+    private var setupRefreshingPill: some View {
+        HStack(spacing: DesignSystem.Spacing.xs) {
+            ProgressView()
+                .controlSize(.small)
+                .accessibilityHidden(true)
+
+            Text("tags.setup.refreshing")
+                .font(.caption.weight(.semibold))
+                .foregroundColor(DesignSystem.StatusTone.info.color)
+                .lineLimit(1)
+                .minimumScaleFactor(0.86)
+        }
+        .padding(.horizontal, DesignSystem.Spacing.sm)
+        .padding(.vertical, 7)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(DesignSystem.StatusTone.info.color.opacity(0.07))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(DesignSystem.StatusTone.info.color.opacity(0.18), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("tags.setup.refreshing")
     }
 
     private func setupActionLabel(_ title: String, systemImage: String) -> some View {
@@ -436,10 +463,8 @@ struct TagsPreferencesView: View {
     }
 
     private func reloadSetupSummary() {
-        if isLoadingSetupSummary {
-            return
-        }
-
+        setupSummaryRefreshSequence += 1
+        let refreshSequence = setupSummaryRefreshSequence
         isLoadingSetupSummary = true
 
         let group = DispatchGroup()
@@ -481,6 +506,8 @@ struct TagsPreferencesView: View {
         }
 
         group.notify(queue: .main) {
+            guard refreshSequence == self.setupSummaryRefreshSequence else { return }
+
             let uncategorizedTagId = fetchedTags.first {
                 $0.name.caseInsensitiveCompare("Uncategorized") == .orderedSame
             }?.id

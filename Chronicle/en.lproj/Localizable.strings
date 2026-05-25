@@ -2981,6 +2981,7 @@
 "tags.setup.status.apps" = "Review apps";
 "tags.setup.status.automation" = "Suggestions ready";
 "tags.setup.status.ready" = "Ready";
+"tags.setup.refreshing" = "Refreshing setup";
 "tags.setup.metric.categories" = "Categories";
 "tags.setup.metric.apps" = "Apps to review";
 "tags.setup.metric.suggestions" = "Suggestions";
