@@ -46,6 +46,7 @@ struct DashboardMarkersView: View {
     @AppStorage("dashboard.selectedSection") private var selectedDashboardSectionRaw = DashboardView.Section.defaultSelection.rawValue
     @State private var cueSummary = CueSummary.empty
     @State private var isLoadingCueSummary = false
+    @State private var cueSummaryRefreshSequence = 0
     @State private var cueSummaryError: String?
     @State private var showCueSummaryIssueDetails = false
 
@@ -1086,6 +1087,8 @@ struct DashboardMarkersView: View {
     }
 
     private func refreshCueSummary(reason: String) {
+        cueSummaryRefreshSequence += 1
+        let refreshSequence = cueSummaryRefreshSequence
         isLoadingCueSummary = true
         cueSummaryError = nil
         let bounds = rangeBounds
@@ -1117,6 +1120,8 @@ struct DashboardMarkersView: View {
         }
 
         group.notify(queue: .main) {
+            guard refreshSequence == self.cueSummaryRefreshSequence else { return }
+
             let now = Int64(Date().timeIntervalSince1970)
             self.cueSummary = CueSummary(
                 noteCount: noteCount,
