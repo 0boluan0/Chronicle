@@ -60,6 +60,30 @@ struct PrivacyPreferencesView: View {
         ActionButtonLabel(title, systemImage: systemImage, fillsWidth: false)
     }
 
+    @ViewBuilder
+    private func privacyBusyActionLabel(
+        isBusy: Bool,
+        busyTitle: String,
+        idleTitle: String,
+        systemImage: String
+    ) -> some View {
+        if isBusy {
+            HStack(spacing: DesignSystem.Spacing.xs) {
+                ProgressView()
+                    .controlSize(.small)
+                    .accessibilityHidden(true)
+
+                Text(verbatim: busyTitle)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.86)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        } else {
+            privacyActionLabel(idleTitle, systemImage: systemImage)
+        }
+    }
+
     private var overviewSection: some View {
         SectionCard(title: "privacy.overview.title") {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
@@ -337,8 +361,10 @@ struct PrivacyPreferencesView: View {
             Button {
                 exportTelemetry()
             } label: {
-                privacyActionLabel(
-                    isExportingTelemetry ? L("privacy.telemetry_exporting") : L("privacy.next.action.export_counters"),
+                privacyBusyActionLabel(
+                    isBusy: isExportingTelemetry,
+                    busyTitle: L("privacy.telemetry_exporting"),
+                    idleTitle: L("privacy.next.action.export_counters"),
                     systemImage: "square.and.arrow.down"
                 )
             }
@@ -1011,8 +1037,10 @@ struct PrivacyPreferencesView: View {
             Button {
                 exportDiagnostics()
             } label: {
-                Label(
-                    isExportingDiagnostics ? L("privacy.diagnostics_generating") : L("privacy.export_diagnostics"),
+                privacyBusyActionLabel(
+                    isBusy: isExportingDiagnostics,
+                    busyTitle: L("privacy.diagnostics_generating"),
+                    idleTitle: L("privacy.export_diagnostics"),
                     systemImage: "doc.text.magnifyingglass"
                 )
             }
@@ -1034,8 +1062,10 @@ struct PrivacyPreferencesView: View {
             Button {
                 createFeedbackBundle()
             } label: {
-                Label(
-                    isCreatingFeedbackBundle ? L("privacy.feedback_bundle.generating") : L("privacy.create_feedback_bundle"),
+                privacyBusyActionLabel(
+                    isBusy: isCreatingFeedbackBundle,
+                    busyTitle: L("privacy.feedback_bundle.generating"),
+                    idleTitle: L("privacy.create_feedback_bundle"),
                     systemImage: "shippingbox"
                 )
             }
@@ -1123,8 +1153,10 @@ struct PrivacyPreferencesView: View {
             Button {
                 exportTelemetry()
             } label: {
-                Label(
-                    isExportingTelemetry ? L("privacy.telemetry_exporting") : L("privacy.export_telemetry"),
+                privacyBusyActionLabel(
+                    isBusy: isExportingTelemetry,
+                    busyTitle: L("privacy.telemetry_exporting"),
+                    idleTitle: L("privacy.export_telemetry"),
                     systemImage: "square.and.arrow.down"
                 )
             }
