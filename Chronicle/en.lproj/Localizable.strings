@@ -335,6 +335,9 @@
 "popover.daily_snapshot.top_labels.status.ready" = "%d categories";
 "popover.daily_snapshot.top_labels.status.review" = "Needs categories";
 "popover.daily_snapshot.top_labels.review" = "Classify Apps";
+"popover.daily_snapshot.top_labels.open_timeline" = "Open Timeline";
+"popover.daily_snapshot.top_labels.open_accessibility" = "Open %@ in Timeline";
+"popover.daily_snapshot.top_labels.classify_accessibility" = "Classify %@";
 "popover.daily_snapshot.work_block.title" = "Longest work block";
 "popover.daily_snapshot.work_block.empty_detail" = "No 25-minute continuous block yet. Keep working or review Stats when the day has more shape.";
 "popover.daily_snapshot.work_block.ready_detail" = "%@ · %@";

@@ -335,6 +335,9 @@
 "popover.daily_snapshot.top_labels.status.ready" = "%d 个分类";
 "popover.daily_snapshot.top_labels.status.review" = "需分类";
 "popover.daily_snapshot.top_labels.review" = "整理应用";
+"popover.daily_snapshot.top_labels.open_timeline" = "打开时间线";
+"popover.daily_snapshot.top_labels.open_accessibility" = "在时间线查看 %@";
+"popover.daily_snapshot.top_labels.classify_accessibility" = "整理 %@";
 "popover.daily_snapshot.work_block.title" = "最长工作块";
 "popover.daily_snapshot.work_block.empty_detail" = "还没有连续 25 分钟工作块。继续工作，或稍后到统计页复盘。";
 "popover.daily_snapshot.work_block.ready_detail" = "%@ · %@";

@@ -479,7 +479,7 @@ struct ContentView: View {
         if snapshotTopLabelsNeedsReview {
             return "popover.daily_snapshot.top_labels.review"
         }
-        return "popover.daily_snapshot.work_block.open"
+        return "popover.daily_snapshot.top_labels.open_timeline"
     }
 
     private var commandCenterFocusActionIconName: String {
@@ -489,18 +489,18 @@ struct ContentView: View {
         if snapshotTopLabelsNeedsReview {
             return "rectangle.split.3x1"
         }
-        return "chart.bar"
+        return "clock"
     }
 
     private func runCommandCenterFocusAction(for tag: DailySnapshotTag? = nil) {
-        if tag?.tagId == nil && tag != nil {
+        if let tag {
+            openDashboardTimeline(filteredByTopLabel: tag)
+        } else if snapshotTopLabelsNeedsReview {
             openTaggingWizardPreferences()
         } else if dailySnapshot.topTags.isEmpty {
             openDashboardTimeline()
-        } else if snapshotTopLabelsNeedsReview {
-            openTaggingWizardPreferences()
         } else {
-            openDashboardStats()
+            openDashboardTimeline()
         }
     }
 
@@ -1888,6 +1888,22 @@ struct ContentView: View {
         openDashboardTimeline()
     }
 
+    private func openDashboardTimeline(filteredByTopLabel tag: DailySnapshotTag) {
+        guard let tagId = tag.tagId else {
+            openTaggingWizardPreferences()
+            return
+        }
+
+        appState.selectedDate = now
+        appState.dateRangeMode = .day
+        appState.searchQuery = ""
+        appState.includeIdleInTimeline = false
+        appState.clearTimelineFocusRange()
+        appState.selectedTagFilterId = tagId
+        appState.selectedAppFilterName = "All Apps"
+        openDashboardTimeline()
+    }
+
     private func openDashboardMarkers() {
         UserDefaults.standard.set(DashboardView.Section.markers.rawValue, forKey: "dashboard.selectedSection")
         AppWindowRouter.shared.open(.dashboard)
@@ -2521,7 +2537,14 @@ struct ContentView: View {
                     spacing: DesignSystem.Spacing.sm
                 ) {
                     ForEach(dailySnapshot.topTags) { tag in
-                        snapshotTopLabelItem(tag)
+                        Button {
+                            openDashboardTimeline(filteredByTopLabel: tag)
+                        } label: {
+                            snapshotTopLabelItem(tag)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(snapshotTopLabelAccessibilityLabel(tag))
+                        .accessibilityIdentifier(snapshotTopLabelAccessibilityIdentifier(tag))
                     }
                 }
             }
@@ -2565,13 +2588,13 @@ struct ContentView: View {
 
     private var snapshotTopLabelsAction: some View {
         Button {
-            openTaggingWizardPreferences()
+            runCommandCenterFocusAction()
         } label: {
-            popoverActionLabel(L("popover.daily_snapshot.top_labels.review"), systemImage: "rectangle.split.3x1")
+            popoverActionLabel(L(snapshotTopLabelsActionTitleKey), systemImage: snapshotTopLabelsActionIconName)
         }
         .buttonStyle(.bordered)
         .controlSize(.small)
-        .accessibilityIdentifier("popover.dailySnapshot.reviewLabels")
+        .accessibilityIdentifier(snapshotTopLabelsActionAccessibilityIdentifier)
     }
 
     private func snapshotTopLabelItem(_ tag: DailySnapshotTag) -> some View {
@@ -2613,6 +2636,41 @@ struct ContentView: View {
     private func snapshotTopLabelValue(_ tag: DailySnapshotTag) -> String {
         let percent = Int((tag.percentOfActive * 100).rounded())
         return String(format: L("popover.daily_snapshot.top_labels.value"), formatDuration(tag.durationSeconds), percent)
+    }
+
+    private var snapshotTopLabelsActionTitleKey: String {
+        if snapshotTopLabelsNeedsReview {
+            return "popover.daily_snapshot.top_labels.review"
+        }
+        return dailySnapshot.topTags.isEmpty
+            ? "popover.daily_snapshot.empty_open_today"
+            : "popover.daily_snapshot.top_labels.open_timeline"
+    }
+
+    private var snapshotTopLabelsActionIconName: String {
+        if snapshotTopLabelsNeedsReview {
+            return "rectangle.split.3x1"
+        }
+        return dailySnapshot.topTags.isEmpty ? "sun.max" : "clock"
+    }
+
+    private var snapshotTopLabelsActionAccessibilityIdentifier: String {
+        snapshotTopLabelsNeedsReview
+            ? "popover.dailySnapshot.reviewLabels"
+            : "popover.dailySnapshot.topLabels.openTimeline"
+    }
+
+    private func snapshotTopLabelAccessibilityLabel(_ tag: DailySnapshotTag) -> String {
+        if tag.tagId == nil {
+            return String(format: L("popover.daily_snapshot.top_labels.classify_accessibility"), tag.name)
+        }
+        return String(format: L("popover.daily_snapshot.top_labels.open_accessibility"), tag.name)
+    }
+
+    private func snapshotTopLabelAccessibilityIdentifier(_ tag: DailySnapshotTag) -> String {
+        tag.tagId == nil
+            ? "popover.dailySnapshot.topLabels.classify"
+            : "popover.dailySnapshot.topLabels.openTimeline"
     }
 
     private var snapshotTopLabelsNeedsReview: Bool {
