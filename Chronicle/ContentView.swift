@@ -274,6 +274,7 @@ struct ContentView: View {
                 )
                 commandCenterLoopProgress
                 commandCenterMetrics
+                commandCenterFocusStrip
                 commandCenterFlow
                 commandCenterHealthStrip
             }
@@ -377,6 +378,130 @@ struct ContentView: View {
             )
         }
         .padding(.vertical, 2)
+    }
+
+    private var commandCenterFocusStrip: some View {
+        RowSurface(tone: snapshotTopLabelsTone) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                        commandCenterFocusSummary
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        commandCenterFocusAction
+                            .fixedSize(horizontal: true, vertical: false)
+                    }
+
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                        commandCenterFocusSummary
+                        commandCenterFocusAction
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+
+                commandCenterFocusContent
+            }
+        }
+        .accessibilityIdentifier("popover.commandCenter.focus")
+    }
+
+    private var commandCenterFocusSummary: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+            Image(systemName: snapshotTopLabelsNeedsReview ? "exclamationmark.triangle.fill" : "rectangle.split.3x1")
+                .font(.caption.weight(.semibold))
+                .foregroundColor(snapshotTopLabelsTone.color)
+                .frame(width: 16, height: 18)
+
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: DesignSystem.Spacing.xs) {
+                    Text("popover.daily_snapshot.top_labels.title")
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+
+                    StatusPill(
+                        snapshotTopLabelsStatusText,
+                        systemImage: snapshotTopLabelsStatusIconName,
+                        tone: snapshotTopLabelsTone
+                    )
+                }
+
+                Text("popover.daily_snapshot.top_labels.detail")
+                    .font(.caption2)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private var commandCenterFocusAction: some View {
+        Button {
+            runCommandCenterFocusAction()
+        } label: {
+            popoverActionLabel(L(commandCenterFocusActionTitleKey), systemImage: commandCenterFocusActionIconName)
+        }
+        .buttonStyle(.bordered)
+        .controlSize(.small)
+        .accessibilityIdentifier("popover.commandCenter.focus.action")
+    }
+
+    @ViewBuilder
+    private var commandCenterFocusContent: some View {
+        if dailySnapshot.topTags.isEmpty {
+            Text("popover.daily_snapshot.top_labels.empty")
+                .font(.caption2)
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("popover.commandCenter.focus.empty")
+        } else {
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 126), spacing: DesignSystem.Spacing.sm)],
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.sm
+            ) {
+                ForEach(Array(dailySnapshot.topTags.prefix(3))) { tag in
+                    Button {
+                        runCommandCenterFocusAction(for: tag)
+                    } label: {
+                        snapshotTopLabelItem(tag)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("popover.commandCenter.focus.tag")
+                }
+            }
+            .accessibilityIdentifier("popover.commandCenter.focus.tags")
+        }
+    }
+
+    private var commandCenterFocusActionTitleKey: String {
+        if dailySnapshot.topTags.isEmpty {
+            return "popover.daily_snapshot.empty_open_today"
+        }
+        if snapshotTopLabelsNeedsReview {
+            return "popover.daily_snapshot.top_labels.review"
+        }
+        return "popover.daily_snapshot.work_block.open"
+    }
+
+    private var commandCenterFocusActionIconName: String {
+        if dailySnapshot.topTags.isEmpty {
+            return "sun.max"
+        }
+        if snapshotTopLabelsNeedsReview {
+            return "rectangle.split.3x1"
+        }
+        return "chart.bar"
+    }
+
+    private func runCommandCenterFocusAction(for tag: DailySnapshotTag? = nil) {
+        if tag?.tagId == nil && tag != nil {
+            openTaggingWizardPreferences()
+        } else if dailySnapshot.topTags.isEmpty {
+            openDashboardTimeline()
+        } else if snapshotTopLabelsNeedsReview {
+            openTaggingWizardPreferences()
+        } else {
+            openDashboardStats()
+        }
     }
 
     private var commandCenterLoopProgress: some View {
