@@ -93,6 +93,12 @@ struct RuntimePerformanceSnapshot: Equatable {
     )
 }
 
+struct TimelineFocusRange: Equatable {
+    let title: String
+    let startTime: Int64
+    let endTime: Int64
+}
+
 final class AppState: ObservableObject {
     static let shared = AppState()
 
@@ -240,6 +246,7 @@ final class AppState: ObservableObject {
     @Published var includeIdleInTimeline: Bool {
         didSet { defaults.set(includeIdleInTimeline, forKey: Keys.includeIdleInTimeline) }
     }
+    @Published var timelineFocusRange: TimelineFocusRange?
     @Published var includeIdleInCharts: Bool {
         didSet { defaults.set(includeIdleInCharts, forKey: Keys.includeIdleInCharts) }
     }
@@ -433,6 +440,24 @@ final class AppState: ObservableObject {
         idleHysteresisCount = Self.defaultIdleHysteresisCount
         idleResumeGraceSeconds = Self.defaultIdleResumeGraceSeconds
         countOverlaysInTotals = Self.defaultCountOverlaysInTotals
+    }
+
+    func focusTimelineRange(title: String, startTime: Int64, endTime: Int64) {
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard endTime > startTime else {
+            timelineFocusRange = nil
+            return
+        }
+
+        timelineFocusRange = TimelineFocusRange(
+            title: trimmedTitle,
+            startTime: startTime,
+            endTime: endTime
+        )
+    }
+
+    func clearTimelineFocusRange() {
+        timelineFocusRange = nil
     }
 
     func applyCaptureTuningProfile(_ profile: CaptureTuningProfile) {

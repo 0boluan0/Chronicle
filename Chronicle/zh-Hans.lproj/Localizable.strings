@@ -3521,12 +3521,13 @@
 "timeline.filters.status.all" = "全部活动";
 "timeline.filters.status.filtered" = "已筛选";
 "timeline.filters.active_title" = "当前筛选";
-"timeline.filters.active_detail" = "搜索、分类、应用或空闲条件正在缩小这个范围。";
+"timeline.filters.active_detail" = "搜索、分类、应用、时间段或空闲条件正在缩小这个范围。";
 "timeline.filters.chip.search" = "搜索";
 "timeline.filters.chip.label" = "分类";
 "timeline.filters.chip.app" = "应用";
 "timeline.filters.chip.idle" = "空闲";
 "timeline.filters.chip.idle_hidden" = "已隐藏";
+"timeline.filters.chip.work_block" = "工作块";
 "timeline.summary.title" = "当前视图";
 "timeline.summary.full_title" = "完整范围速览";
 "timeline.summary.full_detail" = "这些统计覆盖当前选择的完整时间范围，再往下看具体分组。";

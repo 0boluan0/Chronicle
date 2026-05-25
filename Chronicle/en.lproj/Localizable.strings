@@ -3529,12 +3529,13 @@
 "timeline.filters.status.all" = "All activity";
 "timeline.filters.status.filtered" = "Filtered";
 "timeline.filters.active_title" = "Active filters";
-"timeline.filters.active_detail" = "Search, category, app, or idle conditions are narrowing this range.";
+"timeline.filters.active_detail" = "Search, category, app, time, or idle conditions are narrowing this range.";
 "timeline.filters.chip.search" = "Search";
 "timeline.filters.chip.label" = "Category";
 "timeline.filters.chip.app" = "App";
 "timeline.filters.chip.idle" = "Idle";
 "timeline.filters.chip.idle_hidden" = "Hidden";
+"timeline.filters.chip.work_block" = "Work block";
 "timeline.summary.title" = "Current view";
 "timeline.summary.full_title" = "Full range at a glance";
 "timeline.summary.full_detail" = "These totals cover the whole selected range before you inspect individual blocks.";

@@ -833,6 +833,7 @@ struct DashboardStatsView: View {
 
     private var openTimelineButton: some View {
         Button {
+            appState.clearTimelineFocusRange()
             selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
         } label: {
             statsActionLabel(L("dashboard.stats.review.open_timeline"), systemImage: "clock")
@@ -901,6 +902,7 @@ struct DashboardStatsView: View {
         appState.selectedTagFilterId = -2
         appState.selectedAppFilterName = "All Apps"
         appState.includeIdleInTimeline = false
+        appState.clearTimelineFocusRange()
         selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
     }
 
@@ -909,6 +911,7 @@ struct DashboardStatsView: View {
         appState.selectedTagFilterId = -1
         appState.selectedAppFilterName = appName
         appState.includeIdleInTimeline = true
+        appState.clearTimelineFocusRange()
         selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
     }
 
@@ -917,6 +920,7 @@ struct DashboardStatsView: View {
         appState.selectedTagFilterId = tag.tagId ?? -2
         appState.selectedAppFilterName = "All Apps"
         appState.includeIdleInTimeline = false
+        appState.clearTimelineFocusRange()
         selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
     }
 
@@ -2276,6 +2280,7 @@ struct DashboardStatsView: View {
     private func openTimeline(filteredByWorkBlock block: WorkBlockInsight) {
         appState.searchQuery = ""
         appState.includeIdleInTimeline = false
+        appState.focusTimelineRange(title: block.title, startTime: block.startTime, endTime: block.endTime)
 
         if let tagId = block.tagId {
             appState.selectedTagFilterId = tagId

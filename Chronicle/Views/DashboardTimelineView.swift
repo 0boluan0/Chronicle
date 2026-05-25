@@ -146,9 +146,11 @@ struct DashboardTimelineView: View {
             refreshData(reason: "activity tracker")
         }
         .onChange(of: appState.selectedDate) { _, _ in
+            appState.clearTimelineFocusRange()
             refreshData(reason: "date changed")
         }
         .onChange(of: appState.dateRangeMode) { _, _ in
+            appState.clearTimelineFocusRange()
             refreshData(reason: "range changed")
         }
         .confirmationDialog(
@@ -979,6 +981,17 @@ struct DashboardTimelineView: View {
                         accessibilityIdentifier: "dashboard.timeline.clearIdleFilter"
                     ) {
                         appState.includeIdleInTimeline = true
+                    }
+                }
+
+                if let focusRange = appState.timelineFocusRange {
+                    activeFilterChip(
+                        titleKey: "timeline.filters.chip.work_block",
+                        value: timelineFocusRangeText(focusRange),
+                        systemImage: "scope",
+                        accessibilityIdentifier: "dashboard.timeline.clearWorkBlockFocus"
+                    ) {
+                        appState.clearTimelineFocusRange()
                     }
                 }
             }
@@ -2447,7 +2460,7 @@ struct DashboardTimelineView: View {
     }
 
     private var filtersAreActive: Bool {
-        hasSearchFilter || hasTagFilter || hasAppFilter || hasIdleFilter
+        hasSearchFilter || hasTagFilter || hasAppFilter || hasIdleFilter || hasTimelineFocusFilter
     }
 
     private var hasSearchFilter: Bool {
@@ -2466,12 +2479,21 @@ struct DashboardTimelineView: View {
         !appState.includeIdleInTimeline
     }
 
+    private var hasTimelineFocusFilter: Bool {
+        appState.timelineFocusRange != nil
+    }
+
     private var selectedTagFilterName: String {
         if appState.selectedTagFilterId == untaggedFilterValue {
             return L("popover.daily_snapshot.untagged")
         }
         return tags.first(where: { $0.id == appState.selectedTagFilterId })?.name
             ?? L("dashboard.timeline.all_tags")
+    }
+
+    private func timelineFocusRangeText(_ focusRange: TimelineFocusRange) -> String {
+        let title = focusRange.title.isEmpty ? L("timeline.filters.chip.work_block") : focusRange.title
+        return "\(title) - \(TimeFormatters.timeRange(start: focusRange.startTime, end: focusRange.endTime))"
     }
 
     private var timelineFilterHeadlineKey: String {
@@ -3142,8 +3164,13 @@ struct DashboardTimelineView: View {
 
     private var filteredItems: [TimelineItem] {
         let search = appState.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let focusRange = appState.timelineFocusRange
+        let selectedRangeEnd = rangeBounds.end
 
         let filteredActivities = activities.filter { activity in
+            if let focusRange, !timelineFocusOverlaps(start: activity.startTime, end: activity.endTime, focusRange: focusRange) {
+                return false
+            }
             if !appState.includeIdleInTimeline && activity.isIdle {
                 return false
             }
@@ -3172,6 +3199,9 @@ struct DashboardTimelineView: View {
         }
 
         let filteredMarkers = markers.filter { marker in
+            if let focusRange, !timelineFocusContains(timestamp: marker.timestamp, focusRange: focusRange) {
+                return false
+            }
             if appState.selectedAppFilterName != "All Apps" {
                 return false
             }
@@ -3185,6 +3215,14 @@ struct DashboardTimelineView: View {
         }
 
         let filteredMarkerSpans = markerSpans.filter { span in
+            if let focusRange,
+               !timelineFocusOverlaps(
+                   start: span.startTime,
+                   end: span.endTime ?? selectedRangeEnd,
+                   focusRange: focusRange
+               ) {
+                return false
+            }
             if appState.selectedAppFilterName != "All Apps" {
                 return false
             }
@@ -3202,6 +3240,14 @@ struct DashboardTimelineView: View {
         items.append(contentsOf: filteredMarkers.map { TimelineItem.marker($0) })
         items.append(contentsOf: filteredMarkerSpans.map { TimelineItem.markerSpan($0) })
         return items
+    }
+
+    private func timelineFocusContains(timestamp: Int64, focusRange: TimelineFocusRange) -> Bool {
+        timestamp >= focusRange.startTime && timestamp <= focusRange.endTime
+    }
+
+    private func timelineFocusOverlaps(start: Int64, end: Int64, focusRange: TimelineFocusRange) -> Bool {
+        start < focusRange.endTime && end > focusRange.startTime
     }
 
     private var visibleItems: [TimelineItem] {
@@ -3699,6 +3745,7 @@ struct DashboardTimelineView: View {
         appState.selectedTagFilterId = -1
         appState.selectedAppFilterName = "All Apps"
         appState.includeIdleInTimeline = true
+        appState.clearTimelineFocusRange()
         batchStatusMessage = nil
         batchStatusIsError = false
     }
@@ -3767,6 +3814,7 @@ struct DashboardTimelineView: View {
         appState.selectedTagFilterId = untaggedFilterValue
         appState.selectedAppFilterName = "All Apps"
         appState.includeIdleInTimeline = false
+        appState.clearTimelineFocusRange()
         batchStatusMessage = nil
         batchStatusIsError = false
     }

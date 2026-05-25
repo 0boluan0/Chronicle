@@ -961,6 +961,30 @@ final class ChronicleTests: XCTestCase {
         XCTAssertEqual(state.windowTitlePrivacyMode, .hashed)
     }
 
+    func testTimelineFocusRangeIsTemporaryAndValidated() {
+        let suiteName = "chronicle-tests-timeline-focus-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+
+        let state = AppState.makeTestInstance(defaults: defaults)
+        XCTAssertNil(state.timelineFocusRange)
+
+        state.focusTimelineRange(title: " Writing ", startTime: 200, endTime: 100)
+        XCTAssertNil(state.timelineFocusRange)
+
+        state.focusTimelineRange(title: " Writing ", startTime: 100, endTime: 200)
+        XCTAssertEqual(
+            state.timelineFocusRange,
+            TimelineFocusRange(title: "Writing", startTime: 100, endTime: 200)
+        )
+
+        let reloaded = AppState.makeTestInstance(defaults: defaults)
+        XCTAssertNil(reloaded.timelineFocusRange)
+
+        state.clearTimelineFocusRange()
+        XCTAssertNil(state.timelineFocusRange)
+    }
+
     func testTelemetryDefaultsOffAndPersists() {
         let suiteName = "chronicle-tests-telemetry-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -1983,6 +2007,7 @@ final class ChronicleTests: XCTestCase {
             "timeline.filters.chip.app",
             "timeline.filters.chip.idle",
             "timeline.filters.chip.idle_hidden",
+            "timeline.filters.chip.work_block",
             "timeline.batch.title",
             "timeline.batch.queue_title",
             "timeline.batch.status.empty",
