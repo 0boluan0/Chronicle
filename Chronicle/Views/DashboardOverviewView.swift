@@ -1349,7 +1349,7 @@ struct DashboardOverviewView: View {
             Button {
                 generateWeeklyReportNow()
             } label: {
-                weeklySummaryActionLabel(L("overview.weekly_summary.generate"), systemImage: "doc.badge.plus")
+                weeklySummaryGenerateActionLabel(idleTitle: L("overview.weekly_summary.generate"), systemImage: "doc.badge.plus")
             }
             .buttonStyle(.borderedProminent)
             .tint(DesignSystem.Colors.accentSkyBlue)
@@ -1383,7 +1383,7 @@ struct DashboardOverviewView: View {
                 Button {
                     generateWeeklyReportNow()
                 } label: {
-                    weeklySummaryActionLabel(L("overview.weekly_summary.regenerate"), systemImage: "arrow.clockwise")
+                    weeklySummaryGenerateActionLabel(idleTitle: L("overview.weekly_summary.regenerate"), systemImage: "arrow.clockwise")
                 }
                 .buttonStyle(.bordered)
                 .disabled(isGeneratingWeeklyReport)
@@ -1394,6 +1394,15 @@ struct DashboardOverviewView: View {
 
     private func weeklySummaryActionLabel(_ title: String, systemImage: String) -> some View {
         ActionButtonLabel(title, systemImage: systemImage)
+    }
+
+    @ViewBuilder
+    private func weeklySummaryGenerateActionLabel(idleTitle: String, systemImage: String) -> some View {
+        if isGeneratingWeeklyReport {
+            ProgressActionButtonLabel(L("overview.weekly_summary.feedback.running_title"))
+        } else {
+            weeklySummaryActionLabel(idleTitle, systemImage: systemImage)
+        }
     }
 
     @ViewBuilder
