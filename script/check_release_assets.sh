@@ -70,8 +70,11 @@ RELEASE_INFO="$(
     puts data.fetch("url")
     puts dmg.fetch("name")
     puts dmg.fetch("size")
+    puts dmg.fetch("state", "")
     puts digest
     puts checksum.fetch("name")
+    puts checksum.fetch("size")
+    puts checksum.fetch("state", "")
   ' "$RELEASE_JSON"
 )"
 
@@ -79,8 +82,11 @@ TAG_NAME="$(printf '%s\n' "$RELEASE_INFO" | sed -n '1p')"
 RELEASE_URL="$(printf '%s\n' "$RELEASE_INFO" | sed -n '2p')"
 DMG_NAME="$(printf '%s\n' "$RELEASE_INFO" | sed -n '3p')"
 DMG_SIZE="$(printf '%s\n' "$RELEASE_INFO" | sed -n '4p')"
-ASSET_DIGEST="$(printf '%s\n' "$RELEASE_INFO" | sed -n '5p')"
-CHECKSUM_NAME="$(printf '%s\n' "$RELEASE_INFO" | sed -n '6p')"
+DMG_STATE="$(printf '%s\n' "$RELEASE_INFO" | sed -n '5p')"
+ASSET_DIGEST="$(printf '%s\n' "$RELEASE_INFO" | sed -n '6p')"
+CHECKSUM_NAME="$(printf '%s\n' "$RELEASE_INFO" | sed -n '7p')"
+CHECKSUM_SIZE="$(printf '%s\n' "$RELEASE_INFO" | sed -n '8p')"
+CHECKSUM_STATE="$(printf '%s\n' "$RELEASE_INFO" | sed -n '9p')"
 
 if [[ "$TAG_NAME" != "$TAG" ]]; then
   echo "Release tag mismatch: requested ${TAG}, got ${TAG_NAME}" >&2
@@ -89,6 +95,21 @@ fi
 
 if ! [[ "$DMG_SIZE" =~ ^[0-9]+$ ]] || [[ "$DMG_SIZE" -le 0 ]]; then
   echo "DMG asset has invalid size: ${DMG_SIZE:-<empty>}" >&2
+  exit 1
+fi
+
+if [[ "$DMG_STATE" != "uploaded" ]]; then
+  echo "DMG asset is not uploaded: ${DMG_STATE:-<empty>}" >&2
+  exit 1
+fi
+
+if ! [[ "$CHECKSUM_SIZE" =~ ^[0-9]+$ ]] || [[ "$CHECKSUM_SIZE" -le 0 ]]; then
+  echo "Checksum asset has invalid size: ${CHECKSUM_SIZE:-<empty>}" >&2
+  exit 1
+fi
+
+if [[ "$CHECKSUM_STATE" != "uploaded" ]]; then
+  echo "Checksum asset is not uploaded: ${CHECKSUM_STATE:-<empty>}" >&2
   exit 1
 fi
 
