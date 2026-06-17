@@ -554,7 +554,7 @@ struct SupportPreferencesView: View {
 
                 Divider()
 
-                supportUpdateTrustFacts
+                supportUpdateTrustFacts(accessibilityPrefix: "support.releaseSafety.facts")
 
                 LazyVGrid(
                     columns: adaptiveColumns(minimum: 220, spacing: DesignSystem.Spacing.sm),
@@ -643,6 +643,8 @@ struct SupportPreferencesView: View {
                 )
 
                 Divider()
+
+                supportUpdateTrustFacts(accessibilityPrefix: "support.updateChannel.facts")
 
                 LazyVGrid(
                     columns: adaptiveColumns(minimum: 220, spacing: DesignSystem.Spacing.sm),
@@ -807,7 +809,7 @@ struct SupportPreferencesView: View {
         .accessibilityIdentifier("support.updateChannel.secondaryActions")
     }
 
-    private var supportUpdateTrustFacts: some View {
+    private func supportUpdateTrustFacts(accessibilityPrefix: String) -> some View {
         LazyVGrid(
             columns: adaptiveColumns(minimum: 160, spacing: DesignSystem.Spacing.sm),
             alignment: .leading,
@@ -818,7 +820,7 @@ struct SupportPreferencesView: View {
                 value: L("support.update_channel.facts.trigger_value"),
                 systemImage: "hand.tap",
                 tone: .info,
-                accessibilityIdentifier: "support.updateChannel.facts.trigger"
+                accessibilityIdentifier: "\(accessibilityPrefix).trigger"
             )
 
             supportFact(
@@ -826,7 +828,7 @@ struct SupportPreferencesView: View {
                 value: L("support.update_channel.facts.verify_value"),
                 systemImage: "checkmark.shield",
                 tone: .success,
-                accessibilityIdentifier: "support.updateChannel.facts.verify"
+                accessibilityIdentifier: "\(accessibilityPrefix).verify"
             )
 
             supportFact(
@@ -834,7 +836,7 @@ struct SupportPreferencesView: View {
                 value: L("support.update_channel.facts.recovery_value"),
                 systemImage: "clock.arrow.circlepath",
                 tone: .warning,
-                accessibilityIdentifier: "support.updateChannel.facts.recovery"
+                accessibilityIdentifier: "\(accessibilityPrefix).recovery"
             )
 
             supportFact(
@@ -842,10 +844,10 @@ struct SupportPreferencesView: View {
                 value: L("support.update_channel.candidate_status"),
                 systemImage: "flag",
                 tone: .warning,
-                accessibilityIdentifier: "support.updateChannel.facts.candidate"
+                accessibilityIdentifier: "\(accessibilityPrefix).candidate"
             )
         }
-        .accessibilityIdentifier("support.updateChannel.facts")
+        .accessibilityIdentifier(accessibilityPrefix)
     }
 
     private func supportChecklistItem(
