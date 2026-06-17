@@ -1429,6 +1429,8 @@ final class ChronicleTests: XCTestCase {
             "onboarding.exports.auto_detail.needs_folder",
             "onboarding.exports.auto_detail.on",
             "onboarding.exports.auto_detail.manual",
+            "onboarding.exports.scope.title",
+            "onboarding.exports.scope.detail",
             "onboarding.privacy.outcome.title",
             "onboarding.privacy.outcome.detail",
             "onboarding.privacy.outcome.baseline_title",

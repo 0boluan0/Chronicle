@@ -554,6 +554,8 @@
 "onboarding.exports.auto_detail.needs_folder" = "先选择保存目录，然后再决定是否让 Chronicle 每天自动保存一份今日日志。";
 "onboarding.exports.auto_detail.on" = "日期切换后，Chronicle 会尝试用这个目录自动保存一份每日 Markdown。";
 "onboarding.exports.auto_detail.manual" = "如果你想先复盘再落盘，可以继续从“今天”或“报告”里手动保存。";
+"onboarding.exports.scope.title" = "先设置今日日志";
+"onboarding.exports.scope.detail" = "周总结和 CSV 导出之后需要时，可以在“报告”里继续配置。";
 "onboarding.privacy.title" = "隐私与权限";
 "onboarding.privacy.body" = "决定是否让 Chronicle 采集窗口标题。即使关闭，它也会继续完全离线地工作。";
 "onboarding.privacy.choice.title" = "隐私选择";

@@ -1072,6 +1072,8 @@ struct OnboardingView: View {
 
                     exportAutoSaveRow
 
+                    exportSetupScopeRow
+
                     Divider()
 
                     Text(String(format: L("reports.folder.label"), reportSettings.dailyFolderDisplayPath))
@@ -1237,6 +1239,35 @@ struct OnboardingView: View {
             }
         }
         .accessibilityIdentifier("onboarding.exports.autoSave")
+    }
+
+    private var exportSetupScopeRow: some View {
+        RowSurface(tone: .info) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                IconWell(
+                    systemImage: "checklist",
+                    tone: .info,
+                    accessibilityLabel: L("onboarding.exports.scope.title")
+                )
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("onboarding.exports.scope.title")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundColor(DesignSystem.Colors.primaryText)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Text("onboarding.exports.scope.detail")
+                        .font(DesignSystem.Typography.caption)
+                        .foregroundColor(DesignSystem.Colors.secondaryText)
+                        .lineLimit(3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("onboarding.exports.scope")
     }
 
     private var exportAutoSaveCopy: some View {
