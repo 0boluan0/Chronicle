@@ -7,7 +7,7 @@ This checklist is for preparing a stable `v0.x` release with low upgrade risk.
 - Confirm target release tag and branch are frozen.
 - Run the lightweight local preflight before heavier test or packaging work:
   - `./script/run_release_preflight.sh`
-  - This checks script syntax, workflow YAML, localized string syntax, English/Simplified Chinese key parity, shared schemes, and whitespace.
+  - This checks script syntax, workflow YAML, localized string syntax, localized key uniqueness, English/Simplified Chinese key parity, shared schemes, and whitespace.
 - Ensure Debug unit tests pass on `main` and release branch (if used):
   - `xcodebuild -project Chronicle.xcodeproj -scheme Chronicle -configuration Debug -destination 'platform=macOS,arch=arm64' -derivedDataPath /tmp/chronicle-deriveddata-unit CODE_SIGNING_ALLOWED=NO test`
 - Ensure UI smoke passes on a dedicated macOS UI runner:

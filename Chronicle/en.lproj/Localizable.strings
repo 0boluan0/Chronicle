@@ -1996,7 +1996,6 @@
 "Include idle in charts" = "Include idle in charts";
 "Summary" = "Summary";
 "Total" = "Total";
-"Active" = "Active";
 "Sessions" = "Focus Blocks";
 "Markers" = "Notes";
 "Notes" = "Notes";
@@ -3197,7 +3196,6 @@
 "tags.color.more" = "More…";
 "Create and edit tags used to classify your timeline." = "Create and edit categories used to structure your timeline.";
 "Tag name" = "Category name";
-"No tags yet." = "No categories yet.";
 "Rules" = "Rules";
 "rules.page.title" = "Automation rules";
 "rules.page.subtitle" = "Let Chronicle apply repeated category decisions automatically while keeping manual overrides visible.";
@@ -3358,13 +3356,11 @@
 "rules.suggestions.create_failed" = "Create suggested rule failed: %@";
 "rules.suggestions.rule_name" = "Auto %@ → %@";
 
-"Markers" = "Notes";
 "Search markers" = "Search notes";
 "No markers for this range." = "No notes for this range.";
 "Last refreshed: %@" = "Last refreshed: %@";
 
 "Overview" = "Overview";
-"Mode" = "Mode";
 "Grid" = "Grid";
 "Top %d" = "Top %d";
 "Tagged" = "Categorized";
@@ -3382,12 +3378,6 @@
 "segments before: %d, after compaction: %d" = "Before cleanup: %d, after cleanup: %d";
 
 "Current app: %@" = "Current app: %@";
-
-"Duration: %@" = "Duration: %@";
-"Idle" = "Idle";
-"Overlay" = "Short switch";
-
-"Untagged" = "Uncategorized";
 "All Apps" = "All Apps";
 "All Tags" = "All Categories";
 "Uncategorized" = "Uncategorized";

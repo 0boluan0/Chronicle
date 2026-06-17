@@ -34,12 +34,29 @@ def localized_keys(path)
   File.read(path).scan(/^\s*"((?:\\.|[^"])*)"\s*=/).flatten
 end
 
+def duplicate_keys(keys)
+  counts = Hash.new(0)
+  keys.each { |key| counts[key] += 1 }
+  counts.select { |_, count| count > 1 }.keys.sort
+end
+
 localizations = {
   "en" => "Chronicle/en.lproj/Localizable.strings",
   "zh-Hans" => "Chronicle/zh-Hans.lproj/Localizable.strings"
 }
 
-key_sets = localizations.transform_values { |path| localized_keys(path).uniq.sort }
+raw_key_sets = localizations.transform_values { |path| localized_keys(path) }
+raw_key_sets.each do |locale, keys|
+  duplicates = duplicate_keys(keys)
+  next if duplicates.empty?
+
+  puts "Duplicate localization keys found for #{locale}:"
+  puts "  #{duplicates.join(", ")}"
+  abort "Localized string keys must be unique within each supported language."
+end
+puts "ok: localized string keys are unique"
+
+key_sets = raw_key_sets.transform_values { |keys| keys.uniq.sort }
 reference_locale, reference_keys = key_sets.first
 failed = false
 

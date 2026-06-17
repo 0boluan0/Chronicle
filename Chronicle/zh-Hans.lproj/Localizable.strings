@@ -1996,7 +1996,6 @@
 "Include idle in charts" = "图表包含空闲";
 "Summary" = "摘要";
 "Total" = "总计";
-"Active" = "活动";
 "Sessions" = "专注区间";
 "Markers" = "笔记";
 "Notes" = "备注";
@@ -3196,7 +3195,6 @@
 "tags.color.more" = "更多…";
 "Create and edit tags used to classify your timeline." = "创建与编辑用于组织时间线的分类。";
 "Tag name" = "分类名称";
-"No tags yet." = "暂无分类。";
 "Rules" = "规则";
 "rules.page.title" = "自动化规则";
 "rules.page.subtitle" = "让 Chronicle 自动应用重复的分类决策，同时保留手动纠偏的可见性。";
@@ -3357,13 +3355,11 @@
 "tag.auto_none" = "自动：无";
 "tag.override_format" = "手动：%@";
 
-"Markers" = "笔记";
 "Search markers" = "搜索笔记";
 "No markers for this range." = "该范围暂无笔记。";
 "Last refreshed: %@" = "上次刷新：%@";
 
 "Overview" = "纵览";
-"Mode" = "模式";
 "Grid" = "网格";
 "Top %d" = "前 %d";
 "Tagged" = "已分类";
