@@ -1101,6 +1101,7 @@ final class ChronicleUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["support.updateChannel.facts.trigger"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["support.updateChannel.facts.verify"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["support.updateChannel.facts.recovery"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["support.updateChannel.facts.candidate"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["support.updateChannel.path"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["support.updateChannel.current"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["support.updateChannel.source"].waitForExistence(timeout: 5))

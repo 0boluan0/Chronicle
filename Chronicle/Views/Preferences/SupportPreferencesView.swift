@@ -823,6 +823,14 @@ struct SupportPreferencesView: View {
                 tone: .warning,
                 accessibilityIdentifier: "support.updateChannel.facts.recovery"
             )
+
+            supportFact(
+                titleKey: "support.update_channel.candidate_title",
+                value: L("support.update_channel.candidate_status"),
+                systemImage: "flag",
+                tone: .warning,
+                accessibilityIdentifier: "support.updateChannel.facts.candidate"
+            )
         }
         .accessibilityIdentifier("support.updateChannel.facts")
     }
