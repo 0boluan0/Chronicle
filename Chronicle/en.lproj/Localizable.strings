@@ -742,6 +742,7 @@
 "dashboard.sidebar.overview" = "Decide what needs attention";
 "dashboard.sidebar.markers" = "Notes and focus blocks";
 "dashboard.sidebar.reports" = "Save today's log";
+"dashboard.sidebar.reports_setup_count" = "%d/2 save locations ready";
 "dashboard.sidebar.stats" = "Patterns across days";
 "dashboard.sidebar.debug" = "App health tools";
 "dashboard.sidebar.today_status.ready_title" = "Ready for today";

@@ -512,6 +512,7 @@ final class ChronicleUITests: XCTestCase {
         XCTAssertTrue(markersNavSection.waitForExistence(timeout: 5))
         XCTAssertTrue(reportsNavSection.waitForExistence(timeout: 5))
         XCTAssertTrue(statsNavSection.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["0/2 save locations ready"].waitForExistence(timeout: 5))
         XCTAssertTrue(overviewSection.label.contains("Current"), overviewSection.label)
         XCTAssertTrue(timelineNavSection.label.contains("Current"), timelineNavSection.label)
         XCTAssertTrue(markersNavSection.label.contains("Open"), markersNavSection.label)

@@ -465,7 +465,7 @@ struct DashboardView: View {
                 Text(section.titleKey)
                     .fontWeight(isEmphasized ? .semibold : .regular)
                     .lineLimit(1)
-                Text(section.subtitleKey)
+                Text(sidebarRowSubtitleText(for: section))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
@@ -484,7 +484,7 @@ struct DashboardView: View {
         }
         .padding(.vertical, 3)
         .contentShape(Rectangle())
-        .help("\(L(section.titleStringKey)): \(L(section.subtitleStringKey))")
+        .help("\(L(section.titleStringKey)): \(sidebarRowSubtitleText(for: section))")
         .accessibilityElement(children: .combine)
         .accessibilityLabel(sidebarRowAccessibilityLabel(for: section))
     }
@@ -546,13 +546,20 @@ struct DashboardView: View {
     }
 
     private func sidebarRowAccessibilityLabel(for section: Section) -> String {
-        let baseLabel = "\(L(section.titleStringKey)): \(L(section.subtitleStringKey))"
+        let baseLabel = "\(L(section.titleStringKey)): \(sidebarRowSubtitleText(for: section))"
 
         guard let step = sidebarFlowStep(for: section) else {
             return baseLabel
         }
 
         return "\(baseLabel). \(sidebarFlowStepStatusText(step))"
+    }
+
+    private func sidebarRowSubtitleText(for section: Section) -> String {
+        if section == .reports {
+            return String(format: L("dashboard.sidebar.reports_setup_count"), sidebarReportsReadyFolderCount)
+        }
+        return L(section.subtitleStringKey)
     }
 
     private var sidebarQuickActions: some View {
@@ -1437,6 +1444,14 @@ struct DashboardView: View {
 
     private var sidebarDailyFolderReady: Bool {
         reportSettings.dailyFolderBookmark != nil
+    }
+
+    private var sidebarWeeklyFolderReady: Bool {
+        reportSettings.weeklyFolderBookmark != nil
+    }
+
+    private var sidebarReportsReadyFolderCount: Int {
+        [sidebarDailyFolderReady, sidebarWeeklyFolderReady].filter { $0 }.count
     }
 
     private var sidebarDailyExportedToday: Bool {

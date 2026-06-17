@@ -742,6 +742,7 @@
 "dashboard.sidebar.overview" = "判断哪里需要处理";
 "dashboard.sidebar.markers" = "笔记与专注区间";
 "dashboard.sidebar.reports" = "保存今日日志";
+"dashboard.sidebar.reports_setup_count" = "%d/2 个保存位置就绪";
 "dashboard.sidebar.stats" = "跨日期观察趋势";
 "dashboard.sidebar.debug" = "应用健康工具";
 "dashboard.sidebar.today_status.ready_title" = "今天可以开始";
