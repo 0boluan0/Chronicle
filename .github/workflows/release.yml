@@ -101,11 +101,14 @@ jobs:
           NOTES_PATH="docs/releases/${RELEASE_TAG}.md"
           awk '{print $1}' dist/*.dmg.sha256 | tr 'A-F' 'a-f' | sort -u > build/release-asset-hashes.txt
           if [ -f "$NOTES_PATH" ]; then
-            grep -Eio '[0-9a-f]{64}' "$NOTES_PATH" | tr 'A-F' 'a-f' | sort -u > build/release-note-hashes.txt || true
+            grep -Ei '^[[:space:]]*-[[:space:]]*SHA-256:' "$NOTES_PATH" \
+              | grep -Eio '[0-9a-f]{64}' \
+              | tr 'A-F' 'a-f' \
+              | sort -u > build/release-note-hashes.txt || true
             if [ -s build/release-note-hashes.txt ]; then
               while read -r note_hash; do
                 if ! grep -qx "$note_hash" build/release-asset-hashes.txt; then
-                  echo "Release notes checksum ${note_hash} does not match built DMG checksum(s):" >&2
+                  echo "Release notes artifact checksum ${note_hash} does not match built DMG checksum(s):" >&2
                   cat build/release-asset-hashes.txt >&2
                   exit 1
                 fi
