@@ -2671,6 +2671,8 @@
 "reports.readiness.compatibility.recovery_detail" = "文件移动、恢复或权限重置后，重新选择同一文件夹即可修复访问。";
 "reports.readiness.compatibility.status_title" = "共享状态";
 "reports.readiness.compatibility.status_detail" = "设置页和仪表盘保存文件前使用同一套检查。";
+"reports.workspace.next.choose" = "下一步：为%@选择文件夹";
+"reports.workspace.next.ready" = "下一步：确认范围后保存或预览。";
 "reports.preview" = "预览";
 "reports.copy" = "复制";
 "reports.preview.copied" = "已复制到剪贴板";

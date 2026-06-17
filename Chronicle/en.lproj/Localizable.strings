@@ -2671,6 +2671,8 @@
 "reports.readiness.compatibility.recovery_detail" = "Reselecting the same folder repairs access after moves, restores, or permission resets.";
 "reports.readiness.compatibility.status_title" = "Shared status";
 "reports.readiness.compatibility.status_detail" = "Settings and dashboard saves use the same checks before writing files.";
+"reports.workspace.next.choose" = "Next: choose a %@ folder";
+"reports.workspace.next.ready" = "Next: save or preview when the range looks right.";
 "reports.preview" = "Preview";
 "reports.copy" = "Copy";
 "reports.preview.copied" = "Copied to clipboard";

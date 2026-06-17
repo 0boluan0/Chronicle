@@ -275,6 +275,13 @@ struct ReportsWorkspaceView: View {
                 .foregroundColor(DesignSystem.Colors.secondaryText)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
+
+            Text(planExportReadinessNextActionText)
+                .font(.caption2.weight(.medium))
+                .foregroundColor(planExportReadinessTone.color)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("reports.workspace.nextAction")
         }
         .accessibilityIdentifier("reports.workspace.status")
     }
@@ -4735,6 +4742,10 @@ struct ReportsWorkspaceView: View {
         ReportFolderKind.allCases.first { folderStatusLine(for: $0).isError }
     }
 
+    private var nextMissingPlanExportFolderKind: ReportFolderKind? {
+        planExportFolderKinds.first { folderStatusLine(for: $0).isError }
+    }
+
     private var planExportFolderKinds: [ReportFolderKind] {
         mode == .dashboard ? [.daily, .weekly] : [.daily, .weekly, .csv]
     }
@@ -5642,6 +5653,13 @@ struct ReportsWorkspaceView: View {
 
     private var planExportReadinessStatusIconName: String {
         planExportFoldersReady ? "checkmark.seal.fill" : "exclamationmark.triangle.fill"
+    }
+
+    private var planExportReadinessNextActionText: String {
+        guard let kind = nextMissingPlanExportFolderKind else {
+            return L("reports.workspace.next.ready")
+        }
+        return String(format: L("reports.workspace.next.choose"), folderKindTitle(for: kind))
     }
 
     private var selectedReportDayText: String {
