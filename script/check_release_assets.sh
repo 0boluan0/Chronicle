@@ -82,6 +82,11 @@ DMG_SIZE="$(printf '%s\n' "$RELEASE_INFO" | sed -n '4p')"
 ASSET_DIGEST="$(printf '%s\n' "$RELEASE_INFO" | sed -n '5p')"
 CHECKSUM_NAME="$(printf '%s\n' "$RELEASE_INFO" | sed -n '6p')"
 
+if [[ "$TAG_NAME" != "$TAG" ]]; then
+  echo "Release tag mismatch: requested ${TAG}, got ${TAG_NAME}" >&2
+  exit 1
+fi
+
 echo "Downloading checksum asset: ${CHECKSUM_NAME}"
 gh_retry release download "$TAG" \
   --repo "$REPO" \
