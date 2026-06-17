@@ -1114,6 +1114,8 @@ final class ChronicleUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Post-update health"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["support.updateChannel.recovery"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["support.updateChannel.actions"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["support.updateChannel.primaryActions"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["support.updateChannel.secondaryActions"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["support.updateChannel.openLatest"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["support.updateChannel.openUpgradeGuide"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["support.updateChannel.openReleaseChecklist"].waitForExistence(timeout: 5))

@@ -714,76 +714,9 @@ struct SupportPreferencesView: View {
                 }
                 .accessibilityIdentifier("support.updateChannel.path")
 
-                responsiveActionGroup {
-                    Button {
-                        TelemetryService.shared.increment("check_updates_opened")
-                        open(
-                            url: latestReleaseURL,
-                            target: .updateChannel,
-                            successKey: "support.status.opened_latest_release",
-                            failureKey: "support.status.open_failed_url"
-                        )
-                    } label: {
-                        supportActionLabel(L("support.update_channel.open_latest"), systemImage: "arrow.down.circle")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(DesignSystem.Colors.accentSkyBlue)
-                    .accessibilityIdentifier("support.updateChannel.openLatest")
-
-                    Button {
-                        open(
-                            url: migrationGuideURL,
-                            target: .updateChannel,
-                            successKey: "support.status.opened_migration_guide",
-                            failureKey: "support.status.open_failed_url"
-                        )
-                    } label: {
-                        supportActionLabel(L("support.update_channel.open_upgrade_guide"), systemImage: "arrow.triangle.2.circlepath")
-                    }
-                    .buttonStyle(.bordered)
-                    .accessibilityIdentifier("support.updateChannel.openUpgradeGuide")
-
-                    Button {
-                        open(
-                            url: releaseChecklistURL,
-                            target: .updateChannel,
-                            successKey: "support.status.opened_release_checklist",
-                            failureKey: "support.status.open_failed_url"
-                        )
-                    } label: {
-                        supportActionLabel(L("support.update_channel.open_release_checklist"), systemImage: "checklist.checked")
-                    }
-                    .buttonStyle(.bordered)
-                    .accessibilityIdentifier("support.updateChannel.openReleaseChecklist")
-
-                    Button {
-                        copyUpdateChecklist()
-                    } label: {
-                        supportActionLabel(L("support.update_channel.copy_checklist"), systemImage: "doc.on.doc")
-                    }
-                    .buttonStyle(.bordered)
-                    .accessibilityIdentifier("support.updateChannel.copyChecklist")
-
-                    Button {
-                        showHealthReport = true
-                    } label: {
-                        supportActionLabel(L("support.release_safety.open_health"), systemImage: "stethoscope")
-                    }
-                    .buttonStyle(.bordered)
-                    .accessibilityIdentifier("support.updateChannel.openHealth")
-
-                    Button {
-                        open(
-                            url: releasesPageURL,
-                            target: .updateChannel,
-                            successKey: "support.status.opened_releases",
-                            failureKey: "support.status.open_failed_url"
-                        )
-                    } label: {
-                        supportActionLabel(L("support.update_channel.open_release_archive"), systemImage: "clock.arrow.circlepath")
-                    }
-                    .buttonStyle(.bordered)
-                    .accessibilityIdentifier("support.updateChannel.openReleaseArchive")
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    updateChannelPrimaryActions
+                    updateChannelSecondaryActions
                 }
                 .accessibilityIdentifier("support.updateChannel.actions")
 
@@ -792,6 +725,86 @@ struct SupportPreferencesView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityIdentifier("support.updateChannel")
+    }
+
+    private var updateChannelPrimaryActions: some View {
+        ActionButtonGrid(minimumItemWidth: 188, spacing: DesignSystem.Spacing.sm) {
+            Button {
+                TelemetryService.shared.increment("check_updates_opened")
+                open(
+                    url: latestReleaseURL,
+                    target: .updateChannel,
+                    successKey: "support.status.opened_latest_release",
+                    failureKey: "support.status.open_failed_url"
+                )
+            } label: {
+                supportActionLabel(L("support.update_channel.open_latest"), systemImage: "arrow.down.circle")
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(DesignSystem.Colors.accentSkyBlue)
+            .accessibilityIdentifier("support.updateChannel.openLatest")
+
+            Button {
+                open(
+                    url: releaseChecklistURL,
+                    target: .updateChannel,
+                    successKey: "support.status.opened_release_checklist",
+                    failureKey: "support.status.open_failed_url"
+                )
+            } label: {
+                supportActionLabel(L("support.update_channel.open_release_checklist"), systemImage: "checklist.checked")
+            }
+            .buttonStyle(.bordered)
+            .accessibilityIdentifier("support.updateChannel.openReleaseChecklist")
+
+            Button {
+                copyUpdateChecklist()
+            } label: {
+                supportActionLabel(L("support.update_channel.copy_checklist"), systemImage: "doc.on.doc")
+            }
+            .buttonStyle(.bordered)
+            .accessibilityIdentifier("support.updateChannel.copyChecklist")
+        }
+        .accessibilityIdentifier("support.updateChannel.primaryActions")
+    }
+
+    private var updateChannelSecondaryActions: some View {
+        ActionButtonGrid(minimumItemWidth: 188, spacing: DesignSystem.Spacing.sm) {
+            Button {
+                open(
+                    url: migrationGuideURL,
+                    target: .updateChannel,
+                    successKey: "support.status.opened_migration_guide",
+                    failureKey: "support.status.open_failed_url"
+                )
+            } label: {
+                supportActionLabel(L("support.update_channel.open_upgrade_guide"), systemImage: "arrow.triangle.2.circlepath")
+            }
+            .buttonStyle(.bordered)
+            .accessibilityIdentifier("support.updateChannel.openUpgradeGuide")
+
+            Button {
+                showHealthReport = true
+            } label: {
+                supportActionLabel(L("support.release_safety.open_health"), systemImage: "stethoscope")
+            }
+            .buttonStyle(.bordered)
+            .accessibilityIdentifier("support.updateChannel.openHealth")
+
+            Button {
+                open(
+                    url: releasesPageURL,
+                    target: .updateChannel,
+                    successKey: "support.status.opened_releases",
+                    failureKey: "support.status.open_failed_url"
+                )
+            } label: {
+                supportActionLabel(L("support.update_channel.open_release_archive"), systemImage: "clock.arrow.circlepath")
+            }
+            .buttonStyle(.bordered)
+            .accessibilityIdentifier("support.updateChannel.openReleaseArchive")
+        }
+        .accessibilityIdentifier("support.updateChannel.secondaryActions")
     }
 
     private var supportUpdateTrustFacts: some View {
