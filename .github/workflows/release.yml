@@ -141,3 +141,8 @@ jobs:
           files: |
             dist/*.dmg
             dist/*.sha256
+
+      - name: Verify Uploaded Release Assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash script/check_release_assets.sh "$RELEASE_TAG"
