@@ -87,6 +87,11 @@ if [[ "$TAG_NAME" != "$TAG" ]]; then
   exit 1
 fi
 
+if ! [[ "$DMG_SIZE" =~ ^[0-9]+$ ]] || [[ "$DMG_SIZE" -le 0 ]]; then
+  echo "DMG asset has invalid size: ${DMG_SIZE:-<empty>}" >&2
+  exit 1
+fi
+
 echo "Downloading checksum asset: ${CHECKSUM_NAME}"
 gh_retry release download "$TAG" \
   --repo "$REPO" \
