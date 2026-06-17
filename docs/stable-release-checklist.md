@@ -54,6 +54,8 @@ This checklist is for preparing a stable `v0.x` release with low upgrade risk.
 - If signing secrets are available, verify signing, notarization, stapling, and checksum generation.
 - Publish checksums and file sizes in release notes.
 - After upload, compare the GitHub Release asset digest, the published `.sha256` asset, README download copy, and `docs/releases/<tag>.md`; all four must name the same DMG checksum before the release is promoted.
+- Verify the uploaded GitHub Release assets with GitHub CLI:
+  - `bash script/check_release_assets.sh <tag>`
 - Confirm GitHub Releases shows the intended tag, DMG, checksum, and notes before changing README download copy. Ignore local `dist/` files as public-release evidence until they are attached to the release.
 - Smoke-test install on a clean macOS user account.
 
