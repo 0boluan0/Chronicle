@@ -2415,6 +2415,7 @@
 "stats.trust.merged_today" = "今天已整理短片段：%d";
 "stats.trust.compaction" = "上次整理合并 %d 条，忽略 %d 条极短片段";
 
+"Reports" = "报告";
 "reports.csv.title" = "工时 CSV";
 "reports.csv.heading" = "导出活动数据时，不必猜字段。";
 "reports.csv.detail" = "先选择范围和字段，再保存完整明细 CSV 或更适合复盘的工时报表。";
