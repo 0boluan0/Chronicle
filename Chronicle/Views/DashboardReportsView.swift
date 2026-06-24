@@ -621,7 +621,21 @@ struct ReportsWorkspaceView: View {
         case .loading, .savingDailyLog:
             EmptyView()
         case .needsFolder:
-            EmptyView()
+            Button {
+                previewDaily(date: Date())
+            } label: {
+                reportActionButtonLabel(L("reports.closeout.action.preview_today"), systemImage: "doc.text.magnifyingglass")
+            }
+            .buttonStyle(.bordered)
+            .accessibilityIdentifier("reports.closeout.previewToday")
+
+            Button {
+                selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
+            } label: {
+                reportActionButtonLabel(L("reports.closeout.action.open_timeline"), systemImage: "clock")
+            }
+            .buttonStyle(.bordered)
+            .accessibilityIdentifier("reports.closeout.openTimeline")
         case .checkIssue:
             Button {
                 AppWindowRouter.shared.open(.settings(.supportHealth))
