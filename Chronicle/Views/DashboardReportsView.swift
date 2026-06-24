@@ -2836,28 +2836,19 @@ struct ReportsWorkspaceView: View {
     }
 
     private var reviewReminderScheduleStrip: some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-            IconWell(
-                systemImage: reviewReminderStatusIconName,
-                tone: reviewReminderTone,
-                accessibilityLabel: L("reports.review_reminder.schedule.title")
-            )
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                reviewReminderScheduleLead
 
-            VStack(alignment: .leading, spacing: 3) {
-                Text("reports.review_reminder.schedule.title")
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-
-                Text(reviewReminderScheduleDetail)
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
+                StatusPill(reviewReminderStatusText, systemImage: reviewReminderStatusIconName, tone: reviewReminderTone)
+                    .fixedSize(horizontal: true, vertical: false)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
 
-            StatusPill(reviewReminderStatusText, systemImage: reviewReminderStatusIconName, tone: reviewReminderTone)
-                .fixedSize(horizontal: true, vertical: false)
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                reviewReminderScheduleLead
+
+                StatusPill(reviewReminderStatusText, systemImage: reviewReminderStatusIconName, tone: reviewReminderTone)
+            }
         }
         .padding(DesignSystem.Spacing.md)
         .background(
@@ -2869,6 +2860,31 @@ struct ReportsWorkspaceView: View {
                 .stroke(DesignSystem.Colors.separator.opacity(0.36), lineWidth: 1)
         )
         .accessibilityIdentifier("reports.reviewReminder.schedule")
+    }
+
+    private var reviewReminderScheduleLead: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            IconWell(
+                systemImage: reviewReminderStatusIconName,
+                tone: reviewReminderTone,
+                accessibilityLabel: L("reports.review_reminder.schedule.title")
+            )
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("reports.review_reminder.schedule.title")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(reviewReminderScheduleDetail)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 
     private func reviewReminderOutcomeItemView(_ item: ReviewReminderOutcomeItem) -> some View {
