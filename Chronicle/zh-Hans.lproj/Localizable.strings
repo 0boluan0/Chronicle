@@ -2778,6 +2778,10 @@
 "reports.review_reminder.outcome.notification_detail" = "点击通知会打开今日日志，方便马上完成。";
 "reports.review_reminder.outcome.saved_title" = "保存后停止";
 "reports.review_reminder.outcome.saved_detail" = "今日日志保存后，提醒会安静到明天。";
+"reports.review_reminder.schedule.title" = "提醒计划";
+"reports.review_reminder.schedule.off_detail" = "开启提醒后即可选择收工复盘时间。";
+"reports.review_reminder.schedule.menubar_detail" = "%@ 后，如果今日日志仍未保存，Chronicle 会显示菜单栏提醒。";
+"reports.review_reminder.schedule.notification_detail" = "%@ 后，如果今日日志仍未保存，Chronicle 会显示菜单栏提醒并发送一次本地通知。";
 "reports.csv.range" = "导出范围";
 "reports.csv.range_detail" = "当前范围：%@。需要交接完整数据时再使用自定义范围。";
 "reports.csv.range_picker" = "范围";

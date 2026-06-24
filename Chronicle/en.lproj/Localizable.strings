@@ -2778,6 +2778,10 @@
 "reports.review_reminder.outcome.notification_detail" = "Clicking it opens today's log so you can finish quickly.";
 "reports.review_reminder.outcome.saved_title" = "Stops after save";
 "reports.review_reminder.outcome.saved_detail" = "Once today's log is saved, reminders stay quiet until tomorrow.";
+"reports.review_reminder.schedule.title" = "Reminder plan";
+"reports.review_reminder.schedule.off_detail" = "Turn on the reminder to choose a closeout time.";
+"reports.review_reminder.schedule.menubar_detail" = "After %@, Chronicle shows the menubar reminder if today's log is still unsaved.";
+"reports.review_reminder.schedule.notification_detail" = "After %@, Chronicle shows the menubar reminder and one local notification if today's log is still unsaved.";
 "reports.csv.range" = "Export Range";
 "reports.csv.range_detail" = "Current range: %@. Use a custom range when you need a handoff file.";
 "reports.csv.range_picker" = "Range";

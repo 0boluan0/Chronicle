@@ -2701,6 +2701,7 @@ struct ReportsWorkspaceView: View {
                 }
 
                 reviewReminderOutcomeStrip
+                reviewReminderScheduleStrip
 
                 Divider()
 
@@ -2834,6 +2835,42 @@ struct ReportsWorkspaceView: View {
         }
     }
 
+    private var reviewReminderScheduleStrip: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            IconWell(
+                systemImage: reviewReminderStatusIconName,
+                tone: reviewReminderTone,
+                accessibilityLabel: L("reports.review_reminder.schedule.title")
+            )
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("reports.review_reminder.schedule.title")
+                    .font(.caption.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+
+                Text(reviewReminderScheduleDetail)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            StatusPill(reviewReminderStatusText, systemImage: reviewReminderStatusIconName, tone: reviewReminderTone)
+                .fixedSize(horizontal: true, vertical: false)
+        }
+        .padding(DesignSystem.Spacing.md)
+        .background(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .fill(Color(nsColor: .textBackgroundColor).opacity(0.42))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
+                .stroke(DesignSystem.Colors.separator.opacity(0.36), lineWidth: 1)
+        )
+        .accessibilityIdentifier("reports.reviewReminder.schedule")
+    }
+
     private func reviewReminderOutcomeItemView(_ item: ReviewReminderOutcomeItem) -> some View {
         HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
             Image(systemName: item.systemImage)
@@ -2920,6 +2957,20 @@ struct ReportsWorkspaceView: View {
             return "bell.badge"
         }
         return "menubar.rectangle"
+    }
+
+    private var reviewReminderScheduleDetail: String {
+        guard appState.dailyReviewReminderEnabled else {
+            return L("reports.review_reminder.schedule.off_detail")
+        }
+
+        let reminderTime = Self.reminderTimeFormatter.string(
+            from: dateForMinutesOfDay(appState.dailyReviewReminderTimeMinutes)
+        )
+        let key = appState.dailyReviewSystemNotificationEnabled
+            ? "reports.review_reminder.schedule.notification_detail"
+            : "reports.review_reminder.schedule.menubar_detail"
+        return String(format: L(key), reminderTime)
     }
 
     private var dailySection: some View {
@@ -6554,6 +6605,15 @@ private enum CSVRangeMode: String, CaseIterable, Identifiable {
 }
 
 private extension ReportsWorkspaceView {
+    static let reminderTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .none
+        formatter.timeStyle = .short
+        formatter.locale = Locale.current
+        formatter.timeZone = TimeZone.current
+        return formatter
+    }()
+
     static let statusDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateStyle = .short
