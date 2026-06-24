@@ -188,7 +188,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         popover.contentViewController = NSHostingController(rootView: rootView)
         popover.behavior = .transient
         popover.delegate = self
-        popover.contentSize = NSSize(width: 480, height: 640)
+        popover.contentSize = AppWindowMetrics.popoverDefault
     }
 
     private func configureStatusItem() {
@@ -666,12 +666,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         .environmentObject(languageManager)
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 480, height: 640),
-            styleMask: [.titled, .closable, .fullSizeContentView],
+            contentRect: NSRect(origin: .zero, size: AppWindowMetrics.popoverDefault),
+            styleMask: [.titled, .closable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
         window.title = L("app.name")
+        window.minSize = AppWindowMetrics.popoverMinimum
         window.contentViewController = NSHostingController(rootView: rootView)
         window.center()
         window.makeKeyAndOrderFront(nil)

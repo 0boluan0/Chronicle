@@ -40,7 +40,15 @@ struct HealthCheckDetailsView: View {
             }
         }
         .padding(DesignSystem.Spacing.xl)
-        .frame(width: 720, height: 720, alignment: .topLeading)
+        .frame(
+            minWidth: 420,
+            idealWidth: 720,
+            maxWidth: .infinity,
+            minHeight: 480,
+            idealHeight: 720,
+            maxHeight: .infinity,
+            alignment: .topLeading
+        )
         .background(DesignSystem.Colors.background)
         .onAppear {
             healthCheckService.runQuickChecksIfNeeded()
@@ -239,7 +247,7 @@ struct HealthCheckDetailsView: View {
                     .accessibilityIdentifier("selfCheck.actions.grantAccessibility")
 
                     Button {
-                        AccessibilityPermissionManager.shared.openSystemSettings()
+                        AccessibilityPermissionManager.shared.requestPermissionAndOpenSystemSettings()
                     } label: {
                         healthActionLabel(L("preferences.window_titles.open_settings"), systemImage: "gearshape.2")
                     }

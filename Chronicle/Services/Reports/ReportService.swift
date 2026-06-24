@@ -599,7 +599,7 @@ final class ReportService {
     private func withSecurityScopedFolder<T>(kind: ReportFolderKind, _ block: (URL) throws -> T) throws -> T {
         let resolution = try resolveFolderAccess(kind: kind)
         let url = resolution.url
-        if AppRuntime.isUITestMode {
+        if !AppRuntime.isAppSandboxed {
             do {
                 let result = try block(url)
                 settings.setDiagnostics(
@@ -745,11 +745,11 @@ final class ReportService {
     }
 
     private var bookmarkCreationOptions: URL.BookmarkCreationOptions {
-        AppRuntime.isUITestMode ? [] : [.withSecurityScope]
+        AppRuntime.isAppSandboxed ? [.withSecurityScope] : []
     }
 
     private var bookmarkResolutionOptions: URL.BookmarkResolutionOptions {
-        AppRuntime.isUITestMode ? [.withoutUI] : [.withSecurityScope, .withoutUI]
+        AppRuntime.isAppSandboxed ? [.withSecurityScope, .withoutUI] : [.withoutUI]
     }
 
     private func rangeBounds(for kind: ReportKind, date: Date) -> (start: Int64, end: Int64) {

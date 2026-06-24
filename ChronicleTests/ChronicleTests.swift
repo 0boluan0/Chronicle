@@ -1,3 +1,4 @@
+import Combine
 import XCTest
 @testable import Chronicle
 
@@ -81,6 +82,49 @@ final class ChronicleTests: XCTestCase {
         for key in telemetryCounterKeys {
             defaults.removeObject(forKey: "telemetry.counter.\(key)")
         }
+    }
+
+    func testIdleRuntimeStatePublishesOnlyMeaningfulChanges() {
+        let state = IdleRuntimeState()
+        var statusPublicationCount = 0
+        var samplePublicationCount = 0
+        let statusCancellable = state.objectWillChange.sink {
+            statusPublicationCount += 1
+        }
+        let sampleCancellable = state.samples.objectWillChange.sink {
+            samplePublicationCount += 1
+        }
+
+        state.updateSample(idleSeconds: 0)
+        state.updateSuppression(
+            mediaPlaying: false,
+            frontmostAllowed: false,
+            resumeGrace: false
+        )
+        XCTAssertEqual(statusPublicationCount, 0)
+        XCTAssertEqual(samplePublicationCount, 0)
+
+        state.updateSample(idleSeconds: 3)
+        state.updateSample(idleSeconds: 3)
+        XCTAssertEqual(statusPublicationCount, 0)
+        XCTAssertEqual(samplePublicationCount, 1)
+        XCTAssertEqual(state.idleSeconds, 3)
+
+        state.updateSuppression(
+            mediaPlaying: true,
+            frontmostAllowed: false,
+            resumeGrace: false
+        )
+        state.updateSuppression(
+            mediaPlaying: true,
+            frontmostAllowed: false,
+            resumeGrace: false
+        )
+        XCTAssertEqual(statusPublicationCount, 1)
+        XCTAssertEqual(samplePublicationCount, 1)
+        XCTAssertTrue(state.suppressionMediaPlaying)
+
+        withExtendedLifetime((statusCancellable, sampleCancellable)) {}
     }
 
     func testDateRangeModeNavigationShiftsByVisibleRange() throws {

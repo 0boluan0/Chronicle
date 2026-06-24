@@ -974,6 +974,28 @@ final class ChronicleUITests: XCTestCase {
         app.terminate()
     }
 
+    func testReportFolderPickerPresentsSystemSheet() throws {
+        let workspace = try makeWorkspace(language: "en")
+        let app = makeApp(
+            route: "settingsExport",
+            language: "en",
+            workspace: workspace,
+            resetState: true,
+            useSystemPanels: true
+        )
+        app.launch()
+
+        let chooseFolder = app.buttons["reports.closeout.chooseDailyFolder"]
+        XCTAssertTrue(chooseFolder.waitForExistence(timeout: 10))
+        chooseFolder.click()
+
+        let folderPicker = app.sheets.firstMatch
+        XCTAssertTrue(folderPicker.waitForExistence(timeout: 5), app.debugDescription)
+
+        app.typeKey(.escape, modifierFlags: [])
+        app.terminate()
+    }
+
     func testPrivacyTrustSurfaceSmoke() throws {
         let workspace = try makeWorkspace(language: "en")
         let app = makeApp(
@@ -1602,7 +1624,8 @@ final class ChronicleUITests: XCTestCase {
         workspace: Workspace,
         resetState: Bool,
         dailyReviewReminderEnabled: Bool? = nil,
-        showDebug: Bool = false
+        showDebug: Bool = false,
+        useSystemPanels: Bool = false
     ) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment["CHRONICLE_UI_TEST_MODE"] = "1"
@@ -1612,6 +1635,9 @@ final class ChronicleUITests: XCTestCase {
         app.launchEnvironment["CHRONICLE_UI_TEST_APP_SUPPORT_DIR"] = workspace.appSupportRoot.path
         if showDebug {
             app.launchEnvironment["CHRONICLE_SHOW_DEBUG"] = "1"
+        }
+        if useSystemPanels {
+            app.launchEnvironment["CHRONICLE_UI_TEST_USE_SYSTEM_PANELS"] = "1"
         }
         if let dailyReviewReminderEnabled {
             app.launchEnvironment["CHRONICLE_UI_TEST_DAILY_REVIEW_REMINDER_ENABLED"] = dailyReviewReminderEnabled ? "1" : "0"

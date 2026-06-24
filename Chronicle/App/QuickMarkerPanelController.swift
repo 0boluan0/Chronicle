@@ -11,12 +11,12 @@ import SwiftUI
 final class QuickMarkerPanelController: NSWindowController, NSWindowDelegate {
     static let shared = QuickMarkerPanelController()
     private static let frameAutosaveName = "ChronicleQuickMarkerPanel"
-    private static let minimumPanelSize = NSSize(width: 700, height: 500)
+    private static let minimumPanelSize = AppWindowMetrics.quickMarkerMinimum
     private var hasPreparedInitialFrame = false
 
     private init() {
         let panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 800, height: 560),
+            contentRect: NSRect(origin: .zero, size: AppWindowMetrics.quickMarkerDefault),
             styleMask: [.titled, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
@@ -87,8 +87,14 @@ final class QuickMarkerPanelController: NSWindowController, NSWindowDelegate {
 
     private func adjustPanelSize(for window: NSWindow) {
         guard let screen = window.screen ?? NSScreen.main ?? NSScreen.screens.first else { return }
-        let targetWidth = max(800, min(screen.visibleFrame.width * 0.56, 980))
-        let targetHeight = max(500, min(max(560, screen.visibleFrame.height * 0.58), screen.visibleFrame.height - 80))
+        let targetWidth = max(
+            Self.minimumPanelSize.width,
+            min(screen.visibleFrame.width * 0.56, 980)
+        )
+        let targetHeight = max(
+            Self.minimumPanelSize.height,
+            min(max(AppWindowMetrics.quickMarkerDefault.height, screen.visibleFrame.height * 0.58), screen.visibleFrame.height - 80)
+        )
         let targetSize = NSSize(width: targetWidth, height: targetHeight)
         if window.frame.size != targetSize {
             window.setContentSize(targetSize)

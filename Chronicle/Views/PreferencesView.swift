@@ -140,11 +140,15 @@ struct PreferencesView: View {
 
                 sidebarSetupGuide
             }
-            .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 320)
+            .navigationSplitViewColumnWidth(min: 208, ideal: 240, max: 300)
         } detail: {
             detailView
+                .frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity)
         }
-        .frame(minWidth: 760, minHeight: 560)
+        .frame(
+            minWidth: AppWindowMetrics.preferencesMinimum.width,
+            minHeight: AppWindowMetrics.preferencesMinimum.height
+        )
         .onAppear {
             reloadSidebarTagSummary()
         }

@@ -10,6 +10,7 @@ import SwiftUI
 
 struct TimelineView: View {
     @EnvironmentObject private var appState: AppState
+    @ObservedObject private var idleRuntime = AppState.shared.idleRuntime
 
     let embedInPopover: Bool
 
@@ -774,18 +775,13 @@ struct TimelineView: View {
                 tone: appState.autoMergedSegmentsToday > 0 ? .info : .neutral
             )
 
-            MetricValueView(
-                title: "timeline.debug.metric.idle",
-                value: debugIdleStatusText,
-                systemImage: appState.isIdle ? "moon.zzz.fill" : "bolt.fill",
-                tone: appState.isIdle ? .neutral : .success
-            )
+            TimelineIdleMetricView(thresholdSeconds: appState.idleThresholdSeconds)
 
             MetricValueView(
                 title: "timeline.debug.metric.suppression",
                 value: debugSuppressionStatusText,
-                systemImage: appState.idleSuppressionMediaPlaying ? "play.rectangle" : "checkmark.shield",
-                tone: appState.idleSuppressionMediaPlaying ? .warning : .success
+                systemImage: idleRuntime.suppressionMediaPlaying ? "play.rectangle" : "checkmark.shield",
+                tone: idleRuntime.suppressionMediaPlaying ? .warning : .success
             )
 
             MetricValueView(
@@ -933,20 +929,11 @@ struct TimelineView: View {
         return .info
     }
 
-    private var debugIdleStatusText: String {
-        String(
-            format: L("timeline.debug.idle.value"),
-            appState.isIdle ? L("timeline.debug.idle.on") : L("timeline.debug.idle.off"),
-            appState.idleSeconds,
-            appState.idleThresholdSeconds
-        )
-    }
-
     private var debugSuppressionStatusText: String {
         String(
             format: L("timeline.debug.suppression.value"),
-            appState.idleSuppressionMediaPlaying ? L("timeline.debug.boolean.yes") : L("timeline.debug.boolean.no"),
-            appState.idleSuppressionFrontmostAllowed ? L("timeline.debug.boolean.yes") : L("timeline.debug.boolean.no")
+            idleRuntime.suppressionMediaPlaying ? L("timeline.debug.boolean.yes") : L("timeline.debug.boolean.no"),
+            idleRuntime.suppressionFrontmostAllowed ? L("timeline.debug.boolean.yes") : L("timeline.debug.boolean.no")
         )
     }
 
@@ -1665,6 +1652,29 @@ struct TimelineView: View {
         return formatter
     }()
 }
+
+#if DEBUG
+private struct TimelineIdleMetricView: View {
+    @ObservedObject private var runtime = AppState.shared.idleRuntime
+    @ObservedObject private var samples = AppState.shared.idleRuntime.samples
+
+    let thresholdSeconds: Int
+
+    var body: some View {
+        MetricValueView(
+            title: "timeline.debug.metric.idle",
+            value: String(
+                format: L("timeline.debug.idle.value"),
+                runtime.isIdle ? L("timeline.debug.idle.on") : L("timeline.debug.idle.off"),
+                samples.idleSeconds,
+                thresholdSeconds
+            ),
+            systemImage: runtime.isIdle ? "moon.zzz.fill" : "bolt.fill",
+            tone: runtime.isIdle ? .neutral : .success
+        )
+    }
+}
+#endif
 
 #Preview {
     TimelineView()

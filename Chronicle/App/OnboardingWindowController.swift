@@ -11,8 +11,8 @@ import SwiftUI
 final class OnboardingWindowController {
     static let shared = OnboardingWindowController()
     private static let frameAutosaveName = "ChronicleOnboardingWindow"
-    private static let defaultContentSize = NSSize(width: 860, height: 640)
-    private static let minimumContentSize = NSSize(width: 720, height: 540)
+    private static let defaultContentSize = AppWindowMetrics.welcomeDefault
+    private static let minimumContentSize = AppWindowMetrics.welcomeMinimum
 
     private var window: NSWindow?
     private let languageManager = AppLanguageManager.shared

@@ -83,12 +83,16 @@ struct DashboardOverviewView: View {
 
     var body: some View {
         VSplitView {
-            overviewContent
-                .frame(maxWidth: overviewReadableContentWidth, alignment: .topLeading)
-                .frame(maxWidth: .infinity, minHeight: 320, idealHeight: 520, maxHeight: .infinity, alignment: .topLeading)
+            ScrollView(.vertical) {
+                overviewContent
+                    .frame(maxWidth: overviewReadableContentWidth, alignment: .topLeading)
+            }
+            .scrollIndicators(.automatic)
+            .frame(maxWidth: .infinity, minHeight: 240, idealHeight: 520, maxHeight: .infinity, alignment: .topLeading)
+
             markerTimelineSection
                 .frame(maxWidth: overviewReadableContentWidth, alignment: .topLeading)
-                .frame(maxWidth: .infinity, minHeight: 220, idealHeight: 360, maxHeight: .infinity, alignment: .topLeading)
+                .frame(maxWidth: .infinity, minHeight: 160, idealHeight: 360, maxHeight: .infinity, alignment: .topLeading)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {

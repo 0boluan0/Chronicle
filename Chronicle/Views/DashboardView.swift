@@ -218,9 +218,10 @@ struct DashboardView: View {
 
                 sidebarQuickActions
             }
-            .navigationSplitViewColumnWidth(min: 240, ideal: 260, max: 320)
+            .navigationSplitViewColumnWidth(min: 208, ideal: 240, max: 300)
         } detail: {
             contentView
+                .frame(minWidth: 0, maxWidth: .infinity, maxHeight: .infinity)
         }
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
@@ -292,9 +293,21 @@ struct DashboardView: View {
     }
 
     private var sidebarFlowPath: some View {
-        HStack(spacing: DesignSystem.Spacing.xs) {
-            ForEach(SidebarFlowStep.allCases) { step in
-                sidebarFlowStepButton(step)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: DesignSystem.Spacing.xs) {
+                ForEach(SidebarFlowStep.allCases) { step in
+                    sidebarFlowStepButton(step)
+                }
+            }
+
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 62), spacing: DesignSystem.Spacing.xs)],
+                alignment: .leading,
+                spacing: DesignSystem.Spacing.xs
+            ) {
+                ForEach(SidebarFlowStep.allCases) { step in
+                    sidebarFlowStepButton(step)
+                }
             }
         }
         .accessibilityIdentifier("dashboard.sidebar.flowPath")
@@ -655,14 +668,22 @@ struct DashboardView: View {
                     .accessibilityIdentifier("dashboard.sidebar.utilityActions.detail")
             }
 
-            VStack(spacing: DesignSystem.Spacing.sm) {
-                HStack(spacing: DesignSystem.Spacing.sm) {
+            ViewThatFits(in: .horizontal) {
+                VStack(spacing: DesignSystem.Spacing.sm) {
+                    HStack(spacing: DesignSystem.Spacing.sm) {
+                        sidebarQuickTimelineButton
+                        sidebarQuickAddNoteButton
+                    }
+                    .frame(maxWidth: .infinity)
+
+                    sidebarQuickLogButton
+                }
+
+                VStack(spacing: DesignSystem.Spacing.sm) {
                     sidebarQuickTimelineButton
                     sidebarQuickAddNoteButton
+                    sidebarQuickLogButton
                 }
-                .frame(maxWidth: .infinity)
-
-                sidebarQuickLogButton
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }

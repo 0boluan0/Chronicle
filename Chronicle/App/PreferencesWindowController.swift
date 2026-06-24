@@ -11,8 +11,8 @@ import SwiftUI
 final class PreferencesWindowController {
     static let shared = PreferencesWindowController()
     private static let frameAutosaveName = "ChroniclePreferencesWindow"
-    private static let defaultContentSize = NSSize(width: 860, height: 640)
-    private static let minimumContentSize = NSSize(width: 760, height: 560)
+    private static let defaultContentSize = AppWindowMetrics.preferencesDefault
+    private static let minimumContentSize = AppWindowMetrics.preferencesMinimum
 
     typealias Destination = PreferencesNavigationDestination
 

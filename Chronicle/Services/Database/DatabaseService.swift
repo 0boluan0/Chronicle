@@ -77,10 +77,8 @@ final class DatabaseService {
             resolvedAppSupportURL = appSupportOverride
             resolvedDatabaseURL = appSupportOverride.appendingPathComponent("activity.sqlite")
         } else {
-            let appSupportBase = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             let appName = Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String ?? "Chronicle"
-            resolvedAppSupportURL = (appSupportBase ?? URL(fileURLWithPath: NSTemporaryDirectory()))
-                .appendingPathComponent(appName, isDirectory: true)
+            resolvedAppSupportURL = AppRuntime.resolvedAppSupportDirectory(appName: appName)
             resolvedDatabaseURL = resolvedAppSupportURL.appendingPathComponent("activity.sqlite")
         }
 

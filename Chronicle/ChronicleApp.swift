@@ -30,18 +30,29 @@ struct ChronicleApp: App {
                 .environmentObject(appState)
                 .environmentObject(languageManager)
         }
+        .defaultSize(
+            width: AppWindowMetrics.dashboardDefault.width,
+            height: AppWindowMetrics.dashboardDefault.height
+        )
 
         Window("Preferences", id: AppWindowSceneID.settings) {
             PreferencesWindowSceneRoot()
                 .environmentObject(appState)
                 .environmentObject(languageManager)
         }
+        .defaultSize(
+            width: AppWindowMetrics.preferencesDefault.width,
+            height: AppWindowMetrics.preferencesDefault.height
+        )
 
         Window("Welcome", id: AppWindowSceneID.welcome) {
             WelcomeWindowSceneRoot()
                 .environmentObject(appState)
                 .environmentObject(languageManager)
         }
-        .defaultSize(width: 860, height: 640)
+        .defaultSize(
+            width: AppWindowMetrics.welcomeDefault.width,
+            height: AppWindowMetrics.welcomeDefault.height
+        )
     }
 }

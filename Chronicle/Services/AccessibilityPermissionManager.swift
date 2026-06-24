@@ -39,6 +39,17 @@ final class AccessibilityPermissionManager {
         }
     }
 
+    func requestPermissionAndOpenSystemSettings() {
+        guard !AppRuntime.disablesSystemPrompts else { return }
+
+        _ = requestPermission(prompt: true)
+
+        guard !isTrusted else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            self?.openSystemSettings()
+        }
+    }
+
     func syncAppState(_ appState: AppState) {
         let trusted = isTrusted
         if Thread.isMainThread {

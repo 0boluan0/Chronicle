@@ -175,7 +175,7 @@ struct GeneralPreferencesView: View {
             .accessibilityIdentifier("preferences.readiness.action.recommended")
         } else if appState.windowTitleCaptureEnabled && !appState.accessibilityAuthorized {
             Button {
-                AccessibilityPermissionManager.shared.openSystemSettings()
+                AccessibilityPermissionManager.shared.requestPermissionAndOpenSystemSettings()
             } label: {
                 generalActionLabel(L("preferences.readiness.action.permission"), systemImage: "gearshape")
             }
@@ -909,7 +909,7 @@ struct GeneralPreferencesView: View {
                 }
 
                 Button {
-                    AccessibilityPermissionManager.shared.openSystemSettings()
+                    AccessibilityPermissionManager.shared.requestPermissionAndOpenSystemSettings()
                 } label: {
                     generalActionLabel(L("preferences.window_titles.open_settings"), systemImage: "gearshape")
                 }
@@ -2337,47 +2337,11 @@ struct GeneralPreferencesView: View {
     }
 
     private var idleDecisionCard: some View {
-        RowSurface(tone: idleDecisionTone) {
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-                    idleDecisionLead
-
-                    Spacer(minLength: DesignSystem.Spacing.md)
-
-                    StatusPill(idleDecisionStatusText, systemImage: idleDecisionIconName, tone: idleDecisionTone)
-                }
-
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    idleDecisionLead
-                    StatusPill(idleDecisionStatusText, systemImage: idleDecisionIconName, tone: idleDecisionTone)
-                }
-            }
-        }
-        .accessibilityIdentifier("preferences.advancedTracking.idleLiveStatus")
-    }
-
-    private var idleDecisionLead: some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-            IconWell(
-                systemImage: idleDecisionIconName,
-                tone: idleDecisionTone,
-                accessibilityLabel: L("preferences.advanced_tracking.live_status.title")
-            )
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text("preferences.advanced_tracking.live_status.title")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(idleDecisionDetailText)
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
+        IdleDecisionCard(
+            detectionEnabled: appState.idleDetectionEnabled,
+            thresholdSeconds: appState.idleThresholdSeconds,
+            frontmostAppName: frontmostIdleAppName
+        )
     }
 
     private var idleThresholdBinding: Binding<Int> {
@@ -2511,86 +2475,6 @@ struct GeneralPreferencesView: View {
         }
     }
 
-    private var idleDecisionStatusText: String {
-        if !appState.idleDetectionEnabled {
-            return L("preferences.advanced_tracking.live_status.off")
-        }
-        if appState.isIdle {
-            return L("preferences.advanced_tracking.live_status.away")
-        }
-        if appState.idleSuppressionMediaPlaying {
-            return L("preferences.advanced_tracking.live_status.media")
-        }
-        if appState.idleSuppressionFrontmostAllowed {
-            return L("preferences.advanced_tracking.live_status.allowed_app")
-        }
-        if appState.idleSuppressionResumeGrace {
-            return L("preferences.advanced_tracking.live_status.returning")
-        }
-        return L("preferences.advanced_tracking.live_status.active")
-    }
-
-    private var idleDecisionDetailText: String {
-        if !appState.idleDetectionEnabled {
-            return L("preferences.advanced_tracking.live_status.detail.off")
-        }
-        if appState.isIdle {
-            return String(
-                format: L("preferences.advanced_tracking.live_status.detail.away"),
-                formatDuration(seconds: appState.idleSeconds)
-            )
-        }
-        if appState.idleSuppressionMediaPlaying {
-            return L("preferences.advanced_tracking.live_status.detail.media")
-        }
-        if appState.idleSuppressionFrontmostAllowed {
-            return String(
-                format: L("preferences.advanced_tracking.live_status.detail.allowed_app"),
-                frontmostIdleAppName
-            )
-        }
-        if appState.idleSuppressionResumeGrace {
-            return L("preferences.advanced_tracking.live_status.detail.returning")
-        }
-        let remainingSeconds = max(0, appState.idleThresholdSeconds - appState.idleSeconds)
-        return String(
-            format: L("preferences.advanced_tracking.live_status.detail.active"),
-            formatDuration(seconds: remainingSeconds)
-        )
-    }
-
-    private var idleDecisionTone: DesignSystem.StatusTone {
-        if !appState.idleDetectionEnabled {
-            return .neutral
-        }
-        if appState.isIdle {
-            return .warning
-        }
-        if appState.idleSuppressionMediaPlaying || appState.idleSuppressionFrontmostAllowed || appState.idleSuppressionResumeGrace {
-            return .info
-        }
-        return .success
-    }
-
-    private var idleDecisionIconName: String {
-        if !appState.idleDetectionEnabled {
-            return "pause.circle"
-        }
-        if appState.isIdle {
-            return "moon.zzz.fill"
-        }
-        if appState.idleSuppressionMediaPlaying {
-            return "play.rectangle"
-        }
-        if appState.idleSuppressionFrontmostAllowed {
-            return "app.badge"
-        }
-        if appState.idleSuppressionResumeGrace {
-            return "arrow.uturn.backward.circle"
-        }
-        return "keyboard"
-    }
-
     private var frontmostIdleAppName: String {
         let currentName = appState.currentActiveAppName.trimmingCharacters(in: .whitespacesAndNewlines)
         if !currentName.isEmpty && currentName != "Unknown" {
@@ -2722,6 +2606,149 @@ struct GeneralPreferencesView: View {
         return (name: bundleId, icon: DesignSystem.Images.genericAppIcon)
     }
 
+}
+
+private struct IdleDecisionCard: View {
+    @ObservedObject private var runtime = AppState.shared.idleRuntime
+    @ObservedObject private var samples = AppState.shared.idleRuntime.samples
+
+    let detectionEnabled: Bool
+    let thresholdSeconds: Int
+    let frontmostAppName: String
+
+    var body: some View {
+        RowSurface(tone: tone) {
+            ViewThatFits(in: .horizontal) {
+                HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+                    lead
+
+                    Spacer(minLength: DesignSystem.Spacing.md)
+
+                    StatusPill(statusText, systemImage: iconName, tone: tone)
+                }
+
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                    lead
+                    StatusPill(statusText, systemImage: iconName, tone: tone)
+                }
+            }
+        }
+        .accessibilityIdentifier("preferences.advancedTracking.idleLiveStatus")
+    }
+
+    private var lead: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            IconWell(
+                systemImage: iconName,
+                tone: tone,
+                accessibilityLabel: L("preferences.advanced_tracking.live_status.title")
+            )
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("preferences.advanced_tracking.live_status.title")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(detailText)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var statusText: String {
+        if !detectionEnabled {
+            return L("preferences.advanced_tracking.live_status.off")
+        }
+        if runtime.isIdle {
+            return L("preferences.advanced_tracking.live_status.away")
+        }
+        if runtime.suppressionMediaPlaying {
+            return L("preferences.advanced_tracking.live_status.media")
+        }
+        if runtime.suppressionFrontmostAllowed {
+            return L("preferences.advanced_tracking.live_status.allowed_app")
+        }
+        if runtime.suppressionResumeGrace {
+            return L("preferences.advanced_tracking.live_status.returning")
+        }
+        return L("preferences.advanced_tracking.live_status.active")
+    }
+
+    private var detailText: String {
+        if !detectionEnabled {
+            return L("preferences.advanced_tracking.live_status.detail.off")
+        }
+        if runtime.isIdle {
+            return String(
+                format: L("preferences.advanced_tracking.live_status.detail.away"),
+                formatDuration(seconds: samples.idleSeconds)
+            )
+        }
+        if runtime.suppressionMediaPlaying {
+            return L("preferences.advanced_tracking.live_status.detail.media")
+        }
+        if runtime.suppressionFrontmostAllowed {
+            return String(
+                format: L("preferences.advanced_tracking.live_status.detail.allowed_app"),
+                frontmostAppName
+            )
+        }
+        if runtime.suppressionResumeGrace {
+            return L("preferences.advanced_tracking.live_status.detail.returning")
+        }
+        let remainingSeconds = max(0, thresholdSeconds - samples.idleSeconds)
+        return String(
+            format: L("preferences.advanced_tracking.live_status.detail.active"),
+            formatDuration(seconds: remainingSeconds)
+        )
+    }
+
+    private var tone: DesignSystem.StatusTone {
+        if !detectionEnabled {
+            return .neutral
+        }
+        if runtime.isIdle {
+            return .warning
+        }
+        if runtime.suppressionMediaPlaying || runtime.suppressionFrontmostAllowed || runtime.suppressionResumeGrace {
+            return .info
+        }
+        return .success
+    }
+
+    private var iconName: String {
+        if !detectionEnabled {
+            return "pause.circle"
+        }
+        if runtime.isIdle {
+            return "moon.zzz.fill"
+        }
+        if runtime.suppressionMediaPlaying {
+            return "play.rectangle"
+        }
+        if runtime.suppressionFrontmostAllowed {
+            return "app.badge"
+        }
+        if runtime.suppressionResumeGrace {
+            return "arrow.uturn.backward.circle"
+        }
+        return "keyboard"
+    }
+
+    private func formatDuration(seconds: Int) -> String {
+        let clamped = max(0, seconds)
+        let minutes = clamped / 60
+        let remaining = clamped % 60
+        if minutes > 0 {
+            return String(format: L("preferences.duration.minutes_seconds"), minutes, remaining)
+        }
+        return String(format: L("preferences.duration.seconds"), remaining)
+    }
 }
 
 private struct AllowlistItem: Identifiable {

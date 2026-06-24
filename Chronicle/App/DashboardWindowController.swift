@@ -11,8 +11,8 @@ import SwiftUI
 final class DashboardWindowController {
     static let shared = DashboardWindowController()
     private static let frameAutosaveName = "ChronicleDashboardWindow"
-    private static let defaultContentSize = NSSize(width: 980, height: 720)
-    private static let minimumContentSize = NSSize(width: 820, height: 560)
+    private static let defaultContentSize = AppWindowMetrics.dashboardDefault
+    private static let minimumContentSize = AppWindowMetrics.dashboardMinimum
 
     private var window: NSWindow?
     private let languageManager = AppLanguageManager.shared

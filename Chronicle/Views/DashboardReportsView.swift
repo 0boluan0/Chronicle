@@ -3774,7 +3774,14 @@ struct ReportsWorkspaceView: View {
                 }
             }
             .padding(20)
-            .frame(minWidth: 760, minHeight: 560)
+            .frame(
+                minWidth: 420,
+                idealWidth: 760,
+                maxWidth: .infinity,
+                minHeight: 420,
+                idealHeight: 560,
+                maxHeight: .infinity
+            )
             .onChange(of: content) { _, _ in
                 copyFeedbackVisible = false
             }
@@ -4620,19 +4627,15 @@ struct ReportsWorkspaceView: View {
     }
 
     private func chooseFolder(onSelect: @escaping (URL) -> Void) {
-        if let uiTestFolder = AppRuntime.resolvedUITestFolderURL() {
+        if !AppRuntime.usesSystemPanelsInUITests,
+           let uiTestFolder = AppRuntime.resolvedUITestFolderURL() {
             try? FileManager.default.createDirectory(at: uiTestFolder, withIntermediateDirectories: true)
             onSelect(uiTestFolder)
             return
         }
 
-        let panel = NSOpenPanel()
-        panel.canChooseDirectories = true
-        panel.canChooseFiles = false
-        panel.allowsMultipleSelection = false
-        panel.prompt = L("reports.choose_folder")
-        panel.begin { response in
-            if response == .OK, let url = panel.url {
+        SystemFolderPicker.chooseFolder(prompt: L("reports.choose_folder")) { url in
+            if let url {
                 onSelect(url)
             }
         }

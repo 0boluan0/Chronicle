@@ -83,10 +83,10 @@ struct QuickMarkerPanelView: View {
         ViewThatFits(in: .horizontal) {
             HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
                 captureEntry
-                    .frame(minWidth: 420, maxWidth: .infinity, alignment: .topLeading)
+                    .frame(minWidth: 320, maxWidth: .infinity, alignment: .topLeading)
 
                 panelSideRail
-                    .frame(width: 238, alignment: .topLeading)
+                    .frame(width: 220, alignment: .topLeading)
             }
 
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {

@@ -285,11 +285,11 @@ final class ReportSettings: ObservableObject {
     }
 
     private var bookmarkCreationOptions: URL.BookmarkCreationOptions {
-        AppRuntime.isUITestMode ? [] : [.withSecurityScope]
+        AppRuntime.isAppSandboxed ? [.withSecurityScope] : []
     }
 
     private var bookmarkResolutionOptions: URL.BookmarkResolutionOptions {
-        AppRuntime.isUITestMode ? [.withoutUI] : [.withSecurityScope, .withoutUI]
+        AppRuntime.isAppSandboxed ? [.withSecurityScope, .withoutUI] : [.withoutUI]
     }
 
     private func saveData(_ data: Data?, key: String) {

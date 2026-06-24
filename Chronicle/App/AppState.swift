@@ -99,6 +99,70 @@ struct TimelineFocusRange: Equatable {
     let endTime: Int64
 }
 
+struct IdleRuntimeStatus: Equatable {
+    var isIdle = false
+    var suppressionMediaPlaying = false
+    var suppressionFrontmostAllowed = false
+    var suppressionResumeGrace = false
+}
+
+final class IdleSampleState: ObservableObject {
+    @Published private(set) var idleSeconds = 0
+
+    func update(idleSeconds: Int) {
+        guard self.idleSeconds != idleSeconds else { return }
+        self.idleSeconds = idleSeconds
+    }
+}
+
+final class IdleRuntimeState: ObservableObject {
+    @Published private(set) var status = IdleRuntimeStatus()
+    let samples = IdleSampleState()
+
+    var isIdle: Bool { status.isIdle }
+    var idleSeconds: Int { samples.idleSeconds }
+    var suppressionMediaPlaying: Bool { status.suppressionMediaPlaying }
+    var suppressionFrontmostAllowed: Bool { status.suppressionFrontmostAllowed }
+    var suppressionResumeGrace: Bool { status.suppressionResumeGrace }
+
+    func updateSample(idleSeconds: Int) {
+        samples.update(idleSeconds: idleSeconds)
+    }
+
+    func updateState(isIdle: Bool, idleSeconds: Int) {
+        samples.update(idleSeconds: idleSeconds)
+        updateStatus { status in
+            status.isIdle = isIdle
+        }
+    }
+
+    func updateSuppression(
+        mediaPlaying: Bool,
+        frontmostAllowed: Bool,
+        resumeGrace: Bool
+    ) {
+        updateStatus { status in
+            status.suppressionMediaPlaying = mediaPlaying
+            status.suppressionFrontmostAllowed = frontmostAllowed
+            status.suppressionResumeGrace = resumeGrace
+        }
+    }
+
+    func reset() {
+        samples.update(idleSeconds: 0)
+        updateStatus { status in
+            status = IdleRuntimeStatus()
+        }
+    }
+
+    private func updateStatus(_ transform: (inout IdleRuntimeStatus) -> Void) {
+        var next = status
+        transform(&next)
+        guard next != status else { return }
+        status = next
+    }
+}
+
 final class AppState: ObservableObject {
     static let shared = AppState()
 
@@ -233,11 +297,12 @@ final class AppState: ObservableObject {
     @Published var trackingPaused: Bool {
         didSet { defaults.set(trackingPaused, forKey: Keys.trackingPaused) }
     }
-    @Published var isIdle = false
-    @Published var idleSeconds = 0
-    @Published var idleSuppressionMediaPlaying = false
-    @Published var idleSuppressionFrontmostAllowed = false
-    @Published var idleSuppressionResumeGrace = false
+    let idleRuntime = IdleRuntimeState()
+    var isIdle: Bool { idleRuntime.isIdle }
+    var idleSeconds: Int { idleRuntime.idleSeconds }
+    var idleSuppressionMediaPlaying: Bool { idleRuntime.suppressionMediaPlaying }
+    var idleSuppressionFrontmostAllowed: Bool { idleRuntime.suppressionFrontmostAllowed }
+    var idleSuppressionResumeGrace: Bool { idleRuntime.suppressionResumeGrace }
     @Published var selectedDate = Date()
     @Published var dateRangeMode: DateRangeMode {
         didSet { defaults.set(dateRangeMode.rawValue, forKey: Keys.dateRangeMode) }

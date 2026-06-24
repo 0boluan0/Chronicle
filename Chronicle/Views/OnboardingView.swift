@@ -83,7 +83,7 @@ struct OnboardingView: View {
 
     private var header: some View {
         LazyVGrid(
-            columns: adaptiveColumns(minimum: 240, spacing: DesignSystem.Spacing.md),
+            columns: adaptiveColumns(minimum: 220, spacing: DesignSystem.Spacing.md),
             alignment: .leading,
             spacing: DesignSystem.Spacing.sm
         ) {
@@ -176,7 +176,7 @@ struct OnboardingView: View {
             .scrollIndicators(.automatic)
         }
         .padding(DesignSystem.Spacing.lg)
-        .frame(width: 220, alignment: .topLeading)
+        .frame(width: 196, alignment: .topLeading)
         .frame(maxHeight: .infinity, alignment: .topLeading)
         .background(DesignSystem.Colors.cardBackground.opacity(0.55))
     }
@@ -651,7 +651,7 @@ struct OnboardingView: View {
                 .accessibilityIdentifier("onboarding.next.privacy")
 
                 Button {
-                    AccessibilityPermissionManager.shared.openSystemSettings()
+                    AccessibilityPermissionManager.shared.requestPermissionAndOpenSystemSettings()
                 } label: {
                     footerButtonLabel("onboarding.privacy.open_settings", systemImage: "gearshape")
                 }
@@ -1372,7 +1372,7 @@ struct OnboardingView: View {
                     if appState.windowTitleCaptureEnabled && !appState.accessibilityAuthorized {
                         ActionButtonGrid(minimumItemWidth: 170) {
                             Button {
-                                AccessibilityPermissionManager.shared.openSystemSettings()
+                                AccessibilityPermissionManager.shared.requestPermissionAndOpenSystemSettings()
                             } label: {
                                 onboardingActionLabel(L("onboarding.permissions.grant"), systemImage: "gearshape")
                             }
@@ -2656,7 +2656,8 @@ struct OnboardingView: View {
     }
 
     private func chooseDailyFolder() {
-        if let uiTestFolder = AppRuntime.resolvedUITestFolderURL() {
+        if !AppRuntime.usesSystemPanelsInUITests,
+           let uiTestFolder = AppRuntime.resolvedUITestFolderURL() {
             try? FileManager.default.createDirectory(at: uiTestFolder, withIntermediateDirectories: true)
             do {
                 try reportSettings.updateDailyFolderBookmark(url: uiTestFolder)
@@ -2669,13 +2670,8 @@ struct OnboardingView: View {
             return
         }
 
-        let panel = NSOpenPanel()
-        panel.canChooseDirectories = true
-        panel.canChooseFiles = false
-        panel.allowsMultipleSelection = false
-        panel.prompt = L("onboarding.exports.setup")
-        panel.begin { response in
-            guard response == .OK, let url = panel.url else { return }
+        SystemFolderPicker.chooseFolder(prompt: L("onboarding.exports.setup")) { url in
+            guard let url else { return }
             do {
                 try reportSettings.updateDailyFolderBookmark(url: url)
                 exportStatusMessage = String(format: L("reports.folder.label"), url.path)

@@ -376,12 +376,7 @@ struct DashboardDebugView: View {
                         systemImage: appState.trackingPaused ? "pause.circle.fill" : "record.circle",
                         tone: appState.trackingPaused ? .warning : .success
                     )
-                    MetricValueView(
-                        title: "debug.runtime.idle",
-                        value: idleStatusText,
-                        systemImage: appState.isIdle ? "moon.zzz.fill" : "bolt.fill",
-                        tone: appState.isIdle ? .neutral : .success
-                    )
+                    DashboardDebugIdleMetricView()
                     MetricValueView(
                         title: "debug.runtime.db_writes",
                         value: runtimeLatencyText(
@@ -1014,13 +1009,6 @@ struct DashboardDebugView: View {
         appState.trackingPaused ? L("debug.runtime.tracking_paused") : L("debug.runtime.tracking_active")
     }
 
-    private var idleStatusText: String {
-        let duration = String(format: L("debug.runtime.idle_seconds"), appState.idleSeconds)
-        return appState.isIdle
-            ? String(format: L("debug.runtime.idle_idle"), duration)
-            : String(format: L("debug.runtime.idle_active"), duration)
-    }
-
     private func runtimeLatencyText(backlog: Int, averageMs: Int) -> String {
         String(format: L("debug.runtime.latency_value"), backlog, averageMs)
     }
@@ -1059,6 +1047,27 @@ struct DashboardDebugView: View {
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
         return formatter
+    }
+}
+
+private struct DashboardDebugIdleMetricView: View {
+    @ObservedObject private var runtime = AppState.shared.idleRuntime
+    @ObservedObject private var samples = AppState.shared.idleRuntime.samples
+
+    var body: some View {
+        MetricValueView(
+            title: "debug.runtime.idle",
+            value: idleStatusText,
+            systemImage: runtime.isIdle ? "moon.zzz.fill" : "bolt.fill",
+            tone: runtime.isIdle ? .neutral : .success
+        )
+    }
+
+    private var idleStatusText: String {
+        let duration = String(format: L("debug.runtime.idle_seconds"), samples.idleSeconds)
+        return runtime.isIdle
+            ? String(format: L("debug.runtime.idle_idle"), duration)
+            : String(format: L("debug.runtime.idle_active"), duration)
     }
 }
 

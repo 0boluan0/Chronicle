@@ -42,7 +42,14 @@ struct ContentView: View {
             .accessibilityIdentifier("popover.detailsScroll")
         }
         .padding(DesignSystem.Spacing.lg)
-        .frame(width: 480, height: 640)
+        .frame(
+            minWidth: AppWindowMetrics.popoverMinimum.width,
+            idealWidth: AppWindowMetrics.popoverDefault.width,
+            maxWidth: .infinity,
+            minHeight: AppWindowMetrics.popoverMinimum.height,
+            idealHeight: AppWindowMetrics.popoverDefault.height,
+            maxHeight: .infinity
+        )
         .background(DesignSystem.Colors.background)
         .sheet(isPresented: $showSelfCheckDetails) {
             HealthCheckDetailsView {

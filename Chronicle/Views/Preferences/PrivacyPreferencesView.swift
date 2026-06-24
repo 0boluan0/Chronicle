@@ -340,7 +340,7 @@ struct PrivacyPreferencesView: View {
             .accessibilityIdentifier("privacy.next.reviewOptions")
         case .needsPermission:
             Button {
-                AccessibilityPermissionManager.shared.openSystemSettings()
+                AccessibilityPermissionManager.shared.requestPermissionAndOpenSystemSettings()
             } label: {
                 privacyActionLabel(L("preferences.window_titles.open_settings"), systemImage: "gearshape")
             }
@@ -579,7 +579,7 @@ struct PrivacyPreferencesView: View {
 
     private var openAccessibilitySettingsButton: some View {
         Button {
-            AccessibilityPermissionManager.shared.openSystemSettings()
+            AccessibilityPermissionManager.shared.requestPermissionAndOpenSystemSettings()
         } label: {
             privacyActionLabel(L("preferences.window_titles.open_settings"), systemImage: "gearshape")
         }

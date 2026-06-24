@@ -352,7 +352,7 @@ final class ActivityTracker {
 
     private func updateIdleSample(_ idleSeconds: TimeInterval) {
         DispatchQueue.main.async {
-            self.appState.idleSeconds = Int(idleSeconds)
+            self.appState.idleRuntime.updateSample(idleSeconds: Int(idleSeconds))
         }
     }
 
@@ -364,9 +364,11 @@ final class ActivityTracker {
         let resumeGrace = shouldSuppressDueToResumeGrace()
 
         DispatchQueue.main.async {
-            self.appState.idleSuppressionMediaPlaying = mediaPlaying
-            self.appState.idleSuppressionFrontmostAllowed = frontmostAllowed
-            self.appState.idleSuppressionResumeGrace = resumeGrace
+            self.appState.idleRuntime.updateSuppression(
+                mediaPlaying: mediaPlaying,
+                frontmostAllowed: frontmostAllowed,
+                resumeGrace: resumeGrace
+            )
         }
 
         return IdleDetector.SuppressionStatus(
@@ -396,8 +398,10 @@ final class ActivityTracker {
 
     private func updateIdleState(isIdle: Bool, idleSeconds: TimeInterval) {
         DispatchQueue.main.async {
-            self.appState.isIdle = isIdle
-            self.appState.idleSeconds = Int(idleSeconds)
+            self.appState.idleRuntime.updateState(
+                isIdle: isIdle,
+                idleSeconds: Int(idleSeconds)
+            )
         }
     }
 
@@ -447,11 +451,7 @@ final class ActivityTracker {
 
     private func clearIdleStatus() {
         DispatchQueue.main.async {
-            self.appState.isIdle = false
-            self.appState.idleSeconds = 0
-            self.appState.idleSuppressionMediaPlaying = false
-            self.appState.idleSuppressionFrontmostAllowed = false
-            self.appState.idleSuppressionResumeGrace = false
+            self.appState.idleRuntime.reset()
         }
     }
 

@@ -23,6 +23,7 @@ struct DashboardStatsView: View {
     }
 
     @EnvironmentObject private var appState: AppState
+    @ObservedObject private var idleRuntime = AppState.shared.idleRuntime
     @ObservedObject private var reportSettings = ReportSettings.shared
 
     @AppStorage("dashboard.selectedSection") private var selectedDashboardSectionRaw = DashboardView.Section.defaultSelection.rawValue
@@ -2890,9 +2891,9 @@ struct DashboardStatsView: View {
     }
 
     private var isIdleSuppressionActive: Bool {
-        appState.idleSuppressionMediaPlaying
-            || appState.idleSuppressionFrontmostAllowed
-            || appState.idleSuppressionResumeGrace
+        idleRuntime.suppressionMediaPlaying
+            || idleRuntime.suppressionFrontmostAllowed
+            || idleRuntime.suppressionResumeGrace
     }
 
     private var idleSuppressionTone: DesignSystem.StatusTone {
@@ -2909,13 +2910,13 @@ struct DashboardStatsView: View {
 
     private var idleSuppressionReasonLabels: [String] {
         var reasons: [String] = []
-        if appState.idleSuppressionMediaPlaying {
+        if idleRuntime.suppressionMediaPlaying {
             reasons.append(L("stats.idle_suppression.media"))
         }
-        if appState.idleSuppressionFrontmostAllowed {
+        if idleRuntime.suppressionFrontmostAllowed {
             reasons.append(L("stats.idle_suppression.allowlist"))
         }
-        if appState.idleSuppressionResumeGrace {
+        if idleRuntime.suppressionResumeGrace {
             reasons.append(L("stats.idle_suppression.grace"))
         }
         return reasons
@@ -2945,17 +2946,17 @@ struct DashboardStatsView: View {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
                 suppressionReasonRow(
                     title: L("stats.idle_suppression.media"),
-                    active: appState.idleSuppressionMediaPlaying,
+                    active: idleRuntime.suppressionMediaPlaying,
                     detail: L("stats.idle_suppression.media_detail")
                 )
                 suppressionReasonRow(
                     title: L("stats.idle_suppression.allowlist"),
-                    active: appState.idleSuppressionFrontmostAllowed,
+                    active: idleRuntime.suppressionFrontmostAllowed,
                     detail: L("stats.idle_suppression.allowlist_detail")
                 )
                 suppressionReasonRow(
                     title: L("stats.idle_suppression.grace"),
-                    active: appState.idleSuppressionResumeGrace,
+                    active: idleRuntime.suppressionResumeGrace,
                     detail: L("stats.idle_suppression.grace_detail")
                 )
             }
@@ -2981,7 +2982,13 @@ struct DashboardStatsView: View {
             }
         }
         .padding(20)
-        .frame(minWidth: 440, minHeight: 300)
+        .frame(
+            minWidth: 360,
+            idealWidth: 440,
+            maxWidth: .infinity,
+            minHeight: 300,
+            alignment: .topLeading
+        )
     }
 
     private func suppressionReasonRow(title: String, active: Bool, detail: String) -> some View {

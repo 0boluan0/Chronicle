@@ -16,10 +16,12 @@ final class AppLanguageManager: ObservableObject {
     @Published var currentLanguage: String {
         didSet {
             defaults.set(currentLanguage, forKey: Self.languageKey)
+            cachedBundle = Self.resolveBundle(for: currentLanguage)
         }
     }
 
     let supportedLanguages: [String] = ["en", "zh-Hans"]
+    private var cachedBundle: Bundle?
 
     private init() {
         defaults = AppRuntime.configuredDefaults()
@@ -32,18 +34,23 @@ final class AppLanguageManager: ObservableObject {
         } else {
             currentLanguage = "en"
         }
+        cachedBundle = Self.resolveBundle(for: currentLanguage)
     }
 
     var bundle: Bundle {
-        guard let path = Bundle.main.path(forResource: currentLanguage, ofType: "lproj"),
-              let bundle = Bundle(path: path) else {
-            return .main
-        }
-        return bundle
+        cachedBundle ?? .main
     }
 
     func localizedString(_ key: String) -> String {
         bundle.localizedString(forKey: key, value: nil, table: nil)
+    }
+
+    private static func resolveBundle(for language: String) -> Bundle {
+        guard let path = Bundle.main.path(forResource: language, ofType: "lproj"),
+              let bundle = Bundle(path: path) else {
+            return .main
+        }
+        return bundle
     }
 
     private static let languageKey = "settings.appLanguage"

@@ -14,6 +14,19 @@ enum AppWindowSceneID {
     static let welcome = "welcome"
 }
 
+enum AppWindowMetrics {
+    static let dashboardDefault = CGSize(width: 980, height: 720)
+    static let dashboardMinimum = CGSize(width: 680, height: 500)
+    static let preferencesDefault = CGSize(width: 860, height: 640)
+    static let preferencesMinimum = CGSize(width: 640, height: 500)
+    static let welcomeDefault = CGSize(width: 860, height: 640)
+    static let welcomeMinimum = CGSize(width: 600, height: 460)
+    static let quickMarkerDefault = CGSize(width: 800, height: 560)
+    static let quickMarkerMinimum = CGSize(width: 520, height: 420)
+    static let popoverDefault = CGSize(width: 480, height: 640)
+    static let popoverMinimum = CGSize(width: 360, height: 420)
+}
+
 struct AppWindowRouterCommands: Commands {
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
@@ -135,13 +148,16 @@ struct DashboardWindowSceneRoot: View {
     var body: some View {
         LocalizedRootView {
             DashboardView()
-                .frame(minWidth: 820, minHeight: 560)
+                .frame(
+                    minWidth: AppWindowMetrics.dashboardMinimum.width,
+                    minHeight: AppWindowMetrics.dashboardMinimum.height
+                )
                 .background(
                     WindowConfigurationBridge(
                         configuration: SceneWindowConfiguration(
                             titleKey: "dashboard.title",
                             autosaveName: "ChronicleDashboardWindow",
-                            minSize: CGSize(width: 820, height: 560),
+                            minSize: AppWindowMetrics.dashboardMinimum,
                             resizable: true,
                             restorable: true
                         )
@@ -160,7 +176,7 @@ struct PreferencesWindowSceneRoot: View {
                         configuration: SceneWindowConfiguration(
                             titleKey: "preferences.title",
                             autosaveName: "ChroniclePreferencesWindow",
-                            minSize: CGSize(width: 760, height: 560),
+                            minSize: AppWindowMetrics.preferencesMinimum,
                             resizable: true,
                             restorable: true
                         )
@@ -178,13 +194,16 @@ struct WelcomeWindowSceneRoot: View {
             OnboardingView(onClose: {
                 dismissWindow(id: AppWindowSceneID.welcome)
             })
-            .frame(minWidth: 720, minHeight: 540)
+            .frame(
+                minWidth: AppWindowMetrics.welcomeMinimum.width,
+                minHeight: AppWindowMetrics.welcomeMinimum.height
+            )
             .background(
                 WindowConfigurationBridge(
                     configuration: SceneWindowConfiguration(
                         titleKey: "onboarding.title",
                         autosaveName: "ChronicleOnboardingWindow",
-                        minSize: CGSize(width: 720, height: 540),
+                        minSize: AppWindowMetrics.welcomeMinimum,
                         resizable: true,
                         restorable: false
                     )
