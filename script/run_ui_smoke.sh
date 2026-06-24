@@ -32,6 +32,7 @@ SURFACE_TESTS_EN=(
   "ChronicleUITests/ChronicleUITests/testDashboardDebugFlowSmoke"
   "ChronicleUITests/ChronicleUITests/testDashboardReportsCloseoutSmoke"
   "ChronicleUITests/ChronicleUITests/testReportsReviewPlanSmoke"
+  "ChronicleUITests/ChronicleUITests/testReportFolderPickerPresentsSystemSheet"
   "ChronicleUITests/ChronicleUITests/testPrivacyTrustSurfaceSmoke"
   "ChronicleUITests/ChronicleUITests/testDebugPreferencesDiagnosticsSurfaceSmoke"
   "ChronicleUITests/ChronicleUITests/testSupportReadinessReportSmoke"
