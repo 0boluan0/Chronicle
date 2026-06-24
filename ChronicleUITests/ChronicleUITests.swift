@@ -897,6 +897,8 @@ final class ChronicleUITests: XCTestCase {
         XCTAssertTrue(app.textViews["reports.closeout.notes"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["reports.closeout.reminderPrompt"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["reports.closeout.enableReminder"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["reports.reviewReminder.schedule"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Reminder plan"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["This week"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["reports.dashboardWeekly.header"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Choose a weekly summary folder."].waitForExistence(timeout: 5))
