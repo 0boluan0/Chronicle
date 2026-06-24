@@ -886,6 +886,8 @@ final class ChronicleUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["reports.closeout.nextAction.status"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Choose a destination first."].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Setup needed"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["reports.closeout.previewToday"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["reports.closeout.openTimeline"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["reports.closeout.workspace"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["reports.closeout.editor"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["reports.closeout.evidence"].waitForExistence(timeout: 5))
