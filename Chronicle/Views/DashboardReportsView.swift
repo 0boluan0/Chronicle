@@ -1414,7 +1414,8 @@ struct ReportsWorkspaceView: View {
                 Text(LocalizedStringKey(titleKey))
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(LocalizedStringKey(detailKey))
                     .font(DesignSystem.Typography.caption)
