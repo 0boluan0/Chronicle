@@ -85,6 +85,28 @@ Dir["Chronicle.xcodeproj/xcshareddata/xcschemes/*.xcscheme"].sort.each do |path|
 end
 RUBY
 
+section "UI smoke test manifest"
+ruby <<'RUBY'
+script_path = "script/run_ui_smoke.sh"
+test_path = "ChronicleUITests/ChronicleUITests.swift"
+
+script = File.read(script_path)
+manifest_tests = script.scan(%r{"ChronicleUITests/ChronicleUITests/(test[A-Za-z0-9_]+)"}).flatten.uniq.sort
+abort "No UI smoke tests found in #{script_path}" if manifest_tests.empty?
+
+test_source = File.read(test_path)
+defined_tests = test_source.scan(/func\s+(test[A-Za-z0-9_]+)\s*\(/).flatten.uniq.sort
+missing = manifest_tests - defined_tests
+
+unless missing.empty?
+  puts "UI smoke manifest names tests that are not defined in #{test_path}:"
+  puts "  #{missing.join(", ")}"
+  abort "UI smoke test manifest must only reference existing tests."
+end
+
+puts "ok: #{manifest_tests.length} UI smoke test references are defined"
+RUBY
+
 section "Whitespace"
 git diff --check
 
