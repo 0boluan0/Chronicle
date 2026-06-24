@@ -3986,7 +3986,8 @@ struct ReportsWorkspaceView: View {
                     Text(titleKey)
                         .font(.caption.weight(.semibold))
                         .foregroundColor(DesignSystem.Colors.primaryText)
-                        .lineLimit(1)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     Text(detailKey)
                         .font(.caption2)
@@ -4388,7 +4389,8 @@ struct ReportsWorkspaceView: View {
                     Text(LocalizedStringKey(titleKey))
                         .font(.caption.weight(.semibold))
                         .foregroundColor(DesignSystem.Colors.primaryText)
-                        .lineLimit(1)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     Text(LocalizedStringKey(detailKey))
                         .font(.caption2)
@@ -4472,7 +4474,8 @@ struct ReportsWorkspaceView: View {
                     Text("reports.preview.document.title")
                         .font(.subheadline.weight(.semibold))
                         .foregroundColor(DesignSystem.Colors.primaryText)
-                        .lineLimit(1)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     Text("reports.preview.document.detail")
                         .font(DesignSystem.Typography.caption)
