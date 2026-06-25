@@ -477,7 +477,8 @@ struct DashboardView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(section.titleKey)
                     .fontWeight(isEmphasized ? .semibold : .regular)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(sidebarRowSubtitleText(for: section))
                     .font(.caption)
                     .foregroundStyle(.secondary)
