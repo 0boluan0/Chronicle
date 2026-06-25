@@ -107,6 +107,39 @@ end
 puts "ok: #{manifest_tests.length} UI smoke test references are defined"
 RUBY
 
+section "Release note freshness"
+ruby <<'RUBY'
+release_note = "docs/releases/v0.1.0-rc2.md"
+base_tag = "v0.1.0-rc1"
+
+unless File.exist?(release_note)
+  puts "ok: #{release_note} is not present"
+  exit
+end
+
+unless system("git", "rev-parse", "--verify", "#{base_tag}^{commit}", out: File::NULL, err: File::NULL)
+  abort "Cannot verify release note freshness because #{base_tag} does not exist."
+end
+
+text = File.read(release_note)
+match = text.match(/Local development has moved\s+(\d+)\s+commits past `#{Regexp.escape(base_tag)}`/)
+abort "#{release_note} must include the current commit distance from #{base_tag}." unless match
+
+documented_count = match[1].to_i
+actual_count = `git rev-list #{base_tag}..HEAD --count`.to_i
+lag = actual_count - documented_count
+
+if documented_count > actual_count
+  abort "#{release_note} documents #{documented_count} commits past #{base_tag}, but the current branch has #{actual_count}."
+end
+
+if lag > 1
+  abort "#{release_note} is stale: it documents #{documented_count} commits past #{base_tag}, current branch has #{actual_count}."
+end
+
+puts "ok: #{release_note} commit distance is current"
+RUBY
+
 section "Whitespace"
 git diff --check
 
