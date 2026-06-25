@@ -110,7 +110,8 @@ struct HealthCheckDetailsView: View {
                 Text(L("self_check.details.title"))
                     .font(DesignSystem.Typography.title)
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(subtitleText)
                     .font(DesignSystem.Typography.caption)
@@ -562,7 +563,8 @@ struct HealthCheckDetailsView: View {
                 Text("self_check.details.next.label")
                     .font(.caption2.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(LocalizedStringKey(readinessNextActionTitleKey))
                     .font(.subheadline.weight(.semibold))
@@ -1161,7 +1163,8 @@ struct HealthCheckDetailsView: View {
             Text(LocalizedStringKey(titleKey))
                 .font(.caption2.weight(.semibold))
                 .foregroundColor(DesignSystem.Colors.secondaryText)
-                .lineLimit(1)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
 
             Text(value)
                 .font(.caption.monospaced())
