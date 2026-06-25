@@ -6,7 +6,7 @@ TAG="${1:-}"
 
 usage() {
   echo "Usage: $0 <release-tag>" >&2
-  echo "Example: $0 v0.1.0-rc1" >&2
+  echo "Example: $0 v0.1.0-rc2" >&2
 }
 
 if [[ -z "$TAG" ]]; then
