@@ -109,35 +109,43 @@ RUBY
 
 section "Release note freshness"
 ruby <<'RUBY'
-release_note = "docs/releases/v0.1.0-rc2.md"
-base_tag = "v0.1.0-rc1"
+draft_notes = Dir["docs/releases/v*-rc*.md"].sort.select do |path|
+  File.read(path).match?(/^Status:\s*Draft\b/)
+end
 
-unless File.exist?(release_note)
-  puts "ok: #{release_note} is not present"
+if draft_notes.empty?
+  puts "ok: no draft RC release notes found"
   exit
 end
 
-unless system("git", "rev-parse", "--verify", "#{base_tag}^{commit}", out: File::NULL, err: File::NULL)
-  abort "Cannot verify release note freshness because #{base_tag} does not exist."
+draft_notes.each do |release_note|
+  text = File.read(release_note)
+  tag = text[/^Artifact tag\/version:\s*`([^`]+)`/, 1]
+  abort "#{release_note} must declare an artifact tag/version." if tag.nil? || tag.empty?
+
+  distance_match = text.match(/Local development has moved\s+(\d+)\s+commits past `([^`]+)`/)
+  abort "#{release_note} must include the current commit distance from its previous public tag." unless distance_match
+
+  documented_count = distance_match[1].to_i
+  base_tag = distance_match[2]
+
+  unless system("git", "rev-parse", "--verify", "#{base_tag}^{commit}", out: File::NULL, err: File::NULL)
+    abort "Cannot verify #{release_note} freshness because #{base_tag} does not exist."
+  end
+
+  actual_count = `git rev-list #{base_tag}..HEAD --count`.to_i
+  lag = actual_count - documented_count
+
+  if documented_count > actual_count
+    abort "#{release_note} documents #{documented_count} commits past #{base_tag}, but the current branch has #{actual_count}."
+  end
+
+  if lag > 1
+    abort "#{release_note} is stale: it documents #{documented_count} commits past #{base_tag}, current branch has #{actual_count}."
+  end
+
+  puts "ok: #{release_note} commit distance is current for #{tag}"
 end
-
-text = File.read(release_note)
-match = text.match(/Local development has moved\s+(\d+)\s+commits past `#{Regexp.escape(base_tag)}`/)
-abort "#{release_note} must include the current commit distance from #{base_tag}." unless match
-
-documented_count = match[1].to_i
-actual_count = `git rev-list #{base_tag}..HEAD --count`.to_i
-lag = actual_count - documented_count
-
-if documented_count > actual_count
-  abort "#{release_note} documents #{documented_count} commits past #{base_tag}, but the current branch has #{actual_count}."
-end
-
-if lag > 1
-  abort "#{release_note} is stale: it documents #{documented_count} commits past #{base_tag}, current branch has #{actual_count}."
-end
-
-puts "ok: #{release_note} commit distance is current"
 RUBY
 
 section "Whitespace"
