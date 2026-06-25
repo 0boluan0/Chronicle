@@ -103,8 +103,6 @@ struct DashboardMarkersView: View {
 
                 cueCaptureNextActionView
 
-                cueCaptureProgressView
-
                 Divider()
 
                 cueSummaryGrid
@@ -121,12 +119,9 @@ struct DashboardMarkersView: View {
 
     private var cueCaptureNextActionView: some View {
         RowSurface(tone: cueCaptureNextActionTone, isHovering: false) {
-            LazyVGrid(
-                columns: adaptiveColumns(minimum: 260, spacing: DesignSystem.Spacing.md),
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.md
-            ) {
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                 cueCaptureNextActionSummary
+                cueCaptureProgressView
                 cueCaptureActions
             }
         }
@@ -135,21 +130,17 @@ struct DashboardMarkersView: View {
 
     private var cueCaptureProgressView: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-                    cueCaptureProgressLabel
+            HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.sm) {
+                cueCaptureProgressLabel
 
-                    Spacer(minLength: DesignSystem.Spacing.sm)
+                Spacer(minLength: 0)
 
-                    StatusPill(cueCaptureProgressText, systemImage: cueCaptureProgressIconName, tone: cueCaptureProgressTone)
-                        .fixedSize(horizontal: true, vertical: false)
-                }
-
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-                    cueCaptureProgressLabel
-
-                    StatusPill(cueCaptureProgressText, systemImage: cueCaptureProgressIconName, tone: cueCaptureProgressTone)
-                }
+                Text(cueCaptureProgressText)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundColor(cueCaptureProgressTone.color)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.86)
+                    .monospacedDigit()
             }
 
             RatioBar(
@@ -158,31 +149,22 @@ struct DashboardMarkersView: View {
                 remainderColor: DesignSystem.Colors.separator
             )
         }
-        .padding(DesignSystem.Spacing.sm)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(cueCaptureProgressTone.color.opacity(0.07))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .stroke(cueCaptureProgressTone.color.opacity(0.18), lineWidth: 1)
-        )
+        .padding(.horizontal, 2)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("dashboard.markers.progress")
     }
 
     private var cueCaptureProgressLabel: some View {
         HStack(alignment: .top, spacing: DesignSystem.Spacing.xs) {
-            Image(systemName: cueCaptureStatusIconName)
+            Image(systemName: cueCaptureProgressIconName)
                 .font(.caption.weight(.semibold))
                 .foregroundColor(cueCaptureProgressTone.color)
                 .frame(width: 16)
 
             Text("markers.capture.progress.title")
-                .font(.caption.weight(.semibold))
-                .foregroundColor(DesignSystem.Colors.primaryText)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
+                .font(.caption2.weight(.semibold))
+                .foregroundColor(DesignSystem.Colors.secondaryText)
+                .lineLimit(1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -196,10 +178,20 @@ struct DashboardMarkersView: View {
             )
 
             VStack(alignment: .leading, spacing: 3) {
-                Text("markers.capture.next.label")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(1)
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.xs) {
+                        cueCaptureNextActionEyebrow
+
+                        Spacer(minLength: 0)
+
+                        cueCaptureNextActionStatusPill
+                    }
+
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                        cueCaptureNextActionEyebrow
+                        cueCaptureNextActionStatusPill
+                    }
+                }
 
                 Text(LocalizedStringKey(cueCaptureNextActionTitleKey))
                     .font(.subheadline.weight(.semibold))
@@ -215,6 +207,19 @@ struct DashboardMarkersView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var cueCaptureNextActionEyebrow: some View {
+        Text("markers.capture.next.label")
+            .font(.caption2.weight(.semibold))
+            .foregroundColor(DesignSystem.Colors.secondaryText)
+            .lineLimit(1)
+    }
+
+    private var cueCaptureNextActionStatusPill: some View {
+        StatusPill(cueCaptureStatusText, systemImage: cueCaptureStatusIconName, tone: cueCaptureNextActionTone)
+            .fixedSize(horizontal: true, vertical: false)
+            .accessibilityIdentifier("dashboard.markers.nextAction.status")
     }
 
     private func cueSummaryIssueCard(message: String) -> some View {
@@ -373,7 +378,7 @@ struct DashboardMarkersView: View {
 
     private var cueCaptureActions: some View {
         LazyVGrid(
-            columns: adaptiveColumns(minimum: 150, spacing: DesignSystem.Spacing.sm),
+            columns: adaptiveColumns(minimum: 170, spacing: DesignSystem.Spacing.sm),
             alignment: .leading,
             spacing: DesignSystem.Spacing.sm
         ) {
@@ -495,6 +500,7 @@ struct DashboardMarkersView: View {
             performCueCapturePrimaryAction()
         } label: {
             cueCaptureActionLabel(L(cueCapturePrimaryActionKey), systemImage: cueCapturePrimaryActionIconName)
+                .frame(maxWidth: .infinity)
         }
         .buttonStyle(.borderedProminent)
         .tint(DesignSystem.Colors.accentSkyBlue)
@@ -509,6 +515,7 @@ struct DashboardMarkersView: View {
                 AppWindowRouter.shared.open(.quickMarker)
             } label: {
                 cueCaptureActionLabel(L("markers.capture.add_cue"), systemImage: "square.and.pencil")
+                    .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -519,6 +526,7 @@ struct DashboardMarkersView: View {
             selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
         } label: {
             cueCaptureActionLabel(L("markers.capture.open_timeline"), systemImage: "clock")
+                .frame(maxWidth: .infinity)
         }
         .buttonStyle(.bordered)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -529,6 +537,7 @@ struct DashboardMarkersView: View {
                 selectedDashboardSectionRaw = DashboardView.Section.reports.rawValue
             } label: {
                 cueCaptureActionLabel(L("markers.capture.closeout"), systemImage: "doc.badge.plus")
+                    .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -540,6 +549,7 @@ struct DashboardMarkersView: View {
                 AppWindowRouter.shared.open(.settings(.export))
             } label: {
                 cueCaptureActionLabel(L("markers.capture.open_log_settings"), systemImage: "gearshape")
+                    .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -551,6 +561,7 @@ struct DashboardMarkersView: View {
                 AppWindowRouter.shared.open(.settings(.supportHealth))
             } label: {
                 cueCaptureActionLabel(L("markers.capture.open_health"), systemImage: "stethoscope")
+                    .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
             .frame(maxWidth: .infinity, alignment: .leading)
