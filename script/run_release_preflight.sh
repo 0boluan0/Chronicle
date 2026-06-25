@@ -129,6 +129,17 @@ draft_notes.each do |release_note|
   documented_count = distance_match[1].to_i
   base_tag = distance_match[2]
 
+  if system("git", "rev-parse", "--is-shallow-repository", out: File::NULL, err: File::NULL)
+    shallow = `git rev-parse --is-shallow-repository`.strip == "true"
+    if shallow
+      system("git", "fetch", "--force", "--quiet", "--tags", "--unshallow", "origin", out: File::NULL, err: File::NULL)
+    end
+  end
+
+  unless system("git", "rev-parse", "--verify", "#{base_tag}^{commit}", out: File::NULL, err: File::NULL)
+    system("git", "fetch", "--force", "--quiet", "origin", "tag", base_tag, out: File::NULL, err: File::NULL)
+  end
+
   unless system("git", "rev-parse", "--verify", "#{base_tag}^{commit}", out: File::NULL, err: File::NULL)
     abort "Cannot verify #{release_note} freshness because #{base_tag} does not exist."
   end
