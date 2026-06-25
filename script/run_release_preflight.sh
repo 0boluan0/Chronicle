@@ -107,6 +107,38 @@ end
 puts "ok: #{manifest_tests.length} UI smoke test references are defined"
 RUBY
 
+section "UI smoke surface coverage"
+ruby <<'RUBY'
+test_path = "ChronicleUITests/ChronicleUITests.swift"
+test_source = File.read(test_path)
+
+required_identifiers = {
+  "dashboard sidebar next-step card" => "dashboard.sidebar.nextStep",
+  "dashboard sidebar next-step action" => "dashboard.sidebar.nextStep.primary",
+  "overview suggested-next card" => "dashboard.overview.suggestedNext",
+  "timeline next-step card" => "timeline.nextAction",
+  "timeline next-step action" => "timeline.next.primary",
+  "markers next-step card" => "dashboard.markers.nextAction",
+  "reports closeout next-step card" => "reports.closeout.nextAction",
+  "reports workspace next action" => "reports.workspace.nextAction",
+  "CSV export next action" => "reports.csv.guidance.nextAction"
+}
+
+missing = required_identifiers.reject do |_, identifier|
+  test_source.include?(%("#{identifier}"))
+end
+
+unless missing.empty?
+  puts "UI smoke tests must assert the key next-step release surfaces:"
+  missing.each do |label, identifier|
+    puts "  #{label}: #{identifier}"
+  end
+  abort "Key next-step surfaces need UI smoke coverage before release."
+end
+
+puts "ok: #{required_identifiers.length} key next-step surfaces are covered by UI smoke assertions"
+RUBY
+
 section "Release note freshness"
 ruby <<'RUBY'
 draft_notes = Dir["docs/releases/v*-rc*.md"].sort.select do |path|
