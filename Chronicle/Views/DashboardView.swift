@@ -610,8 +610,6 @@ struct DashboardView: View {
 
             sidebarTodayStatus
 
-            sidebarReadinessMeter
-
             sidebarTodayEvidenceStrip
 
             Divider()
@@ -836,43 +834,15 @@ struct DashboardView: View {
     private var sidebarNextStepCard: some View {
         RowSurface(tone: sidebarNextStepTone, isHovering: false) {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-                    IconWell(
-                        systemImage: sidebarNextStepIconName,
-                        tone: sidebarNextStepTone,
-                        accessibilityLabel: L(sidebarNextStepHeadlineStringKey)
-                    )
-                    .frame(width: 32, height: 32)
+                sidebarNextStepHeader
 
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("dashboard.sidebar.next_step.title")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-
-                        Text(sidebarNextStepHeadlineKey)
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.primary)
-                            .lineLimit(2)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .help(L(sidebarNextStepHeadlineStringKey))
-
-                        Text(sidebarNextStepDetailKey)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(3)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .help(L(sidebarNextStepDetailStringKey))
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                    Spacer(minLength: 0)
-                }
+                sidebarNextStepProgress
 
                 Button {
                     performSidebarNextStep()
                 } label: {
                     sidebarNextStepButtonLabel
+                        .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
@@ -882,6 +852,95 @@ struct DashboardView: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("dashboard.sidebar.nextStep")
+    }
+
+    private var sidebarNextStepHeader: some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+            IconWell(
+                systemImage: sidebarNextStepIconName,
+                tone: sidebarNextStepTone,
+                accessibilityLabel: L(sidebarNextStepHeadlineStringKey)
+            )
+            .frame(width: 32, height: 32)
+
+            VStack(alignment: .leading, spacing: 4) {
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.xs) {
+                        sidebarNextStepEyebrow
+
+                        Spacer(minLength: 0)
+
+                        sidebarNextStepStatusPill
+                    }
+
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+                        sidebarNextStepEyebrow
+                        sidebarNextStepStatusPill
+                    }
+                }
+
+                Text(sidebarNextStepHeadlineKey)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .help(L(sidebarNextStepHeadlineStringKey))
+
+                Text(sidebarNextStepDetailKey)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .help(L(sidebarNextStepDetailStringKey))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var sidebarNextStepEyebrow: some View {
+        Text("dashboard.sidebar.next_step.title")
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+    }
+
+    private var sidebarNextStepStatusPill: some View {
+        StatusPill(
+            sidebarNextStepStatusText,
+            systemImage: sidebarNextStepStatusIconName,
+            tone: sidebarNextStepTone
+        )
+        .fixedSize(horizontal: true, vertical: false)
+        .accessibilityIdentifier("dashboard.sidebar.nextStep.status")
+    }
+
+    private var sidebarNextStepProgress: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
+            HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.sm) {
+                Text("dashboard.sidebar.progress.label")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+
+                Spacer(minLength: 0)
+
+                Text(String(format: L("dashboard.sidebar.progress.value"), sidebarReadyStepCount, sidebarTotalStepCount))
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(sidebarReadinessTone.color)
+                    .lineLimit(1)
+                    .monospacedDigit()
+            }
+
+            RatioBar(
+                filledFraction: sidebarReadinessFraction,
+                filledColor: sidebarReadinessTone.color,
+                remainderColor: DesignSystem.Colors.separator
+            )
+        }
+        .padding(.horizontal, 2)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(String(format: L("dashboard.sidebar.progress.value"), sidebarReadyStepCount, sidebarTotalStepCount))
+        .accessibilityIdentifier("dashboard.sidebar.nextStep.progress")
     }
 
     private var sidebarTodayStatus: some View {
@@ -913,52 +972,6 @@ struct DashboardView: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("dashboard.sidebar.todayStatus")
-    }
-
-    private var sidebarReadinessMeter: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.sm) {
-                    sidebarReadinessLabel
-
-                    Spacer(minLength: 0)
-
-                    sidebarReadinessValue
-                }
-
-                VStack(alignment: .leading, spacing: 2) {
-                    sidebarReadinessLabel
-                    sidebarReadinessValue
-                }
-            }
-
-            RatioBar(
-                filledFraction: sidebarReadinessFraction,
-                filledColor: sidebarReadinessTone.color,
-                remainderColor: DesignSystem.Colors.separator
-            )
-        }
-        .padding(.horizontal, 2)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(String(format: L("dashboard.sidebar.progress.value"), sidebarReadyStepCount, sidebarTotalStepCount))
-        .accessibilityIdentifier("dashboard.sidebar.progress")
-    }
-
-    private var sidebarReadinessLabel: some View {
-        Text("dashboard.sidebar.progress.label")
-            .font(.caption2.weight(.semibold))
-            .foregroundStyle(.secondary)
-            .lineLimit(2)
-            .fixedSize(horizontal: false, vertical: true)
-    }
-
-    private var sidebarReadinessValue: some View {
-        Text(String(format: L("dashboard.sidebar.progress.value"), sidebarReadyStepCount, sidebarTotalStepCount))
-            .font(.caption2.weight(.semibold))
-            .foregroundStyle(sidebarReadinessTone.color)
-            .lineLimit(2)
-            .fixedSize(horizontal: false, vertical: true)
-            .monospacedDigit()
     }
 
     private var sidebarTodayEvidenceStrip: some View {
@@ -1158,6 +1171,50 @@ struct DashboardView: View {
 
     private var sidebarNextStepButtonIsDisabled: Bool {
         dailyExportState.isRunning
+    }
+
+    private var sidebarNextStepStatusText: String {
+        switch sidebarNextStepState {
+        case .savingDailyLog:
+            return L("dashboard.sidebar.today_evidence.log_value.saving")
+        case .paused:
+            return L("dashboard.sidebar.today_status.status.paused")
+        case .captureIssue:
+            return L("dashboard.sidebar.today_status.status.needs_check")
+        case .addContext:
+            return L("dashboard.sidebar.flow.step.status.current")
+        case .needsLogFolder:
+            return L("dashboard.sidebar.today_evidence.log_value.not_set")
+        case .reviewDailyLog:
+            return L("dashboard.sidebar.today_evidence.log_value.ready")
+        case .logFailed:
+            return L("dashboard.sidebar.today_evidence.log_value.failed")
+        case .savedToday:
+            return L("dashboard.sidebar.today_evidence.log_value.saved")
+        case .startToday:
+            return L("dashboard.sidebar.today_status.status.ready")
+        }
+    }
+
+    private var sidebarNextStepStatusIconName: String {
+        switch sidebarNextStepState {
+        case .savingDailyLog:
+            return "arrow.clockwise"
+        case .paused:
+            return "pause.circle"
+        case .captureIssue, .logFailed:
+            return "exclamationmark.triangle.fill"
+        case .addContext:
+            return "note.text.badge.plus"
+        case .needsLogFolder:
+            return "folder.badge.plus"
+        case .reviewDailyLog:
+            return "doc.badge.plus"
+        case .savedToday:
+            return "checkmark.seal.fill"
+        case .startToday:
+            return "checkmark.circle"
+        }
     }
 
     private var sidebarNextStepIconName: String {
