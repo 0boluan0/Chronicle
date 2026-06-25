@@ -400,9 +400,12 @@ struct AppMappingsView: View {
                 Text(titleKey)
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(detailKey)
                     .font(.caption2)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -530,7 +533,8 @@ struct AppMappingsView: View {
                 Text(titleKey)
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(detailKey)
                     .font(.caption2)
