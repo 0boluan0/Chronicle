@@ -217,7 +217,8 @@ struct OnboardingView: View {
                 Text("onboarding.path.focus.label")
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Text(LocalizedStringKey(setupRailFocusTitleKey))
@@ -804,7 +805,8 @@ struct OnboardingView: View {
                 Text("onboarding.positioning.title")
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text("onboarding.positioning.detail")
                     .font(.caption2)
@@ -837,7 +839,8 @@ struct OnboardingView: View {
                 Text("onboarding.first_day.title")
                     .font(.caption.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text("onboarding.hero.title")
                     .font(.title2.weight(.semibold))
