@@ -1542,6 +1542,7 @@ struct SupportPreferencesView: View {
             Text(text)
                 .font(.caption.monospaced())
                 .foregroundColor(DesignSystem.Colors.primaryText)
+                .lineLimit(3)
                 .truncationMode(.middle)
                 .fixedSize(horizontal: false, vertical: true)
                 .textSelection(.enabled)
