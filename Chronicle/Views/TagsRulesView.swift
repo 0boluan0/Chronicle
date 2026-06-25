@@ -623,7 +623,8 @@ struct TagsManagementView: View {
             Text("tags.review.starter_preview.title")
                 .font(.caption.weight(.semibold))
                 .foregroundColor(DesignSystem.Colors.primaryText)
-                .lineLimit(1)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
 
             Text("tags.review.starter_preview.detail")
                 .font(.caption2)
@@ -1351,7 +1352,8 @@ struct RulesManagementView: View {
                 Text(title)
                     .font(.caption2)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Text(value)
                     .font(.headline.weight(.semibold))
@@ -1362,7 +1364,7 @@ struct RulesManagementView: View {
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
                     .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(DesignSystem.Spacing.sm)
