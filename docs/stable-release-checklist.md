@@ -47,9 +47,9 @@ This checklist is for preparing a stable `v0.x` release with low upgrade risk.
 - Build DMG from clean source state.
 - Confirm the packaging script verifies the generated DMG image before checksum generation.
 - For RC candidates, build with the release tag as the artifact version:
-  - `DMG_VERSION=v0.1.0-rc1 CODESIGN_IDENTITY="" scripts/build_dmg.sh`
+  - `TAG=<tag>; DMG_VERSION="$TAG" CODESIGN_IDENTITY="" scripts/build_dmg.sh`
 - Verify checksum:
-  - `cd dist && shasum -a 256 -c Chronicle-v0.1.0-rc1.dmg.sha256`
+  - `TAG=<tag>; cd dist && shasum -a 256 -c "Chronicle-${TAG}.dmg.sha256"`
 - Confirm the release workflow re-checks DMG checksums before uploading assets.
 - If signing secrets are unavailable, verify the workflow publishes a development DMG plus checksum.
 - If signing secrets are available, verify signing, notarization, stapling, and checksum generation.
