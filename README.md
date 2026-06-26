@@ -9,8 +9,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/0boluan0/Chronicle/releases/latest">
-    <img src="https://img.shields.io/github/v/release/0boluan0/Chronicle?display_name=tag&style=flat-square" alt="Release">
+  <a href="https://github.com/0boluan0/Chronicle/releases">
+    <img src="https://img.shields.io/github/v/release/0boluan0/Chronicle?display_name=tag&include_prereleases&style=flat-square" alt="Release">
   </a>
   <a href="https://github.com/0boluan0/Chronicle/actions/workflows/ci.yml">
     <img src="https://img.shields.io/github/actions/workflow/status/0boluan0/Chronicle/ci.yml?branch=main&style=flat-square" alt="CI">
@@ -46,15 +46,15 @@ Chronicle is not a cloud analytics platform, employee monitoring tool, screensho
 
 ## Download
 
-Get the current build from [GitHub Releases](https://github.com/0boluan0/Chronicle/releases/latest).
+Get the current build from [GitHub Releases](https://github.com/0boluan0/Chronicle/releases).
 
-The current release candidate is [`v0.1.0-rc1`](https://github.com/0boluan0/Chronicle/releases/tag/v0.1.0-rc1):
+The current release candidate is [`v0.1.0-rc2`](https://github.com/0boluan0/Chronicle/releases/tag/v0.1.0-rc2):
 
-- `Chronicle-v0.1.0-rc1.dmg`
-- `Chronicle-v0.1.0-rc1.dmg.sha256`
+- `Chronicle-v0.1.0-rc2.dmg`
+- `Chronicle-v0.1.0-rc2.dmg.sha256`
 
 Install it by opening the DMG and dragging `Chronicle.app` into `/Applications`.
-The published DMG is 4,303,715 bytes and its SHA-256 checksum is `21d9e4d067d8b27318414005e9664b0cc17ca749163b003e6d91460855bfd698`.
+The published DMG is 15,683,481 bytes and its SHA-256 checksum is `d8be5843d4f2c67cd8b008d186397cbf5fdafa24d157453b83da4dbedd6d8b21`.
 
 Release-candidate builds may be unsigned or not notarized when distribution credentials are unavailable. If macOS blocks first launch, use Finder to right-click `Chronicle.app`, choose **Open**, and confirm that you trust the downloaded build.
 
@@ -180,21 +180,22 @@ Release candidates are built by the GitHub Actions release workflow from a versi
 Local RC packaging command:
 
 ```sh
-DMG_VERSION=v0.1.0-rc1 CODESIGN_IDENTITY="" scripts/build_dmg.sh
-cd dist && shasum -a 256 -c Chronicle-v0.1.0-rc1.dmg.sha256
+TAG=v0.1.0-rc2
+DMG_VERSION="$TAG" CODESIGN_IDENTITY="" scripts/build_dmg.sh
+cd dist && shasum -a 256 -c "Chronicle-${TAG}.dmg.sha256"
 ```
 
 After the GitHub Release uploads finish, verify the public DMG asset digest against the published checksum asset:
 
 ```sh
-bash script/check_release_assets.sh v0.1.0-rc1
+bash script/check_release_assets.sh v0.1.0-rc2
 ```
 
 Signing and notarization are optional in the current workflow. When credentials are not configured, the generated artifact is a development, notarization-free DMG and the release notes should say so explicitly.
 
 Treat GitHub Releases as the public download source of truth. Local files under `dist/` may be developer or internal builds; do not update the Download section unless the matching tag, DMG, checksum, and release notes are published on GitHub.
 
-See [docs/stable-release-checklist.md](docs/stable-release-checklist.md), [docs/update-strategy.md](docs/update-strategy.md), and [docs/releases/v0.1.0-rc1.md](docs/releases/v0.1.0-rc1.md) for the current release checklist and RC validation record.
+See [docs/stable-release-checklist.md](docs/stable-release-checklist.md), [docs/update-strategy.md](docs/update-strategy.md), and [docs/releases/v0.1.0-rc2.md](docs/releases/v0.1.0-rc2.md) for the current release checklist and RC validation record.
 
 ## Documentation
 

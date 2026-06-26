@@ -25,7 +25,6 @@ struct SupportPreferencesView: View {
     @State private var showHealthReport = false
     @AppStorage("preferences.support.openHealthReport") private var shouldOpenHealthReport = false
 
-    private let latestReleaseURL = URL(string: "https://github.com/0boluan0/Chronicle/releases/latest")!
     private let releasesPageURL = URL(string: "https://github.com/0boluan0/Chronicle/releases")!
     private let dataSafetyGuideURL = URL(string: "https://github.com/0boluan0/Chronicle/blob/main/docs/data-safety.md")!
     private let migrationGuideURL = URL(string: "https://github.com/0boluan0/Chronicle/blob/main/docs/migrations-and-upgrades.md")!
@@ -133,9 +132,9 @@ struct SupportPreferencesView: View {
                         Button {
                             TelemetryService.shared.increment("check_updates_opened")
                             open(
-                                url: latestReleaseURL,
+                                url: releasesPageURL,
                                 target: .actions,
-                                successKey: "support.status.opened_latest_release",
+                                successKey: "support.status.opened_releases",
                                 failureKey: "support.status.open_failed_url"
                             )
                         } label: {
@@ -609,9 +608,9 @@ struct SupportPreferencesView: View {
                     Button {
                         TelemetryService.shared.increment("check_updates_opened")
                         open(
-                            url: latestReleaseURL,
+                            url: releasesPageURL,
                             target: .releaseSafety,
-                            successKey: "support.status.opened_latest_release",
+                            successKey: "support.status.opened_releases",
                             failureKey: "support.status.open_failed_url"
                         )
                     } label: {
@@ -734,9 +733,9 @@ struct SupportPreferencesView: View {
             Button {
                 TelemetryService.shared.increment("check_updates_opened")
                 open(
-                    url: latestReleaseURL,
+                    url: releasesPageURL,
                     target: .updateChannel,
-                    successKey: "support.status.opened_latest_release",
+                    successKey: "support.status.opened_releases",
                     failureKey: "support.status.open_failed_url"
                 )
             } label: {
@@ -1242,7 +1241,7 @@ struct SupportPreferencesView: View {
         let checklist = [
             String(format: L("support.update_channel.checklist.current"), versionString),
             L("support.update_channel.checklist.source"),
-            latestReleaseURL.absoluteString,
+            releasesPageURL.absoluteString,
             L("support.update_channel.checklist.verify"),
             L("support.update_channel.checklist.release_notes"),
             L("support.update_channel.checklist.release_checklist"),

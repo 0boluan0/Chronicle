@@ -1432,7 +1432,7 @@
 "support.release_safety.run_check" = "Run Health Check";
 "support.release_safety.open_health" = "Review Health";
 "support.release_safety.open_data_safety" = "Read Data Safety";
-"support.release_safety.open_latest" = "Open Latest Release";
+"support.release_safety.open_latest" = "Open Releases Page";
 "support.update_channel.title" = "Update Trust";
 "support.update_channel.heading" = "Manual updates, no background downloads.";
 "support.update_channel.detail" = "Chronicle only opens GitHub when you ask. Download the DMG and checksum together before replacing the app.";
@@ -1463,7 +1463,7 @@
 "support.update_channel.recovery_title" = "Recovery path";
 "support.update_channel.recovery_detail" = "Keep the previous stable build reachable before replacing Chronicle.";
 "support.update_channel.recovery_status" = "Rollback ready";
-"support.update_channel.open_latest" = "Open Latest Release";
+"support.update_channel.open_latest" = "Open Releases Page";
 "support.update_channel.open_upgrade_guide" = "Open Upgrade Guide";
 "support.update_channel.open_release_checklist" = "Open Release Checklist";
 "support.update_channel.open_release_archive" = "Open Release Archive";
@@ -1471,7 +1471,7 @@
 "support.update_channel.checklist_copied" = "Copied update checklist.";
 "support.update_channel.checklist_copy_failed" = "Could not copy the update checklist.";
 "support.update_channel.checklist.current" = "Current build: %@";
-"support.update_channel.checklist.source" = "Open the latest GitHub Release and download the DMG plus matching .sha256:";
+"support.update_channel.checklist.source" = "Open GitHub Releases and download the newest DMG plus matching .sha256:";
 "support.update_channel.checklist.verify" = "Verify the downloaded DMG with the matching checksum before replacing the app.";
 "support.update_channel.checklist.release_notes" = "Read the release notes and only use a candidate when validation and known limitations are documented.";
 "support.update_channel.checklist.release_checklist" = "Check the release gate before trusting a candidate:";

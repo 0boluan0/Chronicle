@@ -1432,7 +1432,7 @@
 "support.release_safety.run_check" = "运行健康检查";
 "support.release_safety.open_health" = "查看健康详情";
 "support.release_safety.open_data_safety" = "阅读数据安全";
-"support.release_safety.open_latest" = "打开最新版";
+"support.release_safety.open_latest" = "打开 Release 页面";
 "support.update_channel.title" = "更新可信度";
 "support.update_channel.heading" = "手动更新，不后台下载。";
 "support.update_channel.detail" = "Chronicle 只会在你点击时打开 GitHub。替换应用前，把 DMG 和校验文件一起下载。";
@@ -1463,7 +1463,7 @@
 "support.update_channel.recovery_title" = "回退路径";
 "support.update_channel.recovery_detail" = "替换 Chronicle 前，保留上一个稳定版本的下载入口。";
 "support.update_channel.recovery_status" = "可手动回退";
-"support.update_channel.open_latest" = "打开最新版";
+"support.update_channel.open_latest" = "打开 Release 页面";
 "support.update_channel.open_upgrade_guide" = "打开升级指南";
 "support.update_channel.open_release_checklist" = "打开发布检查清单";
 "support.update_channel.open_release_archive" = "打开历史版本";
@@ -1471,7 +1471,7 @@
 "support.update_channel.checklist_copied" = "已复制更新检查清单。";
 "support.update_channel.checklist_copy_failed" = "无法复制更新检查清单。";
 "support.update_channel.checklist.current" = "当前版本：%@";
-"support.update_channel.checklist.source" = "打开最新 GitHub Release，同时下载 DMG 和匹配的 .sha256：";
+"support.update_channel.checklist.source" = "打开 GitHub Releases，下载最新的 DMG 和匹配的 .sha256：";
 "support.update_channel.checklist.verify" = "替换应用前，用匹配的校验文件验证下载的 DMG。";
 "support.update_channel.checklist.release_notes" = "阅读发布说明；只有验证记录和已知限制写清楚时，才使用候选版本。";
 "support.update_channel.checklist.release_checklist" = "信任候选版本前，先核对发布门槛：";
