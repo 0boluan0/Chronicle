@@ -21,7 +21,6 @@ struct DebugPreferencesView: View {
             tone: appState.debugLoggingEnabled ? .warning : .neutral
         ) {
             diagnosticStatusSection
-            troubleshootingFlowSection
         }
     }
 
@@ -33,6 +32,8 @@ struct DebugPreferencesView: View {
                 RowSurface(tone: appState.debugLoggingEnabled ? .warning : .neutral) {
                     diagnosticSafetyNote
                 }
+
+                troubleshootingActions
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityIdentifier("preferences.debug.logging")
@@ -103,107 +104,6 @@ struct DebugPreferencesView: View {
         .labelStyle(.titleAndIcon)
     }
 
-    private var troubleshootingFlowSection: some View {
-        SectionCard(title: "preferences.debug.flow.title") {
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                debugFlowHeader
-
-                LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 176), spacing: DesignSystem.Spacing.sm, alignment: .topLeading)],
-                    alignment: .leading,
-                    spacing: DesignSystem.Spacing.sm
-                ) {
-                    debugFlowItem(
-                        titleKey: "preferences.debug.flow.health_title",
-                        detailKey: "preferences.debug.flow.health_detail",
-                        systemImage: "stethoscope",
-                        tone: .info,
-                        accessibilityIdentifier: "preferences.debug.flow.health"
-                    )
-                    debugFlowItem(
-                        titleKey: "preferences.debug.flow.logs_title",
-                        detailKey: "preferences.debug.flow.logs_detail",
-                        systemImage: "record.circle",
-                        tone: appState.debugLoggingEnabled ? .warning : .neutral,
-                        accessibilityIdentifier: "preferences.debug.flow.logs"
-                    )
-                    debugFlowItem(
-                        titleKey: "preferences.debug.flow.package_title",
-                        detailKey: "preferences.debug.flow.package_detail",
-                        systemImage: "shippingbox",
-                        tone: .success,
-                        accessibilityIdentifier: "preferences.debug.flow.package"
-                    )
-                }
-
-                troubleshootingActions
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .accessibilityIdentifier("preferences.debug.flow")
-    }
-
-    private var debugFlowHeader: some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-            IconWell(systemImage: "checklist", tone: .info, accessibilityLabel: L("preferences.debug.flow.title"))
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("preferences.debug.flow.heading")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text("preferences.debug.flow.detail")
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-
-    private func debugFlowItem(
-        titleKey: LocalizedStringKey,
-        detailKey: LocalizedStringKey,
-        systemImage: String,
-        tone: DesignSystem.StatusTone,
-        accessibilityIdentifier: String
-    ) -> some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-            Image(systemName: systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(tone.color)
-                .frame(width: 18, height: 18)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(titleKey)
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-
-                Text(detailKey)
-                    .font(.caption2)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(DesignSystem.Spacing.sm)
-        .frame(maxWidth: .infinity, minHeight: 72, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .fill(tone.color.opacity(0.07))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .stroke(tone.color.opacity(0.18), lineWidth: 1)
-        )
-        .accessibilityIdentifier(accessibilityIdentifier)
-    }
-
     private var troubleshootingActions: some View {
         ViewThatFits(in: .horizontal) {
             HStack(spacing: DesignSystem.Spacing.sm) {
@@ -219,7 +119,7 @@ struct DebugPreferencesView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .accessibilityIdentifier("preferences.debug.flow.actions")
+        .accessibilityIdentifier("preferences.debug.actions")
     }
 
     private var openSupportAction: some View {

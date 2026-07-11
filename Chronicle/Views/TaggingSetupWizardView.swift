@@ -62,7 +62,6 @@ struct TaggingSetupWizardView: View {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                 wizardIntro
                 wizardSummaryStrip
-                wizardOutcomeStrip
                 wizardControls
                 statusView
 
@@ -106,7 +105,7 @@ struct TaggingSetupWizardView: View {
                 tone: .info,
                 accessibilityIdentifier: "wizard.loadingState"
             ) {
-                wizardLoadingPath
+                EmptyView()
             }
         } else {
             wizardQueueState(
@@ -116,7 +115,7 @@ struct TaggingSetupWizardView: View {
                 tone: .neutral,
                 accessibilityIdentifier: "wizard.emptyState"
             ) {
-                wizardEmptyPath
+                EmptyView()
             }
         }
     }
@@ -149,58 +148,6 @@ struct TaggingSetupWizardView: View {
                 .stroke(tone.color.opacity(0.12), lineWidth: 1)
         )
         .accessibilityIdentifier(accessibilityIdentifier)
-    }
-
-    private var wizardLoadingPath: some View {
-        wizardQueuePath(accessibilityIdentifier: "wizard.loadingPath") {
-            wizardQueuePathItem(
-                titleKey: "wizard.loading.path.activity_title",
-                detailKey: "wizard.loading.path.activity_detail",
-                systemImage: "clock.arrow.circlepath",
-                tone: .info,
-                accessibilityIdentifier: "wizard.loadingPath.activity"
-            )
-            wizardQueuePathItem(
-                titleKey: "wizard.loading.path.tags_title",
-                detailKey: "wizard.loading.path.tags_detail",
-                systemImage: "rectangle.split.3x1",
-                tone: .neutral,
-                accessibilityIdentifier: "wizard.loadingPath.tags"
-            )
-            wizardQueuePathItem(
-                titleKey: "wizard.loading.path.queue_title",
-                detailKey: "wizard.loading.path.queue_detail",
-                systemImage: "list.bullet.rectangle",
-                tone: .success,
-                accessibilityIdentifier: "wizard.loadingPath.queue"
-            )
-        }
-    }
-
-    private var wizardEmptyPath: some View {
-        wizardQueuePath(accessibilityIdentifier: "wizard.emptyPath") {
-            wizardQueuePathItem(
-                titleKey: "wizard.empty.path.capture_title",
-                detailKey: "wizard.empty.path.capture_detail",
-                systemImage: "record.circle",
-                tone: .info,
-                accessibilityIdentifier: "wizard.emptyPath.capture"
-            )
-            wizardQueuePathItem(
-                titleKey: "wizard.empty.path.sections_title",
-                detailKey: "wizard.empty.path.sections_detail",
-                systemImage: "rectangle.split.3x1",
-                tone: .neutral,
-                accessibilityIdentifier: "wizard.emptyPath.sections"
-            )
-            wizardQueuePathItem(
-                titleKey: "wizard.empty.path.refresh_title",
-                detailKey: "wizard.empty.path.refresh_detail",
-                systemImage: "arrow.clockwise",
-                tone: .success,
-                accessibilityIdentifier: "wizard.emptyPath.refresh"
-            )
-        }
     }
 
     private func wizardQueuePath<Content: View>(
@@ -344,104 +291,6 @@ struct TaggingSetupWizardView: View {
             )
         }
         .padding(.vertical, DesignSystem.Spacing.xs)
-    }
-
-    private var wizardOutcomeStrip: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            wizardOutcomeSummary
-            wizardOutcomeStatusPill
-
-            LazyVGrid(
-                columns: adaptiveColumns(minimum: 150, spacing: DesignSystem.Spacing.sm),
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.sm
-            ) {
-                ForEach(wizardOutcomeItems) { item in
-                    wizardOutcomeItemView(item)
-                }
-            }
-        }
-        .padding(DesignSystem.Spacing.sm)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(wizardOutcomeTone.color.opacity(0.07))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .stroke(wizardOutcomeTone.color.opacity(0.18), lineWidth: 1)
-        )
-        .accessibilityIdentifier("wizard.outcomeStrip")
-    }
-
-    private var wizardOutcomeSummary: some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-            IconWell(
-                systemImage: wizardOutcomeIconName,
-                tone: wizardOutcomeTone,
-                accessibilityLabel: L("wizard.outcome.title")
-            )
-            .frame(width: 34, height: 34)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("wizard.outcome.title")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(LocalizedStringKey(wizardOutcomeDetailKey))
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
-    private var wizardOutcomeStatusPill: some View {
-        StatusPill(
-            L(wizardOutcomeStatusKey),
-            systemImage: wizardOutcomeIconName,
-            tone: wizardOutcomeTone
-        )
-    }
-
-    private func wizardOutcomeItemView(_ item: WizardOutcomeItem) -> some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-            Image(systemName: item.systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(item.tone.color)
-                .frame(width: 16)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(LocalizedStringKey(item.titleKey))
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(LocalizedStringKey(item.detailKey))
-                    .font(.caption2)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, DesignSystem.Spacing.sm)
-        .padding(.vertical, 7)
-        .frame(maxWidth: .infinity, minHeight: 54, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .fill(item.tone.color.opacity(0.06))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .stroke(item.tone.color.opacity(0.14), lineWidth: 1)
-        )
-        .accessibilityIdentifier("wizard.outcome.item.\(item.id)")
     }
 
     private var wizardControls: some View {
@@ -816,98 +665,6 @@ struct TaggingSetupWizardView: View {
         suggestions.reduce(0) { $0 + $1.durationSeconds }
     }
 
-    private var wizardOutcomeDetailKey: String {
-        if suggestions.isEmpty {
-            return "wizard.outcome.detail.empty"
-        }
-        if unassignedCount > 0 {
-            return "wizard.outcome.detail.needs_sections"
-        }
-        if hasPendingChanges {
-            return "wizard.outcome.detail.pending"
-        }
-        return "wizard.outcome.detail.ready"
-    }
-
-    private var wizardOutcomeStatusKey: String {
-        if suggestions.isEmpty {
-            return "wizard.outcome.status.empty"
-        }
-        if unassignedCount > 0 {
-            return "wizard.outcome.status.needs_review"
-        }
-        if hasPendingChanges {
-            return "wizard.outcome.status.pending"
-        }
-        return "wizard.outcome.status.ready"
-    }
-
-    private var wizardOutcomeIconName: String {
-        if suggestions.isEmpty {
-            return "clock.badge.questionmark"
-        }
-        if unassignedCount > 0 {
-            return "exclamationmark.triangle.fill"
-        }
-        if hasPendingChanges {
-            return "pencil.and.list.clipboard"
-        }
-        return "checkmark.seal.fill"
-    }
-
-    private var wizardOutcomeTone: DesignSystem.StatusTone {
-        if suggestions.isEmpty {
-            return .neutral
-        }
-        if unassignedCount > 0 {
-            return .warning
-        }
-        if hasPendingChanges {
-            return .info
-        }
-        return .success
-    }
-
-    private var wizardOutcomeItems: [WizardOutcomeItem] {
-        [
-            .init(
-                id: "review",
-                titleKey: "wizard.outcome.review_title",
-                detailKey: suggestions.isEmpty ? "wizard.outcome.review_empty" : "wizard.outcome.review_ready",
-                systemImage: "list.bullet.rectangle",
-                tone: suggestions.isEmpty ? .neutral : .info
-            ),
-            .init(
-                id: "sections",
-                titleKey: "wizard.outcome.sections_title",
-                detailKey: wizardOutcomeSectionsDetailKey,
-                systemImage: suggestions.isEmpty ? "rectangle.dashed" : (unassignedCount == 0 ? "rectangle.split.3x1" : "exclamationmark.triangle.fill"),
-                tone: suggestions.isEmpty ? .neutral : (unassignedCount == 0 ? .success : .warning)
-            ),
-            .init(
-                id: "future",
-                titleKey: "wizard.outcome.future_title",
-                detailKey: wizardOutcomeFutureDetailKey,
-                systemImage: hasPendingChanges ? "checkmark.circle" : "arrow.triangle.2.circlepath",
-                tone: suggestions.isEmpty ? .neutral : (hasPendingChanges ? .info : .success)
-            )
-        ]
-    }
-
-    private var wizardOutcomeSectionsDetailKey: String {
-        if suggestions.isEmpty {
-            return "wizard.outcome.sections_empty"
-        }
-        return unassignedCount == 0 ? "wizard.outcome.sections_ready" : "wizard.outcome.sections_needed"
-    }
-
-    private var wizardOutcomeFutureDetailKey: String {
-        if suggestions.isEmpty {
-            return "wizard.outcome.future_empty"
-        }
-        return hasPendingChanges ? "wizard.outcome.future_pending" : "wizard.outcome.future_ready"
-    }
-
     private func selectedTag(for item: WizardSuggestion) -> TagRow? {
         guard let selectedTagId = item.selectedTagId else {
             return nil
@@ -985,14 +742,6 @@ private struct WizardSuggestion: Identifiable {
     var hasChanges: Bool {
         initialTagId != selectedTagId || initialMode != selectedMode
     }
-}
-
-private struct WizardOutcomeItem: Identifiable {
-    let id: String
-    let titleKey: String
-    let detailKey: String
-    let systemImage: String
-    let tone: DesignSystem.StatusTone
 }
 
 #Preview {

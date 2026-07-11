@@ -2,20 +2,17 @@
 
 ## Supported Versions
 
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
+Chronicle is currently maintained as a single stable release line.
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 5.1.x   | :white_check_mark: |
-| 5.0.x   | :x:                |
-| 4.0.x   | :white_check_mark: |
-| < 4.0   | :x:                |
+| Version | Supported |
+| --- | --- |
+| Latest stable `0.x` release | Yes |
+| Prereleases and older builds | No |
 
 ## Reporting a Vulnerability
 
-Use this section to tell people how to report a vulnerability.
+Please report security issues privately through [GitHub Security Advisories](https://github.com/0boluan0/Chronicle/security/advisories/new). Do not open a public issue for a vulnerability that could expose user activity data or weaken Chronicle's local-only privacy boundary.
 
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+Include the affected Chronicle version, macOS version, reproduction steps, and the likely impact. You should receive an acknowledgement within seven days. Fix timing depends on severity and whether the report can be reproduced.
+
+Chronicle does not collect user activity data remotely, so reports should not include a real activity database. Use a minimal test database or redact app names, window titles, notes, paths, and exported content.

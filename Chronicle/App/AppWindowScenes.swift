@@ -19,7 +19,7 @@ enum AppWindowMetrics {
     static let dashboardMinimum = CGSize(width: 680, height: 500)
     static let preferencesDefault = CGSize(width: 860, height: 640)
     static let preferencesMinimum = CGSize(width: 640, height: 500)
-    static let welcomeDefault = CGSize(width: 860, height: 640)
+    static let welcomeDefault = CGSize(width: 980, height: 720)
     static let welcomeMinimum = CGSize(width: 600, height: 460)
     static let quickMarkerDefault = CGSize(width: 800, height: 560)
     static let quickMarkerMinimum = CGSize(width: 520, height: 420)

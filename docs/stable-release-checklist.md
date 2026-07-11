@@ -5,6 +5,11 @@ This checklist is for preparing a stable `v0.x` release with low upgrade risk.
 ## 1. Preflight
 
 - Confirm target release tag and branch are frozen.
+- Confirm an online self-hosted macOS runner has the `chronicle-ui` label and Automation Mode enabled without authentication.
+- Set the `CHRONICLE_UI_SMOKE_ENABLED=1` repository variable only after that runner is online.
+- Configure these GitHub Actions secrets:
+  - `CODESIGN_IDENTITY`, `MACOS_CERTIFICATE_P12`, `MACOS_CERTIFICATE_PASSWORD`
+  - `APPLE_API_KEY_BASE64`, `APPLE_API_KEY_ID`, `APPLE_API_ISSUER_ID`
 - Run the lightweight local preflight before heavier test or packaging work:
   - `./script/run_release_preflight.sh`
   - This checks script syntax, workflow YAML, localized string syntax, localized key uniqueness, English/Simplified Chinese key parity, shared schemes, UI smoke manifest references, and whitespace.
@@ -51,8 +56,8 @@ This checklist is for preparing a stable `v0.x` release with low upgrade risk.
 - Verify checksum:
   - `TAG=<tag>; cd dist && shasum -a 256 -c "Chronicle-${TAG}.dmg.sha256"`
 - Confirm the release workflow re-checks DMG checksums before uploading assets.
-- If signing secrets are unavailable, verify the workflow publishes a development DMG plus checksum.
-- If signing secrets are available, verify signing, notarization, stapling, and checksum generation.
+- Confirm the release workflow stops when signing or notarization secrets are unavailable.
+- Verify Developer ID signing, notarization, stapling, and checksum generation.
 - Publish checksums and file sizes in release notes.
 - After upload, compare the GitHub Release asset digest, the published `.sha256` asset, README download copy, and `docs/releases/<tag>.md`; all four must name the same DMG checksum before the release is promoted.
 - Verify the uploaded GitHub Release assets with GitHub CLI:

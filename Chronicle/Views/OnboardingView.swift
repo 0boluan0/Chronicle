@@ -82,15 +82,7 @@ struct OnboardingView: View {
     }
 
     private var header: some View {
-        LazyVGrid(
-            columns: adaptiveColumns(minimum: 220, spacing: DesignSystem.Spacing.md),
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            onboardingHeaderCopy
-            onboardingHeaderProgress
-                .frame(maxWidth: .infinity, alignment: .trailing)
-        }
+        onboardingHeaderCopy
         .accessibilityIdentifier("onboarding.header")
     }
 
@@ -104,10 +96,6 @@ struct OnboardingView: View {
                     .foregroundColor(DesignSystem.Colors.primaryText)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
-                Text(stepIndicator)
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-
                 Text(LocalizedStringKey(stepSummaryKey))
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
@@ -117,39 +105,6 @@ struct OnboardingView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityElement(children: .combine)
-    }
-
-    private var onboardingHeaderProgress: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-            StatusPill(stepStatusText, systemImage: stepStatusIconName, tone: stepTone)
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            RatioBar(
-                filledFraction: setupRailProgressFraction,
-                filledColor: setupRailFocusTone.color,
-                remainderColor: DesignSystem.Colors.separator
-            )
-            .frame(maxWidth: 180)
-
-            Text(setupRailProgressText)
-                .font(.caption2.weight(.medium))
-                .foregroundColor(DesignSystem.Colors.secondaryText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.82)
-                .monospacedDigit()
-        }
-        .padding(.horizontal, DesignSystem.Spacing.sm)
-        .padding(.vertical, 7)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(setupRailFocusTone.color.opacity(0.07))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .stroke(setupRailFocusTone.color.opacity(0.18), lineWidth: 1)
-        )
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("onboarding.header.progress")
     }
 
     private var setupRail: some View {
@@ -208,19 +163,6 @@ struct OnboardingView: View {
 
     private var setupRailFocusCard: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            HStack(alignment: .center, spacing: 7) {
-                Image(systemName: setupRailFocusIconName)
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(setupRailFocusTone.color)
-                    .frame(width: 14)
-
-                Text("onboarding.path.focus.label")
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
             Text(LocalizedStringKey(setupRailFocusTitleKey))
                 .font(.caption.weight(.semibold))
                 .foregroundColor(DesignSystem.Colors.primaryText)
@@ -232,19 +174,6 @@ struct OnboardingView: View {
                 .foregroundColor(DesignSystem.Colors.secondaryText)
                 .lineLimit(3)
                 .fixedSize(horizontal: false, vertical: true)
-
-            RatioBar(
-                filledFraction: setupRailProgressFraction,
-                filledColor: setupRailFocusTone.color,
-                remainderColor: DesignSystem.Colors.separator
-            )
-            .padding(.top, 1)
-
-            StatusPill(
-                setupRailProgressText,
-                systemImage: setupRailProgressIconName,
-                tone: setupRailFocusTone
-            )
         }
         .padding(DesignSystem.Spacing.sm)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -285,11 +214,6 @@ struct OnboardingView: View {
                         .foregroundColor(DesignSystem.Colors.primaryText)
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
-
-                    Text(railStatusText(for: flowStep))
-                        .font(.caption2)
-                        .foregroundColor(state.tone.color)
-                        .lineLimit(1)
                 }
 
                 Spacer(minLength: 0)
@@ -407,21 +331,6 @@ struct OnboardingView: View {
         }
     }
 
-    private func railStatusText(for flowStep: Step) -> String {
-        switch flowStep {
-        case .value:
-            return L("onboarding.status.ready")
-        case .exports:
-            return exportStatusText
-        case .privacy:
-            return titleCaptureStatusText
-        case .finish:
-            return flowStep == step
-                ? L("onboarding.status.ready")
-                : L("onboarding.status.final_step")
-        }
-    }
-
     private var setupRailFocusState: SetupRailFocusState {
         switch step {
         case .value:
@@ -476,23 +385,6 @@ struct OnboardingView: View {
         }
     }
 
-    private var setupRailFocusIconName: String {
-        switch setupRailFocusState {
-        case .firstDay:
-            return "sparkles"
-        case .chooseFolder, .finishNeedsFolder:
-            return "folder.badge.plus"
-        case .folderReady:
-            return "folder"
-        case .privacyReady:
-            return "hand.raised"
-        case .permissionChoice:
-            return "exclamationmark.triangle.fill"
-        case .finishReady:
-            return "checkmark.seal.fill"
-        }
-    }
-
     private var setupRailFocusTone: DesignSystem.StatusTone {
         switch setupRailFocusState {
         case .chooseFolder, .permissionChoice, .finishNeedsFolder:
@@ -502,36 +394,6 @@ struct OnboardingView: View {
         case .firstDay, .privacyReady:
             return .info
         }
-    }
-
-    private var setupRailProgressFraction: Double {
-        Double(setupRailReadyCount) / Double(setupRailTotalCount)
-    }
-
-    private var setupRailProgressText: String {
-        String(format: L("onboarding.path.focus.progress"), setupRailReadyCount, setupRailTotalCount)
-    }
-
-    private var setupRailProgressIconName: String {
-        setupRailReadyCount == setupRailTotalCount ? "checkmark.circle.fill" : "circle.dashed"
-    }
-
-    private var setupRailReadyCount: Int {
-        var count = 1
-        if hasDailyExportFolderConfigured {
-            count += 1
-        }
-        if !appState.windowTitleCaptureEnabled || appState.accessibilityAuthorized {
-            count += 1
-        }
-        if step == .finish {
-            count += 1
-        }
-        return count
-    }
-
-    private var setupRailTotalCount: Int {
-        4
     }
 
     @ViewBuilder
@@ -709,41 +571,11 @@ struct OnboardingView: View {
     }
 
     private var valueContent: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            workdayHero
-
-            dayFlowSection
-
-            SectionCard(title: "onboarding.value.ready_title") {
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    onboardingFeatureRow(
-                        systemImage: "clock",
-                        title: "onboarding.welcome.item.timeline",
-                        detail: "onboarding.value.timeline_detail",
-                        tone: .info
-                    )
-                    onboardingFeatureRow(
-                        systemImage: "note.text",
-                        title: "onboarding.welcome.item.markers",
-                        detail: "onboarding.value.markers_detail",
-                        tone: .success
-                    )
-                    onboardingFeatureRow(
-                        systemImage: "doc.text.magnifyingglass",
-                        title: "onboarding.welcome.item.reports",
-                        detail: "onboarding.value.reports_detail",
-                        tone: .warning
-                    )
-                }
-            }
-
-        }
+        workdayHero
     }
 
     private var workdayHero: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            onboardingPositioningStrip
-
             LazyVGrid(
                 columns: adaptiveColumns(minimum: 260, spacing: DesignSystem.Spacing.xl),
                 alignment: .leading,
@@ -753,8 +585,6 @@ struct OnboardingView: View {
                 onboardingHeroTimeline
                     .frame(maxWidth: .infinity, alignment: .topLeading)
             }
-
-            trustStrip
         }
         .padding(DesignSystem.Spacing.lg)
         .background(
@@ -1866,37 +1696,6 @@ struct OnboardingView: View {
                 Spacer()
             }
 
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                finishChecklistRow(
-                    systemImage: "menubar.rectangle",
-                    title: "onboarding.finish.checklist.running_title",
-                    detail: "onboarding.finish.checklist.running_detail",
-                    tone: startupTone
-                ) {
-                    StatusPill(startupSummaryText, systemImage: startupStatusIconName, tone: startupTone)
-                }
-
-                finishChecklistRow(
-                    systemImage: "square.and.pencil",
-                    title: "onboarding.finish.checklist.note_title",
-                    detail: "onboarding.finish.checklist.note_detail",
-                    tone: .success
-                ) {
-                    StatusPill(L("onboarding.finish.checklist.when_needed"), systemImage: "sparkle", tone: .success)
-                }
-
-                finishChecklistRow(
-                    systemImage: "doc.text.magnifyingglass",
-                    title: "onboarding.finish.checklist.closeout_title",
-                    detail: finishCloseoutDetailKey,
-                    tone: exportTone
-                ) {
-                    StatusPill(exportStatusText, systemImage: exportStatusIconName, tone: exportTone)
-                }
-            }
-            .padding(.vertical, 2)
-            .accessibilityIdentifier("onboarding.finishChecklist")
-
             LazyVGrid(
                 columns: adaptiveColumns(minimum: 210, spacing: DesignSystem.Spacing.sm),
                 alignment: .leading,
@@ -1948,7 +1747,7 @@ struct OnboardingView: View {
                 alignment: .leading,
                 spacing: DesignSystem.Spacing.sm
             ) {
-                finishChecklistCopy(
+                finishReadinessCopy(
                     systemImage: finishHealthIconName,
                     title: "onboarding.finish.health_title",
                     detail: LocalizedStringKey(finishHealthDetailKey),
@@ -1978,6 +1777,33 @@ struct OnboardingView: View {
 
     private var finishHealthStatusPill: some View {
         StatusPill(finishHealthStatusText, systemImage: finishHealthStatusIconName, tone: finishHealthTone)
+    }
+
+    private func finishReadinessCopy(
+        systemImage: String,
+        title: LocalizedStringKey,
+        detail: LocalizedStringKey,
+        tone: DesignSystem.StatusTone
+    ) -> some View {
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
+            IconWell(systemImage: systemImage, tone: tone)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(DesignSystem.Colors.primaryText)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(detail)
+                    .font(DesignSystem.Typography.caption)
+                    .foregroundColor(DesignSystem.Colors.secondaryText)
+                    .lineLimit(3)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .accessibilityElement(children: .combine)
     }
 
     private var finishHealthActionButtons: some View {
@@ -2168,54 +1994,6 @@ struct OnboardingView: View {
         .accessibilityElement(children: .combine)
     }
 
-    private func finishChecklistRow<Trailing: View>(
-        systemImage: String,
-        title: LocalizedStringKey,
-        detail: LocalizedStringKey,
-        tone: DesignSystem.StatusTone,
-        @ViewBuilder trailing: () -> Trailing
-    ) -> some View {
-        RowSurface(tone: tone) {
-            LazyVGrid(
-                columns: adaptiveColumns(minimum: 240, spacing: DesignSystem.Spacing.md),
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.sm
-            ) {
-                finishChecklistCopy(systemImage: systemImage, title: title, detail: detail, tone: tone)
-                trailing()
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func finishChecklistCopy(
-        systemImage: String,
-        title: LocalizedStringKey,
-        detail: LocalizedStringKey,
-        tone: DesignSystem.StatusTone
-    ) -> some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-            IconWell(systemImage: systemImage, tone: tone)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(detail)
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .accessibilityElement(children: .combine)
-    }
-
     private var titleKey: String {
         titleKey(for: step)
     }
@@ -2288,27 +2066,6 @@ struct OnboardingView: View {
 
     private var stepTone: DesignSystem.StatusTone {
         stateForStep(step).tone
-    }
-
-    private var stepStatusText: String {
-        if step == .exports {
-            return exportStatusText
-        }
-        if step == .privacy {
-            return titleCaptureStatusText
-        }
-        let isFinalStep = step == flowSteps.last
-        return isFinalStep ? L("onboarding.status.ready") : L("onboarding.status.in_progress")
-    }
-
-    private var stepStatusIconName: String {
-        if step == .exports {
-            return exportStatusIconName
-        }
-        if step == .privacy {
-            return titleCaptureIconName
-        }
-        return step == flowSteps.last ? "checkmark.circle.fill" : "arrow.forward.circle"
     }
 
     private func stateForStep(_ flowStep: Step) -> (systemImage: String, tone: DesignSystem.StatusTone) {
@@ -2595,12 +2352,6 @@ struct OnboardingView: View {
         }
     }
 
-    private var finishCloseoutDetailKey: LocalizedStringKey {
-        hasDailyExportFolderConfigured
-            ? "onboarding.finish.checklist.closeout_detail_ready"
-            : "onboarding.finish.checklist.closeout_detail_needs_folder"
-    }
-
     private var finishNextTitleKey: String {
         hasDailyExportFolderConfigured
             ? "onboarding.finish.next_title"
@@ -2611,11 +2362,6 @@ struct OnboardingView: View {
         hasDailyExportFolderConfigured
             ? "onboarding.finish.next_detail"
             : "onboarding.finish.next_folder_detail"
-    }
-
-    private var stepIndicator: String {
-        let index = (flowSteps.firstIndex(of: step) ?? 0) + 1
-        return String(format: L("onboarding.step"), index, flowSteps.count)
     }
 
     private var flowSteps: [Step] {

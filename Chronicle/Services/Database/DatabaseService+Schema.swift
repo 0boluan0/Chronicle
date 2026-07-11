@@ -25,62 +25,38 @@ extension DatabaseService {
         }
 
         db = connection
+        var initializationSucceeded = false
+        defer {
+            if !initializationSucceeded, let db {
+                sqlite3_close(db)
+                self.db = nil
+            }
+        }
         sqlite3_busy_timeout(connection, Self.busyTimeoutMillis)
         AppLogger.log("Database opened at \(databaseURL.path)", category: "db")
         try execute(sql: "PRAGMA journal_mode=WAL;")
         try createTablesIfNeeded()
         try cleanupStaleMigrationTableIfNeeded()
         if try needsWindowTitleMigration() {
-            do {
-                try migrateActivitiesWindowTitleNullable()
-            } catch {
-                AppLogger.log("Migration failed (window_title nullable): \(error.localizedDescription)", category: "db")
-            }
+            try migrateActivitiesWindowTitleNullable()
         }
-        do {
-            try runMigrationsIfNeeded()
-        } catch {
-            AppLogger.log("Schema migrations failed: \(error.localizedDescription)", category: "db")
-        }
+        try runMigrationsIfNeeded()
         hasBundleIdColumn = (try? activitiesColumnExists("bundle_id")) ?? false
         hasRuleTagColumn = (try? activitiesColumnExists("rule_tag_id")) ?? false
         hasUserTagOverrideColumn = (try? activitiesColumnExists("user_tag_override_id")) ?? false
         hasEffectiveTagColumn = (try? activitiesColumnExists("effective_tag_id")) ?? false
         hasRulesBundleIdColumn = (try? rulesColumnExists("match_bundle_id")) ?? false
         hasAppMappingsTaggingModeColumn = (try? appMappingsColumnExists("tagging_mode")) ?? false
-        do {
-            try createActivityIndexes()
-        } catch {
-            AppLogger.log("Create activity indexes failed: \(error.localizedDescription)", category: "db")
-        }
-        do {
-            try createMarkerIndexes()
-        } catch {
-            AppLogger.log("Create marker indexes failed: \(error.localizedDescription)", category: "db")
-        }
-        do {
-            try createMarkerSpanIndexes()
-        } catch {
-            AppLogger.log("Create marker span indexes failed: \(error.localizedDescription)", category: "db")
-        }
+        try createActivityIndexes()
+        try createMarkerIndexes()
+        try createMarkerSpanIndexes()
         if (try? tableExists("RawEvents")) ?? false {
-            do {
-                try createRawEventIndexes()
-            } catch {
-                AppLogger.log("Create raw event indexes failed: \(error.localizedDescription)", category: "db")
-            }
+            try createRawEventIndexes()
         }
-        do {
-            try ensureDefaultTagsIfNeeded()
-        } catch {
-            AppLogger.log("Ensure default tags failed: \(error.localizedDescription)", category: "db")
-        }
-        do {
-            try ensureDefaultAppMappingsIfNeeded()
-        } catch {
-            AppLogger.log("Ensure default app mappings failed: \(error.localizedDescription)", category: "db")
-        }
+        try ensureDefaultTagsIfNeeded()
+        try ensureDefaultAppMappingsIfNeeded()
         isInitialized = true
+        initializationSucceeded = true
     }
 
     func createTablesIfNeeded() throws {
@@ -570,6 +546,9 @@ extension DatabaseService {
         try execute(sql: "BEGIN IMMEDIATE TRANSACTION;")
         do {
             let hasBundleId = try activitiesColumnExists("bundle_id")
+            let ruleTagExpression = try activitiesColumnExists("rule_tag_id") ? "rule_tag_id" : "tag_id"
+            let userTagExpression = try activitiesColumnExists("user_tag_override_id") ? "user_tag_override_id" : "NULL"
+            let effectiveTagExpression = try activitiesColumnExists("effective_tag_id") ? "effective_tag_id" : "tag_id"
             let createActivities = """
             CREATE TABLE Activities_new (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -597,9 +576,9 @@ extension DatabaseService {
                        window_title,
                        COALESCE(is_idle, 0),
                        tag_id,
-                       tag_id,
-                       NULL,
-                       tag_id
+                       \(ruleTagExpression),
+                       \(userTagExpression),
+                       \(effectiveTagExpression)
                 FROM Activities;
                 """
             } else {
@@ -613,9 +592,9 @@ extension DatabaseService {
                        window_title,
                        COALESCE(is_idle, 0),
                        tag_id,
-                       tag_id,
-                       NULL,
-                       tag_id
+                       \(ruleTagExpression),
+                       \(userTagExpression),
+                       \(effectiveTagExpression)
                 FROM Activities;
                 """
             }

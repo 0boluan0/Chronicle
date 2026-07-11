@@ -78,7 +78,6 @@ struct TagsRulesView: View {
             }
 
             sectionPicker
-            classificationOutcomeStrip
 
             Group {
                 switch selection {
@@ -88,174 +87,6 @@ struct TagsRulesView: View {
                     RulesManagementView(showHeader: false)
                 }
             }
-        }
-    }
-
-    private var classificationOutcomeStrip: some View {
-        SectionCard {
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
-                    alignment: .leading,
-                    spacing: DesignSystem.Spacing.sm
-                ) {
-                    classificationOutcomeSummary
-                    StatusPill(
-                        L(classificationOutcomeStatusKey),
-                        systemImage: classificationOutcomeStatusIcon,
-                        tone: classificationOutcomeTone
-                    )
-                }
-
-                LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 150), spacing: DesignSystem.Spacing.sm)],
-                    alignment: .leading,
-                    spacing: DesignSystem.Spacing.sm
-                ) {
-                    ForEach(classificationOutcomeItems) { item in
-                        classificationOutcomeItemView(item)
-                    }
-                }
-            }
-        }
-        .accessibilityIdentifier("tagsRules.outcomeStrip")
-    }
-
-    private var classificationOutcomeSummary: some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-            IconWell(
-                systemImage: classificationOutcomeIcon,
-                tone: classificationOutcomeTone,
-                accessibilityLabel: L(classificationOutcomeTitleKey)
-            )
-            .frame(width: 34, height: 34)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(LocalizedStringKey(classificationOutcomeTitleKey))
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .help(L(classificationOutcomeTitleKey))
-
-                Text(LocalizedStringKey(classificationOutcomeDetailKey))
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .help(L(classificationOutcomeDetailKey))
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
-    private func classificationOutcomeItemView(_ item: ClassificationOutcomeItem) -> some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-            Image(systemName: item.systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(classificationOutcomeTone.color)
-                .frame(width: 16)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(LocalizedStringKey(item.titleKey))
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .help(L(item.titleKey))
-
-                Text(LocalizedStringKey(item.detailKey))
-                    .font(.caption2)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .help(L(item.detailKey))
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, DesignSystem.Spacing.sm)
-        .padding(.vertical, 7)
-        .frame(maxWidth: .infinity, minHeight: 54, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .fill(classificationOutcomeTone.color.opacity(0.06))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .stroke(classificationOutcomeTone.color.opacity(0.14), lineWidth: 1)
-        )
-    }
-
-    private var classificationOutcomeTitleKey: String {
-        switch selection {
-        case .tags:
-            return "tags_rules.outcome.categories_title"
-        case .rules:
-            return "tags_rules.outcome.automation_title"
-        }
-    }
-
-    private var classificationOutcomeDetailKey: String {
-        switch selection {
-        case .tags:
-            return "tags_rules.outcome.categories_detail"
-        case .rules:
-            return "tags_rules.outcome.automation_detail"
-        }
-    }
-
-    private var classificationOutcomeStatusKey: String {
-        switch selection {
-        case .tags:
-            return "tags_rules.outcome.categories_status"
-        case .rules:
-            return "tags_rules.outcome.automation_status"
-        }
-    }
-
-    private var classificationOutcomeStatusIcon: String {
-        switch selection {
-        case .tags:
-            return "doc.text"
-        case .rules:
-            return "bolt.fill"
-        }
-    }
-
-    private var classificationOutcomeIcon: String {
-        switch selection {
-        case .tags:
-            return "rectangle.split.3x1"
-        case .rules:
-            return "bolt.circle.fill"
-        }
-    }
-
-    private var classificationOutcomeTone: DesignSystem.StatusTone {
-        switch selection {
-        case .tags:
-            return .info
-        case .rules:
-            return .success
-        }
-    }
-
-    private var classificationOutcomeItems: [ClassificationOutcomeItem] {
-        switch selection {
-        case .tags:
-            return [
-                .init(id: "dailyLog", titleKey: "tags_rules.outcome.categories_log_title", detailKey: "tags_rules.outcome.categories_log_detail", systemImage: "doc.text"),
-                .init(id: "timeline", titleKey: "tags_rules.outcome.categories_timeline_title", detailKey: "tags_rules.outcome.categories_timeline_detail", systemImage: "clock"),
-                .init(id: "apps", titleKey: "tags_rules.outcome.categories_apps_title", detailKey: "tags_rules.outcome.categories_apps_detail", systemImage: "app.badge")
-            ]
-        case .rules:
-            return [
-                .init(id: "priority", titleKey: "tags_rules.outcome.automation_priority_title", detailKey: "tags_rules.outcome.automation_priority_detail", systemImage: "arrow.up.left.and.arrow.down.right"),
-                .init(id: "manual", titleKey: "tags_rules.outcome.automation_manual_title", detailKey: "tags_rules.outcome.automation_manual_detail", systemImage: "hand.raised"),
-                .init(id: "range", titleKey: "tags_rules.outcome.automation_range_title", detailKey: "tags_rules.outcome.automation_range_detail", systemImage: "arrow.triangle.2.circlepath")
-            ]
         }
     }
 
@@ -278,72 +109,10 @@ struct TagsRulesView: View {
                 }
 
                 Spacer()
-
-                StatusPill(
-                    L("tags_rules.page.badge"),
-                    systemImage: "checklist",
-                    tone: .info
-                )
             }
 
-            classificationHeaderPath
         }
         .accessibilityIdentifier("tagsRules.header")
-    }
-
-    private var classificationHeaderPath: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 178), spacing: DesignSystem.Spacing.sm, alignment: .topLeading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            ForEach(Section.allCases) { section in
-                classificationHeaderPathItem(section)
-            }
-        }
-        .accessibilityIdentifier("tagsRules.headerPath")
-    }
-
-    private func classificationHeaderPathItem(_ section: Section) -> some View {
-        let isSelected = selection == section
-        return HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-            Image(systemName: isSelected ? "checkmark.circle.fill" : section.systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(section.tone.color)
-                .frame(width: 16)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(section.titleKey)
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(isSelected ? DesignSystem.Colors.primaryText : DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .help(L(section.titleStringKey))
-
-                Text(section.detailKey)
-                    .font(.caption2)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .help(L(section.detailStringKey))
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, DesignSystem.Spacing.sm)
-        .padding(.vertical, 7)
-        .frame(maxWidth: .infinity, minHeight: 54, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .fill(section.tone.color.opacity(isSelected ? 0.10 : 0.05))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .stroke(section.tone.color.opacity(isSelected ? 0.28 : 0.13), lineWidth: isSelected ? 1.2 : 1)
-        )
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("tagsRules.headerPath.\(section.rawValue)")
     }
 
     private var sectionPicker: some View {
@@ -356,10 +125,6 @@ struct TagsRulesView: View {
                 ) {
                     sectionModePicker
                     sectionPickerSummary
-                }
-
-                if !showHeader {
-                    classificationHeaderPath
                 }
             }
         }
@@ -416,64 +181,8 @@ struct TagsRulesView: View {
     }
 }
 
-private struct ClassificationOutcomeItem: Identifiable {
-    let id: String
-    let titleKey: String
-    let detailKey: String
-    let systemImage: String
-}
-
 private func notifyTaggingSetupDidChange() {
     NotificationCenter.default.post(name: .chronicleTaggingSetupDidChange, object: nil)
-}
-
-private func setupLibraryPathItem(
-    titleKey: String,
-    detailKey: String,
-    systemImage: String,
-    tone: DesignSystem.StatusTone,
-    accessibilityIdentifier: String
-) -> some View {
-    HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-        Image(systemName: systemImage)
-            .font(.caption.weight(.semibold))
-            .foregroundColor(tone.color)
-            .frame(width: 20, height: 20)
-            .background(
-                RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                    .fill(tone.color.opacity(0.11))
-            )
-
-        VStack(alignment: .leading, spacing: 2) {
-            Text(LocalizedStringKey(titleKey))
-                .font(.caption.weight(.semibold))
-                .foregroundColor(DesignSystem.Colors.primaryText)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
-                .help(L(titleKey))
-
-            Text(LocalizedStringKey(detailKey))
-                .font(DesignSystem.Typography.caption)
-                .foregroundColor(DesignSystem.Colors.secondaryText)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
-                .help(L(detailKey))
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-
-        Spacer(minLength: 0)
-    }
-    .padding(DesignSystem.Spacing.sm)
-    .frame(minWidth: 160, maxWidth: .infinity, minHeight: 68, alignment: .topLeading)
-    .background(
-        RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-            .fill(tone.color.opacity(0.06))
-    )
-    .overlay(
-        RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-            .stroke(tone.color.opacity(0.18), lineWidth: 1)
-    )
-    .accessibilityIdentifier(accessibilityIdentifier)
 }
 
 struct TagsManagementView: View {
@@ -538,8 +247,6 @@ struct TagsManagementView: View {
                     }
 
                     Spacer()
-
-                    StatusPill(tagReviewStatusText, systemImage: tagReviewStatusIconName, tone: tagReviewTone)
                 }
 
                 LazyVGrid(
@@ -891,8 +598,6 @@ struct TagsManagementView: View {
                         systemImage: "rectangle.split.3x1",
                         tone: .info
                     )
-
-                    tagLibraryEmptyPath
                 } else {
                     VStack(alignment: .leading, spacing: 8) {
                         ForEach(tags) { tag in
@@ -907,42 +612,6 @@ struct TagsManagementView: View {
                 }
             }
         }
-    }
-
-    private var tagLibraryEmptyPath: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 172), spacing: DesignSystem.Spacing.sm)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            tagLibraryEmptyPathItems
-        }
-        .accessibilityIdentifier("tags.empty.path")
-    }
-
-    @ViewBuilder
-    private var tagLibraryEmptyPathItems: some View {
-        setupLibraryPathItem(
-            titleKey: "tags.empty.path.starters_title",
-            detailKey: "tags.empty.path.starters_detail",
-            systemImage: "checklist",
-            tone: .info,
-            accessibilityIdentifier: "tags.empty.path.starters"
-        )
-        setupLibraryPathItem(
-            titleKey: "tags.empty.path.custom_title",
-            detailKey: "tags.empty.path.custom_detail",
-            systemImage: "plus.circle",
-            tone: .neutral,
-            accessibilityIdentifier: "tags.empty.path.custom"
-        )
-        setupLibraryPathItem(
-            titleKey: "tags.empty.path.apps_title",
-            detailKey: "tags.empty.path.apps_detail",
-            systemImage: "rectangle.grid.1x2",
-            tone: .success,
-            accessibilityIdentifier: "tags.empty.path.apps"
-        )
     }
 
     private var customColorCount: Int {
@@ -1034,28 +703,6 @@ struct TagsManagementView: View {
             return "tags.review.missing_copy"
         case .ready:
             return "tags.review.ready_copy"
-        }
-    }
-
-    private var tagReviewStatusText: String {
-        switch tagReviewState {
-        case .empty:
-            return L("tags.review.status.empty")
-        case .missingStarters:
-            return L("tags.review.status.missing")
-        case .ready:
-            return L("tags.review.status.ready")
-        }
-    }
-
-    private var tagReviewStatusIconName: String {
-        switch tagReviewState {
-        case .empty:
-            return "circle"
-        case .missingStarters:
-            return "exclamationmark.triangle"
-        case .ready:
-            return "checkmark"
         }
     }
 
@@ -1327,8 +974,6 @@ struct RulesManagementView: View {
                     )
                 }
 
-                rulesAutomationPath
-
                 rulesReviewActions
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -1377,82 +1022,6 @@ struct RulesManagementView: View {
             RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
                 .stroke(tone.color.opacity(0.16), lineWidth: 1)
         )
-    }
-
-    private var rulesAutomationPath: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 168), spacing: DesignSystem.Spacing.sm)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            rulesAutomationPathItem(
-                titleKey: "rules.review.path.observe_title",
-                detailKey: "rules.review.path.observe_detail",
-                systemImage: "magnifyingglass",
-                tone: ruleSuggestions.isEmpty ? .neutral : .info,
-                accessibilityIdentifier: "rules.review.path.observe"
-            )
-            rulesAutomationPathItem(
-                titleKey: "rules.review.path.draft_title",
-                detailKey: "rules.review.path.draft_detail",
-                systemImage: "pencil",
-                tone: .info,
-                accessibilityIdentifier: "rules.review.path.draft"
-            )
-            rulesAutomationPathItem(
-                titleKey: "rules.review.path.trust_title",
-                detailKey: "rules.review.path.trust_detail",
-                systemImage: "checkmark.seal",
-                tone: enabledRuleCount == 0 ? .warning : .success,
-                accessibilityIdentifier: "rules.review.path.trust"
-            )
-        }
-        .accessibilityIdentifier("rules.review.path")
-    }
-
-    private func rulesAutomationPathItem(
-        titleKey: String,
-        detailKey: String,
-        systemImage: String,
-        tone: DesignSystem.StatusTone,
-        accessibilityIdentifier: String
-    ) -> some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-            Image(systemName: systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(tone.color)
-                .frame(width: 18, height: 18)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(LocalizedStringKey(titleKey))
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .help(L(titleKey))
-
-                Text(LocalizedStringKey(detailKey))
-                    .font(.caption2)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .help(L(detailKey))
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            Spacer(minLength: 0)
-        }
-        .padding(DesignSystem.Spacing.sm)
-        .frame(minWidth: 150, maxWidth: .infinity, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .fill(tone.color.opacity(0.07))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .stroke(tone.color.opacity(0.18), lineWidth: 1)
-        )
-        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     private var rulesReviewActions: some View {
@@ -1721,8 +1290,6 @@ struct RulesManagementView: View {
                         systemImage: "wand.and.stars",
                         tone: .info
                     )
-
-                    rulesLibraryEmptyPath
                 } else {
                     VStack(alignment: .leading, spacing: 10) {
                         ForEach(rules) { rule in
@@ -1738,42 +1305,6 @@ struct RulesManagementView: View {
                 }
             }
         }
-    }
-
-    private var rulesLibraryEmptyPath: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 172), spacing: DesignSystem.Spacing.sm)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            rulesLibraryEmptyPathItems
-        }
-        .accessibilityIdentifier("rules.empty.path")
-    }
-
-    @ViewBuilder
-    private var rulesLibraryEmptyPathItems: some View {
-        setupLibraryPathItem(
-            titleKey: "rules.empty.path.repeat_title",
-            detailKey: "rules.empty.path.repeat_detail",
-            systemImage: "repeat",
-            tone: .neutral,
-            accessibilityIdentifier: "rules.empty.path.repeat"
-        )
-        setupLibraryPathItem(
-            titleKey: "rules.empty.path.narrow_title",
-            detailKey: "rules.empty.path.narrow_detail",
-            systemImage: "scope",
-            tone: .info,
-            accessibilityIdentifier: "rules.empty.path.narrow"
-        )
-        setupLibraryPathItem(
-            titleKey: "rules.empty.path.recompute_title",
-            detailKey: "rules.empty.path.recompute_detail",
-            systemImage: "arrow.triangle.2.circlepath",
-            tone: .success,
-            accessibilityIdentifier: "rules.empty.path.recompute"
-        )
     }
 
     private var enabledRuleCount: Int {
@@ -2183,35 +1714,6 @@ struct RulesManagementView: View {
                 systemImage: "sparkles",
                 tone: .info
             )
-
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 180), spacing: DesignSystem.Spacing.sm)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.sm
-            ) {
-                setupLibraryPathItem(
-                    titleKey: "rules.suggestions.empty.path.correct_title",
-                    detailKey: "rules.suggestions.empty.path.correct_detail",
-                    systemImage: "hand.point.left.fill",
-                    tone: .info,
-                    accessibilityIdentifier: "rules.suggestions.emptyPath.correct"
-                )
-                setupLibraryPathItem(
-                    titleKey: "rules.suggestions.empty.path.repeat_title",
-                    detailKey: "rules.suggestions.empty.path.repeat_detail",
-                    systemImage: "repeat",
-                    tone: .neutral,
-                    accessibilityIdentifier: "rules.suggestions.emptyPath.repeat"
-                )
-                setupLibraryPathItem(
-                    titleKey: "rules.suggestions.empty.path.narrow_title",
-                    detailKey: "rules.suggestions.empty.path.narrow_detail",
-                    systemImage: "scope",
-                    tone: .success,
-                    accessibilityIdentifier: "rules.suggestions.emptyPath.narrow"
-                )
-            }
-            .accessibilityIdentifier("rules.suggestions.emptyPath")
 
             Button {
                 AppWindowRouter.shared.open(.settings(.tagWizard))

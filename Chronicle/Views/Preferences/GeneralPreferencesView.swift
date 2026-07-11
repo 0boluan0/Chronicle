@@ -71,38 +71,6 @@ struct GeneralPreferencesView: View {
                         .frame(maxWidth: .infinity, alignment: .trailing)
                 }
 
-                Divider()
-
-                LazyVGrid(
-                    columns: adaptiveColumns(minimum: 180, spacing: DesignSystem.Spacing.sm),
-                    alignment: .leading,
-                    spacing: DesignSystem.Spacing.sm
-                ) {
-                    readinessStepItem(
-                        titleKey: "preferences.readiness.step.start_title",
-                        detailKey: "preferences.readiness.step.start_detail",
-                        status: startupSummaryText,
-                        systemImage: "power",
-                        tone: startupTone,
-                        accessibilityIdentifier: "preferences.readiness.start"
-                    )
-                    readinessStepItem(
-                        titleKey: "preferences.readiness.step.timeline_title",
-                        detailKey: "preferences.readiness.step.timeline_detail",
-                        status: cleanTimelineSummaryText,
-                        systemImage: "wand.and.stars",
-                        tone: cleanTimelineTone,
-                        accessibilityIdentifier: "preferences.readiness.timeline"
-                    )
-                    readinessStepItem(
-                        titleKey: "preferences.readiness.step.recall_title",
-                        detailKey: "preferences.readiness.step.recall_detail",
-                        status: privacyDepthSummaryText,
-                        systemImage: "hand.raised",
-                        tone: privacyDepthTone,
-                        accessibilityIdentifier: "preferences.readiness.recall"
-                    )
-                }
             }
         }
         .accessibilityIdentifier("preferences.readiness")
@@ -185,78 +153,6 @@ struct GeneralPreferencesView: View {
         } else {
             StatusPill(L("preferences.readiness.action.done"), systemImage: "checkmark.circle.fill", tone: .success)
         }
-    }
-
-    private func readinessStepItem(
-        titleKey: LocalizedStringKey,
-        detailKey: LocalizedStringKey,
-        status: String,
-        systemImage: String,
-        tone: DesignSystem.StatusTone,
-        accessibilityIdentifier: String
-    ) -> some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.xs) {
-            Image(systemName: systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(tone.color)
-                .frame(width: 14)
-
-            VStack(alignment: .leading, spacing: 2) {
-                ViewThatFits(in: .horizontal) {
-                    HStack(alignment: .firstTextBaseline, spacing: 5) {
-                        Text(titleKey)
-                            .font(.caption.weight(.semibold))
-                            .foregroundColor(DesignSystem.Colors.primaryText)
-                            .lineLimit(2)
-                            .fixedSize(horizontal: false, vertical: true)
-
-                        Spacer(minLength: 0)
-
-                        readinessStepStatusText(status, tone: tone)
-                    }
-
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(titleKey)
-                            .font(.caption.weight(.semibold))
-                            .foregroundColor(DesignSystem.Colors.primaryText)
-                            .lineLimit(2)
-                            .fixedSize(horizontal: false, vertical: true)
-
-                        readinessStepStatusText(status, tone: tone)
-                    }
-                }
-
-                Text(detailKey)
-                    .font(.caption2)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(.horizontal, DesignSystem.Spacing.sm)
-        .padding(.vertical, 7)
-        .frame(maxWidth: .infinity, minHeight: 62, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .fill(tone.color.opacity(0.06))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .stroke(tone.color.opacity(0.16), lineWidth: 1)
-        )
-        .accessibilityIdentifier(accessibilityIdentifier)
-    }
-
-    private func readinessStepStatusText(
-        _ status: String,
-        tone: DesignSystem.StatusTone
-    ) -> some View {
-        Text(status)
-            .font(.caption2.weight(.semibold))
-            .foregroundColor(tone.color)
-            .lineLimit(2)
-            .fixedSize(horizontal: false, vertical: true)
     }
 
     private var dailyUseSection: some View {
@@ -556,8 +452,6 @@ struct GeneralPreferencesView: View {
                 }
             }
 
-            captureProfileGuidanceCard
-
             StatusBannerView(
                 status: captureProfileStatus,
                 accessibilityIdentifier: "preferences.captureProfiles.status"
@@ -628,49 +522,6 @@ struct GeneralPreferencesView: View {
         .buttonStyle(.plain)
         .accessibilityLabel("\(L(captureProfileTitleKey(profile))) \(isSelected ? L("preferences.capture_profiles.applied") : L("preferences.capture_profiles.apply"))")
         .accessibilityIdentifier("preferences.captureProfiles.\(profile.rawValue)")
-    }
-
-    private var captureProfileGuidanceCard: some View {
-        RowSurface(tone: activeCaptureProfileTone) {
-            LazyVGrid(
-                columns: adaptiveColumns(minimum: 220, spacing: DesignSystem.Spacing.md),
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.sm
-            ) {
-                HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-                    IconWell(
-                        systemImage: captureProfileGuidanceIconName,
-                        tone: activeCaptureProfileTone,
-                        accessibilityLabel: L("preferences.capture_profiles.guidance.title")
-                    )
-
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("preferences.capture_profiles.guidance.title")
-                            .font(.caption.weight(.semibold))
-                            .foregroundColor(DesignSystem.Colors.primaryText)
-                            .lineLimit(2)
-                            .fixedSize(horizontal: false, vertical: true)
-
-                        Text(captureProfileGuidanceDetailKey)
-                            .font(DesignSystem.Typography.caption)
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
-                            .lineLimit(4)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                }
-
-                preferenceResponsiveActions {
-                    StatusPill(
-                        captureProfileGuidanceStatusText,
-                        systemImage: captureProfileGuidanceIconName,
-                        tone: activeCaptureProfileTone
-                    )
-                }
-                .frame(maxWidth: .infinity, alignment: .trailing)
-            }
-        }
-        .accessibilityIdentifier("preferences.captureProfiles.guidance")
     }
 
     private func applyCaptureProfile(_ profile: CaptureTuningProfile) {
@@ -1186,30 +1037,6 @@ struct GeneralPreferencesView: View {
                 tone: .info,
                 accessibilityIdentifier: "preferences.windowTitles.blocklistEmpty"
             )
-
-            preferencesEmptyPath(accessibilityIdentifier: "preferences.windowTitles.blocklistEmptyPath") {
-                preferencesEmptyPathItem(
-                    titleKey: "preferences.window_titles.blocklist.empty.path.default_title",
-                    detailKey: "preferences.window_titles.blocklist.empty.path.default_detail",
-                    systemImage: "hand.raised",
-                    tone: .info,
-                    accessibilityIdentifier: "preferences.windowTitles.blocklistEmptyPath.default"
-                )
-                preferencesEmptyPathItem(
-                    titleKey: "preferences.window_titles.blocklist.empty.path.sensitive_title",
-                    detailKey: "preferences.window_titles.blocklist.empty.path.sensitive_detail",
-                    systemImage: "lock.rectangle",
-                    tone: .warning,
-                    accessibilityIdentifier: "preferences.windowTitles.blocklistEmptyPath.sensitive"
-                )
-                preferencesEmptyPathItem(
-                    titleKey: "preferences.window_titles.blocklist.empty.path.review_title",
-                    detailKey: "preferences.window_titles.blocklist.empty.path.review_detail",
-                    systemImage: "calendar.badge.clock",
-                    tone: .neutral,
-                    accessibilityIdentifier: "preferences.windowTitles.blocklistEmptyPath.review"
-                )
-            }
         }
     }
 
@@ -1494,41 +1321,6 @@ struct GeneralPreferencesView: View {
             return .warning
         }
         return captureProfileTone(profile, isSelected: true)
-    }
-
-    private var captureProfileGuidanceDetailKey: LocalizedStringKey {
-        guard let profile = appState.currentCaptureTuningProfile else {
-            return "preferences.capture_profiles.guidance.detail.custom"
-        }
-        switch profile {
-        case .balanced:
-            return "preferences.capture_profiles.guidance.detail.balanced"
-        case .batterySaver:
-            return "preferences.capture_profiles.guidance.detail.battery"
-        case .detailedReview:
-            return "preferences.capture_profiles.guidance.detail.detailed"
-        }
-    }
-
-    private var captureProfileGuidanceStatusText: String {
-        guard let profile = appState.currentCaptureTuningProfile else {
-            return L("preferences.capture_profiles.guidance.status.custom")
-        }
-        switch profile {
-        case .balanced:
-            return L("preferences.capture_profiles.guidance.status.balanced")
-        case .batterySaver:
-            return L("preferences.capture_profiles.guidance.status.battery")
-        case .detailedReview:
-            return L("preferences.capture_profiles.guidance.status.detailed")
-        }
-    }
-
-    private var captureProfileGuidanceIconName: String {
-        guard let profile = appState.currentCaptureTuningProfile else {
-            return "slider.horizontal.3"
-        }
-        return captureProfileIconName(profile)
     }
 
     private var captureProfileSamplingValue: String {
@@ -1992,30 +1784,6 @@ struct GeneralPreferencesView: View {
                 tone: .info,
                 accessibilityIdentifier: "preferences.advancedTracking.allowlistEmpty"
             )
-
-            preferencesEmptyPath(accessibilityIdentifier: "preferences.advancedTracking.allowlistEmptyPath") {
-                preferencesEmptyPathItem(
-                    titleKey: "preferences.advanced_tracking.allowlist.empty.path.default_title",
-                    detailKey: "preferences.advanced_tracking.allowlist.empty.path.default_detail",
-                    systemImage: "moon.zzz",
-                    tone: .success,
-                    accessibilityIdentifier: "preferences.advancedTracking.allowlistEmptyPath.default"
-                )
-                preferencesEmptyPathItem(
-                    titleKey: "preferences.advanced_tracking.allowlist.empty.path.media_title",
-                    detailKey: "preferences.advanced_tracking.allowlist.empty.path.media_detail",
-                    systemImage: "play.rectangle",
-                    tone: .info,
-                    accessibilityIdentifier: "preferences.advancedTracking.allowlistEmptyPath.media"
-                )
-                preferencesEmptyPathItem(
-                    titleKey: "preferences.advanced_tracking.allowlist.empty.path.search_title",
-                    detailKey: "preferences.advanced_tracking.allowlist.empty.path.search_detail",
-                    systemImage: "magnifyingglass",
-                    tone: .neutral,
-                    accessibilityIdentifier: "preferences.advancedTracking.allowlistEmptyPath.search"
-                )
-            }
         }
     }
 
@@ -2048,67 +1816,6 @@ struct GeneralPreferencesView: View {
                 Spacer(minLength: 0)
             }
         }
-        .accessibilityIdentifier(accessibilityIdentifier)
-    }
-
-    private func preferencesEmptyPath<Content: View>(
-        accessibilityIdentifier: String,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        LazyVGrid(
-            columns: adaptiveColumns(minimum: 180, spacing: DesignSystem.Spacing.sm),
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            content()
-        }
-        .accessibilityIdentifier(accessibilityIdentifier)
-    }
-
-    private func preferencesEmptyPathItem(
-        titleKey: String,
-        detailKey: String,
-        systemImage: String,
-        tone: DesignSystem.StatusTone,
-        accessibilityIdentifier: String
-    ) -> some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-            Image(systemName: systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(tone.color)
-                .frame(width: 18, height: 18)
-                .background(
-                    RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                        .fill(tone.color.opacity(0.10))
-                )
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(LocalizedStringKey(titleKey))
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(LocalizedStringKey(detailKey))
-                    .font(.caption2)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            Spacer(minLength: 0)
-        }
-        .padding(DesignSystem.Spacing.sm)
-        .frame(minWidth: 156, maxWidth: .infinity, minHeight: 78, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(tone.color.opacity(0.06))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .stroke(tone.color.opacity(0.16), lineWidth: 1)
-        )
         .accessibilityIdentifier(accessibilityIdentifier)
     }
 

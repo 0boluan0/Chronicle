@@ -24,7 +24,6 @@ struct QuickMarkerEntryView: View {
     let timestampProvider: () -> Date
     let autoFocus: Bool
     let triggerSource: QuickMarkerTriggerSource
-    let showsOutcomeStrip: Bool
     let onDraftChange: ((String) -> Void)?
     let onSubmit: (() -> Void)?
     let onCancel: (() -> Void)?
@@ -33,7 +32,6 @@ struct QuickMarkerEntryView: View {
         timestampProvider: @escaping () -> Date,
         autoFocus: Bool,
         triggerSource: QuickMarkerTriggerSource,
-        showsOutcomeStrip: Bool = true,
         onDraftChange: ((String) -> Void)? = nil,
         onSubmit: (() -> Void)?,
         onCancel: (() -> Void)?
@@ -41,7 +39,6 @@ struct QuickMarkerEntryView: View {
         self.timestampProvider = timestampProvider
         self.autoFocus = autoFocus
         self.triggerSource = triggerSource
-        self.showsOutcomeStrip = showsOutcomeStrip
         self.onDraftChange = onDraftChange
         self.onSubmit = onSubmit
         self.onCancel = onCancel
@@ -54,10 +51,6 @@ struct QuickMarkerEntryView: View {
             activeFocusReminderView
 
             captureComposer
-
-            if showsOutcomeStrip {
-                captureOutcomeStrip
-            }
 
             quickStarterSection
 
@@ -435,22 +428,7 @@ struct QuickMarkerEntryView: View {
     }
 
     private var captureComposerHeader: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-                captureComposerHeaderCopy
-
-                Spacer(minLength: DesignSystem.Spacing.sm)
-
-                StatusPill(L(modeStatusKey), systemImage: modeStatusIconName, tone: modeTone)
-                    .fixedSize(horizontal: true, vertical: false)
-            }
-
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                captureComposerHeaderCopy
-
-                StatusPill(L(modeStatusKey), systemImage: modeStatusIconName, tone: modeTone)
-            }
-        }
+        captureComposerHeaderCopy
         .accessibilityIdentifier("quickMarker.composerHeader")
     }
 
@@ -474,76 +452,6 @@ struct QuickMarkerEntryView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
-    }
-
-    private var captureOutcomeStrip: some View {
-        LazyVGrid(
-            columns: adaptiveColumns(minimum: 136, spacing: DesignSystem.Spacing.sm),
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            captureOutcomeItem(
-                titleKey: "quick_marker.outcome.timeline_title",
-                detailKey: "quick_marker.outcome.timeline_detail",
-                systemImage: "clock",
-                tone: .info
-            )
-            captureOutcomeItem(
-                titleKey: secondaryOutcomeTitleKey,
-                detailKey: secondaryOutcomeDetailKey,
-                systemImage: secondaryOutcomeIconName,
-                tone: .success
-            )
-            captureOutcomeItem(
-                titleKey: "quick_marker.outcome.report_title",
-                detailKey: "quick_marker.outcome.report_detail",
-                systemImage: "doc.text",
-                tone: .warning
-            )
-        }
-        .accessibilityIdentifier("quickMarker.outcome")
-    }
-
-    private func captureOutcomeItem(
-        titleKey: LocalizedStringKey,
-        detailKey: LocalizedStringKey,
-        systemImage: String,
-        tone: DesignSystem.StatusTone
-    ) -> some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.xs) {
-            Image(systemName: systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(tone.color)
-                .frame(width: 14)
-                .padding(.top, 1)
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text(titleKey)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(detailKey)
-                    .font(.caption2)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, DesignSystem.Spacing.sm)
-        .padding(.vertical, 6)
-        .frame(minWidth: 136, maxWidth: .infinity, minHeight: 58, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .fill(tone.color.opacity(0.06))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .stroke(tone.color.opacity(0.16), lineWidth: 1)
-        )
     }
 
     @ViewBuilder
@@ -752,7 +660,6 @@ struct QuickMarkerEntryView: View {
                             .lineLimit(2)
                             .fixedSize(horizontal: false, vertical: true)
 
-                        quickMarkerRecentEmptyPath
                     }
 
                     Spacer(minLength: 0)
@@ -781,82 +688,6 @@ struct QuickMarkerEntryView: View {
             }
         }
         .accessibilityIdentifier("quickMarker.recent")
-    }
-
-    private var quickMarkerRecentEmptyPath: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 122), spacing: DesignSystem.Spacing.xs)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.xs
-        ) {
-            quickMarkerRecentEmptyPathItem(
-                titleKey: "quick_marker.recent_empty.path.starter_title",
-                detailKey: "quick_marker.recent_empty.path.starter_detail",
-                systemImage: "lightbulb",
-                tone: .info,
-                accessibilityIdentifier: "quickMarker.recentEmpty.path.starter"
-            )
-            quickMarkerRecentEmptyPathItem(
-                titleKey: "quick_marker.recent_empty.path.save_title",
-                detailKey: "quick_marker.recent_empty.path.save_detail",
-                systemImage: "checkmark.circle",
-                tone: .success,
-                accessibilityIdentifier: "quickMarker.recentEmpty.path.save"
-            )
-            quickMarkerRecentEmptyPathItem(
-                titleKey: "quick_marker.recent_empty.path.reuse_title",
-                detailKey: "quick_marker.recent_empty.path.reuse_detail",
-                systemImage: "arrow.turn.down.left",
-                tone: .neutral,
-                accessibilityIdentifier: "quickMarker.recentEmpty.path.reuse"
-            )
-        }
-        .padding(.top, 4)
-        .accessibilityIdentifier("quickMarker.recentEmpty.path")
-    }
-
-    private func quickMarkerRecentEmptyPathItem(
-        titleKey: LocalizedStringKey,
-        detailKey: LocalizedStringKey,
-        systemImage: String,
-        tone: DesignSystem.StatusTone,
-        accessibilityIdentifier: String
-    ) -> some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.xs) {
-            Image(systemName: systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(tone.color)
-                .frame(width: 14)
-                .padding(.top, 1)
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text(titleKey)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(detailKey)
-                    .font(.caption2)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, DesignSystem.Spacing.xs)
-        .padding(.vertical, 5)
-        .frame(maxWidth: .infinity, minHeight: 48, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .fill(tone.color.opacity(0.06))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .stroke(tone.color.opacity(0.14), lineWidth: 1)
-        )
-        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     private var recentMarkersHeader: some View {
@@ -1411,33 +1242,6 @@ struct QuickMarkerEntryView: View {
         }
     }
 
-    private var secondaryOutcomeTitleKey: LocalizedStringKey {
-        switch appState.quickMarkerMode {
-        case .point:
-            return "quick_marker.outcome.cues_title"
-        case .interval:
-            return "quick_marker.outcome.focus_title"
-        }
-    }
-
-    private var secondaryOutcomeDetailKey: LocalizedStringKey {
-        switch appState.quickMarkerMode {
-        case .point:
-            return "quick_marker.outcome.cues_detail"
-        case .interval:
-            return "quick_marker.outcome.focus_detail"
-        }
-    }
-
-    private var secondaryOutcomeIconName: String {
-        switch appState.quickMarkerMode {
-        case .point:
-            return "note.text"
-        case .interval:
-            return "timer"
-        }
-    }
-
     private var modeHeadlineKey: String {
         switch appState.quickMarkerMode {
         case .point:
@@ -1453,24 +1257,6 @@ struct QuickMarkerEntryView: View {
             return "quick_marker.guidance.point_detail"
         case .interval:
             return openSpan == nil ? "quick_marker.guidance.interval_detail" : "quick_marker.guidance.interval_running_detail"
-        }
-    }
-
-    private var modeStatusKey: String {
-        switch appState.quickMarkerMode {
-        case .point:
-            return "quick_marker.status_label.note"
-        case .interval:
-            return openSpan == nil ? "quick_marker.status_label.ready" : "quick_marker.status_label.running"
-        }
-    }
-
-    private var modeStatusIconName: String {
-        switch appState.quickMarkerMode {
-        case .point:
-            return "pin.fill"
-        case .interval:
-            return openSpan == nil ? "play.circle.fill" : "record.circle"
         }
     }
 

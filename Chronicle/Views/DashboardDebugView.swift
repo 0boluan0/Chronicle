@@ -25,7 +25,6 @@ struct DashboardDebugView: View {
                     runtimeIssueCard(message: lastDbError)
                 }
 
-                diagnosticsFlowCard
                 supportHandoffCard
                 runtimeSection
                 maintenanceSection
@@ -122,45 +121,6 @@ struct DashboardDebugView: View {
         .accessibilityIdentifier("dashboard.debug.issue")
     }
 
-    private var diagnosticsFlowCard: some View {
-        SectionCard(title: "debug.flow.title") {
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                diagnosticsFlowHeader
-
-                LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 190), spacing: DesignSystem.Spacing.sm, alignment: .topLeading)],
-                    alignment: .leading,
-                    spacing: DesignSystem.Spacing.sm
-                ) {
-                    diagnosticsFlowStep(
-                        titleKey: "debug.flow.health_title",
-                        detailKey: "debug.flow.health_detail",
-                        systemImage: "checkmark.shield",
-                        tone: healthTone,
-                        accessibilityIdentifier: "dashboard.debug.flow.health"
-                    )
-                    diagnosticsFlowStep(
-                        titleKey: "debug.flow.range_title",
-                        detailKey: "debug.flow.range_detail",
-                        systemImage: "calendar.badge.clock",
-                        tone: maintenance.currentJob == nil ? .neutral : .info,
-                        accessibilityIdentifier: "dashboard.debug.flow.range"
-                    )
-                    diagnosticsFlowStep(
-                        titleKey: "debug.flow.queue_title",
-                        detailKey: "debug.flow.queue_detail",
-                        systemImage: maintenance.currentJob == nil ? "tray" : "gearshape.2",
-                        tone: maintenanceTone,
-                        accessibilityIdentifier: "dashboard.debug.flow.queue"
-                    )
-                }
-                .accessibilityIdentifier("dashboard.debug.flow.steps")
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .accessibilityIdentifier("dashboard.debug.flow")
-    }
-
     private var supportHandoffCard: some View {
         SectionCard(title: "debug.handoff.title") {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
@@ -253,24 +213,6 @@ struct DashboardDebugView: View {
         .accessibilityIdentifier("dashboard.debug.handoff")
     }
 
-    private var diagnosticsFlowHeader: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            sectionLead(
-                systemImage: diagnosticsFlowIconName,
-                tone: diagnosticsFlowTone,
-                titleKey: "debug.flow.heading",
-                detailKey: "debug.flow.detail"
-            )
-
-            StatusPill(diagnosticsFlowStatusText, systemImage: diagnosticsFlowIconName, tone: diagnosticsFlowTone)
-        }
-        .accessibilityIdentifier("dashboard.debug.flow.header")
-    }
-
     private func handoffItem(
         systemImage: String,
         titleKey: LocalizedStringKey,
@@ -302,50 +244,6 @@ struct DashboardDebugView: View {
             }
             .frame(maxWidth: .infinity, minHeight: 76, alignment: .topLeading)
         }
-        .accessibilityIdentifier(accessibilityIdentifier)
-    }
-
-    private func diagnosticsFlowStep(
-        titleKey: LocalizedStringKey,
-        detailKey: LocalizedStringKey,
-        systemImage: String,
-        tone: DesignSystem.StatusTone,
-        accessibilityIdentifier: String
-    ) -> some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-            Image(systemName: systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(tone.color)
-                .frame(width: 18, height: 18)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(titleKey)
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(detailKey)
-                    .font(.caption2)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            Spacer(minLength: 0)
-        }
-        .padding(DesignSystem.Spacing.sm)
-        .frame(maxWidth: .infinity, minHeight: 78, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(tone.color.opacity(0.07))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .stroke(tone.color.opacity(0.18), lineWidth: 1)
-        )
-        .accessibilityElement(children: .combine)
         .accessibilityIdentifier(accessibilityIdentifier)
     }
 

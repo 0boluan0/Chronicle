@@ -12,13 +12,13 @@ import Foundation
 import MediaPlayer
 
 final class ActivityTracker {
-    static let shared = ActivityTracker()
+    static let shared = ActivityTracker(normalizer: .shared)
     static let didRecordSessionNotification = Notification.Name("ChronicleActivityTrackerDidRecordSession")
 
     private let queue = DispatchQueue(label: "com.chronicle.activity-tracker")
     private let eventQueue = DispatchQueue(label: "com.chronicle.raw-events")
     private let appState = AppState.shared
-    private let normalizer = SessionNormalizer.shared
+    private let normalizer: SessionNormalizer
     private let windowTitleProvider: WindowTitleProviding = AXWindowTitleProvider()
 
     private var observer: NSObjectProtocol?
@@ -35,7 +35,15 @@ final class ActivityTracker {
     private var lastIdleExitAt: Date?
     private var lastMediaInfoLogAt: Date?
 
-    private init() {}
+    private init(normalizer: SessionNormalizer) {
+        self.normalizer = normalizer
+    }
+
+    #if DEBUG
+    static func makeTestInstance(normalizer: SessionNormalizer) -> ActivityTracker {
+        ActivityTracker(normalizer: normalizer)
+    }
+    #endif
 
     var isRunning: Bool {
         observer != nil
@@ -67,7 +75,7 @@ final class ActivityTracker {
         AppLogger.log("Activity tracker started", category: "tracker")
     }
 
-    func stop() {
+    func stop(at timestamp: Date = Date()) {
         if let observer {
             NSWorkspace.shared.notificationCenter.removeObserver(observer)
             self.observer = nil
@@ -79,6 +87,14 @@ final class ActivityTracker {
         trackingSettingsCancellables.removeAll()
         idleDetector?.stop()
         idleDetector = nil
+        eventQueue.sync {}
+        let flushed = DispatchSemaphore(value: 0)
+        normalizer.flushCurrentSession(timestamp: timestamp) {
+            flushed.signal()
+        }
+        if flushed.wait(timeout: .now() + 5) == .timedOut {
+            AppLogger.log("Timed out flushing current session", category: "tracker")
+        }
         AppLogger.log("Activity tracker stopped", category: "tracker")
     }
 
@@ -333,13 +349,23 @@ final class ActivityTracker {
         } else {
             let frontmost = NSWorkspace.shared.frontmostApplication
             let appName = frontmost?.localizedName ?? frontmost?.bundleIdentifier
+            let bundleId = frontmost?.bundleIdentifier
+            let rawWindowTitle = Self.shouldCaptureWindowTitle(
+                enabled: appState.windowTitleCaptureEnabled,
+                authorized: appState.accessibilityAuthorized
+            ) ? windowTitleProvider.currentWindowTitle(bundleId: bundleId) : nil
             let event = RawEvent(
                 id: nil,
                 timestamp: Int64(now.timeIntervalSince1970),
                 type: .idleExit,
-                bundleId: frontmost?.bundleIdentifier,
+                bundleId: bundleId,
                 appName: appName,
-                windowTitle: nil,
+                windowTitle: Self.sanitizeWindowTitle(
+                    rawWindowTitle,
+                    bundleId: bundleId,
+                    mode: appState.windowTitlePrivacyMode,
+                    blockedBundleIds: Set(appState.windowTitleBlockedBundleIDs)
+                ),
                 payload: nil
             )
             enqueueRawEvent(event) {
@@ -486,7 +512,7 @@ final class ActivityTracker {
             }
             let digest = SHA256.hash(data: Data(title.utf8))
             let hex = digest.compactMap { String(format: "%02x", $0) }.joined()
-            return "sha256:\(hex.prefix(16))"
+            return "sha256:\(hex)"
         }
     }
 
@@ -500,7 +526,7 @@ final class ActivityTracker {
     private static func isHashedToken(_ title: String) -> Bool {
         guard title.hasPrefix("sha256:") else { return false }
         let suffix = title.dropFirst("sha256:".count)
-        guard suffix.count == 16 else { return false }
+        guard suffix.count == 16 || suffix.count == 64 else { return false }
         return suffix.allSatisfy { ch in
             ch.isHexDigit
         }

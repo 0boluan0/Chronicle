@@ -13,7 +13,6 @@ struct SupportPreferencesView: View {
     @ObservedObject private var healthCheck = HealthCheckService.shared
 
     @State private var readinessStatus: StatusMessage?
-    @State private var supportPathStatus: StatusMessage?
     @State private var identityStatus: StatusMessage?
     @State private var actionsStatus: StatusMessage?
     @State private var docsStatus: StatusMessage?
@@ -56,8 +55,6 @@ struct SupportPreferencesView: View {
 
                     supportReadinessFacts
 
-                    supportReadinessPath
-
                     readinessActionGroup
 
                     StatusBannerView(status: readinessStatus, accessibilityIdentifier: "support.readinessStatus")
@@ -68,8 +65,6 @@ struct SupportPreferencesView: View {
             releaseSafetySection
 
             updateChannelSection
-
-            supportPathSection
 
             SectionCard(title: "support.identity.title") {
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
@@ -282,127 +277,6 @@ struct SupportPreferencesView: View {
         showHealthReport = true
     }
 
-    private var supportPathSection: some View {
-        SectionCard(title: "support.path.title") {
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                supportPathRow(
-                    systemImage: "stethoscope",
-                    tone: readinessTone,
-                    title: "support.path.health_title",
-                    detail: "support.path.health_detail",
-                    accessibilityIdentifier: "support.path.health"
-                ) {
-                    supportPathHealthAction
-                }
-
-                supportPathRow(
-                    systemImage: "folder",
-                    tone: .success,
-                    title: "support.path.data_title",
-                    detail: "support.path.data_detail",
-                    accessibilityIdentifier: "support.path.data"
-                ) {
-                    Button {
-                        openAppSupportFolder(target: .supportPath)
-                    } label: {
-                        supportActionLabel(L("support.actions.open_app_support"), systemImage: "folder")
-                    }
-                    .buttonStyle(.bordered)
-                    .accessibilityIdentifier("support.path.openAppSupport")
-                }
-
-                supportPathRow(
-                    systemImage: "shippingbox",
-                    tone: .info,
-                    title: "support.path.bundle_title",
-                    detail: "support.path.bundle_detail",
-                    accessibilityIdentifier: "support.path.bundle"
-                ) {
-                    Button {
-                        createFeedbackBundle(target: .supportPath)
-                    } label: {
-                        feedbackBundleActionLabel
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(isCreatingFeedbackBundle)
-                    .accessibilityIdentifier("support.path.createBundle")
-                }
-
-                StatusBannerView(status: supportPathStatus, accessibilityIdentifier: "support.pathStatus")
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .accessibilityIdentifier("support.path")
-    }
-
-    private var supportReadinessPath: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            Label {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("support.readiness.path.title")
-                        .font(.caption.weight(.semibold))
-                        .foregroundColor(DesignSystem.Colors.primaryText)
-                        .lineLimit(2)
-
-                    Text("support.readiness.path.detail")
-                        .font(.caption2)
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            } icon: {
-                Image(systemName: "point.3.connected.trianglepath.dotted")
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(readinessTone.color)
-                    .frame(width: 16)
-            }
-            .labelStyle(.titleAndIcon)
-
-            LazyVGrid(
-                columns: adaptiveColumns(minimum: 174, spacing: DesignSystem.Spacing.sm),
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.sm
-            ) {
-                supportReadinessPathItem(
-                    step: "1",
-                    titleKey: "support.path.health_title",
-                    detailKey: "support.readiness.path.health_detail",
-                    systemImage: "stethoscope",
-                    tone: readinessTone,
-                    accessibilityIdentifier: "support.readiness.path.health"
-                )
-
-                supportReadinessPathItem(
-                    step: "2",
-                    titleKey: "support.path.data_title",
-                    detailKey: "support.readiness.path.data_detail",
-                    systemImage: "folder",
-                    tone: .success,
-                    accessibilityIdentifier: "support.readiness.path.data"
-                )
-
-                supportReadinessPathItem(
-                    step: "3",
-                    titleKey: "support.path.bundle_title",
-                    detailKey: "support.readiness.path.bundle_detail",
-                    systemImage: "shippingbox",
-                    tone: .info,
-                    accessibilityIdentifier: "support.readiness.path.bundle"
-                )
-            }
-        }
-        .padding(DesignSystem.Spacing.sm)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(readinessTone.color.opacity(0.06))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .stroke(readinessTone.color.opacity(0.16), lineWidth: 1)
-        )
-        .accessibilityIdentifier("support.readiness.path")
-    }
-
     private var supportReadinessFacts: some View {
         LazyVGrid(
             columns: adaptiveColumns(minimum: 160, spacing: DesignSystem.Spacing.sm),
@@ -480,64 +354,6 @@ struct SupportPreferencesView: View {
         .accessibilityIdentifier(accessibilityIdentifier)
     }
 
-    private func supportReadinessPathItem(
-        step: String,
-        titleKey: LocalizedStringKey,
-        detailKey: LocalizedStringKey,
-        systemImage: String,
-        tone: DesignSystem.StatusTone,
-        accessibilityIdentifier: String
-    ) -> some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-            ZStack {
-                Circle()
-                    .fill(tone.color.opacity(0.12))
-
-                Text(step)
-                    .font(.caption2.weight(.bold))
-                    .foregroundColor(tone.color)
-                    .monospacedDigit()
-            }
-            .frame(width: 22, height: 22)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Label {
-                    Text(titleKey)
-                        .font(.caption.weight(.semibold))
-                        .foregroundColor(DesignSystem.Colors.primaryText)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                } icon: {
-                    Image(systemName: systemImage)
-                        .font(.caption2.weight(.semibold))
-                        .foregroundColor(tone.color)
-                        .frame(width: 13)
-                }
-                .labelStyle(.titleAndIcon)
-
-                Text(detailKey)
-                    .font(.caption2)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, DesignSystem.Spacing.sm)
-        .padding(.vertical, 7)
-        .frame(maxWidth: .infinity, minHeight: 68, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .fill(tone.color.opacity(0.06))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .stroke(tone.color.opacity(0.14), lineWidth: 1)
-        )
-        .accessibilityIdentifier(accessibilityIdentifier)
-    }
-
     private var releaseSafetySection: some View {
         SectionCard(title: "support.release_safety.title") {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
@@ -554,40 +370,6 @@ struct SupportPreferencesView: View {
                 Divider()
 
                 supportUpdateTrustFacts(accessibilityPrefix: "support.releaseSafety.facts")
-
-                LazyVGrid(
-                    columns: adaptiveColumns(minimum: 220, spacing: DesignSystem.Spacing.sm),
-                    alignment: .leading,
-                    spacing: DesignSystem.Spacing.sm
-                ) {
-                    supportChecklistItem(
-                        systemImage: readinessIconName,
-                        tone: readinessTone,
-                        titleKey: "support.release_safety.health_title",
-                        detailKey: "support.release_safety.health_detail",
-                        status: readinessText,
-                        accessibilityIdentifier: "support.releaseSafety.health"
-                    )
-
-                    supportChecklistItem(
-                        systemImage: "externaldrive",
-                        tone: .success,
-                        titleKey: "support.release_safety.data_title",
-                        detailKey: "support.release_safety.data_detail",
-                        status: L("support.release_safety.data_status"),
-                        accessibilityIdentifier: "support.releaseSafety.data"
-                    )
-
-                    supportChecklistItem(
-                        systemImage: "tag",
-                        tone: .info,
-                        titleKey: "support.release_safety.release_title",
-                        detailKey: "support.release_safety.release_detail",
-                        status: L("support.release_safety.release_status"),
-                        accessibilityIdentifier: "support.releaseSafety.release"
-                    )
-                }
-                .accessibilityIdentifier("support.releaseSafety.path")
 
                 responsiveActionGroup {
                     releaseSafetyHealthAction
@@ -644,76 +426,6 @@ struct SupportPreferencesView: View {
                 Divider()
 
                 supportUpdateTrustFacts(accessibilityPrefix: "support.updateChannel.facts")
-
-                LazyVGrid(
-                    columns: adaptiveColumns(minimum: 220, spacing: DesignSystem.Spacing.sm),
-                    alignment: .leading,
-                    spacing: DesignSystem.Spacing.sm
-                ) {
-                    supportChecklistItem(
-                        systemImage: "number",
-                        tone: .neutral,
-                        titleKey: "support.update_channel.current_title",
-                        detailKey: "support.update_channel.current_detail",
-                        status: versionString,
-                        accessibilityIdentifier: "support.updateChannel.current"
-                    )
-
-                    supportChecklistItem(
-                        systemImage: "safari",
-                        tone: .info,
-                        titleKey: "support.update_channel.source_title",
-                        detailKey: "support.update_channel.source_detail",
-                        status: L("support.update_channel.source_status"),
-                        accessibilityIdentifier: "support.updateChannel.source"
-                    )
-
-                    supportChecklistItem(
-                        systemImage: "checkmark.shield",
-                        tone: .success,
-                        titleKey: "support.update_channel.checksum_title",
-                        detailKey: "support.update_channel.checksum_detail",
-                        status: L("support.update_channel.checksum_status"),
-                        accessibilityIdentifier: "support.updateChannel.checksum"
-                    )
-
-                    supportChecklistItem(
-                        systemImage: "flag",
-                        tone: .warning,
-                        titleKey: "support.update_channel.candidate_title",
-                        detailKey: "support.update_channel.candidate_detail",
-                        status: L("support.update_channel.candidate_status"),
-                        accessibilityIdentifier: "support.updateChannel.candidate"
-                    )
-
-                    supportChecklistItem(
-                        systemImage: "hand.raised",
-                        tone: .warning,
-                        titleKey: "support.update_channel.install_title",
-                        detailKey: "support.update_channel.install_detail",
-                        status: L("support.update_channel.install_status"),
-                        accessibilityIdentifier: "support.updateChannel.install"
-                    )
-
-                    supportChecklistItem(
-                        systemImage: "stethoscope",
-                        tone: .info,
-                        titleKey: "support.update_channel.health_title",
-                        detailKey: "support.update_channel.health_detail",
-                        status: L("support.update_channel.health_status"),
-                        accessibilityIdentifier: "support.updateChannel.health"
-                    )
-
-                    supportChecklistItem(
-                        systemImage: "clock.arrow.circlepath",
-                        tone: .warning,
-                        titleKey: "support.update_channel.recovery_title",
-                        detailKey: "support.update_channel.recovery_detail",
-                        status: L("support.update_channel.recovery_status"),
-                        accessibilityIdentifier: "support.updateChannel.recovery"
-                    )
-                }
-                .accessibilityIdentifier("support.updateChannel.path")
 
                 VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
                     updateChannelPrimaryActions
@@ -849,45 +561,6 @@ struct SupportPreferencesView: View {
         .accessibilityIdentifier(accessibilityPrefix)
     }
 
-    private func supportChecklistItem(
-        systemImage: String,
-        tone: DesignSystem.StatusTone,
-        titleKey: LocalizedStringKey,
-        detailKey: LocalizedStringKey,
-        status: String,
-        accessibilityIdentifier: String
-    ) -> some View {
-        RowSurface(tone: tone) {
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-                    Image(systemName: systemImage)
-                        .font(.caption.weight(.semibold))
-                        .foregroundColor(tone.color)
-                        .frame(width: 16, height: 18)
-
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(titleKey)
-                            .font(.caption.weight(.semibold))
-                            .foregroundColor(DesignSystem.Colors.primaryText)
-                            .lineLimit(2)
-                            .fixedSize(horizontal: false, vertical: true)
-
-                        Text(detailKey)
-                            .font(.caption2)
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
-                            .lineLimit(4)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-
-                StatusPill(status, systemImage: systemImage, tone: tone)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .frame(maxWidth: .infinity, minHeight: 112, alignment: .topLeading)
-        }
-        .accessibilityIdentifier(accessibilityIdentifier)
-    }
-
     @ViewBuilder
     private var releaseSafetyHealthAction: some View {
         switch readinessState {
@@ -931,90 +604,6 @@ struct SupportPreferencesView: View {
                 statusIcon: "checkmark.shield",
                 accessibilityIdentifier: "support.feedback.localPromise"
             )
-        }
-    }
-
-    @ViewBuilder
-    private var supportPathHealthAction: some View {
-        switch readinessState {
-        case .notRun, .failed:
-            Button {
-                healthCheck.runQuickChecks()
-            } label: {
-                supportActionLabel(L("popover.self_check.run"), systemImage: "stethoscope")
-            }
-            .buttonStyle(.bordered)
-            .disabled(healthCheck.isRunning)
-            .accessibilityIdentifier("support.path.runSelfCheck")
-        case .running:
-            Button {} label: {
-                supportProgressActionLabel(L("popover.self_check.running"))
-            }
-            .buttonStyle(.bordered)
-            .disabled(true)
-            .accessibilityIdentifier("support.path.running")
-        case .blocked, .attention, .ready:
-            Button {
-                showHealthReport = true
-            } label: {
-                supportActionLabel(L("support.readiness.open_report"), systemImage: "doc.text.magnifyingglass")
-            }
-            .buttonStyle(.bordered)
-            .accessibilityIdentifier("support.path.openHealthReport")
-        }
-    }
-
-    private func supportPathRow<Actions: View>(
-        systemImage: String,
-        tone: DesignSystem.StatusTone,
-        title: LocalizedStringKey,
-        detail: LocalizedStringKey,
-        accessibilityIdentifier: String,
-        @ViewBuilder actions: () -> Actions
-    ) -> some View {
-        RowSurface(tone: tone) {
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-                    supportPathText(systemImage: systemImage, tone: tone, title: title, detail: detail)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-
-                    actions()
-                        .fixedSize(horizontal: true, vertical: false)
-                }
-
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                    supportPathText(systemImage: systemImage, tone: tone, title: title, detail: detail)
-
-                    actions()
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-            }
-        }
-        .accessibilityIdentifier(accessibilityIdentifier)
-    }
-
-    private func supportPathText(
-        systemImage: String,
-        tone: DesignSystem.StatusTone,
-        title: LocalizedStringKey,
-        detail: LocalizedStringKey
-    ) -> some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-            IconWell(systemImage: systemImage, tone: tone)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(detail)
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -1271,7 +860,6 @@ struct SupportPreferencesView: View {
 
     private enum SupportStatusTarget {
         case readiness
-        case supportPath
         case releaseSafety
         case identity
         case actions
@@ -1641,8 +1229,6 @@ struct SupportPreferencesView: View {
         switch target {
         case .readiness:
             readinessStatus = status
-        case .supportPath:
-            supportPathStatus = status
         case .releaseSafety:
             releaseSafetyStatus = status
         case .identity:

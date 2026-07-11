@@ -107,12 +107,6 @@ struct MarkerTimelineView: View {
                     markerReviewLead
                     markerReviewActions
                 }
-
-                if shouldShowMarkerReviewPath {
-                    Divider()
-
-                    markerReviewPath
-                }
             }
             .accessibilityIdentifier("markers.review.compactStrip")
         }
@@ -165,70 +159,6 @@ struct MarkerTimelineView: View {
         ActionButtonGrid(minimumItemWidth: 152) {
             markerReviewActionButtons
         }
-    }
-
-    private var markerReviewPath: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 156), spacing: DesignSystem.Spacing.sm)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            markerReviewPathItem(
-                titleKey: "markers.review.path.read_title",
-                detailKey: "markers.review.path.read_detail",
-                systemImage: "text.magnifyingglass",
-                tone: .success,
-                accessibilityIdentifier: "markers.review.path.read"
-            )
-            markerReviewPathItem(
-                titleKey: "markers.review.path.blocks_title",
-                detailKey: "markers.review.path.blocks_detail",
-                systemImage: totalOngoingCount > 0 ? "record.circle" : "timer",
-                tone: totalOngoingCount > 0 ? .warning : .info,
-                accessibilityIdentifier: "markers.review.path.blocks"
-            )
-            markerReviewPathItem(
-                titleKey: "markers.review.path.closeout_title",
-                detailKey: "markers.review.path.closeout_detail",
-                systemImage: "doc.text.magnifyingglass",
-                tone: .info,
-                accessibilityIdentifier: "markers.review.path.closeout"
-            )
-        }
-        .accessibilityIdentifier("markers.review.path")
-    }
-
-    private func markerReviewPathItem(
-        titleKey: LocalizedStringKey,
-        detailKey: LocalizedStringKey,
-        systemImage: String,
-        tone: DesignSystem.StatusTone,
-        accessibilityIdentifier: String
-    ) -> some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-            Image(systemName: systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(tone.color)
-                .frame(width: 16)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(titleKey)
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(detailKey)
-                    .font(.caption2)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Spacer(minLength: 0)
-        }
-        .frame(minWidth: 150, maxWidth: .infinity, alignment: .topLeading)
-        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     @ViewBuilder
@@ -568,92 +498,11 @@ struct MarkerTimelineView: View {
                 tone: markerTimelineEmptyTone
             )
 
-            if groups.isEmpty {
-                markerTimelineEmptyPrompts
-            }
-
             ActionButtonGrid(minimumItemWidth: 160) {
                 markerTimelineEmptyActions
             }
         }
         .accessibilityIdentifier("markers.timeline.emptyState")
-    }
-
-    private var markerTimelineEmptyPrompts: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 160), spacing: DesignSystem.Spacing.sm)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            markerTimelineEmptyPromptItem(
-                titleKey: "markers.capture.path.note_title",
-                detailKey: "markers.capture.path.note_detail",
-                systemImage: "note.text",
-                tone: .info,
-                accessibilityIdentifier: "markers.timeline.emptyPrompt.note"
-            )
-            markerTimelineEmptyPromptItem(
-                titleKey: "markers.capture.path.session_title",
-                detailKey: "markers.capture.path.session_detail",
-                systemImage: "timer",
-                tone: .warning,
-                accessibilityIdentifier: "markers.timeline.emptyPrompt.session"
-            )
-            markerTimelineEmptyPromptItem(
-                titleKey: "markers.capture.path.closeout_title",
-                detailKey: "markers.capture.path.closeout_detail",
-                systemImage: "doc.text.magnifyingglass",
-                tone: .success,
-                accessibilityIdentifier: "markers.timeline.emptyPrompt.closeout"
-            )
-        }
-        .accessibilityIdentifier("markers.timeline.emptyPrompts")
-    }
-
-    private func markerTimelineEmptyPromptItem(
-        titleKey: LocalizedStringKey,
-        detailKey: LocalizedStringKey,
-        systemImage: String,
-        tone: DesignSystem.StatusTone,
-        accessibilityIdentifier: String
-    ) -> some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-            Image(systemName: systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(tone.color)
-                .frame(width: 20, height: 20)
-                .background(
-                    RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                        .fill(tone.color.opacity(0.11))
-                )
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(titleKey)
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(detailKey)
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(DesignSystem.Spacing.sm)
-        .frame(minWidth: 160, maxWidth: .infinity, minHeight: 68, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(tone.color.opacity(0.06))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .stroke(tone.color.opacity(0.18), lineWidth: 1)
-        )
-        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     @ViewBuilder
@@ -750,10 +599,6 @@ struct MarkerTimelineView: View {
 
     private var searchIsActive: Bool {
         !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
-    private var shouldShowMarkerReviewPath: Bool {
-        !groups.isEmpty && !filteredGroups.isEmpty
     }
 
     private var totalPointCount: Int {

@@ -170,8 +170,6 @@ struct HealthCheckDetailsView: View {
     private var actions: some View {
         SectionCard(title: "self_check.details.actions") {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                actionGuidance
-
                 LazyVGrid(
                     columns: [GridItem(.adaptive(minimum: 280), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
                     alignment: .leading,
@@ -183,27 +181,6 @@ struct HealthCheckDetailsView: View {
             }
             .accessibilityIdentifier("selfCheck.actions")
         }
-    }
-
-    private var actionGuidance: some View {
-        Label {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("self_check.details.actions_guidance_title")
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-
-                Text("self_check.details.actions_guidance_detail")
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        } icon: {
-            Image(systemName: "checklist")
-                .font(.caption.weight(.semibold))
-                .foregroundColor(DesignSystem.Colors.accentSkyBlue)
-                .frame(width: 16)
-        }
-        .labelStyle(.titleAndIcon)
     }
 
     private var checkAndRepairActions: some View {
@@ -405,13 +382,11 @@ struct HealthCheckDetailsView: View {
                     )
                 }
 
-                readinessImpactStrip
-
                 Divider()
 
-                readinessNextActionCard
+                readinessNextActionButton
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
-                readinessRepairPath
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -439,149 +414,6 @@ struct HealthCheckDetailsView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var readinessImpactStrip: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            Text("self_check.details.impact.title")
-                .font(.caption.weight(.semibold))
-                .foregroundColor(DesignSystem.Colors.primaryText)
-
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 170), spacing: DesignSystem.Spacing.sm, alignment: .topLeading)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.sm
-            ) {
-                readinessImpactItem(
-                    titleKey: "self_check.details.impact.timeline_title",
-                    valueKey: readinessImpactTimelineValueKey,
-                    detailKey: readinessImpactTimelineDetailKey,
-                    systemImage: "clock",
-                    tone: readinessImpactTimelineTone,
-                    accessibilityIdentifier: "selfCheck.readiness.impact.timeline"
-                )
-                readinessImpactItem(
-                    titleKey: "self_check.details.impact.logs_title",
-                    valueKey: readinessImpactLogsValueKey,
-                    detailKey: readinessImpactLogsDetailKey,
-                    systemImage: "doc.badge.plus",
-                    tone: readinessImpactLogsTone,
-                    accessibilityIdentifier: "selfCheck.readiness.impact.logs"
-                )
-                readinessImpactItem(
-                    titleKey: "self_check.details.impact.support_title",
-                    valueKey: readinessImpactSupportValueKey,
-                    detailKey: readinessImpactSupportDetailKey,
-                    systemImage: "shippingbox",
-                    tone: readinessImpactSupportTone,
-                    accessibilityIdentifier: "selfCheck.readiness.impact.support"
-                )
-            }
-        }
-        .accessibilityIdentifier("selfCheck.readiness.impact")
-    }
-
-    private func readinessImpactItem(
-        titleKey: LocalizedStringKey,
-        valueKey: String,
-        detailKey: String,
-        systemImage: String,
-        tone: DesignSystem.StatusTone,
-        accessibilityIdentifier: String
-    ) -> some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-            Image(systemName: systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(tone.color)
-                .frame(width: 16)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(titleKey)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(LocalizedStringKey(valueKey))
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(LocalizedStringKey(detailKey))
-                    .font(.caption2)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            Spacer(minLength: 0)
-        }
-        .padding(DesignSystem.Spacing.sm)
-        .frame(maxWidth: .infinity, minHeight: 72, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .fill(tone.color.opacity(0.07))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .stroke(tone.color.opacity(0.18), lineWidth: 1)
-        )
-        .accessibilityIdentifier(accessibilityIdentifier)
-    }
-
-    private var readinessNextActionCard: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.md
-        ) {
-            readinessNextActionCopy
-            readinessNextActionButton
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(DesignSystem.Spacing.md)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(readinessTone.color.opacity(0.08))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .stroke(readinessTone.color.opacity(0.24), lineWidth: 1)
-        )
-        .accessibilityIdentifier("selfCheck.readiness.nextAction")
-    }
-
-    private var readinessNextActionCopy: some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-            IconWell(
-                systemImage: readinessNextActionIconName,
-                tone: readinessTone,
-                accessibilityLabel: L(readinessNextActionTitleKey)
-            )
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("self_check.details.next.label")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(LocalizedStringKey(readinessNextActionTitleKey))
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(LocalizedStringKey(readinessNextActionDetailKey))
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
     @ViewBuilder
     private var readinessNextActionButton: some View {
         if readinessState == .ready {
@@ -602,7 +434,7 @@ struct HealthCheckDetailsView: View {
             readinessNextActionButtonLabel
         }
         .disabled(readinessNextActionIsDisabled)
-        .accessibilityIdentifier("selfCheck.readiness.nextAction.primary")
+        .accessibilityIdentifier("selfCheck.readiness.primaryAction")
     }
 
     @ViewBuilder
@@ -614,73 +446,6 @@ struct HealthCheckDetailsView: View {
         } else {
             healthActionLabel(L(readinessNextActionButtonKey), systemImage: readinessNextActionButtonIconName)
         }
-    }
-
-    private var readinessRepairPath: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 176), spacing: DesignSystem.Spacing.sm, alignment: .topLeading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            readinessPathItem(
-                titleKey: "self_check.details.path.run_title",
-                detailKey: "self_check.details.path.run_detail",
-                systemImage: readinessState == .running ? "waveform.path.ecg" : "play.circle",
-                tone: readinessRunTone,
-                accessibilityIdentifier: "selfCheck.readiness.path.run"
-            )
-            readinessPathItem(
-                titleKey: "self_check.details.path.fix_title",
-                detailKey: "self_check.details.path.fix_detail",
-                systemImage: "wrench.adjustable",
-                tone: readinessFixTone,
-                accessibilityIdentifier: "selfCheck.readiness.path.fix"
-            )
-            readinessPathItem(
-                titleKey: "self_check.details.path.share_title",
-                detailKey: "self_check.details.path.share_detail",
-                systemImage: "square.and.arrow.up",
-                tone: .info,
-                accessibilityIdentifier: "selfCheck.readiness.path.share"
-            )
-        }
-        .accessibilityIdentifier("selfCheck.readiness.path")
-    }
-
-    private func readinessPathItem(
-        titleKey: LocalizedStringKey,
-        detailKey: LocalizedStringKey,
-        systemImage: String,
-        tone: DesignSystem.StatusTone,
-        accessibilityIdentifier: String
-    ) -> some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-            Image(systemName: systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(tone.color)
-                .frame(width: 18, height: 18)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(titleKey)
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                Text(detailKey)
-                    .font(.caption2)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(DesignSystem.Spacing.sm)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .fill(tone.color.opacity(0.07))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .stroke(tone.color.opacity(0.2), lineWidth: 1)
-        )
-        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     private func readinessMetric(
@@ -1590,7 +1355,7 @@ struct HealthCheckDetailsView: View {
         var lines: [String] = [
             L("self_check.details.clipboard.title"),
             "\(L("self_check.details.clipboard.status")): \(readinessStatusText)",
-            "\(L("self_check.details.clipboard.next")): \(L(readinessNextActionTitleKey))"
+            "\(L("self_check.details.clipboard.action")): \(L(readinessNextActionButtonKey))"
         ]
 
         if healthCheckService.isRunning {
@@ -1692,40 +1457,6 @@ struct HealthCheckDetailsView: View {
         return .ready
     }
 
-    private var readinessNextActionTitleKey: String {
-        switch readinessState {
-        case .notRun:
-            return "self_check.details.next.not_run_title"
-        case .running:
-            return "self_check.details.next.running_title"
-        case .failed:
-            return "self_check.details.next.failed_title"
-        case .blocked:
-            return "self_check.details.next.blocked_title"
-        case .attention:
-            return "self_check.details.next.attention_title"
-        case .ready:
-            return "self_check.details.next.ready_title"
-        }
-    }
-
-    private var readinessNextActionDetailKey: String {
-        switch readinessState {
-        case .notRun:
-            return "self_check.details.next.not_run_detail"
-        case .running:
-            return "self_check.details.next.running_detail"
-        case .failed:
-            return "self_check.details.next.failed_detail"
-        case .blocked:
-            return "self_check.details.next.blocked_detail"
-        case .attention:
-            return "self_check.details.next.attention_detail"
-        case .ready:
-            return "self_check.details.next.ready_detail"
-        }
-    }
-
     private var readinessNextActionButtonKey: String {
         switch readinessState {
         case .notRun:
@@ -1740,23 +1471,6 @@ struct HealthCheckDetailsView: View {
             return readinessRecommendedIssueAction?.titleKey ?? "self_check.details.next.action.review"
         case .ready:
             return "actions.close"
-        }
-    }
-
-    private var readinessNextActionIconName: String {
-        switch readinessState {
-        case .notRun:
-            return "play.circle"
-        case .running:
-            return "waveform.path.ecg"
-        case .failed:
-            return "arrow.clockwise"
-        case .blocked:
-            return "wrench.adjustable"
-        case .attention:
-            return "exclamationmark.triangle.fill"
-        case .ready:
-            return "checkmark.seal.fill"
         }
     }
 
@@ -1917,135 +1631,6 @@ struct HealthCheckDetailsView: View {
             return .success
         case .notRun, .running:
             return .neutral
-        }
-    }
-
-    private var readinessImpactTimelineValueKey: String {
-        switch readinessState {
-        case .notRun:
-            return "self_check.details.impact.timeline.not_run"
-        case .running:
-            return "self_check.details.impact.timeline.running"
-        case .failed, .blocked:
-            return "self_check.details.impact.timeline.blocked"
-        case .attention:
-            return "self_check.details.impact.timeline.attention"
-        case .ready:
-            return "self_check.details.impact.timeline.ready"
-        }
-    }
-
-    private var readinessImpactTimelineDetailKey: String {
-        switch readinessState {
-        case .notRun:
-            return "self_check.details.impact.timeline.not_run_detail"
-        case .running:
-            return "self_check.details.impact.timeline.running_detail"
-        case .failed, .blocked:
-            return "self_check.details.impact.timeline.blocked_detail"
-        case .attention:
-            return "self_check.details.impact.timeline.attention_detail"
-        case .ready:
-            return "self_check.details.impact.timeline.ready_detail"
-        }
-    }
-
-    private var readinessImpactTimelineTone: DesignSystem.StatusTone {
-        switch readinessState {
-        case .notRun:
-            return .neutral
-        case .running:
-            return .info
-        case .failed, .blocked:
-            return .critical
-        case .attention:
-            return .warning
-        case .ready:
-            return .success
-        }
-    }
-
-    private var readinessImpactLogsValueKey: String {
-        switch readinessState {
-        case .notRun:
-            return "self_check.details.impact.logs.not_run"
-        case .running:
-            return "self_check.details.impact.logs.running"
-        case .failed, .blocked:
-            return "self_check.details.impact.logs.blocked"
-        case .attention:
-            return "self_check.details.impact.logs.attention"
-        case .ready:
-            return "self_check.details.impact.logs.ready"
-        }
-    }
-
-    private var readinessImpactLogsDetailKey: String {
-        switch readinessState {
-        case .notRun:
-            return "self_check.details.impact.logs.not_run_detail"
-        case .running:
-            return "self_check.details.impact.logs.running_detail"
-        case .failed, .blocked:
-            return "self_check.details.impact.logs.blocked_detail"
-        case .attention:
-            return "self_check.details.impact.logs.attention_detail"
-        case .ready:
-            return "self_check.details.impact.logs.ready_detail"
-        }
-    }
-
-    private var readinessImpactLogsTone: DesignSystem.StatusTone {
-        switch readinessState {
-        case .notRun:
-            return .neutral
-        case .running:
-            return .info
-        case .failed, .blocked:
-            return .critical
-        case .attention:
-            return .warning
-        case .ready:
-            return .success
-        }
-    }
-
-    private var readinessImpactSupportValueKey: String {
-        switch readinessState {
-        case .notRun:
-            return "self_check.details.impact.support.not_run"
-        case .running:
-            return "self_check.details.impact.support.running"
-        case .failed, .blocked, .attention:
-            return "self_check.details.impact.support.ready"
-        case .ready:
-            return "self_check.details.impact.support.no_issue"
-        }
-    }
-
-    private var readinessImpactSupportDetailKey: String {
-        switch readinessState {
-        case .notRun:
-            return "self_check.details.impact.support.not_run_detail"
-        case .running:
-            return "self_check.details.impact.support.running_detail"
-        case .failed, .blocked, .attention:
-            return "self_check.details.impact.support.ready_detail"
-        case .ready:
-            return "self_check.details.impact.support.no_issue_detail"
-        }
-    }
-
-    private var readinessImpactSupportTone: DesignSystem.StatusTone {
-        switch readinessState {
-        case .notRun:
-            return .neutral
-        case .running:
-            return .info
-        case .failed, .blocked, .attention:
-            return .warning
-        case .ready:
-            return .success
         }
     }
 

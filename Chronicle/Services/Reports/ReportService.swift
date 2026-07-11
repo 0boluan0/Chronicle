@@ -9,12 +9,57 @@ import AppKit
 import Foundation
 
 final class ReportService {
-    static let shared = ReportService()
+    static let shared = ReportService(
+        database: .shared,
+        aggregation: .shared,
+        settings: .shared,
+        countOverlaysInTotals: { AppState.shared.countOverlaysInTotals },
+        windowTitlePolicy: {
+            (
+                mode: AppState.shared.windowTitlePrivacyMode,
+                blockedBundleIds: Set(AppState.shared.windowTitleBlockedBundleIDs)
+            )
+        }
+    )
 
     private let queue = DispatchQueue(label: "com.chronicle.report", qos: .utility)
-    private let settings = ReportSettings.shared
+    private let database: DatabaseService
+    private let aggregation: AggregationService
+    private let settings: ReportSettings
+    private let countOverlaysInTotals: () -> Bool
+    private let windowTitlePolicy: () -> (mode: WindowTitlePrivacyMode, blockedBundleIds: Set<String>)
 
-    private init() {}
+    private init(
+        database: DatabaseService,
+        aggregation: AggregationService,
+        settings: ReportSettings,
+        countOverlaysInTotals: @escaping () -> Bool,
+        windowTitlePolicy: @escaping () -> (mode: WindowTitlePrivacyMode, blockedBundleIds: Set<String>)
+    ) {
+        self.database = database
+        self.aggregation = aggregation
+        self.settings = settings
+        self.countOverlaysInTotals = countOverlaysInTotals
+        self.windowTitlePolicy = windowTitlePolicy
+    }
+
+#if DEBUG
+    static func makeTestInstance(
+        database: DatabaseService,
+        settings: ReportSettings,
+        countOverlaysInTotals: Bool = false,
+        windowTitlePrivacyMode: WindowTitlePrivacyMode = .raw,
+        blockedBundleIds: Set<String> = []
+    ) -> ReportService {
+        ReportService(
+            database: database,
+            aggregation: .makeTestInstance(database: database),
+            settings: settings,
+            countOverlaysInTotals: { countOverlaysInTotals },
+            windowTitlePolicy: { (windowTitlePrivacyMode, blockedBundleIds) }
+        )
+    }
+#endif
 
     func generateDailyReport(
         date: Date,
@@ -127,7 +172,7 @@ final class ReportService {
             var fetchError: Error?
 
             group.enter()
-            DatabaseService.shared.fetchActivitiesOverlappingRange(start: bounds.start, end: bounds.end) { result in
+            self.database.fetchActivitiesOverlappingRange(start: bounds.start, end: bounds.end) { result in
                 switch result {
                 case .success(let rows):
                     activities = rows
@@ -138,7 +183,7 @@ final class ReportService {
             }
 
             group.enter()
-            DatabaseService.shared.fetchTags { result in
+            self.database.fetchTags { result in
                 switch result {
                 case .success(let rows):
                     tags = rows
@@ -188,7 +233,7 @@ final class ReportService {
             var fetchError: Error?
 
             group.enter()
-            DatabaseService.shared.fetchActivitiesOverlappingRange(start: bounds.start, end: bounds.end) { result in
+            self.database.fetchActivitiesOverlappingRange(start: bounds.start, end: bounds.end) { result in
                 switch result {
                 case .success(let rows):
                     activities = rows
@@ -199,7 +244,7 @@ final class ReportService {
             }
 
             group.enter()
-            DatabaseService.shared.fetchTags { result in
+            self.database.fetchTags { result in
                 switch result {
                 case .success(let rows):
                     tags = rows
@@ -285,7 +330,7 @@ final class ReportService {
         let bounds = rangeBounds(for: kind, date: date)
         let filters = AggregationFilters(
             includeIdle: true,
-            countOverlaysInTotals: AppState.shared.countOverlaysInTotals,
+            countOverlaysInTotals: countOverlaysInTotals(),
             tagId: nil,
             appName: nil,
             bundleId: nil,
@@ -298,72 +343,93 @@ final class ReportService {
         var timelineItems: [TimelineItem] = []
         var tags: [TagRow] = []
         var fetchError: Error?
+        let fetchLock = NSLock()
 
         group.enter()
-        AggregationService.shared.computeSummary(rangeStart: bounds.start, rangeEnd: bounds.end, filters: filters) { result in
+        aggregation.computeSummary(rangeStart: bounds.start, rangeEnd: bounds.end, filters: filters) { result in
+            fetchLock.lock()
+            defer {
+                fetchLock.unlock()
+                group.leave()
+            }
             switch result {
             case .success(let value):
                 summary = value
             case .failure(let error):
                 fetchError = error
             }
-            group.leave()
         }
 
         group.enter()
-        AggregationService.shared.computeTopApps(
+        aggregation.computeTopApps(
             rangeStart: bounds.start,
             rangeEnd: bounds.end,
             filters: filters,
             limit: 10,
             includeIdle: false
         ) { result in
+            fetchLock.lock()
+            defer {
+                fetchLock.unlock()
+                group.leave()
+            }
             switch result {
             case .success(let items):
                 topApps = items
             case .failure(let error):
                 fetchError = error
             }
-            group.leave()
         }
 
         group.enter()
-        AggregationService.shared.computeTopTags(
+        aggregation.computeTopTags(
             rangeStart: bounds.start,
             rangeEnd: bounds.end,
             filters: filters,
             limit: 10,
             includeIdle: false
         ) { result in
+            fetchLock.lock()
+            defer {
+                fetchLock.unlock()
+                group.leave()
+            }
             switch result {
             case .success(let items):
                 topTags = items
             case .failure(let error):
                 fetchError = error
             }
-            group.leave()
         }
 
         group.enter()
-        AggregationService.shared.fetchTimelineItems(rangeStart: bounds.start, rangeEnd: bounds.end, filters: filters) { result in
+        aggregation.fetchTimelineItems(rangeStart: bounds.start, rangeEnd: bounds.end, filters: filters) { result in
+            fetchLock.lock()
+            defer {
+                fetchLock.unlock()
+                group.leave()
+            }
             switch result {
             case .success(let items):
                 timelineItems = items
             case .failure(let error):
                 fetchError = error
             }
-            group.leave()
         }
 
         group.enter()
-        AggregationService.shared.fetchTags { result in
+        aggregation.fetchTags { result in
+            fetchLock.lock()
+            defer {
+                fetchLock.unlock()
+                group.leave()
+            }
             switch result {
             case .success(let rows):
                 tags = rows
             case .failure(let error):
                 fetchError = error
             }
-            group.leave()
         }
 
         group.notify(queue: queue) {
@@ -417,9 +483,9 @@ final class ReportService {
     ) {
         switch kind {
         case .daily:
-            DatabaseService.shared.fetchMarkersForDay(dayStart: start, dayEnd: end, completion: completion)
+            database.fetchMarkersForDay(dayStart: start, dayEnd: end, completion: completion)
         case .weekly:
-            DatabaseService.shared.fetchMarkersOverlappingRange(start: start, end: end, completion: completion)
+            database.fetchMarkersOverlappingRange(start: start, end: end, completion: completion)
         }
     }
 
@@ -1224,10 +1290,7 @@ final class ReportService {
     }
 
     private func currentWindowTitlePolicy() -> (mode: WindowTitlePrivacyMode, blockedBundleIds: Set<String>) {
-        (
-            mode: AppState.shared.windowTitlePrivacyMode,
-            blockedBundleIds: Set(AppState.shared.windowTitleBlockedBundleIDs)
-        )
+        windowTitlePolicy()
     }
 
     private func sanitizeWindowTitleForExport(
@@ -1242,12 +1305,19 @@ final class ReportService {
         )
     }
 
-    private func csvEscape(_ value: String) -> String {
-        if value.contains(",") || value.contains("\"") || value.contains("\n") || value.contains("\r") {
-            let escaped = value.replacingOccurrences(of: "\"", with: "\"\"")
+    func csvEscape(_ value: String) -> String {
+        let firstVisibleCharacter = value.first { !$0.isWhitespace }
+        let safeValue: String
+        if let firstVisibleCharacter, "=+-@".contains(firstVisibleCharacter) {
+            safeValue = "'" + value
+        } else {
+            safeValue = value
+        }
+        if safeValue.contains(",") || safeValue.contains("\"") || safeValue.contains("\n") || safeValue.contains("\r") {
+            let escaped = safeValue.replacingOccurrences(of: "\"", with: "\"\"")
             return "\"\(escaped)\""
         }
-        return value
+        return safeValue
     }
 }
 

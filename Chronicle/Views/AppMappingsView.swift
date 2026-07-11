@@ -153,10 +153,6 @@ struct AppMappingsView: View {
 
                     mappingReviewQueue
 
-                    mappingReviewPath
-
-                    mappingImpactStrip
-
                     mappingReviewActions
                 }
             }
@@ -352,212 +348,6 @@ struct AppMappingsView: View {
         .accessibilityIdentifier("appMappings.reviewQueue.more")
     }
 
-    private var mappingReviewPath: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 168), spacing: DesignSystem.Spacing.sm)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            mappingReviewPathItem(
-                titleKey: "apps.review.path.find_title",
-                detailKey: "apps.review.path.find_detail",
-                systemImage: "line.3.horizontal.decrease.circle",
-                tone: needsReviewMappingCount == 0 ? .success : .warning,
-                accessibilityIdentifier: "appMappings.path.find"
-            )
-            mappingReviewPathItem(
-                titleKey: "apps.review.path.assign_title",
-                detailKey: "apps.review.path.assign_detail",
-                systemImage: "rectangle.split.3x1",
-                tone: .info,
-                accessibilityIdentifier: "appMappings.path.assign"
-            )
-            mappingReviewPathItem(
-                titleKey: "apps.review.path.backfill_title",
-                detailKey: "apps.review.path.backfill_detail",
-                systemImage: "arrow.clockwise",
-                tone: manualOnlyMappingCount == 0 ? .neutral : .warning,
-                accessibilityIdentifier: "appMappings.path.backfill"
-            )
-        }
-        .accessibilityIdentifier("appMappings.path")
-    }
-
-    private func mappingReviewPathItem(
-        titleKey: LocalizedStringKey,
-        detailKey: LocalizedStringKey,
-        systemImage: String,
-        tone: DesignSystem.StatusTone,
-        accessibilityIdentifier: String
-    ) -> some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-            Image(systemName: systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(tone.color)
-                .frame(width: 18, height: 18)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(titleKey)
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(detailKey)
-                    .font(.caption2)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(DesignSystem.Spacing.sm)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .fill(tone.color.opacity(0.07))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .stroke(tone.color.opacity(0.2), lineWidth: 1)
-        )
-        .accessibilityIdentifier(accessibilityIdentifier)
-    }
-
-    private var mappingImpactStrip: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            mappingImpactHeader
-
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 168), spacing: DesignSystem.Spacing.sm)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.sm
-            ) {
-                mappingImpactItem(
-                    titleKey: "apps.review.impact.future_title",
-                    detailKey: "apps.review.impact.future_detail",
-                    systemImage: "arrow.forward.circle",
-                    tone: .success,
-                    accessibilityIdentifier: "appMappings.impact.future"
-                )
-                mappingImpactItem(
-                    titleKey: "apps.review.impact.today_title",
-                    detailKey: "apps.review.impact.today_detail",
-                    systemImage: "calendar.badge.clock",
-                    tone: .info,
-                    accessibilityIdentifier: "appMappings.impact.today"
-                )
-                mappingImpactItem(
-                    titleKey: "apps.review.impact.rules_title",
-                    detailKey: "apps.review.impact.rules_detail",
-                    systemImage: "slider.horizontal.3",
-                    tone: .neutral,
-                    accessibilityIdentifier: "appMappings.impact.rules"
-                )
-            }
-        }
-        .padding(DesignSystem.Spacing.sm)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(DesignSystem.StatusTone.info.color.opacity(0.07))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .stroke(DesignSystem.StatusTone.info.color.opacity(0.18), lineWidth: 1)
-        )
-        .accessibilityIdentifier("appMappings.impactStrip")
-    }
-
-    private var mappingImpactHeader: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-                mappingImpactHeaderLead
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                mappingImpactStatusPill
-                    .fixedSize(horizontal: true, vertical: false)
-            }
-
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                mappingImpactHeaderLead
-                mappingImpactStatusPill
-            }
-        }
-    }
-
-    private var mappingImpactHeaderLead: some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-            IconWell(
-                systemImage: "arrow.triangle.branch",
-                tone: .info,
-                accessibilityLabel: L("apps.review.impact.title")
-            )
-            .frame(width: 34, height: 34)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text("apps.review.impact.title")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text("apps.review.impact.detail")
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-
-    private var mappingImpactStatusPill: some View {
-        StatusPill(
-            L("apps.review.impact.status"),
-            systemImage: "checkmark.shield",
-            tone: .info
-        )
-    }
-
-    private func mappingImpactItem(
-        titleKey: LocalizedStringKey,
-        detailKey: LocalizedStringKey,
-        systemImage: String,
-        tone: DesignSystem.StatusTone,
-        accessibilityIdentifier: String
-    ) -> some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-            Image(systemName: systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(tone.color)
-                .frame(width: 18, height: 18)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(titleKey)
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(detailKey)
-                    .font(.caption2)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(DesignSystem.Spacing.sm)
-        .frame(minWidth: 168, maxWidth: .infinity, minHeight: 62, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .fill(tone.color.opacity(0.06))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .stroke(tone.color.opacity(0.16), lineWidth: 1)
-        )
-        .accessibilityIdentifier(accessibilityIdentifier)
-    }
-
     private var mappingReviewActions: some View {
         LazyVGrid(
             columns: [GridItem(.adaptive(minimum: 150), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
@@ -699,10 +489,6 @@ struct AppMappingsView: View {
     private var mappingFilterBar: some View {
         SectionCard(title: "apps.filters.title") {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                mappingFilterHeader
-
-                Divider()
-
                 LazyVGrid(
                     columns: [GridItem(.adaptive(minimum: 220), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
                     alignment: .leading,
@@ -720,40 +506,6 @@ struct AppMappingsView: View {
             }
         }
         .accessibilityIdentifier("appMappings.filterWorkspace")
-    }
-
-    private var mappingFilterHeader: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            mappingFilterCopy
-            mappingVisibleStatus
-        }
-        .accessibilityIdentifier("appMappings.filterGuide")
-    }
-
-    private var mappingFilterCopy: some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-            IconWell(
-                systemImage: mappingFiltersAreActive ? "line.3.horizontal.decrease.circle" : "rectangle.grid.1x2",
-                tone: mappingFilterTone,
-                accessibilityLabel: L("apps.filters.title")
-            )
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(LocalizedStringKey(mappingFilterHeadlineKey))
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-
-                Text(LocalizedStringKey(mappingFilterDetailKey))
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var mappingSearchField: some View {
@@ -958,21 +710,6 @@ struct AppMappingsView: View {
         )
     }
 
-    private var mappingVisibleStatus: some View {
-        HStack(spacing: DesignSystem.Spacing.sm) {
-            StatusPill(
-                String(format: L("apps.visible_count"), filteredMappings.count, appMappings.count),
-                systemImage: "eye",
-                tone: filteredMappings.isEmpty ? .warning : .info
-            )
-
-            if isLoadingMappings {
-                ProgressView()
-                    .controlSize(.small)
-            }
-        }
-    }
-
     private var mappingListSection: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
             mappingListHeader
@@ -1157,12 +894,6 @@ struct AppMappingsView: View {
                 tone: appMappings.isEmpty ? .neutral : .warning
             )
 
-            if appMappings.isEmpty {
-                mappingEmptyPath
-            } else {
-                mappingFilteredEmptyPath
-            }
-
             LazyVGrid(
                 columns: [GridItem(.adaptive(minimum: 150), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
                 alignment: .leading,
@@ -1182,68 +913,6 @@ struct AppMappingsView: View {
                 .stroke(DesignSystem.Colors.separator.opacity(0.35), lineWidth: 1)
         )
         .accessibilityIdentifier("appMappings.emptyState")
-    }
-
-    private var mappingEmptyPath: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 168), spacing: DesignSystem.Spacing.sm)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            mappingReviewPathItem(
-                titleKey: "apps.empty.path.capture_title",
-                detailKey: "apps.empty.path.capture_detail",
-                systemImage: "record.circle",
-                tone: .info,
-                accessibilityIdentifier: "appMappings.emptyPath.capture"
-            )
-            mappingReviewPathItem(
-                titleKey: "apps.empty.path.today_title",
-                detailKey: "apps.empty.path.today_detail",
-                systemImage: "sun.max",
-                tone: .success,
-                accessibilityIdentifier: "appMappings.emptyPath.today"
-            )
-            mappingReviewPathItem(
-                titleKey: "apps.empty.path.review_title",
-                detailKey: "apps.empty.path.review_detail",
-                systemImage: "rectangle.grid.1x2",
-                tone: .neutral,
-                accessibilityIdentifier: "appMappings.emptyPath.review"
-            )
-        }
-        .accessibilityIdentifier("appMappings.emptyPath")
-    }
-
-    private var mappingFilteredEmptyPath: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 168), spacing: DesignSystem.Spacing.sm)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            mappingReviewPathItem(
-                titleKey: "apps.empty_filtered.path.clear_title",
-                detailKey: "apps.empty_filtered.path.clear_detail",
-                systemImage: "line.3.horizontal.decrease.circle",
-                tone: .warning,
-                accessibilityIdentifier: "appMappings.emptyFilteredPath.clear"
-            )
-            mappingReviewPathItem(
-                titleKey: "apps.empty_filtered.path.scope_title",
-                detailKey: "apps.empty_filtered.path.scope_detail",
-                systemImage: "slider.horizontal.3",
-                tone: .info,
-                accessibilityIdentifier: "appMappings.emptyFilteredPath.scope"
-            )
-            mappingReviewPathItem(
-                titleKey: "apps.empty_filtered.path.refresh_title",
-                detailKey: "apps.empty_filtered.path.refresh_detail",
-                systemImage: "arrow.clockwise",
-                tone: .neutral,
-                accessibilityIdentifier: "appMappings.emptyFilteredPath.refresh"
-            )
-        }
-        .accessibilityIdentifier("appMappings.emptyFilteredPath")
     }
 
     @ViewBuilder
@@ -1391,14 +1060,6 @@ struct AppMappingsView: View {
 
     private var hasSearchFilter: Bool {
         !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
-    private var mappingFilterHeadlineKey: String {
-        mappingFiltersAreActive ? "apps.filters.focused_title" : "apps.filters.all_title"
-    }
-
-    private var mappingFilterDetailKey: String {
-        mappingFiltersAreActive ? "apps.filters.focused_detail" : "apps.filters.all_detail"
     }
 
     private var mappingFilterTone: DesignSystem.StatusTone {

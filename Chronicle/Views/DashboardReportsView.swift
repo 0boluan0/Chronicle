@@ -234,7 +234,7 @@ struct ReportsWorkspaceView: View {
                 .fill(planExportReadinessTone.color.opacity(0.18))
                 .frame(height: 1)
         }
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("reports.workspace.header")
     }
 
@@ -275,13 +275,6 @@ struct ReportsWorkspaceView: View {
                 .foregroundColor(DesignSystem.Colors.secondaryText)
                 .lineLimit(2)
                 .fixedSize(horizontal: false, vertical: true)
-
-            Text(planExportReadinessNextActionText)
-                .font(.caption2.weight(.medium))
-                .foregroundColor(planExportReadinessTone.color)
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
-                .accessibilityIdentifier("reports.workspace.nextAction")
         }
         .accessibilityIdentifier("reports.workspace.status")
     }
@@ -294,7 +287,7 @@ struct ReportsWorkspaceView: View {
                 if mode == .dashboard {
                     dashboardCloseoutFlow
                 } else {
-                    closeoutNextActionView
+                    closeoutActionButtons
                 }
 
                 LazyVGrid(
@@ -323,11 +316,6 @@ struct ReportsWorkspaceView: View {
                     closeoutReminderPrompt
                 }
 
-                if mode == .dashboard {
-                    Divider()
-                    closeoutIncludedView
-                }
-
                 ReportCloseoutFeedbackView(
                     status: dailyStatus,
                     canOpenFolder: dailyFolderReady,
@@ -346,9 +334,7 @@ struct ReportsWorkspaceView: View {
 
     private var dashboardCloseoutFlow: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            closeoutStepsView
-
-            closeoutNextActionView
+            closeoutActionButtons
 
             dashboardCloseoutWorkspace
         }
@@ -367,10 +353,7 @@ struct ReportsWorkspaceView: View {
     }
 
     private var dashboardCloseoutEditorColumn: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            ReportCloseoutNotesView(text: $dailyNotes, isFocused: $dailyNotesFocused)
-            closeoutSaveConfidenceStrip
-        }
+        ReportCloseoutNotesView(text: $dailyNotes, isFocused: $dailyNotesFocused)
         .frame(maxWidth: .infinity, alignment: .topLeading)
         .accessibilityIdentifier("reports.closeout.editor")
     }
@@ -418,7 +401,7 @@ struct ReportsWorkspaceView: View {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                 dashboardWeeklyHeader
 
-                dashboardWeeklyNextActionView
+                dashboardWeeklyActions
 
                 Divider()
 
@@ -487,101 +470,6 @@ struct ReportsWorkspaceView: View {
                     .foregroundColor(DesignSystem.Colors.primaryText)
 
                 Text(LocalizedStringKey(dashboardWeeklyDetailKey))
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-
-    private var dashboardWeeklyNextActionView: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.md)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.md
-        ) {
-            dashboardWeeklyNextActionSummary
-            dashboardWeeklyActions
-        }
-        .padding(DesignSystem.Spacing.md)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(dashboardWeeklyTone.color.opacity(0.07))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .stroke(dashboardWeeklyTone.color.opacity(0.20), lineWidth: 1)
-        )
-        .accessibilityIdentifier("reports.dashboardWeekly.nextAction")
-    }
-
-    private var dashboardWeeklyNextActionSummary: some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-            Image(systemName: dashboardWeeklyIconName)
-                .font(.headline.weight(.semibold))
-                .foregroundColor(dashboardWeeklyTone.color)
-                .frame(width: 24)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(LocalizedStringKey(dashboardWeeklyNextActionTitleKey))
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-
-                Text(LocalizedStringKey(dashboardWeeklyNextActionDetailKey))
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-
-    private var closeoutNextActionView: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.md)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.md
-        ) {
-            closeoutNextActionSummary
-            closeoutActionButtons
-        }
-        .padding(DesignSystem.Spacing.md)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(closeoutNextActionTone.color.opacity(0.07))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .stroke(closeoutNextActionTone.color.opacity(0.20), lineWidth: 1)
-        )
-        .accessibilityIdentifier("reports.closeout.nextAction")
-    }
-
-    private var closeoutNextActionSummary: some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-            Image(systemName: closeoutNextActionIconName)
-                .font(.headline.weight(.semibold))
-                .foregroundColor(closeoutNextActionTone.color)
-                .frame(width: 24)
-
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
-                    Text(LocalizedStringKey(closeoutNextActionTitleKey))
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundColor(DesignSystem.Colors.primaryText)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    Spacer(minLength: 0)
-
-                    StatusPill(
-                        closeoutNextActionStatusText,
-                        systemImage: closeoutNextActionStatusIconName,
-                        tone: closeoutNextActionTone
-                    )
-                    .accessibilityIdentifier("reports.closeout.nextAction.status")
-                }
-
-                Text(LocalizedStringKey(closeoutNextActionDetailKey))
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
@@ -808,135 +696,6 @@ struct ReportsWorkspaceView: View {
                 .accessibilityIdentifier("reports.dashboardWeekly.generate")
             }
         }
-    }
-
-    private var closeoutStepsView: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            closeoutStepsHeader
-
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 190), spacing: DesignSystem.Spacing.sm)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.sm
-            ) {
-                closeoutStepCard(
-                    stepNumber: 1,
-                    titleKey: "reports.closeout.step.destination_title",
-                    detailKey: closeoutDestinationStepDetailKey,
-                    systemImage: "folder",
-                    tone: dailyFolderReady ? .success : .warning,
-                    isComplete: dailyFolderReady,
-                    isCurrent: !dailyFolderReady,
-                    accessibilityIdentifier: "reports.closeout.step.destination"
-                )
-
-                closeoutStepCard(
-                    stepNumber: 2,
-                    titleKey: "reports.closeout.step.notes_title",
-                    detailKey: closeoutNotesStepDetailKey,
-                    systemImage: "text.badge.checkmark",
-                    tone: hasDailyCloseoutNotes ? .success : .info,
-                    isComplete: hasDailyCloseoutNotes,
-                    isCurrent: closeoutNotesStepIsCurrent,
-                    accessibilityIdentifier: "reports.closeout.step.notes"
-                )
-
-                closeoutStepCard(
-                    stepNumber: 3,
-                    titleKey: "reports.closeout.step.export_title",
-                    detailKey: closeoutExportStepDetailKey,
-                    systemImage: closeoutExportStepIconName,
-                    tone: closeoutExportStepTone,
-                    isComplete: dailyExportedToday,
-                    isCurrent: closeoutExportStepIsCurrent,
-                    accessibilityIdentifier: "reports.closeout.step.export"
-                )
-            }
-        }
-        .accessibilityIdentifier("reports.closeout.steps")
-    }
-
-    private var closeoutStepsHeader: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-                closeoutStepsHeaderCopy
-
-                StatusPill(closeoutStepProgressText, systemImage: closeoutStepProgressIconName, tone: closeoutStepProgressTone)
-                    .fixedSize(horizontal: true, vertical: false)
-                    .accessibilityIdentifier("reports.closeout.steps.progress")
-            }
-
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-                closeoutStepsHeaderCopy
-
-                StatusPill(closeoutStepProgressText, systemImage: closeoutStepProgressIconName, tone: closeoutStepProgressTone)
-                    .accessibilityIdentifier("reports.closeout.steps.progress")
-            }
-        }
-        .accessibilityIdentifier("reports.closeout.steps.header")
-    }
-
-    private var closeoutStepsHeaderCopy: some View {
-        Label {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("reports.closeout.path.title")
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-
-                Text("reports.closeout.path.detail")
-                    .font(.caption2)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        } icon: {
-            Image(systemName: "checklist")
-                .font(.caption.weight(.semibold))
-                .foregroundColor(closeoutStepProgressTone.color)
-                .frame(width: 16)
-        }
-        .labelStyle(.titleAndIcon)
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var closeoutIncludedView: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            Text("reports.closeout.include.title")
-                .font(.caption.weight(.semibold))
-                .foregroundColor(DesignSystem.Colors.primaryText)
-
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 180), spacing: DesignSystem.Spacing.sm)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.sm
-            ) {
-                closeoutIncludedItem(
-                    titleKey: "reports.closeout.include.timeline_title",
-                    detailKey: "reports.closeout.include.timeline_detail",
-                    systemImage: "clock",
-                    tone: dailyFolderReady ? .info : .neutral,
-                    accessibilityIdentifier: "reports.closeout.include.timeline"
-                )
-
-                closeoutIncludedItem(
-                    titleKey: "reports.closeout.include.cues_title",
-                    detailKey: "reports.closeout.include.cues_detail",
-                    systemImage: "note.text",
-                    tone: .info,
-                    accessibilityIdentifier: "reports.closeout.include.cues"
-                )
-
-                closeoutIncludedItem(
-                    titleKey: "reports.closeout.include.notes_title",
-                    detailKey: closeoutIncludedNotesDetailKey,
-                    systemImage: "note.text",
-                    tone: hasDailyCloseoutNotes ? .success : .neutral,
-                    accessibilityIdentifier: "reports.closeout.include.notes"
-                )
-            }
-        }
-        .accessibilityIdentifier("reports.closeout.include")
     }
 
     private var closeoutReviewBrief: some View {
@@ -1286,48 +1045,6 @@ struct ReportsWorkspaceView: View {
         .frame(minWidth: 148, maxWidth: .infinity, alignment: .topLeading)
     }
 
-    private func closeoutIncludedItem(
-        titleKey: String,
-        detailKey: String,
-        systemImage: String,
-        tone: DesignSystem.StatusTone,
-        accessibilityIdentifier: String
-    ) -> some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-            Image(systemName: systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(tone.color)
-                .frame(width: 16)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(LocalizedStringKey(titleKey))
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(LocalizedStringKey(detailKey))
-                    .font(.caption2)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(DesignSystem.Spacing.sm)
-        .frame(minWidth: 150, maxWidth: .infinity, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(DesignSystem.Colors.background.opacity(0.52))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .stroke(DesignSystem.Colors.separator.opacity(0.36), lineWidth: 1)
-        )
-        .accessibilityIdentifier(accessibilityIdentifier)
-    }
-
     private var closeoutReminderPrompt: some View {
         HStack(alignment: .center, spacing: DesignSystem.Spacing.md) {
             Image(systemName: "bell.badge")
@@ -1367,76 +1084,6 @@ struct ReportsWorkspaceView: View {
                 .stroke(DesignSystem.Colors.accentSkyBlue.opacity(0.18), lineWidth: 1)
         )
         .accessibilityIdentifier("reports.closeout.reminderPrompt")
-    }
-
-    private func closeoutStepCard(
-        stepNumber: Int,
-        titleKey: String,
-        detailKey: String,
-        systemImage: String,
-        tone: DesignSystem.StatusTone,
-        isComplete: Bool,
-        isCurrent: Bool,
-        accessibilityIdentifier: String
-    ) -> some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-            ZStack {
-                Circle()
-                    .fill(tone.color.opacity(0.14))
-
-                if isComplete {
-                    Image(systemName: "checkmark")
-                        .font(.caption.weight(.bold))
-                        .foregroundColor(tone.color)
-                } else {
-                    Text("\(stepNumber)")
-                        .font(.caption.weight(.bold))
-                        .foregroundColor(tone.color)
-                        .monospacedDigit()
-                }
-            }
-            .frame(width: 28, height: 28)
-            .overlay(alignment: .bottomTrailing) {
-                if !isComplete {
-                    Image(systemName: systemImage)
-                        .font(.system(size: 7, weight: .bold))
-                        .foregroundColor(tone.color)
-                        .padding(2)
-                        .background(
-                            Circle()
-                                .fill(DesignSystem.Colors.cardBackground)
-                        )
-                        .offset(x: 4, y: 4)
-                }
-            }
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(LocalizedStringKey(titleKey))
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(LocalizedStringKey(detailKey))
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(DesignSystem.Spacing.sm)
-        .frame(minWidth: 172, maxWidth: .infinity, minHeight: 76, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(tone.color.opacity(isCurrent ? 0.12 : 0.07))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .stroke(tone.color.opacity(isCurrent ? 0.38 : 0.20), lineWidth: isCurrent ? 1.2 : 1)
-        )
-        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     private func closeoutStatusItem(
@@ -1492,11 +1139,7 @@ struct ReportsWorkspaceView: View {
 
                 Divider()
 
-                LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 220), spacing: DesignSystem.Spacing.md)],
-                    alignment: .leading,
-                    spacing: DesignSystem.Spacing.md
-                ) {
+                VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                     reportPlanBlock(
                         titleKey: "reports.plan.daily_title",
                         detail: String(format: L("reports.plan.daily_detail"), selectedReportDayText),
@@ -1585,14 +1228,11 @@ struct ReportsWorkspaceView: View {
                 tone: status.isError ? .warning : .success
             )
 
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 142), spacing: DesignSystem.Spacing.sm)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.sm
-            ) {
+            HStack(spacing: DesignSystem.Spacing.sm) {
                 actions()
             }
             .padding(.top, DesignSystem.Spacing.xs)
+            .accessibilityElement(children: .contain)
         }
         .padding(DesignSystem.Spacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1730,7 +1370,8 @@ struct ReportsWorkspaceView: View {
                     Spacer()
                 }
 
-                exportReadinessNextActionView
+                exportReadinessNextActionButton
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
                 exportCompatibilityStrip
 
@@ -1759,22 +1400,6 @@ struct ReportsWorkspaceView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .accessibilityIdentifier("reports.readiness")
-    }
-
-    private var exportReadinessNextActionView: some View {
-        RowSurface(tone: exportReadinessTone, isHovering: false) {
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 240), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.md
-            ) {
-                exportReadinessNextActionCopy
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                exportReadinessNextActionButton
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-        }
-        .accessibilityIdentifier("reports.readiness.nextAction")
     }
 
     private var exportCompatibilityStrip: some View {
@@ -1891,54 +1516,25 @@ struct ReportsWorkspaceView: View {
         .accessibilityIdentifier(accessibilityIdentifier)
     }
 
-    private var exportReadinessNextActionCopy: some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-            IconWell(
-                systemImage: nextMissingExportFolderKind == nil ? "checkmark.seal.fill" : "folder.badge.plus",
-                tone: exportReadinessTone,
-                accessibilityLabel: exportReadinessNextActionTitle
-            )
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text("reports.readiness.next.label")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(1)
-
-                Text(exportReadinessNextActionTitle)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(exportReadinessNextActionDetail)
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-
     private var exportReadinessNextActionButton: some View {
         HStack(spacing: DesignSystem.Spacing.sm) {
             if let nextMissingExportFolderKind {
                 Button {
                     chooseFolder(for: nextMissingExportFolderKind)
                 } label: {
-                    reportActionButtonLabel(L("reports.readiness.next.choose"), systemImage: "folder.badge.plus")
+                    reportActionButtonLabel(L("reports.choose_folder"), systemImage: "folder.badge.plus")
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(DesignSystem.Colors.accentSkyBlue)
-                .accessibilityIdentifier("reports.readiness.next.choose")
+                .accessibilityIdentifier("reports.readiness.chooseFolder")
             } else {
                 Button {
                     openFolder(for: .daily)
                 } label: {
-                    reportActionButtonLabel(L("reports.readiness.next.open_daily"), systemImage: "folder")
+                    reportActionButtonLabel(L("reports.open_folder"), systemImage: "folder")
                 }
                 .buttonStyle(.bordered)
-                .accessibilityIdentifier("reports.readiness.next.openDaily")
+                .accessibilityIdentifier("reports.readiness.openDailyFolder")
             }
         }
     }
@@ -2074,8 +1670,6 @@ struct ReportsWorkspaceView: View {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                 csvHeader
 
-                csvGuidanceStrip
-
                 csvDestinationRow
 
                 Divider()
@@ -2117,202 +1711,6 @@ struct ReportsWorkspaceView: View {
             .accessibilityIdentifier("reports.csvFolderStatus")
         }
         .accessibilityIdentifier("reports.csv.header")
-    }
-
-    private var csvGuidanceStrip: some View {
-        let folderStatus = folderStatusLine(for: .csv)
-        let destinationReady = !folderStatus.isError
-        let destinationTone: DesignSystem.StatusTone = destinationReady ? .success : .warning
-
-        return VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-                IconWell(
-                    systemImage: "shippingbox.fill",
-                    tone: destinationTone,
-                    accessibilityLabel: L("reports.csv.guidance.title")
-                )
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("reports.csv.guidance.title")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundColor(DesignSystem.Colors.primaryText)
-
-                    Text("reports.csv.guidance.detail")
-                        .font(DesignSystem.Typography.caption)
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                Spacer(minLength: 0)
-            }
-
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 184), spacing: DesignSystem.Spacing.sm)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.sm
-            ) {
-                csvGuidanceTile(
-                    titleKey: "reports.csv.guidance.destination_title",
-                    statusText: destinationReady ? L("reports.csv.guidance.destination_ready") : L("reports.csv.guidance.destination_needed"),
-                    statusSystemImage: destinationReady ? "checkmark" : "exclamationmark.triangle.fill",
-                    detail: String(format: L("reports.csv.guidance.destination_detail"), settings.csvFolderDisplayPath),
-                    systemImage: destinationReady ? "folder" : "folder.badge.plus",
-                    tone: destinationTone,
-                    accessibilityID: "reports.csv.guidance.destination"
-                )
-
-                csvGuidanceTile(
-                    titleKey: "reports.csv.guidance.range_title",
-                    statusText: csvRangeSummary,
-                    statusSystemImage: "calendar",
-                    detail: String(format: L("reports.csv.guidance.range_detail"), csvRangeSummary),
-                    systemImage: "calendar",
-                    tone: .info,
-                    accessibilityID: "reports.csv.guidance.range"
-                )
-
-                csvGuidanceTile(
-                    titleKey: "reports.csv.guidance.fields_title",
-                    statusText: String(format: L("reports.csv.fields.selected"), selectedCSVColumns.count),
-                    statusSystemImage: "checklist",
-                    detail: String(format: L("reports.csv.guidance.fields_detail"), selectedCSVColumns.count),
-                    systemImage: "checklist",
-                    tone: .info,
-                    accessibilityID: "reports.csv.guidance.fields"
-                )
-            }
-
-            csvGuidanceNextAction(folderStatus: folderStatus)
-        }
-        .padding(DesignSystem.Spacing.md)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(destinationTone.color.opacity(0.055))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .stroke(destinationTone.color.opacity(0.16), lineWidth: 1)
-        )
-        .accessibilityIdentifier("reports.csv.guidance")
-    }
-
-    private func csvGuidanceTile(
-        titleKey: LocalizedStringKey,
-        statusText: String,
-        statusSystemImage: String,
-        detail: String,
-        systemImage: String,
-        tone: DesignSystem.StatusTone,
-        accessibilityID: String
-    ) -> some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-            HStack(alignment: .center, spacing: DesignSystem.Spacing.xs) {
-                Image(systemName: systemImage)
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(tone.color)
-                    .frame(width: 18)
-
-                Text(titleKey)
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Spacer(minLength: 0)
-            }
-
-            StatusPill(statusText, systemImage: statusSystemImage, tone: tone)
-
-            Text(detail)
-                .font(DesignSystem.Typography.caption)
-                .foregroundColor(DesignSystem.Colors.secondaryText)
-                .lineLimit(3)
-                .truncationMode(.middle)
-                .fixedSize(horizontal: false, vertical: true)
-                .textSelection(.enabled)
-                .help(detail)
-        }
-        .padding(DesignSystem.Spacing.sm)
-        .frame(maxWidth: .infinity, minHeight: 94, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(DesignSystem.Colors.cardBackground.opacity(0.72))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .stroke(tone.color.opacity(0.16), lineWidth: 1)
-        )
-        .accessibilityIdentifier(accessibilityID)
-    }
-
-    private func csvGuidanceNextAction(folderStatus: StatusMessage) -> some View {
-        let isReady = !folderStatus.isError
-        let tone: DesignSystem.StatusTone = isReady ? .success : .warning
-
-        return RowSurface(tone: tone, isHovering: false) {
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 232), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.md
-            ) {
-                HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-                    IconWell(
-                        systemImage: isReady ? "square.and.arrow.down" : "folder.badge.plus",
-                        tone: tone,
-                        accessibilityLabel: L("reports.csv.guidance.next.label")
-                    )
-
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("reports.csv.guidance.next.label")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
-                            .lineLimit(1)
-
-                        Text(L(isReady ? "reports.csv.guidance.next.ready_title" : "reports.csv.guidance.next.folder_title"))
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundColor(DesignSystem.Colors.primaryText)
-                            .lineLimit(2)
-                            .fixedSize(horizontal: false, vertical: true)
-
-                        Text(L(isReady ? "reports.csv.guidance.next.ready_detail" : "reports.csv.guidance.next.folder_detail"))
-                            .font(DesignSystem.Typography.caption)
-                            .foregroundColor(DesignSystem.Colors.secondaryText)
-                            .lineLimit(3)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                }
-
-                HStack(spacing: DesignSystem.Spacing.sm) {
-                    if isReady {
-                        Button {
-                            exportCsv()
-                        } label: {
-                            reportExportingActionButtonLabel(
-                                isExporting: csvExportIsRunning,
-                                idleTitle: L("reports.export_now"),
-                                systemImage: "square.and.arrow.down"
-                            )
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(DesignSystem.Colors.accentSkyBlue)
-                        .disabled(csvExportIsRunning)
-                        .accessibilityIdentifier("reports.csv.guidance.export")
-                    } else {
-                        Button {
-                            chooseCsvFolder()
-                        } label: {
-                            reportActionButtonLabel(L("reports.choose_folder"), systemImage: "folder.badge.plus")
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(DesignSystem.Colors.accentSkyBlue)
-                        .accessibilityIdentifier("reports.csv.guidance.chooseFolder")
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-        }
-        .accessibilityIdentifier("reports.csv.guidance.nextAction")
     }
 
     private func csvHeaderCopy(folderStatus: StatusMessage) -> some View {
@@ -2704,7 +2102,6 @@ struct ReportsWorkspaceView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
-                reviewReminderOutcomeStrip
                 reviewReminderScheduleStrip
 
                 Divider()
@@ -2789,56 +2186,6 @@ struct ReportsWorkspaceView: View {
         }
     }
 
-    private var reviewReminderOutcomeStrip: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 240), spacing: DesignSystem.Spacing.md)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.xs
-            ) {
-                reviewReminderOutcomeTitle
-                Text("reports.review_reminder.outcome.detail")
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 156), spacing: DesignSystem.Spacing.sm)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.sm
-            ) {
-                ForEach(reviewReminderOutcomeItems) { item in
-                    reviewReminderOutcomeItemView(item)
-                }
-            }
-        }
-        .padding(DesignSystem.Spacing.md)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(reviewReminderTone.color.opacity(0.07))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .stroke(reviewReminderTone.color.opacity(0.18), lineWidth: 1)
-        )
-        .accessibilityIdentifier("reports.reviewReminder.outcome")
-    }
-
-    private var reviewReminderOutcomeTitle: some View {
-        HStack(spacing: DesignSystem.Spacing.xs) {
-            Image(systemName: "clock.badge.checkmark")
-                .font(.caption.weight(.semibold))
-                .foregroundColor(reviewReminderTone.color)
-                .frame(width: 16)
-
-            Text("reports.review_reminder.outcome.title")
-                .font(.caption.weight(.semibold))
-                .foregroundColor(DesignSystem.Colors.primaryText)
-        }
-    }
-
     private var reviewReminderScheduleStrip: some View {
         ViewThatFits(in: .horizontal) {
             HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
@@ -2889,40 +2236,6 @@ struct ReportsWorkspaceView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-    }
-
-    private func reviewReminderOutcomeItemView(_ item: ReviewReminderOutcomeItem) -> some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-            Image(systemName: item.systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(item.tone.color)
-                .frame(width: 16, height: 18)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(LocalizedStringKey(item.titleKey))
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(LocalizedStringKey(item.detailKey))
-                    .font(.caption2)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Spacer(minLength: 0)
-        }
-        .frame(minWidth: 148, maxWidth: .infinity, alignment: .topLeading)
-    }
-
-    private var reviewReminderOutcomeItems: [ReviewReminderOutcomeItem] {
-        [
-            .init(id: "popover", titleKey: "reports.review_reminder.outcome.popover_title", detailKey: "reports.review_reminder.outcome.popover_detail", systemImage: "menubar.rectangle", tone: .info),
-            .init(id: "notification", titleKey: "reports.review_reminder.outcome.notification_title", detailKey: "reports.review_reminder.outcome.notification_detail", systemImage: "bell.badge", tone: appState.dailyReviewReminderEnabled && appState.dailyReviewSystemNotificationEnabled ? .success : .neutral),
-            .init(id: "saved", titleKey: "reports.review_reminder.outcome.saved_title", detailKey: "reports.review_reminder.outcome.saved_detail", systemImage: "checkmark.seal", tone: .success)
-        ]
     }
 
     private func updateDailyReviewReminderEnabled(_ enabled: Bool) {
@@ -3839,9 +3152,7 @@ struct ReportsWorkspaceView: View {
                         systemImage: "doc.text.magnifyingglass",
                         tone: .info,
                         accessibilityIdentifier: "reports.preview.loadingState"
-                    ) {
-                        previewLoadingPath
-                    }
+                    )
                 } else if content.isEmpty {
                     previewPendingState(
                         titleKey: "reports.preview.empty",
@@ -3849,9 +3160,7 @@ struct ReportsWorkspaceView: View {
                         systemImage: "doc.text",
                         tone: .neutral,
                         accessibilityIdentifier: "reports.preview.emptyState"
-                    ) {
-                        previewEmptyPath
-                    }
+                    )
                 } else {
                     ScrollView {
                         ReportMarkdownPreviewView(markdown: content)
@@ -3873,13 +3182,12 @@ struct ReportsWorkspaceView: View {
             }
         }
 
-        private func previewPendingState<Path: View>(
+        private func previewPendingState(
             titleKey: String,
             detailKey: String,
             systemImage: String,
             tone: DesignSystem.StatusTone,
-            accessibilityIdentifier: String,
-            @ViewBuilder path: () -> Path
+            accessibilityIdentifier: String
         ) -> some View {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                 EmptyStateView(
@@ -3888,8 +3196,6 @@ struct ReportsWorkspaceView: View {
                     systemImage: systemImage,
                     tone: tone
                 )
-
-                path()
             }
             .padding(DesignSystem.Spacing.lg)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -3900,114 +3206,6 @@ struct ReportsWorkspaceView: View {
             .overlay(
                 RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
                     .stroke(tone.color.opacity(0.18), lineWidth: 1)
-            )
-            .accessibilityIdentifier(accessibilityIdentifier)
-        }
-
-        private var previewLoadingPath: some View {
-            previewStatePath(accessibilityIdentifier: "reports.preview.loadingPath") {
-                previewStatePathItem(
-                    titleKey: "reports.preview.loading.path.timeline_title",
-                    detailKey: "reports.preview.loading.path.timeline_detail",
-                    systemImage: "clock",
-                    tone: .info,
-                    accessibilityIdentifier: "reports.preview.loadingPath.timeline"
-                )
-                previewStatePathItem(
-                    titleKey: "reports.preview.loading.path.context_title",
-                    detailKey: "reports.preview.loading.path.context_detail",
-                    systemImage: "note.text",
-                    tone: .neutral,
-                    accessibilityIdentifier: "reports.preview.loadingPath.context"
-                )
-                previewStatePathItem(
-                    titleKey: "reports.preview.loading.path.output_title",
-                    detailKey: "reports.preview.loading.path.output_detail",
-                    systemImage: "doc.text",
-                    tone: .success,
-                    accessibilityIdentifier: "reports.preview.loadingPath.output"
-                )
-            }
-        }
-
-        private var previewEmptyPath: some View {
-            previewStatePath(accessibilityIdentifier: "reports.preview.emptyPath") {
-                previewStatePathItem(
-                    titleKey: "reports.preview.empty.path.template_title",
-                    detailKey: "reports.preview.empty.path.template_detail",
-                    systemImage: "curlybraces",
-                    tone: .warning,
-                    accessibilityIdentifier: "reports.preview.emptyPath.template"
-                )
-                previewStatePathItem(
-                    titleKey: "reports.preview.empty.path.notes_title",
-                    detailKey: "reports.preview.empty.path.notes_detail",
-                    systemImage: "square.and.pencil",
-                    tone: .info,
-                    accessibilityIdentifier: "reports.preview.emptyPath.notes"
-                )
-                previewStatePathItem(
-                    titleKey: "reports.preview.empty.path.retry_title",
-                    detailKey: "reports.preview.empty.path.retry_detail",
-                    systemImage: "arrow.clockwise",
-                    tone: .success,
-                    accessibilityIdentifier: "reports.preview.emptyPath.retry"
-                )
-            }
-        }
-
-        private func previewStatePath<Content: View>(
-            accessibilityIdentifier: String,
-            @ViewBuilder content: () -> Content
-        ) -> some View {
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 176), spacing: DesignSystem.Spacing.sm, alignment: .topLeading)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.sm
-            ) {
-                content()
-            }
-            .accessibilityIdentifier(accessibilityIdentifier)
-        }
-
-        private func previewStatePathItem(
-            titleKey: LocalizedStringKey,
-            detailKey: LocalizedStringKey,
-            systemImage: String,
-            tone: DesignSystem.StatusTone,
-            accessibilityIdentifier: String
-        ) -> some View {
-            HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-                Image(systemName: systemImage)
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(tone.color)
-                    .frame(width: 18, height: 18)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(titleKey)
-                        .font(.caption.weight(.semibold))
-                        .foregroundColor(DesignSystem.Colors.primaryText)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    Text(detailKey)
-                        .font(.caption2)
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                Spacer(minLength: 0)
-            }
-            .padding(DesignSystem.Spacing.sm)
-            .frame(minWidth: 164, maxWidth: .infinity, minHeight: 66, alignment: .topLeading)
-            .background(
-                RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                    .fill(tone.color.opacity(0.06))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                    .stroke(tone.color.opacity(0.16), lineWidth: 1)
             )
             .accessibilityIdentifier(accessibilityIdentifier)
         }
@@ -4834,10 +4032,6 @@ struct ReportsWorkspaceView: View {
         ReportFolderKind.allCases.first { folderStatusLine(for: $0).isError }
     }
 
-    private var nextMissingPlanExportFolderKind: ReportFolderKind? {
-        planExportFolderKinds.first { folderStatusLine(for: $0).isError }
-    }
-
     private var planExportFolderKinds: [ReportFolderKind] {
         mode == .dashboard ? [.daily, .weekly] : [.daily, .weekly, .csv]
     }
@@ -4872,71 +4066,6 @@ struct ReportsWorkspaceView: View {
 
     private var hasDailyCloseoutNotes: Bool {
         !dailyNotes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
-    private var closeoutDestinationStepDetailKey: String {
-        dailyFolderReady ? "reports.closeout.step.destination_ready" : "reports.closeout.step.destination_needed"
-    }
-
-    private var closeoutNotesStepDetailKey: String {
-        hasDailyCloseoutNotes ? "reports.closeout.step.notes_ready" : "reports.closeout.step.notes_optional"
-    }
-
-    private var closeoutNotesStepIsCurrent: Bool {
-        dailyFolderReady
-            && !dailyExportedToday
-            && !dailyExportFailedToday
-            && !hasDailyCloseoutNotes
-            && (closeoutSnapshot.activeSeconds <= 0 || !closeoutHasHumanContext)
-    }
-
-    private var closeoutExportStepIsCurrent: Bool {
-        dailyFolderReady
-            && !dailyExportedToday
-            && (closeoutNextActionState == .ready || closeoutNextActionState == .saveFailed)
-    }
-
-    private var closeoutIncludedNotesDetailKey: String {
-        hasDailyCloseoutNotes ? "reports.closeout.include.notes_ready" : "reports.closeout.include.notes_empty"
-    }
-
-    private var closeoutExportStepDetailKey: String {
-        if !dailyFolderReady {
-            return "reports.closeout.step.export_blocked"
-        }
-        if dailyExportedToday {
-            return "reports.closeout.step.export_done"
-        }
-        if dailyExportFailedToday {
-            return "reports.closeout.step.export_failed"
-        }
-        return "reports.closeout.step.export_ready"
-    }
-
-    private var closeoutExportStepIconName: String {
-        if dailyExportedToday {
-            return "checkmark.seal.fill"
-        }
-        if dailyExportFailedToday {
-            return "exclamationmark.triangle.fill"
-        }
-        return "doc.badge.plus"
-    }
-
-    private var closeoutExportStepTone: DesignSystem.StatusTone {
-        if !dailyFolderReady {
-            return .warning
-        }
-        if dailyReportIsGenerating {
-            return .info
-        }
-        if dailyExportedToday {
-            return .success
-        }
-        if dailyExportFailedToday {
-            return .critical
-        }
-        return .info
     }
 
     private var closeoutHeadlineKey: String {
@@ -5051,129 +4180,6 @@ struct ReportsWorkspaceView: View {
             return "arrow.triangle.2.circlepath"
         }
         return "doc.badge.plus"
-    }
-
-    private var closeoutNextActionTitleKey: String {
-        switch closeoutNextActionState {
-        case .loading:
-            return "reports.closeout.next.loading_title"
-        case .savingDailyLog:
-            return "reports.closeout.next.saving_title"
-        case .needsFolder:
-            return "reports.closeout.next.destination_title"
-        case .checkIssue:
-            return "reports.closeout.brief.issue.title"
-        case .saveFailed:
-            return "reports.closeout.next.failed_title"
-        case .needsTimeline:
-            return "reports.closeout.next.timeline_title"
-        case .reviewLabels:
-            return "reports.closeout.next.labels_title"
-        case .needsContext:
-            return "reports.closeout.next.context_title"
-        case .ready:
-            return "reports.closeout.next.save_title"
-        case .saved:
-            return "reports.closeout.next.done_title"
-        }
-    }
-
-    private var closeoutNextActionDetailKey: String {
-        switch closeoutNextActionState {
-        case .loading:
-            return "reports.closeout.next.loading_detail"
-        case .savingDailyLog:
-            return "reports.closeout.next.saving_detail"
-        case .needsFolder:
-            return "reports.closeout.next.destination_detail"
-        case .checkIssue:
-            return "reports.closeout.brief.issue.detail"
-        case .saveFailed:
-            return "reports.closeout.next.failed_detail"
-        case .needsTimeline:
-            return "reports.closeout.next.timeline_detail"
-        case .reviewLabels:
-            return "reports.closeout.next.labels_detail"
-        case .needsContext:
-            return "reports.closeout.next.context_detail"
-        case .ready:
-            return "reports.closeout.next.save_detail"
-        case .saved:
-            return "reports.closeout.next.done_detail"
-        }
-    }
-
-    private var closeoutNextActionIconName: String {
-        switch closeoutNextActionState {
-        case .loading:
-            return "arrow.triangle.2.circlepath"
-        case .savingDailyLog:
-            return "arrow.clockwise"
-        case .needsFolder:
-            return "folder.badge.plus"
-        case .checkIssue:
-            return "exclamationmark.triangle.fill"
-        case .saveFailed:
-            return "exclamationmark.triangle.fill"
-        case .needsTimeline:
-            return "clock.badge.exclamationmark"
-        case .reviewLabels:
-            return "rectangle.split.3x1"
-        case .needsContext:
-            return "text.badge.plus"
-        case .ready:
-            return "doc.badge.plus"
-        case .saved:
-            return "folder"
-        }
-    }
-
-    private var closeoutNextActionStatusText: String {
-        switch closeoutNextActionState {
-        case .loading:
-            return L("reports.closeout.next.status.loading")
-        case .savingDailyLog:
-            return L("reports.closeout.next.status.saving")
-        case .needsFolder:
-            return L("reports.closeout.next.status.setup")
-        case .checkIssue:
-            return L("reports.closeout.next.status.check")
-        case .saveFailed:
-            return L("reports.closeout.next.status.failed")
-        case .needsTimeline:
-            return L("reports.closeout.next.status.timeline")
-        case .reviewLabels:
-            return L("reports.closeout.next.status.labels")
-        case .needsContext:
-            return L("reports.closeout.next.status.context")
-        case .ready:
-            return L("reports.closeout.next.status.ready")
-        case .saved:
-            return L("reports.closeout.next.status.saved")
-        }
-    }
-
-    private var closeoutNextActionStatusIconName: String {
-        switch closeoutNextActionState {
-        case .loading:
-            return "arrow.triangle.2.circlepath"
-        case .savingDailyLog:
-            return "arrow.clockwise"
-        case .needsFolder:
-            return "folder.badge.plus"
-        case .checkIssue:
-            return "exclamationmark.triangle.fill"
-        case .saveFailed:
-            return "exclamationmark.triangle.fill"
-        case .needsTimeline, .needsContext:
-            return "note.text"
-        case .reviewLabels:
-            return "rectangle.split.3x1"
-        case .ready:
-            return "checkmark.seal.fill"
-        case .saved:
-            return "checkmark"
-        }
     }
 
     private var closeoutNextActionTone: DesignSystem.StatusTone {
@@ -5383,44 +4389,6 @@ struct ReportsWorkspaceView: View {
         return .success
     }
 
-    private var closeoutStepProgressText: String {
-        String(format: L("reports.closeout.path.progress"), closeoutStepReadyCount, 3)
-    }
-
-    private var closeoutStepReadyCount: Int {
-        var readyCount = 0
-        if dailyFolderReady {
-            readyCount += 1
-        }
-        if hasDailyCloseoutNotes {
-            readyCount += 1
-        }
-        if dailyExportedToday {
-            readyCount += 1
-        }
-        return readyCount
-    }
-
-    private var closeoutStepProgressIconName: String {
-        if dailyExportedToday {
-            return "checkmark.seal.fill"
-        }
-        if dailyFolderReady {
-            return "arrow.triangle.branch"
-        }
-        return "folder.badge.plus"
-    }
-
-    private var closeoutStepProgressTone: DesignSystem.StatusTone {
-        if dailyExportedToday {
-            return .success
-        }
-        if dailyFolderReady {
-            return hasDailyCloseoutNotes ? .info : .warning
-        }
-        return .warning
-    }
-
     private var closeoutConfidenceTimelineValue: String {
         closeoutSnapshot.activeSeconds > 0
             ? L("reports.closeout.confidence.timeline_ready")
@@ -5598,26 +4566,6 @@ struct ReportsWorkspaceView: View {
         return "reports.weekly.closeout.ready_detail"
     }
 
-    private var dashboardWeeklyNextActionTitleKey: String {
-        if !weeklyFolderReady {
-            return "reports.weekly.closeout.next.destination_title"
-        }
-        if weeklyExportedThisWeek {
-            return "reports.weekly.closeout.next.done_title"
-        }
-        return "reports.weekly.closeout.next.preview_title"
-    }
-
-    private var dashboardWeeklyNextActionDetailKey: String {
-        if !weeklyFolderReady {
-            return "reports.weekly.closeout.next.destination_detail"
-        }
-        if weeklyExportedThisWeek {
-            return "reports.weekly.closeout.next.done_detail"
-        }
-        return "reports.weekly.closeout.next.preview_detail"
-    }
-
     private var dashboardWeeklyTone: DesignSystem.StatusTone {
         if !weeklyFolderReady {
             return .warning
@@ -5677,20 +4625,6 @@ struct ReportsWorkspaceView: View {
         allExportFoldersReady ? .success : .warning
     }
 
-    private var exportReadinessNextActionTitle: String {
-        guard let kind = nextMissingExportFolderKind else {
-            return L("reports.readiness.next.ready_title")
-        }
-        return String(format: L("reports.readiness.next.setup_title"), folderKindTitle(for: kind))
-    }
-
-    private var exportReadinessNextActionDetail: String {
-        guard let kind = nextMissingExportFolderKind else {
-            return L("reports.readiness.next.ready_detail")
-        }
-        return String(format: L("reports.readiness.next.setup_detail"), folderKindTitle(for: kind))
-    }
-
     private func folderKindTitle(for kind: ReportFolderKind) -> String {
         switch kind {
         case .daily:
@@ -5745,13 +4679,6 @@ struct ReportsWorkspaceView: View {
 
     private var planExportReadinessStatusIconName: String {
         planExportFoldersReady ? "checkmark.seal.fill" : "exclamationmark.triangle.fill"
-    }
-
-    private var planExportReadinessNextActionText: String {
-        guard let kind = nextMissingPlanExportFolderKind else {
-            return L("reports.workspace.next.ready")
-        }
-        return String(format: L("reports.workspace.next.choose"), folderKindTitle(for: kind))
     }
 
     private var selectedReportDayText: String {
@@ -6074,51 +5001,6 @@ private struct ReportToolSurface<Content: View>: View {
     }
 }
 
-private struct ReportTemplateGuideItem: Identifiable {
-    let id: String
-    let titleKey: LocalizedStringKey
-    let detailKey: LocalizedStringKey
-    let systemImage: String
-    let tone: DesignSystem.StatusTone
-}
-
-private struct ReportTemplateGuidePill: View {
-    let item: ReportTemplateGuideItem
-
-    var body: some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-            Image(systemName: item.systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(item.tone.color)
-                .frame(width: 16, height: 18)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(item.titleKey)
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
-
-                Text(item.detailKey)
-                    .font(.caption2)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .padding(.horizontal, DesignSystem.Spacing.sm)
-        .padding(.vertical, 7)
-        .frame(minWidth: 142, maxWidth: .infinity, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .fill(item.tone.color.opacity(0.08))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .stroke(item.tone.color.opacity(0.18), lineWidth: 1)
-        )
-    }
-}
-
 private struct ReportTemplateEditorView: View {
     @Binding var text: String
 
@@ -6130,8 +5012,6 @@ private struct ReportTemplateEditorView: View {
             tone: .info,
             accessibilityIdentifier: "reports.template.editor"
         ) {
-            templateGuide
-
             ZStack(alignment: .topLeading) {
                 TextEditor(text: $text)
                     .font(.system(size: 12, design: .monospaced))
@@ -6158,58 +5038,6 @@ private struct ReportTemplateEditorView: View {
                     .stroke(DesignSystem.Colors.separator.opacity(0.45), lineWidth: 1)
             )
         }
-    }
-
-    private var templateGuide: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("reports.template.guide.title")
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-
-                Text("reports.template.guide.detail")
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 142), spacing: DesignSystem.Spacing.sm)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.sm
-            ) {
-                ForEach(templateGuideItems) { item in
-                    ReportTemplateGuidePill(item: item)
-                }
-            }
-        }
-        .accessibilityIdentifier("reports.template.guide")
-    }
-
-    private var templateGuideItems: [ReportTemplateGuideItem] {
-        [
-            .init(
-                id: "structure",
-                titleKey: "reports.template.guide.structure",
-                detailKey: "reports.template.guide.structure_detail",
-                systemImage: "list.bullet.rectangle",
-                tone: .info
-            ),
-            .init(
-                id: "variables",
-                titleKey: "reports.template.guide.variables",
-                detailKey: "reports.template.guide.variables_detail",
-                systemImage: "number",
-                tone: .success
-            ),
-            .init(
-                id: "preview",
-                titleKey: "reports.template.guide.preview",
-                detailKey: "reports.template.guide.preview_detail",
-                systemImage: "eye",
-                tone: .neutral
-            )
-        ]
     }
 }
 
@@ -6485,14 +5313,6 @@ private struct CloseoutStarter: Identifiable {
     let titleKey: String
     let templateKey: String
     let systemImage: String
-}
-
-private struct ReviewReminderOutcomeItem: Identifiable {
-    let id: String
-    let titleKey: String
-    let detailKey: String
-    let systemImage: String
-    let tone: DesignSystem.StatusTone
 }
 
 private struct ReportCloseoutFeedbackView: View {

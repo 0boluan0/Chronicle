@@ -1,4 +1,5 @@
 import Combine
+import SQLite3
 import XCTest
 @testable import Chronicle
 
@@ -408,6 +409,138 @@ final class ChronicleTests: XCTestCase {
         let rows = fetchActivities(db: db, rangeStart: 1000, rangeEnd: 1200)
         XCTAssertEqual(rows.count, 3)
         XCTAssertTrue(rows.allSatisfy { $0.endTime >= $0.startTime })
+    }
+
+    func testLiveActivationPreservesWindowTitleAndMatchesRule() {
+        let db = makeTestDatabase("live-window-title")
+        let tagExpectation = expectation(description: "insert title tag")
+        var tagId: Int64 = 0
+        db.insertTag(name: "Project", color: "#4A90E2") { result in
+            if case .success(let id) = result {
+                tagId = id
+            }
+            tagExpectation.fulfill()
+        }
+        wait(for: [tagExpectation], timeout: 5)
+
+        let ruleExpectation = expectation(description: "insert title rule")
+        db.insertRule(
+            name: "Project title",
+            enabled: true,
+            matchAppName: nil,
+            matchWindowTitle: "Project Phoenix",
+            matchMode: .equals,
+            tagId: tagId,
+            priority: 10
+        ) { _ in
+            ruleExpectation.fulfill()
+        }
+        wait(for: [ruleExpectation], timeout: 5)
+
+        let recorded = expectation(
+            forNotification: ActivityTracker.didRecordSessionNotification,
+            object: nil
+        )
+        let normalizer = SessionNormalizer.makeTestInstance(database: db)
+        normalizer.updateAggregationConfig(minDuration: 1, mergeGap: 0, debounce: 0)
+        normalizer.onRawEvent(
+            RawEvent(
+                id: nil,
+                timestamp: 7_000,
+                type: .appActivated,
+                bundleId: "com.apple.Safari",
+                appName: "Safari",
+                windowTitle: "Project Phoenix",
+                payload: nil
+            ),
+            immediate: true
+        )
+        wait(for: [recorded], timeout: 5)
+
+        let row = fetchActivities(db: db, rangeStart: 6_999, rangeEnd: 7_001).first
+        XCTAssertEqual(row?.windowTitle, "Project Phoenix")
+        XCTAssertEqual(row?.effectiveTagId, tagId)
+    }
+
+    func testStoppingTrackerClosesCurrentSession() {
+        let db = makeTestDatabase("tracker-stop")
+        let normalizer = SessionNormalizer.makeTestInstance(database: db)
+        normalizer.updateAggregationConfig(minDuration: 1, mergeGap: 0, debounce: 0)
+        let tracker = ActivityTracker.makeTestInstance(normalizer: normalizer)
+        let recorded = expectation(
+            forNotification: ActivityTracker.didRecordSessionNotification,
+            object: nil
+        )
+
+        normalizer.onRawEvent(
+            RawEvent(
+                id: nil,
+                timestamp: 8_000,
+                type: .appActivated,
+                bundleId: "com.apple.Safari",
+                appName: "Safari",
+                windowTitle: nil,
+                payload: nil
+            ),
+            immediate: true
+        )
+        wait(for: [recorded], timeout: 5)
+
+        tracker.stop(at: Date(timeIntervalSince1970: 8_060))
+
+        let row = fetchActivities(db: db, rangeStart: 7_999, rangeEnd: 8_061).first
+        XCTAssertEqual(row?.startTime, 8_000)
+        XCTAssertEqual(row?.endTime, 8_060)
+    }
+
+    func testFlushingSessionAllowsSameAppToResume() {
+        let db = makeTestDatabase("flush-resume")
+        let normalizer = SessionNormalizer.makeTestInstance(database: db)
+        normalizer.updateAggregationConfig(minDuration: 1, mergeGap: 0, debounce: 0)
+        let firstRecorded = expectation(
+            forNotification: ActivityTracker.didRecordSessionNotification,
+            object: nil
+        )
+        normalizer.onRawEvent(
+            RawEvent(
+                id: nil,
+                timestamp: 9_000,
+                type: .appActivated,
+                bundleId: "com.apple.Safari",
+                appName: "Safari",
+                windowTitle: nil,
+                payload: nil
+            ),
+            immediate: true
+        )
+        wait(for: [firstRecorded], timeout: 5)
+
+        let flushed = expectation(description: "flush current session")
+        normalizer.flushCurrentSession(timestamp: Date(timeIntervalSince1970: 9_060)) {
+            flushed.fulfill()
+        }
+        wait(for: [flushed], timeout: 5)
+
+        let resumed = expectation(
+            forNotification: ActivityTracker.didRecordSessionNotification,
+            object: nil
+        )
+        normalizer.onRawEvent(
+            RawEvent(
+                id: nil,
+                timestamp: 9_070,
+                type: .appActivated,
+                bundleId: "com.apple.Safari",
+                appName: "Safari",
+                windowTitle: nil,
+                payload: nil
+            ),
+            immediate: true
+        )
+        wait(for: [resumed], timeout: 5)
+
+        let rows = fetchActivities(db: db, rangeStart: 8_999, rangeEnd: 9_071)
+        XCTAssertEqual(rows.map(\.startTime).sorted(), [9_000, 9_070])
     }
 
     func testReplayIdleEnterExit() throws {
@@ -965,6 +1098,48 @@ final class ChronicleTests: XCTestCase {
         XCTAssertTrue(topApps.allSatisfy { $0.name != "Idle" })
     }
 
+    func testAggregationCacheSupportsConcurrentReadsAndInvalidation() {
+        let db = makeTestDatabase("aggregation-concurrency")
+        let inserted = expectation(description: "insert activity for concurrent aggregation")
+        db.insertActivity(
+            start: 10_000,
+            end: 10_120,
+            appName: "Safari",
+            windowTitle: nil,
+            isIdle: false,
+            tagId: nil,
+            bundleId: "com.apple.Safari"
+        ) { _ in
+            inserted.fulfill()
+        }
+        wait(for: [inserted], timeout: 5)
+
+        let aggregator = AggregationService.makeTestInstance(database: db)
+        let completed = expectation(description: "concurrent aggregations complete")
+        completed.expectedFulfillmentCount = 40
+        for index in 0..<40 {
+            DispatchQueue.global(qos: .userInitiated).async {
+                if index.isMultiple(of: 2) {
+                    aggregator.computeSummary(
+                        rangeStart: 9_999,
+                        rangeEnd: 10_121,
+                        filters: .default
+                    ) { _ in completed.fulfill() }
+                } else {
+                    aggregator.computeTopApps(
+                        rangeStart: 9_999,
+                        rangeEnd: 10_121,
+                        filters: .default,
+                        limit: 5,
+                        includeIdle: false
+                    ) { _ in completed.fulfill() }
+                }
+                aggregator.recordDatabaseChange(rangeStart: 10_000, rangeEnd: 10_120)
+            }
+        }
+        wait(for: [completed], timeout: 10)
+    }
+
     func testWeeklyBucketsCarryTimelineDrilldownFilters() throws {
         let db = makeTestDatabase("weekly-drilldown")
         let tags = fetchTags(db: db)
@@ -1079,6 +1254,93 @@ final class ChronicleTests: XCTestCase {
         XCTAssertEqual(secondTags.count, DatabaseService.defaultTags.count)
         XCTAssertEqual(Set(firstTags.map(\.name)), Set(DatabaseService.defaultTags.map(\.name)))
         XCTAssertEqual(Set(secondTags.map(\.name)), Set(DatabaseService.defaultTags.map(\.name)))
+    }
+
+    func testDatabaseInitializationFailureClosesConnection() throws {
+        let url = makeTempDatabaseURL("corrupt-initialization")
+        try Data("not a sqlite database".utf8).write(to: url, options: .atomic)
+        let db = DatabaseService.makeTestInstance(databaseURL: url)
+
+        XCTAssertThrowsError(try db.openDatabaseIfNeeded())
+        XCTAssertFalse(db.isInitialized)
+        XCTAssertNil(db.db)
+    }
+
+    func testWindowTitleMigrationPreservesExtendedTags() throws {
+        let url = makeTempDatabaseURL("window-title-migration-tags")
+        var legacyDB: OpaquePointer?
+        XCTAssertEqual(sqlite3_open(url.path, &legacyDB), SQLITE_OK)
+        let sql = """
+        CREATE TABLE Activities (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            start_time INTEGER NOT NULL,
+            end_time INTEGER NOT NULL,
+            app_name TEXT NOT NULL,
+            bundle_id TEXT,
+            window_title TEXT NOT NULL,
+            is_idle INTEGER NOT NULL DEFAULT 0,
+            tag_id INTEGER,
+            rule_tag_id INTEGER,
+            user_tag_override_id INTEGER,
+            effective_tag_id INTEGER
+        );
+        INSERT INTO Activities (
+            start_time, end_time, app_name, bundle_id, window_title, is_idle,
+            tag_id, rule_tag_id, user_tag_override_id, effective_tag_id
+        ) VALUES (100, 200, 'Safari', 'com.apple.Safari', 'Project', 0, 12, 11, 12, 12);
+        """
+        XCTAssertEqual(sqlite3_exec(legacyDB, sql, nil, nil, nil), SQLITE_OK)
+        sqlite3_close(legacyDB)
+
+        let db = DatabaseService.makeTestInstance(databaseURL: url)
+        try db.openDatabaseIfNeeded()
+        let row = fetchActivities(db: db, rangeStart: 99, rangeEnd: 201).first
+        XCTAssertEqual(row?.ruleTagId, 11)
+        XCTAssertEqual(row?.userTagOverrideId, 12)
+        XCTAssertEqual(row?.effectiveTagId, 12)
+    }
+
+    func testLegacyDatabaseMigrationIncludesCommittedWALData() throws {
+        let sourceURL = makeTempDatabaseURL("legacy-wal-source")
+        let destinationURL = makeTempDatabaseURL("legacy-wal-destination")
+        var source: OpaquePointer?
+        XCTAssertEqual(sqlite3_open(sourceURL.path, &source), SQLITE_OK)
+        defer { sqlite3_close(source) }
+        XCTAssertEqual(sqlite3_exec(source, "PRAGMA journal_mode=WAL;", nil, nil, nil), SQLITE_OK)
+        XCTAssertEqual(sqlite3_exec(source, "PRAGMA wal_autocheckpoint=0;", nil, nil, nil), SQLITE_OK)
+        XCTAssertEqual(sqlite3_exec(source, "CREATE TABLE Sample (value TEXT NOT NULL);", nil, nil, nil), SQLITE_OK)
+        XCTAssertEqual(sqlite3_exec(source, "INSERT INTO Sample VALUES ('preserved');", nil, nil, nil), SQLITE_OK)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: sourceURL.path + "-wal"))
+
+        try AppRuntime.migrateSQLiteDatabase(from: sourceURL, to: destinationURL)
+
+        var destination: OpaquePointer?
+        XCTAssertEqual(sqlite3_open_v2(destinationURL.path, &destination, SQLITE_OPEN_READWRITE, nil), SQLITE_OK)
+        defer { sqlite3_close(destination) }
+        var statement: OpaquePointer?
+        let prepareResult = sqlite3_prepare_v2(destination, "SELECT value FROM Sample;", -1, &statement, nil)
+        XCTAssertEqual(prepareResult, SQLITE_OK)
+        guard prepareResult == SQLITE_OK else { return }
+        defer { sqlite3_finalize(statement) }
+        XCTAssertEqual(sqlite3_step(statement), SQLITE_ROW)
+        let text = try XCTUnwrap(sqlite3_column_text(statement, 0))
+        XCTAssertEqual(String(cString: text), "preserved")
+
+        var integrityStatement: OpaquePointer?
+        XCTAssertEqual(sqlite3_prepare_v2(destination, "PRAGMA integrity_check;", -1, &integrityStatement, nil), SQLITE_OK)
+        defer { sqlite3_finalize(integrityStatement) }
+        XCTAssertEqual(sqlite3_step(integrityStatement), SQLITE_ROW)
+        let integrityResult = try XCTUnwrap(sqlite3_column_text(integrityStatement, 0))
+        XCTAssertEqual(String(cString: integrityResult), "ok")
+    }
+
+    func testFailedLegacyDatabaseMigrationDoesNotCommitDestination() throws {
+        let sourceURL = makeTempDatabaseURL("legacy-corrupt-source")
+        let destinationURL = makeTempDatabaseURL("legacy-corrupt-destination")
+        try Data("not sqlite".utf8).write(to: sourceURL, options: .atomic)
+
+        XCTAssertThrowsError(try AppRuntime.migrateSQLiteDatabase(from: sourceURL, to: destinationURL))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: destinationURL.path))
     }
 
     func testWipeDatabaseReopensCleanDatabase() {
@@ -1408,8 +1670,6 @@ final class ChronicleTests: XCTestCase {
             "onboarding.privacy.title",
             "onboarding.finish.setup_title",
             "onboarding.path.subtitle",
-            "onboarding.path.focus.label",
-            "onboarding.path.focus.progress",
             "onboarding.path.focus.first_day_title",
             "onboarding.path.focus.first_day_detail",
             "onboarding.path.focus.folder_title",
@@ -1429,7 +1689,6 @@ final class ChronicleTests: XCTestCase {
             "onboarding.path.step.privacy",
             "onboarding.path.step.finish",
             "onboarding.status.ready",
-            "onboarding.status.final_step",
             "onboarding.trust.self_check",
             "onboarding.skip_setup",
             "onboarding.next.log_folder",
@@ -1487,52 +1746,8 @@ final class ChronicleTests: XCTestCase {
             "onboarding.privacy.outcome.reversible_detail",
             "onboarding.permissions.recheck",
             "onboarding.finish.next_title",
-            "onboarding.finish.checklist.running_title",
-            "onboarding.finish.checklist.note_title",
-            "onboarding.finish.checklist.closeout_title",
-            "onboarding.finish.checklist.closeout_detail_needs_folder",
             "onboarding.finish.open_dashboard",
             "onboarding.summary.exports",
-            "preferences.sidebar.guide.status.ready",
-            "preferences.sidebar.guide.status.paused",
-            "preferences.sidebar.guide.status.manual_start",
-            "preferences.sidebar.guide.status.selected",
-            "preferences.sidebar.guide.status.needs_permission",
-            "preferences.sidebar.guide.status.needs_review",
-            "preferences.sidebar.guide.status.suggestions",
-            "preferences.sidebar.guide.status.needs_folder",
-            "preferences.sidebar.guide.status.save_failed",
-            "preferences.sidebar.guide.status.checking",
-            "preferences.sidebar.guide.status.not_checked",
-            "preferences.sidebar.guide.status.issues",
-            "preferences.sidebar.guide.status.optional",
-            "preferences.sidebar.guide.progress.issues",
-            "preferences.sidebar.guide.progress.issues_detail",
-            "preferences.sidebar.guide.current.logs_failed_title",
-            "preferences.sidebar.guide.current.logs_failed_detail",
-            "preferences.sidebar.guide.next.retry_daily_log",
-            "preferences.sidebar.guide.focus.title",
-            "preferences.sidebar.guide.focus.general_title",
-            "preferences.sidebar.guide.focus.general_detail",
-            "preferences.sidebar.guide.focus.privacy_title",
-            "preferences.sidebar.guide.focus.privacy_detail",
-            "preferences.sidebar.guide.focus.tags_title",
-            "preferences.sidebar.guide.focus.tags_detail",
-            "preferences.sidebar.guide.focus.logs_title",
-            "preferences.sidebar.guide.focus.logs_detail",
-            "preferences.sidebar.guide.focus.logs_failed_title",
-            "preferences.sidebar.guide.focus.logs_failed_detail",
-            "preferences.sidebar.guide.focus.health_title",
-            "preferences.sidebar.guide.focus.health_detail",
-            "preferences.sidebar.guide.focus.ready_title",
-            "preferences.sidebar.guide.focus.ready_detail",
-            "preferences.sidebar.guide.focus.action_general",
-            "preferences.sidebar.guide.focus.action_privacy",
-            "preferences.sidebar.guide.focus.action_tags",
-            "preferences.sidebar.guide.focus.action_logs",
-            "preferences.sidebar.guide.focus.action_health",
-            "preferences.sidebar.guide.focus.action_today",
-            "popover.next_actions.title",
             "popover.next_actions.resume_title",
             "popover.next_actions.resume_detail",
             "popover.next_actions.setup_exports_title",
@@ -1568,23 +1783,6 @@ final class ChronicleTests: XCTestCase {
             "popover.command_center.log_failed",
             "popover.command_center.log_saving",
             "popover.command_center.current_app",
-            "popover.command_center.progress.value",
-            "popover.command_center.progress.paused_title",
-            "popover.command_center.progress.paused_detail",
-            "popover.command_center.progress.folder_title",
-            "popover.command_center.progress.folder_detail",
-            "popover.command_center.progress.start_title",
-            "popover.command_center.progress.start_detail",
-            "popover.command_center.progress.context_title",
-            "popover.command_center.progress.context_detail",
-            "popover.command_center.progress.closeout_title",
-            "popover.command_center.progress.closeout_detail",
-            "popover.command_center.progress.failed_title",
-            "popover.command_center.progress.failed_detail",
-            "popover.command_center.progress.saved_title",
-            "popover.command_center.progress.saved_detail",
-            "popover.command_center.progress.exporting_title",
-            "popover.command_center.progress.exporting_detail",
             "popover.export_status.setup_hint",
             "popover.export_status.saving",
             "popover.export_status.ready",
@@ -1638,62 +1836,11 @@ final class ChronicleTests: XCTestCase {
             "self_check.details.issue.performance_detail",
             "self_check.details.issue.unknown_title",
             "self_check.details.issue.unknown_detail",
-            "self_check.details.next.label",
-            "self_check.details.next.not_run_title",
-            "self_check.details.next.not_run_detail",
-            "self_check.details.next.running_title",
-            "self_check.details.next.running_detail",
-            "self_check.details.next.failed_title",
-            "self_check.details.next.failed_detail",
-            "self_check.details.next.blocked_title",
-            "self_check.details.next.blocked_detail",
-            "self_check.details.next.attention_title",
-            "self_check.details.next.attention_detail",
-            "self_check.details.next.ready_title",
-            "self_check.details.next.ready_detail",
             "self_check.details.next.action.run",
             "self_check.details.next.action.checking",
             "self_check.details.next.action.retry",
             "self_check.details.next.action.fix",
             "self_check.details.next.action.review",
-            "self_check.details.impact.title",
-            "self_check.details.impact.timeline_title",
-            "self_check.details.impact.logs_title",
-            "self_check.details.impact.support_title",
-            "self_check.details.impact.timeline.not_run",
-            "self_check.details.impact.timeline.not_run_detail",
-            "self_check.details.impact.timeline.running",
-            "self_check.details.impact.timeline.running_detail",
-            "self_check.details.impact.timeline.blocked",
-            "self_check.details.impact.timeline.blocked_detail",
-            "self_check.details.impact.timeline.attention",
-            "self_check.details.impact.timeline.attention_detail",
-            "self_check.details.impact.timeline.ready",
-            "self_check.details.impact.timeline.ready_detail",
-            "self_check.details.impact.logs.not_run",
-            "self_check.details.impact.logs.not_run_detail",
-            "self_check.details.impact.logs.running",
-            "self_check.details.impact.logs.running_detail",
-            "self_check.details.impact.logs.blocked",
-            "self_check.details.impact.logs.blocked_detail",
-            "self_check.details.impact.logs.attention",
-            "self_check.details.impact.logs.attention_detail",
-            "self_check.details.impact.logs.ready",
-            "self_check.details.impact.logs.ready_detail",
-            "self_check.details.impact.support.not_run",
-            "self_check.details.impact.support.not_run_detail",
-            "self_check.details.impact.support.running",
-            "self_check.details.impact.support.running_detail",
-            "self_check.details.impact.support.ready",
-            "self_check.details.impact.support.ready_detail",
-            "self_check.details.impact.support.no_issue",
-            "self_check.details.impact.support.no_issue_detail",
-            "self_check.details.path.run_title",
-            "self_check.details.path.run_detail",
-            "self_check.details.path.fix_title",
-            "self_check.details.path.fix_detail",
-            "self_check.details.path.share_title",
-            "self_check.details.path.share_detail",
             "self_check.details.support_brief.title",
             "self_check.details.support_brief.heading",
             "self_check.details.support_brief.detail",
@@ -1710,7 +1857,7 @@ final class ChronicleTests: XCTestCase {
             "self_check.details.support_brief.share_no_issue",
             "self_check.details.clipboard.title",
             "self_check.details.clipboard.status",
-            "self_check.details.clipboard.next",
+            "self_check.details.clipboard.action",
             "self_check.details.clipboard.checked_at",
             "self_check.details.clipboard.issues",
             "self_check.details.clipboard.none",
@@ -1739,12 +1886,6 @@ final class ChronicleTests: XCTestCase {
             "popover.daily_snapshot.empty_open_today",
             "popover.daily_snapshot.empty_resume_capture",
             "popover.daily_snapshot.empty_check_capture",
-            "popover.daily_snapshot.empty.path.capture_title",
-            "popover.daily_snapshot.empty.path.capture_detail",
-            "popover.daily_snapshot.empty.path.context_title",
-            "popover.daily_snapshot.empty.path.context_detail",
-            "popover.daily_snapshot.empty.path.closeout_title",
-            "popover.daily_snapshot.empty.path.closeout_detail",
             "popover.daily_snapshot.cues_title",
             "popover.daily_snapshot.cues_empty_detail",
             "popover.daily_snapshot.cues_ready_detail",
@@ -1774,22 +1915,10 @@ final class ChronicleTests: XCTestCase {
             "popover.daily_snapshot.guidance.setup_detail",
             "popover.daily_snapshot.guidance.failed_title",
             "popover.daily_snapshot.guidance.failed_detail",
-            "popover.daily_snapshot.guidance.saved_title",
-            "popover.daily_snapshot.guidance.saved_detail",
-            "popover.daily_snapshot.guidance.ready_title",
-            "popover.daily_snapshot.guidance.ready_detail",
-            "popover.daily_snapshot.guidance.context_title",
-            "popover.daily_snapshot.guidance.context_detail",
-            "popover.daily_snapshot.guidance.building_title",
-            "popover.daily_snapshot.guidance.building_detail",
             "popover.daily_snapshot.guidance.exporting_title",
             "popover.daily_snapshot.guidance.exporting_detail",
             "popover.daily_snapshot.guidance.status.setup",
             "popover.daily_snapshot.guidance.status.failed",
-            "popover.daily_snapshot.guidance.status.saved",
-            "popover.daily_snapshot.guidance.status.ready",
-            "popover.daily_snapshot.guidance.status.context",
-            "popover.daily_snapshot.guidance.status.building",
             "popover.daily_snapshot.guidance.status.exporting",
             "popover.tracking.title",
             "popover.tracking.paused_detail",
@@ -1824,23 +1953,6 @@ final class ChronicleTests: XCTestCase {
             "quick_marker.context.log_ready",
             "quick_marker.context.log_needs_folder",
             "quick_marker.context.log_failed",
-            "quick_marker.loop.title",
-            "quick_marker.loop.progress",
-            "quick_marker.loop.status.needs_folder",
-            "quick_marker.loop.status.needs_context",
-            "quick_marker.loop.status.ready",
-            "quick_marker.loop.status.saved",
-            "quick_marker.loop.status.failed",
-            "quick_marker.loop.detail.needs_folder",
-            "quick_marker.loop.detail.needs_context",
-            "quick_marker.loop.detail.ready",
-            "quick_marker.loop.detail.saved",
-            "quick_marker.loop.detail.failed",
-            "quick_marker.loop.step.time_title",
-            "quick_marker.loop.step.context_title",
-            "quick_marker.loop.step.log_title",
-            "quick_marker.loop.context_ready",
-            "quick_marker.loop.context_waiting",
             "quick_marker.route.capture_title",
             "quick_marker.route.capture_detail",
             "quick_marker.route.review_title",
@@ -1894,14 +2006,6 @@ final class ChronicleTests: XCTestCase {
             "quick_marker.intent.interval_stop_detail",
             "quick_marker.intent.interval_toggle_title",
             "quick_marker.intent.interval_toggle_detail",
-            "quick_marker.outcome.timeline_title",
-            "quick_marker.outcome.timeline_detail",
-            "quick_marker.outcome.cues_title",
-            "quick_marker.outcome.cues_detail",
-            "quick_marker.outcome.focus_title",
-            "quick_marker.outcome.focus_detail",
-            "quick_marker.outcome.report_title",
-            "quick_marker.outcome.report_detail",
             "quick_marker.starters.title",
             "quick_marker.starters.decision",
             "quick_marker.starters.takeaway",
@@ -1936,9 +2040,6 @@ final class ChronicleTests: XCTestCase {
             "quick_marker.templates.meeting",
             "quick_marker.templates.reading",
             "quick_marker.templates.writing",
-            "quick_marker.status_label.note",
-            "quick_marker.status_label.ready",
-            "quick_marker.status_label.running",
             "quick_marker.action.toggle",
             "quick_marker.action.start",
             "quick_marker.action.stop",
@@ -1957,12 +2058,6 @@ final class ChronicleTests: XCTestCase {
             "quick_marker.recent_empty",
             "quick_marker.recent_empty_title",
             "quick_marker.recent_empty_detail",
-            "quick_marker.recent_empty.path.starter_title",
-            "quick_marker.recent_empty.path.starter_detail",
-            "quick_marker.recent_empty.path.save_title",
-            "quick_marker.recent_empty.path.save_detail",
-            "quick_marker.recent_empty.path.reuse_title",
-            "quick_marker.recent_empty.path.reuse_detail",
             "quick_marker.active.title",
             "quick_marker.active.detail",
             "timeline.empty.no_data_title",
@@ -1974,40 +2069,10 @@ final class ChronicleTests: XCTestCase {
             "timeline.empty.resume_capture",
             "timeline.empty.check_capture",
             "timeline.empty.reset_filters",
-            "timeline.empty.path.capture_title",
-            "timeline.empty.path.capture_detail",
-            "timeline.empty.path.context_title",
-            "timeline.empty.path.context_detail",
-            "timeline.empty.path.review_title",
-            "timeline.empty.path.review_detail",
-            "timeline.empty.path.filters_title",
-            "timeline.empty.path.filters_detail",
-            "timeline.empty.path.range_title",
-            "timeline.empty.path.range_detail",
-            "timeline.empty.path.today_title",
-            "timeline.empty.path.today_detail",
             "app_mapping.mode.auto",
             "apps.summary.needs_review",
             "apps.review.title",
             "apps.review.status.ready",
-            "apps.review.path.find_title",
-            "apps.review.path.find_detail",
-            "apps.review.path.assign_title",
-            "apps.review.path.assign_detail",
-            "apps.review.path.backfill_title",
-            "apps.review.path.backfill_detail",
-            "apps.empty.path.capture_title",
-            "apps.empty.path.capture_detail",
-            "apps.empty.path.today_title",
-            "apps.empty.path.today_detail",
-            "apps.empty.path.review_title",
-            "apps.empty.path.review_detail",
-            "apps.empty_filtered.path.clear_title",
-            "apps.empty_filtered.path.clear_detail",
-            "apps.empty_filtered.path.scope_title",
-            "apps.empty_filtered.path.scope_detail",
-            "apps.empty_filtered.path.refresh_title",
-            "apps.empty_filtered.path.refresh_detail",
             "apps.empty.action.open_today",
             "apps.empty.action.resume_capture",
             "apps.empty.action.check_capture",
@@ -2032,12 +2097,6 @@ final class ChronicleTests: XCTestCase {
             "tag.badge.needs_label",
             "tag.picker.detail",
             "tag.picker.no_tags_detail",
-            "tag.picker.no_tags.path.auto_title",
-            "tag.picker.no_tags.path.auto_detail",
-            "tag.picker.no_tags.path.create_title",
-            "tag.picker.no_tags.path.create_detail",
-            "tag.picker.no_tags.path.return_title",
-            "tag.picker.no_tags.path.return_detail",
             "tag.picker.choose_label",
             "tag.picker.auto_source",
             "tag.picker.manual_source",
@@ -2109,40 +2168,6 @@ final class ChronicleTests: XCTestCase {
             "timeline.focus.handoff_detail",
             "timeline.focus.add_cue",
             "timeline.focus.closeout",
-            "timeline.next.label",
-            "timeline.next.loading_title",
-            "timeline.next.loading_detail",
-            "timeline.next.resume_title",
-            "timeline.next.resume_detail",
-            "timeline.next.check_title",
-            "timeline.next.check_detail",
-            "timeline.next.start_title",
-            "timeline.next.start_detail",
-            "timeline.next.reset_title",
-            "timeline.next.reset_detail",
-            "timeline.next.cleanup_title",
-            "timeline.next.cleanup_detail",
-            "timeline.next.context_title",
-            "timeline.next.context_detail",
-            "timeline.next.folder_title",
-            "timeline.next.folder_detail",
-            "timeline.next.closeout_title",
-            "timeline.next.closeout_detail",
-            "timeline.next.failed_title",
-            "timeline.next.failed_detail",
-            "timeline.next.saved_title",
-            "timeline.next.saved_detail",
-            "timeline.next.action.loading",
-            "timeline.next.action.resume",
-            "timeline.next.action.check",
-            "timeline.next.action.start",
-            "timeline.next.action.reset",
-            "timeline.next.action.cleanup",
-            "timeline.next.action.context",
-            "timeline.next.action.set_folder",
-            "timeline.next.action.closeout",
-            "timeline.next.action.retry",
-            "timeline.next.action.open_folder",
             "timeline.review.title",
             "timeline.review.cleanup_title",
             "timeline.review.metric.needs_label",
@@ -2157,10 +2182,6 @@ final class ChronicleTests: XCTestCase {
             "timeline.error.support_details",
             "timeline.activity.title",
             "timeline.filters.title",
-            "timeline.filters.guide_all_title",
-            "timeline.filters.guide_all_detail",
-            "timeline.filters.guide_filtered_title",
-            "timeline.filters.guide_filtered_detail",
             "timeline.filters.read_order",
             "timeline.filters.order.latest",
             "timeline.filters.order.morning",
@@ -2181,12 +2202,6 @@ final class ChronicleTests: XCTestCase {
             "timeline.batch.title",
             "timeline.batch.queue_title",
             "timeline.batch.status.empty",
-            "timeline.batch.empty.path.filter_title",
-            "timeline.batch.empty.path.filter_detail",
-            "timeline.batch.empty.path.select_title",
-            "timeline.batch.empty.path.select_detail",
-            "timeline.batch.empty.path.apply_title",
-            "timeline.batch.empty.path.apply_detail",
             "timeline.batch.ready_unlabeled",
             "timeline.batch.selected_visible",
             "timeline.batch.selection_cleared",
@@ -2296,25 +2311,7 @@ final class ChronicleTests: XCTestCase {
             "markers.capture.open_log_folder",
             "markers.capture.retry_daily_log",
             "markers.capture.open_log_settings",
-            "markers.capture.next.label",
-            "markers.capture.next.empty_title",
-            "markers.capture.next.empty_detail",
-            "markers.capture.next.ready_title",
-            "markers.capture.next.ready_detail",
-            "markers.capture.next.live_title",
-            "markers.capture.next.live_detail",
-            "markers.capture.next.folder_title",
-            "markers.capture.next.folder_detail",
-            "markers.capture.next.saved_title",
-            "markers.capture.next.saved_detail",
-            "markers.capture.next.failed_title",
-            "markers.capture.next.failed_detail",
-            "markers.capture.next.loading_title",
-            "markers.capture.next.loading_detail",
-            "markers.capture.next.error_title",
-            "markers.capture.next.error_detail",
             "markers.capture.progress.title",
-            "markers.capture.progress.value",
             "markers.capture.progress.loading",
             "markers.capture.progress.error",
             "markers.capture.progress.failed",
@@ -2322,14 +2319,6 @@ final class ChronicleTests: XCTestCase {
             "markers.capture.summary.sessions",
             "markers.capture.summary.ongoing",
             "markers.capture.summary.duration",
-            "markers.capture.path.note_title",
-            "markers.capture.path.note_detail",
-            "markers.capture.path.session_title",
-            "markers.capture.path.session_detail",
-            "markers.capture.path.closeout_title",
-            "markers.capture.path.closeout_detail",
-            "markers.capture.path.folder_detail",
-            "markers.capture.path.failed_detail",
             "markers.summary.groups",
             "markers.summary.notes_metric",
             "markers.summary.sessions_metric",
@@ -2355,12 +2344,6 @@ final class ChronicleTests: XCTestCase {
             "markers.review.find_detail",
             "markers.review.search_active",
             "markers.review.all_visible",
-            "markers.review.path.read_title",
-            "markers.review.path.read_detail",
-            "markers.review.path.blocks_title",
-            "markers.review.path.blocks_detail",
-            "markers.review.path.closeout_title",
-            "markers.review.path.closeout_detail",
             "markers.review.open_closeout",
             "markers.review.clear_search",
             "markers.review.live_title",
@@ -2392,61 +2375,22 @@ final class ChronicleTests: XCTestCase {
             "markers.ongoing_count",
             "markers.expand_lanes",
             "markers.collapse_lanes",
-            "dashboard.sidebar.flow_title",
-            "dashboard.sidebar.flow_detail",
-            "dashboard.sidebar.flow.step.today",
-            "dashboard.sidebar.flow.step.context",
-            "dashboard.sidebar.flow.step.log",
-            "dashboard.sidebar.flow.step.status.complete",
-            "dashboard.sidebar.flow.step.status.current",
-            "dashboard.sidebar.flow.step.status.failed",
-            "dashboard.sidebar.flow.step.status.open",
             "dashboard.sidebar.overview",
             "dashboard.sidebar.timeline",
             "dashboard.sidebar.markers",
             "dashboard.sidebar.reports",
             "dashboard.sidebar.reports_setup_count",
             "dashboard.sidebar.stats",
-            "dashboard.sidebar.today_status.ready_title",
-            "dashboard.sidebar.today_status.ready_detail",
-            "dashboard.sidebar.today_status.capturing_title",
-            "dashboard.sidebar.today_status.capturing_detail",
-            "dashboard.sidebar.today_status.paused_title",
-            "dashboard.sidebar.today_status.paused_detail",
-            "dashboard.sidebar.today_status.error_title",
-            "dashboard.sidebar.today_status.error_detail",
-            "dashboard.sidebar.today_status.current_app_unknown",
             "dashboard.sidebar.today_status.status.ready",
             "dashboard.sidebar.today_status.status.recording",
             "dashboard.sidebar.today_status.status.paused",
             "dashboard.sidebar.today_status.status.needs_check",
-            "dashboard.sidebar.progress.label",
-            "dashboard.sidebar.progress.value",
-            "dashboard.sidebar.next_step.title",
-            "dashboard.sidebar.next_step.ready_title",
-            "dashboard.sidebar.next_step.ready_detail",
-            "dashboard.sidebar.next_step.capturing_title",
-            "dashboard.sidebar.next_step.capturing_detail",
-            "dashboard.sidebar.next_step.add_context_title",
-            "dashboard.sidebar.next_step.add_context_detail",
-            "dashboard.sidebar.next_step.needs_folder_title",
             "dashboard.sidebar.next_step.needs_folder_detail",
-            "dashboard.sidebar.next_step.review_title",
             "dashboard.sidebar.next_step.review_detail",
-            "dashboard.sidebar.next_step.failed_title",
             "dashboard.sidebar.next_step.failed_detail",
-            "dashboard.sidebar.next_step.saved_title",
             "dashboard.sidebar.next_step.saved_detail",
-            "dashboard.sidebar.next_step.paused_title",
-            "dashboard.sidebar.next_step.paused_detail",
-            "dashboard.sidebar.next_step.error_title",
-            "dashboard.sidebar.next_step.error_detail",
-            "dashboard.sidebar.next_step.open_today",
-            "dashboard.sidebar.next_step.open_timeline",
-            "dashboard.sidebar.next_step.resume_capture",
-            "dashboard.sidebar.next_step.open_support",
-            "dashboard.sidebar.next_step.add_context",
             "dashboard.sidebar.next_step.set_log_folder",
+            "dashboard.sidebar.next_step.saving_button",
             "dashboard.sidebar.next_step.review_daily_log",
             "dashboard.sidebar.next_step.retry_daily_log",
             "dashboard.sidebar.next_step.open_log_folder",
@@ -2468,65 +2412,11 @@ final class ChronicleTests: XCTestCase {
             "dashboard.sidebar.quick_actions_detail",
             "dashboard.sidebar.quick_add_note",
             "dashboard.sidebar.quick_closeout",
-            "preferences.sidebar.flow_title",
-            "preferences.sidebar.flow_detail",
             "preferences.sidebar.general",
             "preferences.sidebar.tags",
             "preferences.sidebar.export",
             "preferences.sidebar.privacy",
             "preferences.sidebar.support",
-            "preferences.sidebar.guide.title",
-            "preferences.sidebar.guide.detail",
-            "preferences.sidebar.guide.focus.title",
-            "preferences.sidebar.guide.focus.general_title",
-            "preferences.sidebar.guide.focus.general_detail",
-            "preferences.sidebar.guide.focus.privacy_title",
-            "preferences.sidebar.guide.focus.privacy_detail",
-            "preferences.sidebar.guide.focus.tags_title",
-            "preferences.sidebar.guide.focus.tags_detail",
-            "preferences.sidebar.guide.focus.logs_title",
-            "preferences.sidebar.guide.focus.logs_detail",
-            "preferences.sidebar.guide.focus.logs_failed_title",
-            "preferences.sidebar.guide.focus.logs_failed_detail",
-            "preferences.sidebar.guide.focus.health_title",
-            "preferences.sidebar.guide.focus.health_detail",
-            "preferences.sidebar.guide.focus.ready_title",
-            "preferences.sidebar.guide.focus.ready_detail",
-            "preferences.sidebar.guide.focus.action_general",
-            "preferences.sidebar.guide.focus.action_privacy",
-            "preferences.sidebar.guide.focus.action_tags",
-            "preferences.sidebar.guide.focus.action_logs",
-            "preferences.sidebar.guide.focus.action_health",
-            "preferences.sidebar.guide.focus.action_today",
-            "preferences.sidebar.guide.current_label",
-            "preferences.sidebar.guide.current.general_title",
-            "preferences.sidebar.guide.current.general_detail",
-            "preferences.sidebar.guide.current.privacy_title",
-            "preferences.sidebar.guide.current.privacy_detail",
-            "preferences.sidebar.guide.current.tags_title",
-            "preferences.sidebar.guide.current.tags_detail",
-            "preferences.sidebar.guide.current.logs_title",
-            "preferences.sidebar.guide.current.logs_detail",
-            "preferences.sidebar.guide.current.health_title",
-            "preferences.sidebar.guide.current.health_detail",
-            "preferences.sidebar.guide.current.debug_title",
-            "preferences.sidebar.guide.current.debug_detail",
-            "preferences.sidebar.guide.next.privacy",
-            "preferences.sidebar.guide.next.categories",
-            "preferences.sidebar.guide.next.logs",
-            "preferences.sidebar.guide.next.health",
-            "preferences.sidebar.guide.next.today",
-            "preferences.sidebar.guide.next.support",
-            "preferences.sidebar.guide.daily_title",
-            "preferences.sidebar.guide.daily_detail",
-            "preferences.sidebar.guide.privacy_title",
-            "preferences.sidebar.guide.privacy_detail",
-            "preferences.sidebar.guide.categories_title",
-            "preferences.sidebar.guide.categories_detail",
-            "preferences.sidebar.guide.logs_title",
-            "preferences.sidebar.guide.logs_detail",
-            "preferences.sidebar.guide.health_title",
-            "preferences.sidebar.guide.health_detail",
             "preferences.debug.description",
             "preferences.debug.status.title",
             "preferences.debug.status.off_title",
@@ -2534,15 +2424,6 @@ final class ChronicleTests: XCTestCase {
             "preferences.debug.status.on_title",
             "preferences.debug.status.on_detail",
             "preferences.debug.safety_title",
-            "preferences.debug.flow.title",
-            "preferences.debug.flow.heading",
-            "preferences.debug.flow.detail",
-            "preferences.debug.flow.health_title",
-            "preferences.debug.flow.health_detail",
-            "preferences.debug.flow.logs_title",
-            "preferences.debug.flow.logs_detail",
-            "preferences.debug.flow.package_title",
-            "preferences.debug.flow.package_detail",
             "preferences.debug.action.open_support",
             "preferences.debug.action.turn_on",
             "preferences.debug.action.turn_off",
@@ -2557,26 +2438,10 @@ final class ChronicleTests: XCTestCase {
             "dashboard.stats.review.add_cue",
             "dashboard.stats.review.open_today",
             "dashboard.stats.review.open_timeline",
-            "dashboard.stats.review.next.empty_ready_title",
-            "dashboard.stats.review.next.empty_ready_detail",
-            "dashboard.stats.review.next.empty_attention_title",
-            "dashboard.stats.review.next.empty_attention_detail",
-            "dashboard.stats.review.next.folder_title",
-            "dashboard.stats.review.next.folder_detail",
-            "dashboard.stats.review.next.failed_title",
-            "dashboard.stats.review.next.failed_detail",
-            "dashboard.stats.review.next.saved_title",
-            "dashboard.stats.review.next.saved_detail",
             "dashboard.stats.review.set_log_folder",
             "dashboard.stats.review.retry_daily_log",
             "dashboard.stats.review.open_log_settings",
             "dashboard.stats.review.open_log_folder",
-            "dashboard.stats.review.path.mix_title",
-            "dashboard.stats.review.path.mix_detail",
-            "dashboard.stats.review.path.focus_title",
-            "dashboard.stats.review.path.focus_detail",
-            "dashboard.stats.review.path.action_title",
-            "dashboard.stats.review.path.action_detail",
             "dashboard.stats.activity_mix",
             "dashboard.stats.data_quality.raw_events",
             "dashboard.stats.data_quality.pipeline_title",
@@ -2630,25 +2495,6 @@ final class ChronicleTests: XCTestCase {
             "dashboard.stats.top_apps",
             "dashboard.stats.drilldown.help",
             "dashboard.stats.drilldown.visible_help",
-            "dashboard.stats.empty_path.open_hint",
-            "dashboard.stats.empty_activity.path.run_title",
-            "dashboard.stats.empty_activity.path.run_detail",
-            "dashboard.stats.empty_activity.path.today_title",
-            "dashboard.stats.empty_activity.path.today_detail",
-            "dashboard.stats.empty_activity.path.note_title",
-            "dashboard.stats.empty_activity.path.note_detail",
-            "dashboard.stats.empty_tags.path.timeline_title",
-            "dashboard.stats.empty_tags.path.timeline_detail",
-            "dashboard.stats.empty_tags.path.categories_title",
-            "dashboard.stats.empty_tags.path.categories_detail",
-            "dashboard.stats.empty_tags.path.return_title",
-            "dashboard.stats.empty_tags.path.return_detail",
-            "stats.deep_work.empty.path.focus_title",
-            "stats.deep_work.empty.path.focus_detail",
-            "stats.deep_work.empty.path.switching_title",
-            "stats.deep_work.empty.path.switching_detail",
-            "stats.deep_work.empty.path.note_title",
-            "stats.deep_work.empty.path.note_detail",
             "overview.command.capture.paused_value",
             "overview.command.capture.error_value",
             "overview.command.capture.ready_value",
@@ -2669,45 +2515,8 @@ final class ChronicleTests: XCTestCase {
             "overview.review.setup_log_folder",
             "overview.review.closeout_today",
             "overview.review.retry_daily_log",
-            "overview.review.suggested_next",
-            "overview.review.suggested.empty_detail",
-            "overview.review.suggested.empty_attention_detail",
-            "overview.review.suggested.tags_detail",
-            "overview.review.suggested.markers_detail",
-            "overview.review.suggested.folder_detail",
-            "overview.review.suggested.ready_detail",
-            "overview.review.suggested.failed_detail",
-            "overview.review.suggested.saved_detail",
-            "overview.review.readiness.value",
-            "overview.review.readiness.paused_title",
-            "overview.review.readiness.paused_detail",
-            "overview.review.readiness.check_title",
-            "overview.review.readiness.check_detail",
-            "overview.review.readiness.empty_title",
-            "overview.review.readiness.empty_detail",
-            "overview.review.readiness.tags_title",
-            "overview.review.readiness.tags_detail",
-            "overview.review.readiness.markers_title",
-            "overview.review.readiness.markers_detail",
-            "overview.review.readiness.folder_title",
-            "overview.review.readiness.folder_detail",
-            "overview.review.readiness.ready_title",
-            "overview.review.readiness.ready_detail",
-            "overview.review.readiness.failed_title",
-            "overview.review.readiness.failed_detail",
-            "overview.review.readiness.saved_title",
-            "overview.review.readiness.saved_detail",
             "overview.review.status.needs_folder",
             "overview.review.status.failed",
-            "overview.review.path.capture_title",
-            "overview.review.path.capture_ready",
-            "overview.review.path.capture_attention",
-            "overview.review.path.context_title",
-            "overview.review.path.context_waiting",
-            "overview.review.path.closeout_title",
-            "overview.review.path.closeout_needs_folder",
-            "overview.review.path.closeout_waiting",
-            "overview.review.path.closeout_failed",
             "overview.controls.title",
             "overview.controls.group",
             "overview.controls.period",
@@ -2726,10 +2535,6 @@ final class ChronicleTests: XCTestCase {
             "overview.activity_map.empty_detail",
             "overview.activity_map.empty_detail.paused",
             "overview.activity_map.empty_detail.check",
-            "overview.activity_map.empty_path.resume_title",
-            "overview.activity_map.empty_path.resume_detail",
-            "overview.activity_map.empty_path.check_title",
-            "overview.activity_map.empty_path.check_detail",
             "overview.activity_map.empty_add_marker",
             "overview.activity_map.empty_open_timeline",
             "overview.activity_map.empty_resume_capture",
@@ -2745,12 +2550,6 @@ final class ChronicleTests: XCTestCase {
             "overview.daily_chart.insight.read_value",
             "overview.daily_chart.insight.read_detail",
             "overview.daily_chart.insight.none",
-            "overview.daily_chart.empty.path.capture_title",
-            "overview.daily_chart.empty.path.capture_detail",
-            "overview.daily_chart.empty.path.context_title",
-            "overview.daily_chart.empty.path.context_detail",
-            "overview.daily_chart.empty.path.closeout_title",
-            "overview.daily_chart.empty.path.closeout_detail",
             "overview.weekly_chart.title",
             "overview.weekly_chart.detail",
             "overview.weekly_chart.status",
@@ -2773,12 +2572,6 @@ final class ChronicleTests: XCTestCase {
             "overview.weekly_chart.insight.none",
             "overview.weekly_chart.empty_title",
             "overview.weekly_chart.empty_detail",
-            "overview.weekly_chart.empty.path.capture_title",
-            "overview.weekly_chart.empty.path.capture_detail",
-            "overview.weekly_chart.empty.path.lanes_title",
-            "overview.weekly_chart.empty.path.lanes_detail",
-            "overview.weekly_chart.empty.path.review_title",
-            "overview.weekly_chart.empty.path.review_detail",
             "overview.weekly_chart.day_fallback",
             "overview.weekly_chart.duration",
             "overview.weekly_chart.accessibility_cell",
@@ -2802,12 +2595,6 @@ final class ChronicleTests: XCTestCase {
             "overview.weekly_summary.review_timeline",
             "overview.selection.title",
             "overview.selection.empty_detail",
-            "overview.selection.empty.path.inspect_title",
-            "overview.selection.empty.path.inspect_detail",
-            "overview.selection.empty.path.timeline_title",
-            "overview.selection.empty.path.timeline_detail",
-            "overview.selection.empty.path.note_title",
-            "overview.selection.empty.path.note_detail",
             "overview.selection.timeline_target",
             "overview.selection.timeline_target.block",
             "overview.selection.timeline_target.day",
@@ -2838,13 +2625,6 @@ final class ChronicleTests: XCTestCase {
             "reports.closeout.template.decision",
             "reports.closeout.template.next",
             "reports.closeout.template.blocked",
-            "reports.closeout.step.destination_title",
-            "reports.closeout.step.destination_needed",
-            "reports.closeout.step.notes_title",
-            "reports.closeout.step.notes_optional",
-            "reports.closeout.step.export_title",
-            "reports.closeout.step.export_blocked",
-            "reports.closeout.step.export_failed",
             "reports.closeout.brief.title",
             "reports.closeout.brief.detail",
             "reports.closeout.brief.captured_title",
@@ -2897,35 +2677,6 @@ final class ChronicleTests: XCTestCase {
             "reports.closeout.confidence.blocks_building_detail",
             "reports.closeout.confidence.blocks_ready_detail",
             "reports.closeout.confidence.status.needs_timeline",
-            "reports.closeout.include.title",
-            "reports.closeout.include.timeline_title",
-            "reports.closeout.include.timeline_detail",
-            "reports.closeout.include.cues_title",
-            "reports.closeout.include.cues_detail",
-            "reports.closeout.include.notes_title",
-            "reports.closeout.include.notes_ready",
-            "reports.closeout.include.notes_empty",
-            "reports.closeout.next.destination_title",
-            "reports.closeout.next.timeline_title",
-            "reports.closeout.next.timeline_detail",
-            "reports.closeout.next.labels_title",
-            "reports.closeout.next.labels_detail",
-            "reports.closeout.next.context_title",
-            "reports.closeout.next.context_detail",
-            "reports.closeout.next.save_title",
-            "reports.closeout.next.save_detail",
-            "reports.closeout.next.failed_title",
-            "reports.closeout.next.failed_detail",
-            "reports.closeout.next.preview_title",
-            "reports.closeout.next.done_title",
-            "reports.closeout.next.status.setup",
-            "reports.closeout.next.status.check",
-            "reports.closeout.next.status.timeline",
-            "reports.closeout.next.status.labels",
-            "reports.closeout.next.status.context",
-            "reports.closeout.next.status.ready",
-            "reports.closeout.next.status.failed",
-            "reports.closeout.next.status.saved",
             "reports.closeout.action.choose_folder",
             "reports.closeout.action.add_note",
             "reports.closeout.action.review_categories",
@@ -2956,20 +2707,11 @@ final class ChronicleTests: XCTestCase {
             "reports.weekly.closeout.action.open_folder",
             "reports.weekly.closeout.action.regenerate",
             "reports.readiness.title",
-            "reports.readiness.next.label",
-            "reports.readiness.next.setup_title",
-            "reports.readiness.next.setup_detail",
-            "reports.readiness.next.ready_title",
-            "reports.readiness.next.ready_detail",
-            "reports.readiness.next.choose",
-            "reports.readiness.next.open_daily",
             "reports.readiness.cadence.daily_auto_on",
             "reports.readiness.cadence.daily_auto_off",
             "reports.readiness.cadence.weekly_auto_on",
             "reports.readiness.cadence.weekly_auto_off",
             "reports.readiness.cadence.csv_manual",
-            "reports.workspace.next.choose",
-            "reports.workspace.next.ready",
             "reports.plan.title",
             "reports.plan.dashboard_ready_detail",
             "reports.plan.dashboard_setup_detail",
@@ -2980,54 +2722,19 @@ final class ChronicleTests: XCTestCase {
             "reports.review_reminder.status.off",
             "reports.review_reminder.status.menubar",
             "reports.review_reminder.status.notification",
-            "reports.review_reminder.outcome.title",
-            "reports.review_reminder.outcome.detail",
-            "reports.review_reminder.outcome.popover_title",
-            "reports.review_reminder.outcome.popover_detail",
-            "reports.review_reminder.outcome.notification_title",
-            "reports.review_reminder.outcome.notification_detail",
-            "reports.review_reminder.outcome.saved_title",
-            "reports.review_reminder.outcome.saved_detail",
             "reports.destination.title",
-            "reports.csv.guidance.title",
-            "reports.csv.guidance.detail",
-            "reports.csv.guidance.destination_title",
-            "reports.csv.guidance.destination_ready",
-            "reports.csv.guidance.destination_needed",
-            "reports.csv.guidance.destination_detail",
-            "reports.csv.guidance.range_title",
-            "reports.csv.guidance.range_detail",
-            "reports.csv.guidance.fields_title",
-            "reports.csv.guidance.fields_detail",
             "reports.csv.fields.presets",
             "reports.csv.fields.preset.review",
             "reports.csv.fields.preset.review_detail",
             "reports.csv.fields.preset.full",
             "reports.csv.fields.preset.full_detail",
             "reports.csv.fields.preset.selected",
-            "reports.csv.guidance.next.label",
-            "reports.csv.guidance.next.ready_title",
-            "reports.csv.guidance.next.ready_detail",
-            "reports.csv.guidance.next.folder_title",
-            "reports.csv.guidance.next.folder_detail",
             "reports.preview.save",
             "reports.preview.save_daily",
             "reports.preview.save_weekly",
             "reports.preview.copied",
             "reports.preview.loading_detail",
-            "reports.preview.loading.path.timeline_title",
-            "reports.preview.loading.path.timeline_detail",
-            "reports.preview.loading.path.context_title",
-            "reports.preview.loading.path.context_detail",
-            "reports.preview.loading.path.output_title",
-            "reports.preview.loading.path.output_detail",
             "reports.preview.empty_detail",
-            "reports.preview.empty.path.template_title",
-            "reports.preview.empty.path.template_detail",
-            "reports.preview.empty.path.notes_title",
-            "reports.preview.empty.path.notes_detail",
-            "reports.preview.empty.path.retry_title",
-            "reports.preview.empty.path.retry_detail",
             "reports.preview.failed_detail",
             "reports.preview.issue.title",
             "reports.preview.issue.detail",
@@ -3058,17 +2765,6 @@ final class ChronicleTests: XCTestCase {
             "tags.color.current",
             "tags.color.clear",
             "tags.color.more",
-            "tags.setup.path.categories_title",
-            "tags.setup.path.categories_needed",
-            "tags.setup.path.categories_ready",
-            "tags.setup.path.apps_title",
-            "tags.setup.path.apps_waiting",
-            "tags.setup.path.apps_needed",
-            "tags.setup.path.apps_ready",
-            "tags.setup.path.automation_title",
-            "tags.setup.path.automation_suggestions",
-            "tags.setup.path.automation_ready",
-            "tags.setup.path.automation_optional",
             "support.readiness.title",
             "support.readiness.open_report",
             "support.readiness.review_fixes",
@@ -3137,12 +2833,6 @@ final class ChronicleTests: XCTestCase {
             "preferences.readiness.action.recommended",
             "preferences.readiness.action.permission",
             "preferences.readiness.action.done",
-            "preferences.readiness.step.start_title",
-            "preferences.readiness.step.start_detail",
-            "preferences.readiness.step.timeline_title",
-            "preferences.readiness.step.timeline_detail",
-            "preferences.readiness.step.recall_title",
-            "preferences.readiness.step.recall_detail",
             "preferences.general.overview.title",
             "preferences.daily_use.title",
             "preferences.daily_use.start_title",
@@ -3172,15 +2862,6 @@ final class ChronicleTests: XCTestCase {
             "preferences.capture_profiles.detailed.title",
             "preferences.capture_profiles.detailed.short",
             "preferences.capture_profiles.detailed.detail",
-            "preferences.capture_profiles.guidance.title",
-            "preferences.capture_profiles.guidance.detail.balanced",
-            "preferences.capture_profiles.guidance.detail.battery",
-            "preferences.capture_profiles.guidance.detail.detailed",
-            "preferences.capture_profiles.guidance.detail.custom",
-            "preferences.capture_profiles.guidance.status.balanced",
-            "preferences.capture_profiles.guidance.status.battery",
-            "preferences.capture_profiles.guidance.status.detailed",
-            "preferences.capture_profiles.guidance.status.custom",
             "preferences.capture_profiles.impact.title",
             "preferences.capture_profiles.impact.detail",
             "preferences.capture_profiles.impact.sampling_title",
@@ -3227,12 +2908,6 @@ final class ChronicleTests: XCTestCase {
             "preferences.advanced_tracking.allowlist.search",
             "preferences.advanced_tracking.allowlist.empty",
             "preferences.advanced_tracking.allowlist.empty_detail",
-            "preferences.advanced_tracking.allowlist.empty.path.default_title",
-            "preferences.advanced_tracking.allowlist.empty.path.default_detail",
-            "preferences.advanced_tracking.allowlist.empty.path.media_title",
-            "preferences.advanced_tracking.allowlist.empty.path.media_detail",
-            "preferences.advanced_tracking.allowlist.empty.path.search_title",
-            "preferences.advanced_tracking.allowlist.empty.path.search_detail",
             "preferences.advanced_tracking.allowlist.no_results",
             "preferences.advanced_tracking.allowlist.no_results_detail",
             "preferences.advanced_tracking.allowlist.add",
@@ -3253,12 +2928,6 @@ final class ChronicleTests: XCTestCase {
             "preferences.advanced_tracking.live_status.detail.returning",
             "preferences.advanced_tracking.live_status.current_app_unknown",
             "preferences.window_titles.blocklist.empty_detail",
-            "preferences.window_titles.blocklist.empty.path.default_title",
-            "preferences.window_titles.blocklist.empty.path.default_detail",
-            "preferences.window_titles.blocklist.empty.path.sensitive_title",
-            "preferences.window_titles.blocklist.empty.path.sensitive_detail",
-            "preferences.window_titles.blocklist.empty.path.review_title",
-            "preferences.window_titles.blocklist.empty.path.review_detail",
             "preferences.window_titles.blocklist.no_results",
             "preferences.window_titles.blocklist.no_results_detail",
             "preferences.window_titles.blocklist.row_detail",
@@ -3275,40 +2944,9 @@ final class ChronicleTests: XCTestCase {
             "privacy.trust.optional_detail",
             "privacy.trust.review_title",
             "privacy.trust.review_detail",
-            "privacy.next.title",
-            "privacy.next.app_only.title",
-            "privacy.next.app_only.detail",
-            "privacy.next.app_only.reason_title",
-            "privacy.next.app_only.reason_detail",
-            "privacy.next.permission.title",
-            "privacy.next.permission.detail",
-            "privacy.next.permission.reason_title",
-            "privacy.next.permission.reason_detail",
-            "privacy.next.counters.title",
-            "privacy.next.counters.detail",
-            "privacy.next.counters.reason_title",
-            "privacy.next.counters.reason_detail",
-            "privacy.next.ready.title",
-            "privacy.next.ready.detail",
-            "privacy.next.ready.reason_title",
-            "privacy.next.ready.reason_detail",
-            "privacy.next.status.private_default",
-            "privacy.next.status.review",
-            "privacy.next.status.ready",
-            "privacy.next.action.review_options",
-            "privacy.next.action.export_counters",
-            "privacy.next.action.open_local_folder",
             "privacy.status.no_upload",
             "privacy.capture.title",
             "privacy.capture.heading",
-            "privacy.capture.outcome.title",
-            "privacy.capture.outcome.detail",
-            "privacy.capture.outcome.baseline_title",
-            "privacy.capture.outcome.baseline_detail",
-            "privacy.capture.outcome.recall_title",
-            "privacy.capture.outcome.recall_detail",
-            "privacy.capture.outcome.mode_title",
-            "privacy.capture.outcome.mode_detail",
             "privacy.capture.safety.title",
             "privacy.capture.safety.detail",
             "privacy.capture.safety.manage",
@@ -3344,41 +2982,10 @@ final class ChronicleTests: XCTestCase {
             "privacy.telemetry.local_detail",
             "privacy.export_telemetry",
             "privacy.docs.subtitle",
-            "tags.setup.title",
-            "tags.setup.detail.categories",
             "tags.setup.status.apps",
-            "tags.setup.metric.apps",
-            "tags.setup.action.automation",
-            "tags.setup.next.label",
-            "tags.setup.next.categories_title",
-            "tags.setup.next.categories_detail",
-            "tags.setup.next.apps_title",
-            "tags.setup.next.apps_detail",
-            "tags.setup.next.automation_title",
-            "tags.setup.next.automation_detail",
-            "tags.setup.next.ready_title",
-            "tags.setup.next.ready_detail",
             "tags_rules.page.subtitle",
             "tags_rules.mode.categories_detail",
             "tags_rules.mode.automation_detail",
-            "tags_rules.outcome.categories_title",
-            "tags_rules.outcome.categories_detail",
-            "tags_rules.outcome.categories_status",
-            "tags_rules.outcome.categories_log_title",
-            "tags_rules.outcome.categories_log_detail",
-            "tags_rules.outcome.categories_timeline_title",
-            "tags_rules.outcome.categories_timeline_detail",
-            "tags_rules.outcome.categories_apps_title",
-            "tags_rules.outcome.categories_apps_detail",
-            "tags_rules.outcome.automation_title",
-            "tags_rules.outcome.automation_detail",
-            "tags_rules.outcome.automation_status",
-            "tags_rules.outcome.automation_priority_title",
-            "tags_rules.outcome.automation_priority_detail",
-            "tags_rules.outcome.automation_manual_title",
-            "tags_rules.outcome.automation_manual_detail",
-            "tags_rules.outcome.automation_range_title",
-            "tags_rules.outcome.automation_range_detail",
             "tags.review.title",
             "tags.review.ready_headline",
             "tags.review.review_apps",
@@ -3388,12 +2995,6 @@ final class ChronicleTests: XCTestCase {
             "tags.library.title",
             "tags.empty.title",
             "tags.empty.subtitle",
-            "tags.empty.path.starters_title",
-            "tags.empty.path.starters_detail",
-            "tags.empty.path.custom_title",
-            "tags.empty.path.custom_detail",
-            "tags.empty.path.apps_title",
-            "tags.empty.path.apps_detail",
             "tags.row.name_label",
             "tags.row.name_placeholder",
             "tags.row.save_category",
@@ -3403,32 +3004,14 @@ final class ChronicleTests: XCTestCase {
             "rules.review.empty_headline",
             "rules.review.accept_top_suggestion",
             "rules.review.create_first",
-            "rules.review.path.observe_title",
-            "rules.review.path.observe_detail",
-            "rules.review.path.draft_title",
-            "rules.review.path.draft_detail",
-            "rules.review.path.trust_title",
-            "rules.review.path.trust_detail",
             "rules.review.apply_now",
             "rules.create.title",
             "rules.library.title",
             "rules.empty.title",
             "rules.empty.subtitle",
-            "rules.empty.path.repeat_title",
-            "rules.empty.path.repeat_detail",
-            "rules.empty.path.narrow_title",
-            "rules.empty.path.narrow_detail",
-            "rules.empty.path.recompute_title",
-            "rules.empty.path.recompute_detail",
             "rules.suggestions.count",
             "rules.suggestions.empty",
             "rules.suggestions.empty_hint",
-            "rules.suggestions.empty.path.correct_title",
-            "rules.suggestions.empty.path.correct_detail",
-            "rules.suggestions.empty.path.repeat_title",
-            "rules.suggestions.empty.path.repeat_detail",
-            "rules.suggestions.empty.path.narrow_title",
-            "rules.suggestions.empty.path.narrow_detail",
             "rules.suggestions.empty.review_apps",
             "rules.suggestions.preview",
             "rules.suggestions.reason",
@@ -3464,38 +3047,6 @@ final class ChronicleTests: XCTestCase {
             "wizard.action.up_to_date",
             "wizard.summary.apps",
             "wizard.loading_detail",
-            "wizard.loading.path.activity_title",
-            "wizard.loading.path.activity_detail",
-            "wizard.loading.path.tags_title",
-            "wizard.loading.path.tags_detail",
-            "wizard.loading.path.queue_title",
-            "wizard.loading.path.queue_detail",
-            "wizard.empty.path.capture_title",
-            "wizard.empty.path.capture_detail",
-            "wizard.empty.path.sections_title",
-            "wizard.empty.path.sections_detail",
-            "wizard.empty.path.refresh_title",
-            "wizard.empty.path.refresh_detail",
-            "wizard.outcome.title",
-            "wizard.outcome.detail.empty",
-            "wizard.outcome.detail.needs_sections",
-            "wizard.outcome.detail.pending",
-            "wizard.outcome.detail.ready",
-            "wizard.outcome.status.empty",
-            "wizard.outcome.status.needs_review",
-            "wizard.outcome.status.pending",
-            "wizard.outcome.status.ready",
-            "wizard.outcome.review_title",
-            "wizard.outcome.review_ready",
-            "wizard.outcome.review_empty",
-            "wizard.outcome.sections_title",
-            "wizard.outcome.sections_empty",
-            "wizard.outcome.sections_ready",
-            "wizard.outcome.sections_needed",
-            "wizard.outcome.future_title",
-            "wizard.outcome.future_empty",
-            "wizard.outcome.future_pending",
-            "wizard.outcome.future_ready",
             "wizard.review_queue.title",
             "wizard.row.changed",
             "wizard.row.activity_detail",
@@ -3580,7 +3131,7 @@ final class ChronicleTests: XCTestCase {
         )
         XCTAssertNotNil(hashed)
         XCTAssertTrue(hashed?.hasPrefix("sha256:") ?? false)
-        XCTAssertEqual(hashed?.count, "sha256:".count + 16)
+        XCTAssertEqual(hashed?.count, "sha256:".count + 64)
     }
 
     func testWindowTitleSanitizationBlockedApp() {
@@ -3609,6 +3160,17 @@ final class ChronicleTests: XCTestCase {
             blockedBundleIds: []
         )
         XCTAssertEqual(hashToken, "sha256:0123456789abcdef")
+
+        let fullHashToken = "sha256:" + String(repeating: "a", count: 64)
+        XCTAssertEqual(
+            ActivityTracker.sanitizeWindowTitle(
+                fullHashToken,
+                bundleId: "com.apple.dt.Xcode",
+                mode: .hashed,
+                blockedBundleIds: []
+            ),
+            fullHashToken
+        )
     }
 
     func testAutoExportAttemptDecision() {
@@ -3681,6 +3243,111 @@ final class ChronicleTests: XCTestCase {
             XCTAssertTrue(preset.weeklyTemplate.contains("{{deep_work_blocks}}"))
             XCTAssertTrue(preset.weeklyTemplate.contains("{{peak_switch_slots}}"))
         }
+    }
+
+    func testCSVEscapeNeutralizesSpreadsheetFormulas() {
+        XCTAssertEqual(ReportService.shared.csvEscape("=1+1"), "'=1+1")
+        XCTAssertEqual(ReportService.shared.csvEscape("+SUM(A1:A2)"), "'+SUM(A1:A2)")
+        XCTAssertEqual(ReportService.shared.csvEscape("-2+3"), "'-2+3")
+        XCTAssertEqual(
+            ReportService.shared.csvEscape("@IMPORTDATA(\"https://example.com\")"),
+            "\"'@IMPORTDATA(\"\"https://example.com\"\")\""
+        )
+        XCTAssertEqual(ReportService.shared.csvEscape("  =1+1"), "'  =1+1")
+        XCTAssertEqual(ReportService.shared.csvEscape("safe,value"), "\"safe,value\"")
+    }
+
+    func testReportExportsWriteDailyWeeklyAndSafeCSVFiles() throws {
+        let suiteName = "chronicle-tests-report-files-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        let exportFolder = FileManager.default.temporaryDirectory
+            .appendingPathComponent("chronicle-tests-report-files-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: exportFolder, withIntermediateDirectories: true)
+        defer {
+            defaults.removePersistentDomain(forName: suiteName)
+            try? FileManager.default.removeItem(at: exportFolder)
+        }
+
+        let settings = ReportSettings.makeTestInstance(defaults: defaults)
+        try settings.updateDailyFolderBookmark(url: exportFolder)
+        try settings.updateWeeklyFolderBookmark(url: exportFolder)
+        try settings.updateCsvFolderBookmark(url: exportFolder)
+
+        let database = makeTestDatabase("report-files")
+        let calendar = Calendar.current
+        let date = try XCTUnwrap(calendar.date(from: DateComponents(year: 2025, month: 1, day: 15, hour: 12)))
+        let dayStart = calendar.startOfDay(for: date)
+        let activityStart = Int64(try XCTUnwrap(calendar.date(byAdding: .hour, value: 9, to: dayStart)).timeIntervalSince1970)
+        let activityEnd = Int64(try XCTUnwrap(calendar.date(byAdding: .hour, value: 10, to: dayStart)).timeIntervalSince1970)
+
+        let insertedActivity = expectation(description: "insert report activity")
+        database.insertActivity(
+            start: activityStart,
+            end: activityEnd,
+            appName: "Xcode",
+            windowTitle: "=SUM(A1:A2)",
+            isIdle: false,
+            tagId: nil,
+            bundleId: "com.apple.dt.Xcode"
+        ) { result in
+            if case .failure(let error) = result { XCTFail("Activity insert failed: \(error)") }
+            insertedActivity.fulfill()
+        }
+
+        let insertedMarker = expectation(description: "insert report marker")
+        database.insertMarker(timestamp: activityStart + 60, text: "Release decision") { result in
+            if case .failure(let error) = result { XCTFail("Marker insert failed: \(error)") }
+            insertedMarker.fulfill()
+        }
+        wait(for: [insertedActivity, insertedMarker], timeout: 5)
+
+        let reports = ReportService.makeTestInstance(database: database, settings: settings)
+
+        let dailyExported = expectation(description: "daily report exported")
+        var dailyResult: Result<ReportExportResult, Error>?
+        reports.generateDailyReport(date: date, notes: "Ship v0.2.0") { result in
+            dailyResult = result
+            dailyExported.fulfill()
+        }
+        wait(for: [dailyExported], timeout: 5)
+        let dailyURL = try XCTUnwrap(try dailyResult?.get().fileURL)
+        let dailyContent = try String(contentsOf: dailyURL, encoding: .utf8)
+        XCTAssertTrue(dailyContent.contains("Xcode"))
+        XCTAssertTrue(dailyContent.contains("Release decision"))
+        XCTAssertTrue(dailyContent.contains("Ship v0.2.0"))
+
+        let weeklyExported = expectation(description: "weekly report exported")
+        var weeklyResult: Result<ReportExportResult, Error>?
+        reports.generateWeeklyReport(for: date, notes: "Weekly release review") { result in
+            weeklyResult = result
+            weeklyExported.fulfill()
+        }
+        wait(for: [weeklyExported], timeout: 5)
+        let weeklyURL = try XCTUnwrap(try weeklyResult?.get().fileURL)
+        let weeklyContent = try String(contentsOf: weeklyURL, encoding: .utf8)
+        XCTAssertTrue(weeklyContent.contains("Xcode"))
+        XCTAssertTrue(weeklyContent.contains("Weekly release review"))
+
+        let csvExported = expectation(description: "csv exported")
+        var csvResult: Result<ReportExportResult, Error>?
+        reports.exportCSV(
+            range: .day(date),
+            columns: [.appName, .windowTitle, .duration]
+        ) { result in
+            csvResult = result
+            csvExported.fulfill()
+        }
+        wait(for: [csvExported], timeout: 5)
+        let csvURL = try XCTUnwrap(try csvResult?.get().fileURL)
+        let csvContent = try String(contentsOf: csvURL, encoding: .utf8)
+        XCTAssertTrue(csvContent.contains("app_name,window_title,duration"))
+        XCTAssertTrue(csvContent.contains("Xcode,'=SUM(A1:A2),3600"))
+
+        let reloadedSettings = ReportSettings.makeTestInstance(defaults: defaults)
+        let expectedFolderPath = exportFolder.resolvingSymlinksInPath().path
+        XCTAssertEqual(try reloadedSettings.resolveDailyFolderURL()?.resolvingSymlinksInPath().path, expectedFolderPath)
+        XCTAssertEqual(try reloadedSettings.resolveWeeklyFolderURL()?.resolvingSymlinksInPath().path, expectedFolderPath)
+        XCTAssertEqual(try reloadedSettings.resolveCsvFolderURL()?.resolvingSymlinksInPath().path, expectedFolderPath)
     }
 
     func testDefaultTemplatesMatchRetrospectivePreset() {

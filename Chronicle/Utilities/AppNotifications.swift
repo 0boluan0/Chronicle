@@ -19,7 +19,7 @@ final class DailyReviewReminderNotificationService {
     private let center = UNUserNotificationCenter.current()
     private let appState = AppState.shared
     private let reportSettings = ReportSettings.shared
-    private let defaults = UserDefaults.standard
+    private let defaults = AppRuntime.configuredDefaults()
 
     private init() {}
 

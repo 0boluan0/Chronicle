@@ -49,7 +49,7 @@ enum DesignSystem {
         }
     }
 
-    enum StatusTone {
+    enum StatusTone: Equatable {
         case neutral
         case info
         case success
@@ -96,10 +96,10 @@ struct IconWell: View {
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(tone.color.opacity(0.12))
+                .fill(iconBackgroundColor)
                 .overlay(
                     RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                        .stroke(tone.color.opacity(0.22), lineWidth: 1)
+                        .stroke(iconBorderColor, lineWidth: 1)
                 )
 
             if let image {
@@ -115,9 +115,16 @@ struct IconWell: View {
             }
         }
         .frame(width: 38, height: 38)
-        .shadow(color: tone.color.opacity(0.08), radius: 3, x: 0, y: 1)
         .accessibilityLabel(accessibilityLabel ?? "")
         .accessibilityHidden(accessibilityLabel == nil)
+    }
+
+    private var iconBackgroundColor: Color {
+        tone == .neutral ? DesignSystem.Colors.background.opacity(0.72) : tone.color.opacity(0.08)
+    }
+
+    private var iconBorderColor: Color {
+        tone == .neutral ? DesignSystem.Colors.separator.opacity(0.36) : tone.color.opacity(0.16)
     }
 }
 
@@ -150,35 +157,27 @@ struct RowSurface<Content: View>: View {
                 RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
                     .stroke(borderColor, lineWidth: 1)
             )
-            .shadow(color: shadowColor, radius: 4, x: 0, y: 1)
             .contentShape(RoundedRectangle(cornerRadius: DesignSystem.Radius.md))
     }
 
     private var backgroundColor: Color {
         if isSelected {
-            return tone.color.opacity(0.09)
+            return tone.color.opacity(0.06)
         }
         if isHovering {
-            return tone.color.opacity(0.07)
+            return tone.color.opacity(0.04)
         }
         return DesignSystem.Colors.cardBackground
     }
 
     private var borderColor: Color {
         if isSelected {
-            return tone.color.opacity(0.42)
+            return tone.color.opacity(0.26)
         }
         if isHovering {
-            return tone.color.opacity(0.36)
+            return tone.color.opacity(0.20)
         }
-        return DesignSystem.Colors.separator.opacity(0.28)
-    }
-
-    private var shadowColor: Color {
-        if isSelected || isHovering {
-            return tone.color.opacity(0.10)
-        }
-        return Color.black.opacity(0.035)
+        return DesignSystem.Colors.separator.opacity(0.24)
     }
 }
 
@@ -206,13 +205,12 @@ struct SectionCard<Content: View>: View {
         .padding(DesignSystem.Spacing.lg)
         .background(
             RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(DesignSystem.Colors.cardBackground.opacity(0.96))
+                .fill(DesignSystem.Colors.cardBackground.opacity(0.92))
         )
         .overlay(
             RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .stroke(DesignSystem.Colors.separator.opacity(0.42), lineWidth: 1)
+                .stroke(DesignSystem.Colors.separator.opacity(0.30), lineWidth: 1)
         )
-        .shadow(color: Color.black.opacity(0.045), radius: 7, x: 0, y: 2)
     }
 }
 
@@ -514,11 +512,11 @@ struct StatusPill: View {
         .padding(.vertical, 4)
         .background(
             Capsule()
-                .fill(tone.color.opacity(0.12))
+                .fill(tone.color.opacity(0.08))
         )
         .overlay(
             Capsule()
-                .stroke(tone.color.opacity(0.28), lineWidth: 1)
+                .stroke(tone.color.opacity(0.16), lineWidth: 1)
         )
         .fixedSize(horizontal: false, vertical: true)
         .help(text)

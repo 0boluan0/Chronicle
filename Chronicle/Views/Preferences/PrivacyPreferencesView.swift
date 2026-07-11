@@ -36,7 +36,6 @@ struct PrivacyPreferencesView: View {
             tone: permissionTone
         ) {
             overviewSection
-            privacyNextStepSection
             captureSection
             localDataSection
             sharingSection
@@ -115,46 +114,9 @@ struct PrivacyPreferencesView: View {
                     )
                 }
 
-                Divider()
-
-                privacyTrustPath
-
-                Divider()
-
                 privacyReleaseGuardrails
             }
         }
-    }
-
-    private var privacyTrustPath: some View {
-        LazyVGrid(
-            columns: adaptiveColumns(minimum: 166, spacing: DesignSystem.Spacing.sm),
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            privacyTrustStep(
-                titleKey: "privacy.trust.local_title",
-                detailKey: "privacy.trust.local_detail",
-                systemImage: "internaldrive",
-                tone: .success,
-                accessibilityIdentifier: "privacy.trust.local"
-            )
-            privacyTrustStep(
-                titleKey: "privacy.trust.optional_title",
-                detailKey: "privacy.trust.optional_detail",
-                systemImage: appState.windowTitleCaptureEnabled ? "text.viewfinder" : "eye.slash",
-                tone: titleCaptureTone,
-                accessibilityIdentifier: "privacy.trust.optional"
-            )
-            privacyTrustStep(
-                titleKey: "privacy.trust.review_title",
-                detailKey: "privacy.trust.review_detail",
-                systemImage: "doc.text.magnifyingglass",
-                tone: .info,
-                accessibilityIdentifier: "privacy.trust.review"
-            )
-        }
-        .accessibilityIdentifier("privacy.trust.path")
     }
 
     private var privacyReleaseGuardrails: some View {
@@ -229,72 +191,6 @@ struct PrivacyPreferencesView: View {
         .accessibilityIdentifier("privacy.guardrails")
     }
 
-    private var privacyNextStepSection: some View {
-        SectionCard(title: "privacy.next.title") {
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                privacyStatusHeader(
-                    systemImage: privacyReadinessStep.systemImage,
-                    tone: privacyReadinessStep.tone,
-                    title: LocalizedStringKey(privacyReadinessStep.titleKey),
-                    detail: LocalizedStringKey(privacyReadinessStep.detailKey),
-                    status: L(privacyReadinessStep.statusKey),
-                    statusIcon: privacyReadinessStep.statusIcon,
-                    accessibilityIdentifier: "privacy.next.header"
-                )
-
-                Divider()
-
-                LazyVGrid(
-                    columns: adaptiveColumns(minimum: 230, spacing: DesignSystem.Spacing.md),
-                    alignment: .leading,
-                    spacing: DesignSystem.Spacing.sm
-                ) {
-                    privacyNextStepReason
-                    privacyNextStepAction
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
-    private var privacyNextStepReason: some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-            Image(systemName: "checklist")
-                .font(.caption.weight(.semibold))
-                .foregroundColor(privacyReadinessStep.tone.color)
-                .frame(width: 18)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(LocalizedStringKey(privacyReadinessStep.reasonTitleKey))
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(LocalizedStringKey(privacyReadinessStep.reasonDetailKey))
-                    .font(.caption2)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            Spacer(minLength: 0)
-        }
-        .padding(DesignSystem.Spacing.sm)
-        .frame(maxWidth: .infinity, minHeight: 72, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(privacyReadinessStep.tone.color.opacity(0.07))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .stroke(privacyReadinessStep.tone.color.opacity(0.18), lineWidth: 1)
-        )
-        .accessibilityIdentifier("privacy.next.reason")
-    }
-
     private func privacyGuardrailItem(
         systemImage: String,
         titleKey: LocalizedStringKey,
@@ -324,94 +220,6 @@ struct PrivacyPreferencesView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, minHeight: 62, alignment: .topLeading)
-        .accessibilityIdentifier(accessibilityIdentifier)
-    }
-
-    @ViewBuilder
-    private var privacyNextStepAction: some View {
-        switch privacyReadinessStep {
-        case .appOnlyReady:
-            Button {
-                openGuide(url: privacyPermissionsGuideURL)
-            } label: {
-                privacyActionLabel(L("privacy.next.action.review_options"), systemImage: "hand.raised")
-            }
-            .buttonStyle(.bordered)
-            .accessibilityIdentifier("privacy.next.reviewOptions")
-        case .needsPermission:
-            Button {
-                AccessibilityPermissionManager.shared.requestPermissionAndOpenSystemSettings()
-            } label: {
-                privacyActionLabel(L("preferences.window_titles.open_settings"), systemImage: "gearshape")
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(DesignSystem.StatusTone.warning.color)
-            .accessibilityIdentifier("privacy.next.openAccessibilitySettings")
-        case .reviewCounters:
-            Button {
-                exportTelemetry()
-            } label: {
-                privacyBusyActionLabel(
-                    isBusy: isExportingTelemetry,
-                    busyTitle: L("privacy.telemetry_exporting"),
-                    idleTitle: L("privacy.next.action.export_counters"),
-                    systemImage: "square.and.arrow.down"
-                )
-            }
-            .buttonStyle(.bordered)
-            .disabled(isExportingTelemetry)
-            .accessibilityIdentifier("privacy.next.exportCounters")
-        case .ready:
-            Button {
-                openAppSupportFolder()
-            } label: {
-                privacyActionLabel(L("privacy.next.action.open_local_folder"), systemImage: "folder")
-            }
-            .buttonStyle(.bordered)
-            .accessibilityIdentifier("privacy.next.openLocalFolder")
-        }
-    }
-
-    private func privacyTrustStep(
-        titleKey: LocalizedStringKey,
-        detailKey: LocalizedStringKey,
-        systemImage: String,
-        tone: DesignSystem.StatusTone,
-        accessibilityIdentifier: String
-    ) -> some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-            Image(systemName: systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(tone.color)
-                .frame(width: 18)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(titleKey)
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(detailKey)
-                    .font(.caption2)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            Spacer(minLength: 0)
-        }
-        .padding(DesignSystem.Spacing.sm)
-        .frame(minWidth: 166, maxWidth: .infinity, minHeight: 72, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(tone.color.opacity(0.07))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .stroke(tone.color.opacity(0.18), lineWidth: 1)
-        )
         .accessibilityIdentifier(accessibilityIdentifier)
     }
 
@@ -544,8 +352,6 @@ struct PrivacyPreferencesView: View {
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
 
-                captureOutcomeStrip
-
                 captureSafetyReviewRow
 
                 if appState.windowTitleCaptureEnabled && !appState.accessibilityAuthorized {
@@ -585,109 +391,6 @@ struct PrivacyPreferencesView: View {
         }
         .buttonStyle(.bordered)
         .accessibilityIdentifier("privacy.openAccessibilitySettings")
-    }
-
-    private var captureOutcomeStrip: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-            LazyVGrid(
-                columns: adaptiveColumns(minimum: 240, spacing: DesignSystem.Spacing.md),
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.sm
-            ) {
-                captureOutcomeSummary
-                StatusPill(titleCaptureStatusText, systemImage: titleCaptureIconName, tone: titleCaptureTone)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-            }
-
-            LazyVGrid(
-                columns: adaptiveColumns(minimum: 158, spacing: DesignSystem.Spacing.sm),
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.sm
-            ) {
-                ForEach(captureOutcomeItems) { item in
-                    captureOutcomeItemView(item)
-                }
-            }
-        }
-        .padding(DesignSystem.Spacing.sm)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(titleCaptureTone.color.opacity(0.07))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .stroke(titleCaptureTone.color.opacity(0.18), lineWidth: 1)
-        )
-        .accessibilityIdentifier("privacy.capture.outcome")
-    }
-
-    private var captureOutcomeSummary: some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-            Image(systemName: appState.windowTitleCaptureEnabled ? "text.viewfinder" : "eye.slash")
-                .font(.caption.weight(.semibold))
-                .foregroundColor(titleCaptureTone.color)
-                .frame(width: 18)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text("privacy.capture.outcome.title")
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text("privacy.capture.outcome.detail")
-                    .font(.caption2)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
-    private func captureOutcomeItemView(_ item: PrivacyCaptureOutcomeItem) -> some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-            Image(systemName: item.systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(titleCaptureTone.color)
-                .frame(width: 16)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(LocalizedStringKey(item.titleKey))
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(LocalizedStringKey(item.detailKey))
-                    .font(.caption2)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, DesignSystem.Spacing.sm)
-        .padding(.vertical, 7)
-        .frame(maxWidth: .infinity, minHeight: 54, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .fill(DesignSystem.Colors.cardBackground.opacity(0.72))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .stroke(DesignSystem.Colors.separator.opacity(0.28), lineWidth: 1)
-        )
-    }
-
-    private var captureOutcomeItems: [PrivacyCaptureOutcomeItem] {
-        [
-            .init(id: "baseline", titleKey: "privacy.capture.outcome.baseline_title", detailKey: "privacy.capture.outcome.baseline_detail", systemImage: "app.connected.to.app.below.fill"),
-            .init(id: "recall", titleKey: "privacy.capture.outcome.recall_title", detailKey: "privacy.capture.outcome.recall_detail", systemImage: "text.magnifyingglass"),
-            .init(id: "mode", titleKey: "privacy.capture.outcome.mode_title", detailKey: "privacy.capture.outcome.mode_detail", systemImage: "slider.horizontal.3")
-        ]
     }
 
     private var captureSafetyReviewRow: some View {
@@ -739,8 +442,6 @@ struct PrivacyPreferencesView: View {
 
                 localDataDangerRow
 
-                localDataResetPath
-
                 StatusBannerView(status: wipeStatus, accessibilityIdentifier: "privacy.wipeStatus")
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -784,78 +485,6 @@ struct PrivacyPreferencesView: View {
         }
     }
 
-    private var localDataResetPath: some View {
-        LazyVGrid(
-            columns: adaptiveColumns(minimum: 178, spacing: DesignSystem.Spacing.sm),
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            localDataResetStep(
-                titleKey: "privacy.storage.reset_path.open_title",
-                detailKey: "privacy.storage.reset_path.open_detail",
-                systemImage: "folder",
-                tone: .info,
-                accessibilityIdentifier: "privacy.storage.resetPath.open"
-            )
-            localDataResetStep(
-                titleKey: "privacy.storage.reset_path.backup_title",
-                detailKey: "privacy.storage.reset_path.backup_detail",
-                systemImage: "externaldrive",
-                tone: .success,
-                accessibilityIdentifier: "privacy.storage.resetPath.backup"
-            )
-            localDataResetStep(
-                titleKey: "privacy.storage.reset_path.delete_title",
-                detailKey: "privacy.storage.reset_path.delete_detail",
-                systemImage: "trash",
-                tone: .critical,
-                accessibilityIdentifier: "privacy.storage.resetPath.delete"
-            )
-        }
-        .accessibilityIdentifier("privacy.storage.resetPath")
-    }
-
-    private func localDataResetStep(
-        titleKey: LocalizedStringKey,
-        detailKey: LocalizedStringKey,
-        systemImage: String,
-        tone: DesignSystem.StatusTone,
-        accessibilityIdentifier: String
-    ) -> some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.xs) {
-            Image(systemName: systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(tone.color)
-                .frame(width: 16)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(titleKey)
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(detailKey)
-                    .font(.caption2)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(DesignSystem.Spacing.sm)
-        .frame(maxWidth: .infinity, minHeight: 72, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .fill(tone.color.opacity(0.06))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .stroke(tone.color.opacity(0.16), lineWidth: 1)
-        )
-        .accessibilityIdentifier(accessibilityIdentifier)
-    }
-
     private var sharingSection: some View {
         SectionCard(title: "privacy.sharing.title") {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
@@ -880,29 +509,6 @@ struct PrivacyPreferencesView: View {
 
     private var sharingActionsGroup: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            Label {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("privacy.sharing.actions.title")
-                        .font(.caption.weight(.semibold))
-                        .foregroundColor(DesignSystem.Colors.primaryText)
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    Text("privacy.sharing.actions.detail")
-                        .font(DesignSystem.Typography.caption)
-                        .foregroundColor(DesignSystem.Colors.secondaryText)
-                        .lineLimit(3)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            } icon: {
-                Image(systemName: "checklist")
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.accentSkyBlue)
-                    .frame(width: 16)
-            }
-            .labelStyle(.titleAndIcon)
-
             LazyVGrid(
                 columns: adaptiveColumns(minimum: 260, spacing: DesignSystem.Spacing.md),
                 alignment: .leading,
@@ -1122,19 +728,6 @@ struct PrivacyPreferencesView: View {
         [GridItem(.adaptive(minimum: minimum), spacing: spacing, alignment: .leading)]
     }
 
-    private var privacyReadinessStep: PrivacyReadinessStep {
-        if appState.windowTitleCaptureEnabled && !appState.accessibilityAuthorized {
-            return .needsPermission
-        }
-        if !appState.windowTitleCaptureEnabled {
-            return .appOnlyReady
-        }
-        if appState.telemetryEnabled {
-            return .reviewCounters
-        }
-        return .ready
-    }
-
     private var windowTitleCaptureBinding: Binding<Bool> {
         Binding(
             get: { appState.windowTitleCaptureEnabled },
@@ -1340,124 +933,6 @@ struct PrivacyPreferencesView: View {
                     TelemetryService.shared.increment("telemetry_export_failure")
                 }
             }
-        }
-    }
-}
-
-private struct PrivacyCaptureOutcomeItem: Identifiable {
-    let id: String
-    let titleKey: String
-    let detailKey: String
-    let systemImage: String
-}
-
-private enum PrivacyReadinessStep {
-    case appOnlyReady
-    case needsPermission
-    case reviewCounters
-    case ready
-
-    var titleKey: String {
-        switch self {
-        case .appOnlyReady:
-            return "privacy.next.app_only.title"
-        case .needsPermission:
-            return "privacy.next.permission.title"
-        case .reviewCounters:
-            return "privacy.next.counters.title"
-        case .ready:
-            return "privacy.next.ready.title"
-        }
-    }
-
-    var detailKey: String {
-        switch self {
-        case .appOnlyReady:
-            return "privacy.next.app_only.detail"
-        case .needsPermission:
-            return "privacy.next.permission.detail"
-        case .reviewCounters:
-            return "privacy.next.counters.detail"
-        case .ready:
-            return "privacy.next.ready.detail"
-        }
-    }
-
-    var reasonTitleKey: String {
-        switch self {
-        case .appOnlyReady:
-            return "privacy.next.app_only.reason_title"
-        case .needsPermission:
-            return "privacy.next.permission.reason_title"
-        case .reviewCounters:
-            return "privacy.next.counters.reason_title"
-        case .ready:
-            return "privacy.next.ready.reason_title"
-        }
-    }
-
-    var reasonDetailKey: String {
-        switch self {
-        case .appOnlyReady:
-            return "privacy.next.app_only.reason_detail"
-        case .needsPermission:
-            return "privacy.next.permission.reason_detail"
-        case .reviewCounters:
-            return "privacy.next.counters.reason_detail"
-        case .ready:
-            return "privacy.next.ready.reason_detail"
-        }
-    }
-
-    var statusKey: String {
-        switch self {
-        case .appOnlyReady:
-            return "privacy.next.status.private_default"
-        case .needsPermission:
-            return "privacy.status.needs_permission"
-        case .reviewCounters:
-            return "privacy.next.status.review"
-        case .ready:
-            return "privacy.next.status.ready"
-        }
-    }
-
-    var systemImage: String {
-        switch self {
-        case .appOnlyReady:
-            return "eye.slash"
-        case .needsPermission:
-            return "hand.raised"
-        case .reviewCounters:
-            return "waveform.path.ecg"
-        case .ready:
-            return "checkmark.seal.fill"
-        }
-    }
-
-    var statusIcon: String {
-        switch self {
-        case .appOnlyReady:
-            return "lock.fill"
-        case .needsPermission:
-            return "exclamationmark.triangle.fill"
-        case .reviewCounters:
-            return "doc.text.magnifyingglass"
-        case .ready:
-            return "checkmark.seal.fill"
-        }
-    }
-
-    var tone: DesignSystem.StatusTone {
-        switch self {
-        case .appOnlyReady:
-            return .success
-        case .needsPermission:
-            return .warning
-        case .reviewCounters:
-            return .info
-        case .ready:
-            return .success
         }
     }
 }

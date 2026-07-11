@@ -69,6 +69,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private let popover = NSPopover()
     private var statusItem: NSStatusItem?
     private var uiTestPopoverWindow: NSWindow?
+    private var uiTestQuickMarkerWindow: NSWindow?
     private let statusMenu = NSMenu()
     private var dayChangeObserver: NSObjectProtocol?
     private var appActiveObserver: NSObjectProtocol?
@@ -642,6 +643,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             return
         }
 
+        if AppRuntime.uiTestLaunchRoute == "quickMarker" {
+            openQuickMarkerPreviewWindow()
+            return
+        }
+
         if let route = AppRuntime.uiTestLaunchRoute.flatMap(Self.uiTestRoute(from:)) {
             AppWindowRouter.shared.open(route)
             return
@@ -678,6 +684,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         uiTestPopoverWindow = window
+    }
+
+    private func openQuickMarkerPreviewWindow() {
+        if let window = uiTestQuickMarkerWindow {
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+
+        let rootView = LocalizedRootView {
+            QuickMarkerPanelView { [weak self] in
+                self?.uiTestQuickMarkerWindow?.close()
+            }
+        }
+        .environmentObject(appState)
+        .environmentObject(languageManager)
+
+        let hostingController = NSHostingController(rootView: rootView)
+        let window = NSWindow(contentViewController: hostingController)
+        window.title = L("menu.quick_marker")
+        window.setContentSize(AppWindowMetrics.quickMarkerDefault)
+        window.minSize = AppWindowMetrics.quickMarkerMinimum
+        window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
+        window.isReleasedWhenClosed = false
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        uiTestQuickMarkerWindow = window
     }
 
     private nonisolated static func uiTestRoute(from rawValue: String) -> AppWindowRoute? {

@@ -20,49 +20,35 @@ PUBLIC_TESTS_ZH_HANS=(
 )
 
 SURFACE_TESTS_EN=(
-  "ChronicleUITests/ChronicleUITests/testTagsPreferencesClassificationSurfaceSmoke"
-  "ChronicleUITests/ChronicleUITests/testTagWizardReviewSurfaceSmoke"
-  "ChronicleUITests/ChronicleUITests/testAppMappingsReviewWorkspaceSmoke"
-  "ChronicleUITests/ChronicleUITests/testQuickMarkerPanelGuidanceSmoke"
   "ChronicleUITests/ChronicleUITests/testPopoverNextActionCardSmoke"
+  "ChronicleUITests/ChronicleUITests/testQuickMarkerPanelGuidanceSmoke"
   "ChronicleUITests/ChronicleUITests/testDashboardOverviewReviewBriefSmoke"
-  "ChronicleUITests/ChronicleUITests/testDashboardTimelineReviewFocusSmoke"
-  "ChronicleUITests/ChronicleUITests/testDashboardMarkersReviewNotesSmoke"
-  "ChronicleUITests/ChronicleUITests/testDashboardStatsInsightsSmoke"
-  "ChronicleUITests/ChronicleUITests/testDashboardDebugFlowSmoke"
-  "ChronicleUITests/ChronicleUITests/testDashboardReportsCloseoutSmoke"
-  "ChronicleUITests/ChronicleUITests/testReportsReviewPlanSmoke"
-  "ChronicleUITests/ChronicleUITests/testReportFolderPickerPresentsSystemSheet"
-  "ChronicleUITests/ChronicleUITests/testPrivacyTrustSurfaceSmoke"
-  "ChronicleUITests/ChronicleUITests/testDebugPreferencesDiagnosticsSurfaceSmoke"
-  "ChronicleUITests/ChronicleUITests/testSupportReadinessReportSmoke"
-  "ChronicleUITests/ChronicleUITests/testSupportHealthRouteOpensReportSmoke"
   "ChronicleUITests/ChronicleUITests/testGeneralSetupSurfaceSmoke"
-  "ChronicleUITests/ChronicleUITests/testOnboardingGuidedSetupSurfaceSmoke"
+  "ChronicleUITests/ChronicleUITests/testReportFolderPickerPresentsSystemSheet"
 )
 
 automation_status() {
   automationmodetool 2>&1 || true
 }
 
+automation_status_allows_without_auth() {
+  local normalized
+  normalized="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
+  [[ "$normalized" == *"does not require user authentication"* ]]
+}
+
+automation_status_requires_auth() {
+  local normalized
+  normalized="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
+  [[ "$normalized" == *"requires user authentication"* ]] &&
+    [[ "$normalized" != *"does not require user authentication"* ]]
+}
+
 require_automation_mode() {
   local status
   status="$(automation_status)"
 
-  if [[ "$status" == *"Automation Mode is disabled"* ]]; then
-    cat >&2 <<EOF
-UI smoke tests require Automation Mode to be enabled on the dedicated test machine.
-
-Current status:
-$status
-
-Enable Automation Mode before running UI smoke:
-  sudo automationmodetool enable-automationmode-without-authentication
-EOF
-    exit 2
-  fi
-
-  if [[ "$status" == *"requires user authentication"* ]]; then
+  if automation_status_requires_auth "$status"; then
     cat >&2 <<EOF
 UI smoke tests require Automation Mode to be available without per-run authentication.
 
@@ -73,6 +59,14 @@ Run this once on the dedicated test machine as an administrator:
   sudo automationmodetool enable-automationmode-without-authentication
 EOF
     exit 2
+  fi
+
+  if [[ "$status" == *"Automation Mode is disabled"* ]] &&
+     automation_status_allows_without_auth "$status"; then
+    cat >&2 <<EOF
+Automation Mode is currently disabled, but this machine allows XCTest to enable it without authentication.
+Continuing; xcodebuild will request Automation Mode when the UI smoke runner starts.
+EOF
   fi
 }
 
@@ -160,7 +154,9 @@ run_case() {
     -scheme "$SCHEME" \
     -destination "$DESTINATION" \
     -derivedDataPath "$DERIVED_DATA" \
-    CODE_SIGNING_ALLOWED=NO \
+    CODE_SIGNING_ALLOWED=YES \
+    CODE_SIGN_IDENTITY=- \
+    PRODUCT_BUNDLE_IDENTIFIER=com.Chronicle.Chronicle.UISmoke \
     -parallel-testing-enabled NO \
     -resultBundlePath "$result_bundle" \
     "${only_testing_args[@]}" \

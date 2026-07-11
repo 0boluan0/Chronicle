@@ -5,6 +5,14 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 cd "$ROOT_DIR"
 
+if [[ -n "${RELEASE_TAG:-}" ]]; then
+  APP_VERSION="$(awk -F ' = ' '/MARKETING_VERSION = / { gsub(/;/, "", $2); print $2 }' Chronicle.xcodeproj/project.pbxproj | sort -u)"
+  if [[ "$RELEASE_TAG" != "v${APP_VERSION}" ]]; then
+    echo "release tag ${RELEASE_TAG} does not match app version ${APP_VERSION}" >&2
+    exit 1
+  fi
+fi
+
 section() {
   printf '\n==> %s\n' "$1"
 }
@@ -112,31 +120,130 @@ ruby <<'RUBY'
 test_path = "ChronicleUITests/ChronicleUITests.swift"
 test_source = File.read(test_path)
 
-required_identifiers = {
-  "dashboard sidebar next-step card" => "dashboard.sidebar.nextStep",
-  "dashboard sidebar next-step action" => "dashboard.sidebar.nextStep.primary",
-  "overview suggested-next card" => "dashboard.overview.suggestedNext",
-  "timeline next-step card" => "timeline.nextAction",
-  "timeline next-step action" => "timeline.next.primary",
-  "markers next-step card" => "dashboard.markers.nextAction",
-  "reports closeout next-step card" => "reports.closeout.nextAction",
-  "reports workspace next action" => "reports.workspace.nextAction",
-  "CSV export next action" => "reports.csv.guidance.nextAction"
+required_present_identifiers = {
+  "popover daily snapshot" => "popover.commandCenter",
+  "popover dashboard entry" => "popover.openDashboard",
+  "quick marker workspace" => "quickMarker.workspace",
+  "dashboard overview summary" => "dashboard.overview.reviewBrief",
+  "dashboard timeline navigation" => "dashboard.section.timeline",
+  "dashboard reports navigation" => "dashboard.section.reports",
+  "reports folder picker" => "reports.closeout.chooseDailyFolder"
 }
 
-missing = required_identifiers.reject do |_, identifier|
+required_absent_identifiers = {
+  "quick marker reuse path" => "quickMarker.recentEmpty.path",
+  "quick marker header progress" => "quickMarker.headerProgress",
+  "quick marker header status pill" => "quickMarker.headerStatus",
+  "quick marker composer mode status" => "quickMarker.composerModeStatus",
+  "quick marker outcome strip" => "quickMarker.outcome",
+  "quick marker review loop" => "quickMarker.reviewLoop",
+  "quick marker next steps heading" => "Next steps",
+  "dashboard sidebar flow path" => "dashboard.sidebar.flowPath",
+  "app mappings empty path" => "appMappings.emptyPath",
+  "dashboard overview activity map empty path" => "dashboard.overview.activityMap.emptyPath",
+  "dashboard overview selection empty path" => "dashboard.overview.selection.emptyPath",
+  "dashboard overview daily chart empty path" => "overview.dailyChart.emptyPath",
+  "dashboard overview weekly chart empty path" => "overview.weeklyChart.emptyPath",
+  "dashboard overview suggested next" => "dashboard.overview.suggestedNext",
+  "dashboard overview suggested next copy" => "Suggested next",
+  "dashboard overview readiness strip" => "dashboard.overview.readiness",
+  "dashboard timeline next-action card" => "dashboard.timeline.nextAction",
+  "dashboard timeline start-here panel" => "dashboard.timeline.startHere",
+  "dashboard timeline empty path" => "dashboard.timeline.emptyPath",
+  "dashboard timeline filter guide" => "dashboard.timeline.filterGuide",
+  "dashboard timeline batch empty filter step" => "dashboard.timeline.batchEmpty.filter",
+  "dashboard timeline batch empty select step" => "dashboard.timeline.batchEmpty.select",
+  "dashboard timeline batch empty apply step" => "dashboard.timeline.batchEmpty.apply",
+  "standalone timeline next-action card" => "timeline.nextAction",
+  "tag picker no-tags path" => "tag.picker.noTags.path",
+  "dashboard markers next-action card" => "dashboard.markers.nextAction",
+  "markers review path" => "markers.review.path",
+  "markers timeline empty prompts" => "markers.timeline.emptyPrompts",
+  "reports closeout next-action card" => "reports.closeout.nextAction",
+  "reports closeout included cards" => "reports.closeout.include",
+  "reports workspace next-action text" => "reports.workspace.nextAction",
+  "reports weekly next-action card" => "reports.dashboardWeekly.nextAction",
+  "reports readiness next-action card" => "reports.readiness.nextAction",
+  "reports csv guidance strip" => "reports.csv.guidance",
+  "reports csv guidance next-action card" => "reports.csv.guidance.nextAction",
+  "reports preview loading path" => "reports.preview.loadingPath",
+  "reports preview empty path" => "reports.preview.emptyPath",
+  "onboarding header progress card" => "onboarding.header.progress",
+  "onboarding numeric step counter" => "Step 1 of 4",
+  "onboarding progress status" => "In progress",
+  "onboarding final step status" => "Final step",
+  "onboarding rail focus label" => "Setup focus",
+  "onboarding finish checklist" => "onboarding.finishChecklist",
+  "self check readiness impact" => "selfCheck.readiness.impact",
+  "self check next-action card" => "selfCheck.readiness.nextAction",
+  "self check readiness path" => "selfCheck.readiness.path",
+  "self check action guidance" => "Start with the current state",
+  "dashboard stats next-step card" => "dashboard.stats.nextStep",
+  "dashboard stats data quality evidence chain" => "dashboard.stats.dataQuality.evidenceChain",
+  "dashboard stats app empty path" => "dashboard.stats.appFocus.emptyPath",
+  "dashboard stats tag empty path" => "dashboard.stats.tagFocus.emptyPath",
+  "standalone stats next-step card" => "stats.review.nextStep",
+  "standalone stats app empty path" => "stats.topApps.emptyPath",
+  "standalone stats tag empty path" => "stats.topTags.emptyPath",
+  "standalone stats markers empty path" => "stats.markers.emptyPath",
+  "standalone stats deep work empty path" => "stats.deepWork.emptyPath",
+  "popover header progress" => "popover.headerProgress",
+  "popover next step heading" => "Next Step",
+  "popover command center progress card" => "popover.commandCenter.progress",
+  "popover daily snapshot empty path" => "popover.dailySnapshot.emptyPath",
+  "popover daily snapshot saved guidance action" => "popover.dailySnapshot.guidance.openFolder",
+  "popover daily snapshot ready guidance action" => "popover.dailySnapshot.guidance.exportDaily",
+  "popover daily snapshot context guidance action" => "popover.dailySnapshot.guidance.addNote",
+  "popover daily snapshot building guidance action" => "popover.dailySnapshot.guidance.reviewTimeline",
+  "settings sidebar flow header" => "preferences.sidebar.flowHeader",
+  "settings sidebar guide" => "preferences.sidebar.guide.focus",
+  "settings readiness start step" => "preferences.readiness.start",
+  "settings readiness timeline step" => "preferences.readiness.timeline",
+  "settings readiness recall step" => "preferences.readiness.recall",
+  "settings window title empty path" => "preferences.windowTitles.blocklistEmptyPath",
+  "settings advanced tracking empty path" => "preferences.advancedTracking.allowlistEmptyPath",
+  "settings capture profile guidance" => "preferences.captureProfiles.guidance",
+  "privacy next-step header" => "privacy.next.header",
+  "privacy next-step reason" => "privacy.next.reason",
+  "privacy capture outcome strip" => "privacy.capture.outcome",
+  "privacy sharing checklist heading" => "Reviewable local files",
+  "tags rules outcome strip" => "tagsRules.outcomeStrip",
+  "tags setup guide" => "tags.setup.header",
+  "tags empty path" => "tags.empty.path",
+  "app mappings impact strip" => "appMappings.impactStrip",
+  "tag wizard outcome strip" => "wizard.outcomeStrip",
+  "tag wizard empty path" => "wizard.emptyPath",
+  "tag wizard loading path" => "wizard.loadingPath",
+  "reports reminder outcome strip" => "reports.reviewReminder.outcome",
+  "reports closeout steps" => "reports.closeout.steps"
+}
+
+missing = required_present_identifiers.reject do |_, identifier|
   test_source.include?(%("#{identifier}"))
 end
 
 unless missing.empty?
-  puts "UI smoke tests must assert the key next-step release surfaces:"
+  puts "UI smoke tests must assert the key release surfaces:"
   missing.each do |label, identifier|
     puts "  #{label}: #{identifier}"
   end
-  abort "Key next-step surfaces need UI smoke coverage before release."
+  abort "Key release surfaces need UI smoke coverage before release."
 end
 
-puts "ok: #{required_identifiers.length} key next-step surfaces are covered by UI smoke assertions"
+missing_absence_checks = required_absent_identifiers.reject do |_, identifier|
+  test_source.match?(/XCTAssertFalse\([^\n]*"#{Regexp.escape(identifier)}"[^\n]*\.exists/)
+end
+
+unless missing_absence_checks.empty?
+  puts "UI smoke tests must assert removed toy surfaces stay removed:"
+  missing_absence_checks.each do |label, identifier|
+    puts "  #{label}: #{identifier}"
+  end
+  abort "Removed guidance surfaces need UI smoke absence checks before release."
+end
+
+puts "ok: #{required_present_identifiers.length} key release surfaces are covered by UI smoke assertions"
+puts "ok: #{required_absent_identifiers.length} removed guidance surfaces have absence checks"
 RUBY
 
 section "Release note freshness"

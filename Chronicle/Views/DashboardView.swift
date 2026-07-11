@@ -8,18 +8,6 @@
 import SwiftUI
 
 struct DashboardView: View {
-    private enum SidebarNextStepState {
-        case startToday
-        case savingDailyLog
-        case paused
-        case captureIssue
-        case addContext
-        case needsLogFolder
-        case reviewDailyLog
-        case logFailed
-        case savedToday
-    }
-
     enum Section: String, Identifiable {
         case timeline
         case overview
@@ -108,62 +96,6 @@ struct DashboardView: View {
         }
 
         static let defaultSelection: Section = .overview
-    }
-
-    private enum SidebarFlowStep: String, CaseIterable, Identifiable {
-        case today
-        case context
-        case log
-
-        var id: String { rawValue }
-
-        var titleKey: LocalizedStringKey {
-            LocalizedStringKey(titleStringKey)
-        }
-
-        var titleStringKey: String {
-            switch self {
-            case .today:
-                return "dashboard.sidebar.flow.step.today"
-            case .context:
-                return "dashboard.sidebar.flow.step.context"
-            case .log:
-                return "dashboard.sidebar.flow.step.log"
-            }
-        }
-
-        var systemImage: String {
-            switch self {
-            case .today:
-                return "sun.max"
-            case .context:
-                return "note.text"
-            case .log:
-                return "doc.badge.plus"
-            }
-        }
-
-        var stepNumber: Int {
-            switch self {
-            case .today:
-                return 1
-            case .context:
-                return 2
-            case .log:
-                return 3
-            }
-        }
-
-        var destination: Section {
-            switch self {
-            case .today:
-                return .overview
-            case .context:
-                return .markers
-            case .log:
-                return .reports
-            }
-        }
     }
 
     @EnvironmentObject private var appState: AppState
@@ -263,220 +195,35 @@ struct DashboardView: View {
     }
 
     private var sidebarHeader: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            VStack(alignment: .leading, spacing: 4) {
-                Label {
-                    Text("dashboard.sidebar.flow_title")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.primary)
-                } icon: {
-                    Image(systemName: "checklist")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(DesignSystem.Colors.accentSkyBlue)
-                }
-                .labelStyle(.titleAndIcon)
+        VStack(alignment: .leading, spacing: 4) {
+            Text("app.name")
+                .font(.headline.weight(.semibold))
+                .foregroundStyle(.primary)
 
-                Text("dashboard.sidebar.flow_detail")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .accessibilityElement(children: .combine)
-
-            sidebarFlowPath
+            Text("popover.subtitle")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .padding(.horizontal, DesignSystem.Spacing.lg)
         .padding(.top, DesignSystem.Spacing.lg)
         .padding(.bottom, DesignSystem.Spacing.sm)
-        .accessibilityIdentifier("dashboard.sidebar.flowHeader")
-    }
-
-    private var sidebarFlowPath: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: DesignSystem.Spacing.xs) {
-                ForEach(SidebarFlowStep.allCases) { step in
-                    sidebarFlowStepButton(step)
-                }
-            }
-
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 62), spacing: DesignSystem.Spacing.xs)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.xs
-            ) {
-                ForEach(SidebarFlowStep.allCases) { step in
-                    sidebarFlowStepButton(step)
-                }
-            }
-        }
-        .accessibilityIdentifier("dashboard.sidebar.flowPath")
-    }
-
-    private func sidebarFlowStepButton(_ step: SidebarFlowStep) -> some View {
-        let isSelected = sidebarFlowStepIsSelected(step)
-        let isComplete = sidebarFlowStepIsComplete(step)
-        let isCurrent = sidebarCurrentFlowStep == step && !isComplete
-        let isFailed = sidebarFlowStepIsFailed(step)
-        let color = sidebarFlowStepColor(
-            isSelected: isSelected,
-            isComplete: isComplete,
-            isCurrent: isCurrent,
-            isFailed: isFailed
-        )
-
-        return Button {
-            selectedSectionRaw = step.destination.rawValue
-        } label: {
-            VStack(spacing: 4) {
-                HStack(spacing: 4) {
-                    ZStack {
-                        Circle()
-                            .fill(isComplete || isCurrent || isFailed ? color : color.opacity(0.12))
-
-                        if isComplete {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 8, weight: .bold))
-                                .foregroundStyle(.white)
-                        } else if isFailed {
-                            Image(systemName: "exclamationmark")
-                                .font(.system(size: 8, weight: .bold))
-                                .foregroundStyle(.white)
-                        } else {
-                            Text("\(step.stepNumber)")
-                                .font(.caption2.weight(.bold))
-                                .foregroundStyle(isCurrent ? .white : color)
-                                .monospacedDigit()
-                        }
-                    }
-                    .frame(width: 15, height: 15)
-
-                    Image(systemName: isFailed ? "exclamationmark.triangle.fill" : step.systemImage)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(color)
-                        .frame(height: 14)
-                }
-
-                Text(step.titleKey)
-                    .font(.caption2.weight(isSelected || isCurrent || isComplete || isFailed ? .semibold : .regular))
-                    .foregroundStyle(isSelected || isCurrent || isComplete || isFailed ? .primary : .secondary)
-                    .lineLimit(2)
-                    .multilineTextAlignment(.center)
-                    .minimumScaleFactor(0.86)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(maxWidth: .infinity, minHeight: 46)
-            .padding(.horizontal, 4)
-            .background(
-                RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                    .fill(color.opacity(isSelected || isCurrent || isComplete || isFailed ? 0.12 : 0.05))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                    .stroke(color.opacity(isSelected || isCurrent || isFailed ? 0.34 : 0.16), lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-        .help(L(step.titleStringKey))
-        .accessibilityLabel("\(L(step.titleStringKey)) \(sidebarFlowStepStatusText(step))")
-        .accessibilityIdentifier("dashboard.sidebar.flow.\(step.rawValue)")
-    }
-
-    private func sidebarFlowStepIsSelected(_ step: SidebarFlowStep) -> Bool {
-        switch (step, selectedSection) {
-        case (.today, .overview), (.today, .timeline):
-            return true
-        case (.context, .markers):
-            return true
-        case (.log, .reports):
-            return true
-        default:
-            return false
-        }
-    }
-
-    private func sidebarFlowStepIsComplete(_ step: SidebarFlowStep) -> Bool {
-        switch step {
-        case .today:
-            return sidebarHasTodayData || sidebarDailyExportedToday
-        case .context:
-            return sidebarTodayContextCount > 0 || sidebarDailyExportedToday
-        case .log:
-            return sidebarDailyExportedToday
-        }
-    }
-
-    private var sidebarCurrentFlowStep: SidebarFlowStep {
-        switch sidebarNextStepState {
-        case .savingDailyLog:
-            return .log
-        case .paused, .captureIssue, .startToday:
-            return .today
-        case .addContext:
-            return .context
-        case .needsLogFolder, .reviewDailyLog, .logFailed, .savedToday:
-            return .log
-        }
-    }
-
-    private func sidebarFlowStepIsFailed(_ step: SidebarFlowStep) -> Bool {
-        step == .log && sidebarNextStepState == .logFailed
-    }
-
-    private func sidebarFlowStepColor(
-        isSelected: Bool,
-        isComplete: Bool,
-        isCurrent: Bool,
-        isFailed: Bool
-    ) -> Color {
-        if isFailed {
-            return DesignSystem.StatusTone.critical.color
-        }
-        if isComplete {
-            return DesignSystem.StatusTone.success.color
-        }
-        if isCurrent || isSelected {
-            return DesignSystem.Colors.accentSkyBlue
-        }
-        return DesignSystem.Colors.secondaryText
-    }
-
-    private func sidebarFlowStepStatusText(_ step: SidebarFlowStep) -> String {
-        if sidebarFlowStepIsFailed(step) {
-            return L("dashboard.sidebar.flow.step.status.failed")
-        }
-        if sidebarFlowStepIsComplete(step) {
-            return L("dashboard.sidebar.flow.step.status.complete")
-        }
-        if sidebarCurrentFlowStep == step {
-            return L("dashboard.sidebar.flow.step.status.current")
-        }
-        return L("dashboard.sidebar.flow.step.status.open")
+        .accessibilityIdentifier("dashboard.sidebar.header")
     }
 
     private func sidebarRow(for section: Section) -> some View {
         let isSelected = selectedSection == section
-        let step = sidebarFlowStep(for: section)
-        let isComplete = step.map { sidebarFlowStepIsComplete($0) } ?? false
-        let isCurrent = step.map { sidebarCurrentFlowStep == $0 && !isComplete } ?? false
-        let isFailed = step.map { sidebarFlowStepIsFailed($0) } ?? false
-        let isEmphasized = isSelected || isCurrent || isFailed
-        let iconColor = sidebarRowIconColor(
-            isSelected: isSelected,
-            isComplete: isComplete,
-            isCurrent: isCurrent,
-            isFailed: isFailed
-        )
 
         return HStack(spacing: 10) {
             Image(systemName: section.systemImage)
-                .font(.body.weight(isEmphasized ? .semibold : .regular))
-                .foregroundStyle(iconColor)
+                .font(.body.weight(isSelected ? .semibold : .regular))
+                .foregroundStyle(isSelected ? DesignSystem.Colors.accentSkyBlue : DesignSystem.Colors.secondaryText)
                 .frame(width: 18)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(section.titleKey)
-                    .fontWeight(isEmphasized ? .semibold : .regular)
+                    .fontWeight(isSelected ? .semibold : .regular)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(sidebarRowSubtitleText(for: section))
@@ -486,87 +233,12 @@ struct DashboardView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-
-            if let step {
-                Image(systemName: sidebarRowStatusIconName(isComplete: isComplete, isCurrent: isCurrent, isFailed: isFailed))
-                    .font(.caption2.weight(isComplete || isCurrent || isFailed ? .semibold : .regular))
-                    .foregroundStyle(sidebarRowStatusColor(isComplete: isComplete, isCurrent: isCurrent, isFailed: isFailed))
-                    .frame(width: 16)
-                    .help(sidebarFlowStepStatusText(step))
-                    .accessibilityHidden(true)
-            }
         }
         .padding(.vertical, 3)
         .contentShape(Rectangle())
         .help("\(L(section.titleStringKey)): \(sidebarRowSubtitleText(for: section))")
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(sidebarRowAccessibilityLabel(for: section))
-    }
-
-    private func sidebarFlowStep(for section: Section) -> SidebarFlowStep? {
-        switch section {
-        case .overview, .timeline:
-            return .today
-        case .markers:
-            return .context
-        case .reports:
-            return .log
-        case .stats:
-            return nil
-#if DEBUG
-        case .debug:
-            return nil
-#endif
-        }
-    }
-
-    private func sidebarRowIconColor(isSelected: Bool, isComplete: Bool, isCurrent: Bool, isFailed: Bool) -> Color {
-        if isFailed {
-            return DesignSystem.StatusTone.critical.color
-        }
-        if isSelected || isCurrent {
-            return DesignSystem.Colors.accentSkyBlue
-        }
-        if isComplete {
-            return DesignSystem.StatusTone.success.color
-        }
-        return DesignSystem.Colors.secondaryText
-    }
-
-    private func sidebarRowStatusIconName(isComplete: Bool, isCurrent: Bool, isFailed: Bool) -> String {
-        if isFailed {
-            return "exclamationmark.triangle.fill"
-        }
-        if isComplete {
-            return "checkmark.circle.fill"
-        }
-        if isCurrent {
-            return "record.circle"
-        }
-        return "circle"
-    }
-
-    private func sidebarRowStatusColor(isComplete: Bool, isCurrent: Bool, isFailed: Bool) -> Color {
-        if isFailed {
-            return DesignSystem.StatusTone.critical.color
-        }
-        if isComplete {
-            return DesignSystem.StatusTone.success.color
-        }
-        if isCurrent {
-            return DesignSystem.Colors.accentSkyBlue
-        }
-        return DesignSystem.Colors.secondaryText.opacity(0.55)
-    }
-
-    private func sidebarRowAccessibilityLabel(for section: Section) -> String {
-        let baseLabel = "\(L(section.titleStringKey)): \(sidebarRowSubtitleText(for: section))"
-
-        guard let step = sidebarFlowStep(for: section) else {
-            return baseLabel
-        }
-
-        return "\(baseLabel). \(sidebarFlowStepStatusText(step))"
+        .accessibilityLabel("\(L(section.titleStringKey)): \(sidebarRowSubtitleText(for: section))")
     }
 
     private func sidebarRowSubtitleText(for section: Section) -> String {
@@ -587,12 +259,8 @@ struct DashboardView: View {
         .accessibilityIdentifier("dashboard.sidebar.quickActions")
     }
 
-    private func sidebarActionLabel(_ titleKey: LocalizedStringKey, systemImage: String) -> some View {
-        ActionButtonLabel(titleKey, systemImage: systemImage)
-    }
-
     private var sidebarTodayControlPanel: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
             ViewThatFits(in: .horizontal) {
                 HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
                     sidebarTodayControlTitle
@@ -608,26 +276,9 @@ struct DashboardView: View {
                 }
             }
 
-            sidebarTodayStatus
-
-            sidebarTodayEvidenceStrip
-
-            Divider()
-
-            sidebarNextStepCard
-
             sidebarQuickActionGrid
         }
-        .padding(DesignSystem.Spacing.md)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(DesignSystem.Colors.cardBackground.opacity(0.96))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .stroke(DesignSystem.Colors.separator.opacity(0.42), lineWidth: 1)
-        )
-        .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
+        .padding(.top, DesignSystem.Spacing.sm)
         .accessibilityIdentifier("dashboard.sidebar.todayControl")
     }
 
@@ -647,26 +298,6 @@ struct DashboardView: View {
 
     private var sidebarQuickActionGrid: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            VStack(alignment: .leading, spacing: 2) {
-                Label {
-                    Text("dashboard.sidebar.quick_actions")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                } icon: {
-                    Image(systemName: "bolt.fill")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(DesignSystem.Colors.secondaryText)
-                }
-                .labelStyle(.titleAndIcon)
-
-                Text("dashboard.sidebar.quick_actions_detail")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityIdentifier("dashboard.sidebar.utilityActions.detail")
-            }
-
             ViewThatFits(in: .horizontal) {
                 VStack(spacing: DesignSystem.Spacing.sm) {
                     HStack(spacing: DesignSystem.Spacing.sm) {
@@ -781,535 +412,6 @@ struct DashboardView: View {
         .accessibilityIdentifier(accessibilityIdentifier)
     }
 
-    private var sidebarNextStepState: SidebarNextStepState {
-        if dailyExportState.isRunning {
-            return .savingDailyLog
-        }
-        if sidebarCaptureHasError {
-            return .captureIssue
-        }
-        if appState.trackingPaused {
-            return .paused
-        }
-        if sidebarDailyExportedToday {
-            return .savedToday
-        }
-        if sidebarDailyExportFailedToday {
-            return .logFailed
-        }
-        if hasRecentCaptureSignal && sidebarTodayContextCount == 0 {
-            return .addContext
-        }
-        if hasRecentCaptureSignal && !sidebarDailyFolderReady {
-            return .needsLogFolder
-        }
-        if hasRecentCaptureSignal {
-            return .reviewDailyLog
-        }
-        return .startToday
-    }
-
-    private func performSidebarNextStep() {
-        switch sidebarNextStepState {
-        case .savingDailyLog:
-            selectedSectionRaw = Section.reports.rawValue
-        case .paused:
-            appState.trackingPaused = false
-            selectedSectionRaw = Section.overview.rawValue
-        case .captureIssue:
-            AppWindowRouter.shared.open(.settings(.supportHealth))
-        case .addContext:
-            AppWindowRouter.shared.open(.quickMarker)
-        case .needsLogFolder, .reviewDailyLog, .logFailed:
-            selectedSectionRaw = Section.reports.rawValue
-        case .savedToday:
-            if case .failure = ReportService.shared.openDailyFolder() {
-                selectedSectionRaw = Section.reports.rawValue
-            }
-        case .startToday:
-            selectedSectionRaw = Section.overview.rawValue
-        }
-    }
-
-    private var sidebarNextStepCard: some View {
-        RowSurface(tone: sidebarNextStepTone, isHovering: false) {
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                sidebarNextStepHeader
-
-                sidebarNextStepProgress
-
-                Button {
-                    performSidebarNextStep()
-                } label: {
-                    sidebarNextStepButtonLabel
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .disabled(sidebarNextStepButtonIsDisabled)
-                .accessibilityIdentifier("dashboard.sidebar.nextStep.primary")
-            }
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("dashboard.sidebar.nextStep")
-    }
-
-    private var sidebarNextStepHeader: some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-            IconWell(
-                systemImage: sidebarNextStepIconName,
-                tone: sidebarNextStepTone,
-                accessibilityLabel: L(sidebarNextStepHeadlineStringKey)
-            )
-            .frame(width: 32, height: 32)
-
-            VStack(alignment: .leading, spacing: 4) {
-                ViewThatFits(in: .horizontal) {
-                    HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.xs) {
-                        sidebarNextStepEyebrow
-
-                        Spacer(minLength: 0)
-
-                        sidebarNextStepStatusPill
-                    }
-
-                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-                        sidebarNextStepEyebrow
-                        sidebarNextStepStatusPill
-                    }
-                }
-
-                Text(sidebarNextStepHeadlineKey)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .help(L(sidebarNextStepHeadlineStringKey))
-
-                Text(sidebarNextStepDetailKey)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .help(L(sidebarNextStepDetailStringKey))
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
-    private var sidebarNextStepEyebrow: some View {
-        Text("dashboard.sidebar.next_step.title")
-            .font(.caption2.weight(.semibold))
-            .foregroundStyle(.secondary)
-            .lineLimit(1)
-    }
-
-    private var sidebarNextStepStatusPill: some View {
-        StatusPill(
-            sidebarNextStepStatusText,
-            systemImage: sidebarNextStepStatusIconName,
-            tone: sidebarNextStepTone
-        )
-        .fixedSize(horizontal: true, vertical: false)
-        .accessibilityIdentifier("dashboard.sidebar.nextStep.status")
-    }
-
-    private var sidebarNextStepProgress: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-            HStack(alignment: .firstTextBaseline, spacing: DesignSystem.Spacing.sm) {
-                Text("dashboard.sidebar.progress.label")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-
-                Spacer(minLength: 0)
-
-                Text(String(format: L("dashboard.sidebar.progress.value"), sidebarReadyStepCount, sidebarTotalStepCount))
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(sidebarReadinessTone.color)
-                    .lineLimit(1)
-                    .monospacedDigit()
-            }
-
-            RatioBar(
-                filledFraction: sidebarReadinessFraction,
-                filledColor: sidebarReadinessTone.color,
-                remainderColor: DesignSystem.Colors.separator
-            )
-        }
-        .padding(.horizontal, 2)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(String(format: L("dashboard.sidebar.progress.value"), sidebarReadyStepCount, sidebarTotalStepCount))
-        .accessibilityIdentifier("dashboard.sidebar.nextStep.progress")
-    }
-
-    private var sidebarTodayStatus: some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-            IconWell(
-                systemImage: sidebarTodayStatusIconName,
-                tone: sidebarTodayStatusTone,
-                accessibilityLabel: sidebarTodayStatusText
-            )
-            .frame(width: 32, height: 32)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(sidebarTodayStatusTitleKey)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(sidebarTodayStatusDetailText)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .help(sidebarTodayStatusDetailText)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-
-            Spacer(minLength: 0)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier("dashboard.sidebar.todayStatus")
-    }
-
-    private var sidebarTodayEvidenceStrip: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 70), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            sidebarTodayEvidenceButton(
-                titleKey: "dashboard.sidebar.today_evidence.captured_title",
-                value: sidebarCapturedValueText,
-                systemImage: "clock",
-                tone: sidebarHasTodayActivity ? .success : .neutral,
-                helpKey: "dashboard.sidebar.today_evidence.captured_help",
-                accessibilityIdentifier: "dashboard.sidebar.todayEvidence.captured",
-                isLoading: isSidebarTodaySummaryLoading
-            ) {
-                selectedSectionRaw = Section.timeline.rawValue
-            }
-
-            sidebarTodayEvidenceButton(
-                titleKey: "dashboard.sidebar.today_evidence.context_title",
-                value: sidebarContextValueText,
-                systemImage: "note.text",
-                tone: sidebarTodayContextCount > 0 ? .success : (sidebarHasTodayActivity ? .warning : .neutral),
-                helpKey: "dashboard.sidebar.today_evidence.context_help",
-                accessibilityIdentifier: "dashboard.sidebar.todayEvidence.context"
-            ) {
-                selectedSectionRaw = Section.markers.rawValue
-            }
-
-            sidebarTodayEvidenceButton(
-                titleKey: "dashboard.sidebar.today_evidence.log_title",
-                value: sidebarLogValueText,
-                systemImage: sidebarLogIconName,
-                tone: sidebarLogTone,
-                helpKey: "dashboard.sidebar.today_evidence.log_help",
-                accessibilityIdentifier: "dashboard.sidebar.todayEvidence.log",
-                isLoading: dailyExportState.isRunning
-            ) {
-                openSidebarLogEvidence()
-            }
-        }
-        .accessibilityIdentifier("dashboard.sidebar.todayEvidence")
-    }
-
-    private func sidebarTodayEvidenceButton(
-        titleKey: String,
-        value: String,
-        systemImage: String,
-        tone: DesignSystem.StatusTone,
-        helpKey: String,
-        accessibilityIdentifier: String,
-        isLoading: Bool = false,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            HStack(alignment: .top, spacing: 7) {
-                Image(systemName: systemImage)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(tone.color)
-                    .frame(width: 14)
-
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(LocalizedStringKey(titleKey))
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                        .minimumScaleFactor(0.86)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    HStack(alignment: .center, spacing: 4) {
-                        if isLoading {
-                            ProgressView()
-                                .controlSize(.small)
-                                .accessibilityHidden(true)
-                        }
-
-                        Text(value)
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.primary)
-                            .lineLimit(2)
-                            .minimumScaleFactor(0.86)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .monospacedDigit()
-                    }
-                    .help(value)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, DesignSystem.Spacing.sm)
-            .padding(.vertical, 7)
-            .frame(maxWidth: .infinity, minHeight: 46, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                    .fill(tone.color.opacity(0.07))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                    .stroke(tone.color.opacity(0.16), lineWidth: 1)
-            )
-        }
-        .buttonStyle(.plain)
-        .help(L(helpKey))
-        .accessibilityLabel("\(L(titleKey)) \(value)")
-        .accessibilityHint(L(helpKey))
-        .accessibilityIdentifier(accessibilityIdentifier)
-    }
-
-    private var sidebarNextStepHeadlineKey: LocalizedStringKey {
-        LocalizedStringKey(sidebarNextStepHeadlineStringKey)
-    }
-
-    private var sidebarNextStepHeadlineStringKey: String {
-        switch sidebarNextStepState {
-        case .savingDailyLog:
-            return "dashboard.sidebar.next_step.saving_title"
-        case .paused:
-            return "dashboard.sidebar.next_step.paused_title"
-        case .captureIssue:
-            return "dashboard.sidebar.next_step.error_title"
-        case .addContext:
-            return "dashboard.sidebar.next_step.add_context_title"
-        case .needsLogFolder:
-            return "dashboard.sidebar.next_step.needs_folder_title"
-        case .reviewDailyLog:
-            return "dashboard.sidebar.next_step.review_title"
-        case .logFailed:
-            return "dashboard.sidebar.next_step.failed_title"
-        case .savedToday:
-            return "dashboard.sidebar.next_step.saved_title"
-        case .startToday:
-            return "dashboard.sidebar.next_step.ready_title"
-        }
-    }
-
-    private var sidebarNextStepDetailKey: LocalizedStringKey {
-        LocalizedStringKey(sidebarNextStepDetailStringKey)
-    }
-
-    private var sidebarNextStepDetailStringKey: String {
-        switch sidebarNextStepState {
-        case .savingDailyLog:
-            return "dashboard.sidebar.next_step.saving_detail"
-        case .paused:
-            return "dashboard.sidebar.next_step.paused_detail"
-        case .captureIssue:
-            return "dashboard.sidebar.next_step.error_detail"
-        case .addContext:
-            return "dashboard.sidebar.next_step.add_context_detail"
-        case .needsLogFolder:
-            return "dashboard.sidebar.next_step.needs_folder_detail"
-        case .reviewDailyLog:
-            return "dashboard.sidebar.next_step.review_detail"
-        case .logFailed:
-            return "dashboard.sidebar.next_step.failed_detail"
-        case .savedToday:
-            return "dashboard.sidebar.next_step.saved_detail"
-        case .startToday:
-            return "dashboard.sidebar.next_step.ready_detail"
-        }
-    }
-
-    private var sidebarNextStepButtonTitleKey: LocalizedStringKey {
-        switch sidebarNextStepState {
-        case .savingDailyLog:
-            return "dashboard.sidebar.next_step.saving_button"
-        case .paused:
-            return "dashboard.sidebar.next_step.resume_capture"
-        case .captureIssue:
-            return "dashboard.sidebar.next_step.open_support"
-        case .addContext:
-            return "dashboard.sidebar.next_step.add_context"
-        case .needsLogFolder:
-            return "dashboard.sidebar.next_step.set_log_folder"
-        case .reviewDailyLog:
-            return "dashboard.sidebar.next_step.review_daily_log"
-        case .logFailed:
-            return "dashboard.sidebar.next_step.retry_daily_log"
-        case .savedToday:
-            return "dashboard.sidebar.next_step.open_log_folder"
-        case .startToday:
-            return "dashboard.sidebar.next_step.open_today"
-        }
-    }
-
-    @ViewBuilder
-    private var sidebarNextStepButtonLabel: some View {
-        if dailyExportState.isRunning {
-            ProgressActionButtonLabel(sidebarNextStepButtonTitleKey)
-        } else {
-            sidebarActionLabel(sidebarNextStepButtonTitleKey, systemImage: sidebarNextStepButtonIconName)
-        }
-    }
-
-    private var sidebarNextStepButtonIsDisabled: Bool {
-        dailyExportState.isRunning
-    }
-
-    private var sidebarNextStepStatusText: String {
-        switch sidebarNextStepState {
-        case .savingDailyLog:
-            return L("dashboard.sidebar.today_evidence.log_value.saving")
-        case .paused:
-            return L("dashboard.sidebar.today_status.status.paused")
-        case .captureIssue:
-            return L("dashboard.sidebar.today_status.status.needs_check")
-        case .addContext:
-            return L("dashboard.sidebar.flow.step.status.current")
-        case .needsLogFolder:
-            return L("dashboard.sidebar.today_evidence.log_value.not_set")
-        case .reviewDailyLog:
-            return L("dashboard.sidebar.today_evidence.log_value.ready")
-        case .logFailed:
-            return L("dashboard.sidebar.today_evidence.log_value.failed")
-        case .savedToday:
-            return L("dashboard.sidebar.today_evidence.log_value.saved")
-        case .startToday:
-            return L("dashboard.sidebar.today_status.status.ready")
-        }
-    }
-
-    private var sidebarNextStepStatusIconName: String {
-        switch sidebarNextStepState {
-        case .savingDailyLog:
-            return "arrow.clockwise"
-        case .paused:
-            return "pause.circle"
-        case .captureIssue, .logFailed:
-            return "exclamationmark.triangle.fill"
-        case .addContext:
-            return "note.text.badge.plus"
-        case .needsLogFolder:
-            return "folder.badge.plus"
-        case .reviewDailyLog:
-            return "doc.badge.plus"
-        case .savedToday:
-            return "checkmark.seal.fill"
-        case .startToday:
-            return "checkmark.circle"
-        }
-    }
-
-    private var sidebarNextStepIconName: String {
-        switch sidebarNextStepState {
-        case .savingDailyLog:
-            return "arrow.clockwise"
-        case .paused:
-            return "pause.circle.fill"
-        case .captureIssue:
-            return "exclamationmark.triangle.fill"
-        case .addContext:
-            return "note.text.badge.plus"
-        case .needsLogFolder:
-            return "folder.badge.plus"
-        case .reviewDailyLog:
-            return "doc.badge.plus"
-        case .logFailed:
-            return "exclamationmark.triangle.fill"
-        case .savedToday:
-            return "checkmark.seal.fill"
-        case .startToday:
-            return "sun.max.fill"
-        }
-    }
-
-    private var sidebarNextStepButtonIconName: String {
-        switch sidebarNextStepState {
-        case .savingDailyLog:
-            return "arrow.clockwise"
-        case .paused:
-            return "play.fill"
-        case .captureIssue:
-            return "wrench.and.screwdriver"
-        case .addContext:
-            return "square.and.pencil"
-        case .needsLogFolder:
-            return "folder.badge.plus"
-        case .reviewDailyLog:
-            return "doc.badge.plus"
-        case .logFailed:
-            return "arrow.clockwise"
-        case .savedToday:
-            return "folder"
-        case .startToday:
-            return "sun.max"
-        }
-    }
-
-    private var sidebarNextStepTone: DesignSystem.StatusTone {
-        switch sidebarNextStepState {
-        case .savingDailyLog:
-            return .info
-        case .paused:
-            return .warning
-        case .captureIssue:
-            return .critical
-        case .addContext:
-            return .warning
-        case .needsLogFolder:
-            return .warning
-        case .reviewDailyLog, .savedToday:
-            return .success
-        case .logFailed:
-            return .critical
-        case .startToday:
-            return .info
-        }
-    }
-
-    private var sidebarTodayStatusTitleKey: LocalizedStringKey {
-        if appState.trackingPaused {
-            return "dashboard.sidebar.today_status.paused_title"
-        }
-        if sidebarCaptureHasError {
-            return "dashboard.sidebar.today_status.error_title"
-        }
-        if hasRecentCaptureSignal {
-            return "dashboard.sidebar.today_status.capturing_title"
-        }
-        return "dashboard.sidebar.today_status.ready_title"
-    }
-
-    private var sidebarTodayStatusDetailText: String {
-        if appState.trackingPaused {
-            return L("dashboard.sidebar.today_status.paused_detail")
-        }
-        if sidebarCaptureHasError {
-            return L("dashboard.sidebar.today_status.error_detail")
-        }
-        if hasRecentCaptureSignal {
-            return String(format: L("dashboard.sidebar.today_status.capturing_detail"), sidebarCurrentAppName)
-        }
-        return L("dashboard.sidebar.today_status.ready_detail")
-    }
-
     private var sidebarTodayStatusText: String {
         if appState.trackingPaused {
             return L("dashboard.sidebar.today_status.status.paused")
@@ -1359,40 +461,6 @@ struct DashboardView: View {
 
     private var sidebarHasTodayData: Bool {
         sidebarHasTodayActivity || sidebarTodayContextCount > 0
-    }
-
-    private var sidebarReadyStepCount: Int {
-        SidebarFlowStep.allCases.filter { sidebarFlowStepIsComplete($0) }.count
-    }
-
-    private var sidebarTotalStepCount: Int {
-        SidebarFlowStep.allCases.count
-    }
-
-    private var sidebarReadinessFraction: Double {
-        guard sidebarTotalStepCount > 0 else {
-            return 0
-        }
-        return Double(sidebarReadyStepCount) / Double(sidebarTotalStepCount)
-    }
-
-    private var sidebarReadinessTone: DesignSystem.StatusTone {
-        switch sidebarNextStepState {
-        case .savingDailyLog:
-            return .info
-        case .captureIssue:
-            return .critical
-        case .logFailed:
-            return .critical
-        case .paused, .addContext, .needsLogFolder:
-            return .warning
-        case .reviewDailyLog:
-            return .info
-        case .savedToday:
-            return .success
-        case .startToday:
-            return sidebarReadyStepCount > 0 ? .info : .neutral
-        }
     }
 
     private var sidebarCapturedValueText: String {
@@ -1546,16 +614,6 @@ struct DashboardView: View {
             return false
         }
         return !message.isEmpty
-    }
-
-    private var sidebarCurrentAppName: String {
-        sidebarCurrentAppIsUnknown
-            ? L("dashboard.sidebar.today_status.current_app_unknown")
-            : appState.currentActiveAppName
-    }
-
-    private var sidebarCurrentAppIsUnknown: Bool {
-        appState.currentActiveAppName.isEmpty || appState.currentActiveAppName == "Unknown"
     }
 
     private func refreshSidebarTodaySummary(reason: String) {

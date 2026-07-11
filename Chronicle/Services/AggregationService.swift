@@ -181,7 +181,7 @@ final class AggregationService {
     ) {
         let startTime = Date()
         let key = CacheKey(rangeStart: rangeStart, rangeEnd: rangeEnd, filters: filters, limit: nil)
-        if let cached = cachedValue(from: summaryCache, key: key) {
+        if let cached = queue.sync(execute: { cachedValue(from: summaryCache, key: key) }) {
             completion(.success(cached))
             return
         }
@@ -278,7 +278,7 @@ final class AggregationService {
     ) {
         let startTime = Date()
         let key = CacheKey(rangeStart: rangeStart, rangeEnd: rangeEnd, filters: filters, limit: limit, includeIdle: includeIdle)
-        if let cached = cachedValue(from: topAppsCache, key: key) {
+        if let cached = queue.sync(execute: { cachedValue(from: topAppsCache, key: key) }) {
             completion(.success(cached))
             return
         }
@@ -373,7 +373,7 @@ final class AggregationService {
     ) {
         let startTime = Date()
         let key = CacheKey(rangeStart: rangeStart, rangeEnd: rangeEnd, filters: filters, limit: limit, includeIdle: includeIdle)
-        if let cached = cachedValue(from: topTagsCache, key: key) {
+        if let cached = queue.sync(execute: { cachedValue(from: topTagsCache, key: key) }) {
             completion(.success(cached))
             return
         }

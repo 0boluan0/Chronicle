@@ -728,7 +728,7 @@ nonisolated final class TelemetryService: @unchecked Sendable {
     private let queue = DispatchQueue(label: "com.chronicle.telemetry", qos: .utility)
     private let defaults: UserDefaults
 
-    private init(defaults: UserDefaults = .standard) {
+    private init(defaults: UserDefaults = AppRuntime.configuredDefaults()) {
         self.defaults = defaults
     }
 

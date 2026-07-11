@@ -384,7 +384,8 @@ struct StatsView: View {
                     )
                 }
 
-                statsReviewNextStepCard
+                statsReviewActionsGrid
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -454,58 +455,6 @@ struct StatsView: View {
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
                     .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var statsReviewNextStepCard: some View {
-        LazyVGrid(
-            columns: adaptiveColumns(minimum: 260, spacing: DesignSystem.Spacing.md),
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.md
-        ) {
-            statsReviewNextStepCopy
-            statsReviewActionsGrid
-        }
-        .padding(DesignSystem.Spacing.md)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(statsReviewTone.color.opacity(0.08))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .stroke(statsReviewTone.color.opacity(0.24), lineWidth: 1)
-        )
-        .accessibilityIdentifier("stats.review.nextStep")
-    }
-
-    private var statsReviewNextStepCopy: some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-            IconWell(
-                systemImage: statsReviewNextStepIconName,
-                tone: statsReviewTone,
-                accessibilityLabel: L("dashboard.stats.review.next_step")
-            )
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("dashboard.stats.review.next_step")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(1)
-
-                Text(LocalizedStringKey(statsReviewNextStepTitleKey))
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(LocalizedStringKey(statsReviewNextStepDetailKey))
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -768,16 +717,14 @@ struct StatsView: View {
                 )
 
                 if topApps.isEmpty {
-                    EmptyStateView(
-                        title: L("dashboard.stats.empty_activity"),
-                        subtitle: L("dashboard.stats.empty_activity_detail"),
-                        systemImage: "app",
-                        tone: .neutral
-                    )
-                    .padding(.vertical, DesignSystem.Spacing.xs)
-
-                    topAppsEmptyPath
-                } else {
+                EmptyStateView(
+                    title: L("dashboard.stats.empty_activity"),
+                    subtitle: L("dashboard.stats.empty_activity_detail"),
+                    systemImage: "app",
+                    tone: .neutral
+                )
+                .padding(.vertical, DesignSystem.Spacing.xs)
+            } else {
                     ForEach(topApps) { app in
                         TopAppRow(app: app, chartTotal: chartTotal)
                     }
@@ -924,16 +871,14 @@ struct StatsView: View {
                 )
 
                 if topTags.isEmpty {
-                    EmptyStateView(
-                        title: L("dashboard.stats.empty_tags"),
-                        subtitle: L("dashboard.stats.empty_tags_detail"),
-                        systemImage: "exclamationmark.triangle.fill",
-                        tone: .warning
-                    )
-                    .padding(.vertical, DesignSystem.Spacing.xs)
-
-                    topTagsEmptyPath
-                } else {
+                EmptyStateView(
+                    title: L("dashboard.stats.empty_tags"),
+                    subtitle: L("dashboard.stats.empty_tags_detail"),
+                    systemImage: "exclamationmark.triangle.fill",
+                    tone: .warning
+                )
+                .padding(.vertical, DesignSystem.Spacing.xs)
+            } else {
                     ForEach(topTags) { tag in
                         TopTagRow(tag: tag, chartTotal: chartTotal)
                     }
@@ -980,7 +925,6 @@ struct StatsView: View {
                     )
                     .padding(.vertical, DesignSystem.Spacing.xs)
 
-                    deepWorkEmptyPath
                 } else {
                     ForEach(deepWorkBlocks) { block in
                         HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
@@ -1041,7 +985,6 @@ struct StatsView: View {
                         tone: .neutral
                     )
 
-                    markersEmptyPath
                     markersEmptyActions
                 } else {
                     LazyVGrid(
@@ -1055,32 +998,6 @@ struct StatsView: View {
                 }
             }
             .accessibilityIdentifier("stats.markers")
-        }
-    }
-
-    private var markersEmptyPath: some View {
-        statsEmptyPath(accessibilityIdentifier: "stats.markers.emptyPath") {
-            statsEmptyPathItem(
-                titleKey: "markers.capture.path.note_title",
-                detailKey: "markers.capture.path.note_detail",
-                systemImage: "note.text",
-                tone: .info,
-                accessibilityIdentifier: "stats.markers.emptyPath.note"
-            )
-            statsEmptyPathItem(
-                titleKey: "markers.capture.path.session_title",
-                detailKey: "markers.capture.path.session_detail",
-                systemImage: "timer",
-                tone: .success,
-                accessibilityIdentifier: "stats.markers.emptyPath.session"
-            )
-            statsEmptyPathItem(
-                titleKey: "markers.capture.path.closeout_title",
-                detailKey: "markers.capture.path.closeout_detail",
-                systemImage: "doc.badge.plus",
-                tone: .neutral,
-                accessibilityIdentifier: "stats.markers.emptyPath.closeout"
-            )
         }
     }
 
@@ -1132,145 +1049,6 @@ struct StatsView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-    }
-
-    private var deepWorkEmptyPath: some View {
-        statsEmptyPath(accessibilityIdentifier: "stats.deepWork.emptyPath") {
-            statsEmptyPathItem(
-                titleKey: "stats.deep_work.empty.path.focus_title",
-                detailKey: "stats.deep_work.empty.path.focus_detail",
-                systemImage: "rectangle.3.group.fill",
-                tone: .success,
-                accessibilityIdentifier: "stats.deepWork.emptyPath.focus"
-            )
-            statsEmptyPathItem(
-                titleKey: "stats.deep_work.empty.path.switching_title",
-                detailKey: "stats.deep_work.empty.path.switching_detail",
-                systemImage: "arrow.triangle.2.circlepath",
-                tone: .warning,
-                accessibilityIdentifier: "stats.deepWork.emptyPath.switching"
-            )
-            statsEmptyPathItem(
-                titleKey: "stats.deep_work.empty.path.note_title",
-                detailKey: "stats.deep_work.empty.path.note_detail",
-                systemImage: "note.text",
-                tone: .info,
-                accessibilityIdentifier: "stats.deepWork.emptyPath.note"
-            )
-        }
-    }
-
-    private var topAppsEmptyPath: some View {
-        statsEmptyPath(accessibilityIdentifier: "stats.topApps.emptyPath") {
-            statsEmptyPathItem(
-                titleKey: "dashboard.stats.empty_activity.path.run_title",
-                detailKey: "dashboard.stats.empty_activity.path.run_detail",
-                systemImage: "play.circle",
-                tone: .info,
-                accessibilityIdentifier: "stats.topApps.emptyPath.run"
-            )
-            statsEmptyPathItem(
-                titleKey: "dashboard.stats.empty_activity.path.today_title",
-                detailKey: "dashboard.stats.empty_activity.path.today_detail",
-                systemImage: "sun.max",
-                tone: .neutral,
-                accessibilityIdentifier: "stats.topApps.emptyPath.today"
-            )
-            statsEmptyPathItem(
-                titleKey: "dashboard.stats.empty_activity.path.note_title",
-                detailKey: "dashboard.stats.empty_activity.path.note_detail",
-                systemImage: "note.text",
-                tone: .success,
-                accessibilityIdentifier: "stats.topApps.emptyPath.note"
-            )
-        }
-    }
-
-    private var topTagsEmptyPath: some View {
-        statsEmptyPath(accessibilityIdentifier: "stats.topTags.emptyPath") {
-            statsEmptyPathItem(
-                titleKey: "dashboard.stats.empty_tags.path.timeline_title",
-                detailKey: "dashboard.stats.empty_tags.path.timeline_detail",
-                systemImage: "clock.badge.checkmark",
-                tone: .info,
-                accessibilityIdentifier: "stats.topTags.emptyPath.timeline"
-            )
-            statsEmptyPathItem(
-                titleKey: "dashboard.stats.empty_tags.path.categories_title",
-                detailKey: "dashboard.stats.empty_tags.path.categories_detail",
-                systemImage: "rectangle.split.3x1",
-                tone: .warning,
-                accessibilityIdentifier: "stats.topTags.emptyPath.categories"
-            )
-            statsEmptyPathItem(
-                titleKey: "dashboard.stats.empty_tags.path.return_title",
-                detailKey: "dashboard.stats.empty_tags.path.return_detail",
-                systemImage: "chart.bar",
-                tone: .success,
-                accessibilityIdentifier: "stats.topTags.emptyPath.return"
-            )
-        }
-    }
-
-    private func statsEmptyPath<Content: View>(
-        accessibilityIdentifier: String,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 170), spacing: DesignSystem.Spacing.sm)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            content()
-        }
-        .accessibilityIdentifier(accessibilityIdentifier)
-    }
-
-    private func statsEmptyPathItem(
-        titleKey: LocalizedStringKey,
-        detailKey: LocalizedStringKey,
-        systemImage: String,
-        tone: DesignSystem.StatusTone,
-        accessibilityIdentifier: String
-    ) -> some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-            Image(systemName: systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(tone.color)
-                .frame(width: 18, height: 18)
-                .background(
-                    RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                        .fill(tone.color.opacity(0.10))
-                )
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(titleKey)
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(detailKey)
-                    .font(.caption2)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(DesignSystem.Spacing.sm)
-        .frame(minWidth: 170, maxWidth: .infinity, minHeight: 78, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(tone.color.opacity(0.06))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .stroke(tone.color.opacity(0.16), lineWidth: 1)
-        )
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     private func switchRow(_ app: AppSwitches) -> some View {
@@ -1925,55 +1703,6 @@ struct StatsView: View {
             return "square.and.pencil"
         case .ready:
             return "sparkles"
-        }
-    }
-
-    private var statsReviewNextStepIconName: String {
-        switch statsReviewState {
-        case .empty:
-            if appState.trackingPaused {
-                return "pause.circle"
-            }
-            if statsCaptureHasError {
-                return "stethoscope"
-            }
-            return "sun.max"
-        case .needsLabels:
-            return "rectangle.split.3x1"
-        case .needsCues:
-            return "square.and.pencil"
-        case .ready:
-            return "doc.text.magnifyingglass"
-        }
-    }
-
-    private var statsReviewNextStepTitleKey: String {
-        switch statsReviewState {
-        case .empty:
-            return statsCaptureNeedsAttention
-                ? "dashboard.stats.review.next.empty_attention_title"
-                : "dashboard.stats.review.next.empty_ready_title"
-        case .needsLabels:
-            return "dashboard.stats.review.next.labels_title"
-        case .needsCues:
-            return "dashboard.stats.review.next.cues_title"
-        case .ready:
-            return "dashboard.stats.review.next.ready_title"
-        }
-    }
-
-    private var statsReviewNextStepDetailKey: String {
-        switch statsReviewState {
-        case .empty:
-            return statsCaptureNeedsAttention
-                ? "dashboard.stats.review.next.empty_attention_detail"
-                : "dashboard.stats.review.next.empty_ready_detail"
-        case .needsLabels:
-            return "dashboard.stats.review.next.labels_detail"
-        case .needsCues:
-            return "dashboard.stats.review.next.cues_detail"
-        case .ready:
-            return "dashboard.stats.review.next.ready_detail"
         }
     }
 

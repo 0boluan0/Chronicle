@@ -7,27 +7,39 @@
 
 import Foundation
 import Security
+import SQLite3
 
 enum AppRuntime {
     private static let environment = ProcessInfo.processInfo.environment
     private static let unsandboxedMigrationKey = "migration.unsandboxed.v1"
-    private static let didPrepareUITestDefaults: Bool = {
+    private static let uiTestDefaultsSuiteName = environment["CHRONICLE_UI_TEST_DEFAULTS_SUITE"]
+    nonisolated(unsafe) private static let activeDefaults: UserDefaults = {
+        guard isUITestMode,
+              let uiTestDefaultsSuiteName,
+              let defaults = UserDefaults(suiteName: uiTestDefaultsSuiteName)
+        else {
+            return .standard
+        }
+        return defaults
+    }()
+    nonisolated private static let didPrepareUITestDefaults: Bool = {
         guard environment["CHRONICLE_UI_TEST_MODE"] == "1",
               environment["CHRONICLE_UI_TEST_RESET_STATE"] == "1",
-              let bundleID = Bundle.main.bundleIdentifier
+              let uiTestDefaultsSuiteName,
+              let defaults = UserDefaults(suiteName: uiTestDefaultsSuiteName)
         else {
             return false
         }
 
-        UserDefaults.standard.removePersistentDomain(forName: bundleID)
-        UserDefaults.standard.synchronize()
+        defaults.removePersistentDomain(forName: uiTestDefaultsSuiteName)
+        defaults.synchronize()
         return true
     }()
-    private static let didPrepareUnsandboxedDefaults: Bool = {
+    nonisolated private static let didPrepareUnsandboxedDefaults: Bool = {
         guard !isAppSandboxed,
               !isUITestMode,
               let bundleID = Bundle.main.bundleIdentifier,
-              !UserDefaults.standard.bool(forKey: unsandboxedMigrationKey)
+              !activeDefaults.bool(forKey: unsandboxedMigrationKey)
         else {
             return false
         }
@@ -45,7 +57,7 @@ enum AppRuntime {
         guard let data = try? Data(contentsOf: legacyURL),
               let values = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any]
         else {
-            UserDefaults.standard.set(true, forKey: unsandboxedMigrationKey)
+            activeDefaults.set(true, forKey: unsandboxedMigrationKey)
             return false
         }
 
@@ -56,12 +68,12 @@ enum AppRuntime {
         } ?? false
 
         for (key, value) in values where key != unsandboxedMigrationKey {
-            if legacyIsNewer || UserDefaults.standard.object(forKey: key) == nil {
-                UserDefaults.standard.set(value, forKey: key)
+            if legacyIsNewer || activeDefaults.object(forKey: key) == nil {
+                activeDefaults.set(value, forKey: key)
             }
         }
-        UserDefaults.standard.set(true, forKey: unsandboxedMigrationKey)
-        UserDefaults.standard.synchronize()
+        activeDefaults.set(true, forKey: unsandboxedMigrationKey)
+        activeDefaults.synchronize()
         return true
     }()
 
@@ -105,14 +117,14 @@ enum AppRuntime {
     }
 
     @discardableResult
-    static func prepareUITestDefaultsIfNeeded() -> Bool {
+    nonisolated static func prepareUITestDefaultsIfNeeded() -> Bool {
         didPrepareUITestDefaults
     }
 
-    static func configuredDefaults() -> UserDefaults {
+    nonisolated static func configuredDefaults() -> UserDefaults {
         _ = prepareUITestDefaultsIfNeeded()
         _ = didPrepareUnsandboxedDefaults
-        return .standard
+        return activeDefaults
     }
 
     static func resolvedAppSupportDirectory(appName: String) -> URL {
@@ -149,16 +161,64 @@ enum AppRuntime {
                 at: legacyURL,
                 includingPropertiesForKeys: nil
             ) {
+                if ["activity.sqlite", "activity.sqlite-wal", "activity.sqlite-shm"].contains(sourceURL.lastPathComponent) {
+                    continue
+                }
                 let destinationURL = currentURL.appendingPathComponent(sourceURL.lastPathComponent)
                 if !fileManager.fileExists(atPath: destinationURL.path) {
                     try fileManager.copyItem(at: sourceURL, to: destinationURL)
                 }
             }
+            try migrateSQLiteDatabase(from: legacyDatabase, to: currentDatabase)
         } catch {
+            AppLogger.log("Legacy data migration failed: \(error.localizedDescription)", category: "db")
             return legacyURL
         }
 
         return currentURL
+    }
+
+    static func migrateSQLiteDatabase(from sourceURL: URL, to destinationURL: URL) throws {
+        let temporaryURL = destinationURL
+            .deletingLastPathComponent()
+            .appendingPathComponent(".activity-migration-\(UUID().uuidString).sqlite")
+        var source: OpaquePointer?
+        var destination: OpaquePointer?
+        defer {
+            sqlite3_close(source)
+            sqlite3_close(destination)
+            try? FileManager.default.removeItem(at: temporaryURL)
+        }
+
+        guard sqlite3_open_v2(sourceURL.path, &source, SQLITE_OPEN_READONLY, nil) == SQLITE_OK else {
+            throw DatabaseError.openFailed(sqliteMessage(source))
+        }
+        guard sqlite3_open_v2(
+            temporaryURL.path,
+            &destination,
+            SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE,
+            nil
+        ) == SQLITE_OK else {
+            throw DatabaseError.openFailed(sqliteMessage(destination))
+        }
+        guard let backup = sqlite3_backup_init(destination, "main", source, "main") else {
+            throw DatabaseError.stepFailed(sqliteMessage(destination), sql: "sqlite3_backup_init")
+        }
+
+        let stepResult = sqlite3_backup_step(backup, -1)
+        let finishResult = sqlite3_backup_finish(backup)
+        guard stepResult == SQLITE_DONE, finishResult == SQLITE_OK else {
+            throw DatabaseError.stepFailed(sqliteMessage(destination), sql: "sqlite3_backup_step")
+        }
+        guard sqlite3_close(destination) == SQLITE_OK else {
+            throw DatabaseError.stepFailed("Could not close migrated database.", sql: "sqlite3_close")
+        }
+        destination = nil
+        try FileManager.default.moveItem(at: temporaryURL, to: destinationURL)
+    }
+
+    private static func sqliteMessage(_ connection: OpaquePointer?) -> String {
+        connection.map { String(cString: sqlite3_errmsg($0)) } ?? "Unknown SQLite error"
     }
 
     private static func boolEnvironmentValue(_ key: String) -> Bool? {

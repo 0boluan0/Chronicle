@@ -9,6 +9,20 @@ DERIVED_DATA="${ROOT_DIR}/build/dmg-release"
 OUTPUT_DIR="${ROOT_DIR}/dist"
 DMG_VERSION="${DMG_VERSION:-dev}"
 APP_NAME="Chronicle"
+REQUIRE_SIGNING="${REQUIRE_SIGNING:-0}"
+REQUIRE_NOTARIZATION="${REQUIRE_NOTARIZATION:-0}"
+
+if [[ "${REQUIRE_SIGNING}" == "1" && -z "${CODESIGN_IDENTITY:-}" ]]; then
+  echo "CODESIGN_IDENTITY is required for this release build." >&2
+  exit 1
+fi
+
+if [[ "${REQUIRE_NOTARIZATION}" == "1" ]] &&
+   [[ -z "${NOTARY_KEYCHAIN_PROFILE:-}" ]] &&
+   [[ -z "${NOTARYTOOL_KEY_PATH:-}" || -z "${NOTARYTOOL_KEY_ID:-}" || -z "${NOTARYTOOL_ISSUER_ID:-}" ]]; then
+  echo "Notarization credentials are required for this release build." >&2
+  exit 1
+fi
 
 echo "Building ${APP_NAME} (${CONFIGURATION})..."
 rm -rf "${DERIVED_DATA}"
@@ -60,14 +74,16 @@ if [[ -n "${NOTARYTOOL_KEY_PATH:-}" && -n "${NOTARYTOOL_KEY_ID:-}" && -n "${NOTA
     --issuer "${NOTARYTOOL_ISSUER_ID}" \
     --wait
   xcrun stapler staple "${DMG_PATH}"
+  xcrun stapler validate "${DMG_PATH}"
 elif [[ -n "${NOTARY_KEYCHAIN_PROFILE:-}" ]]; then
   echo "Submitting DMG for notarization with stored keychain profile..."
   xcrun notarytool submit "${DMG_PATH}" \
     --keychain-profile "${NOTARY_KEYCHAIN_PROFILE}" \
     --wait
   xcrun stapler staple "${DMG_PATH}"
+  xcrun stapler validate "${DMG_PATH}"
 else
-  echo "Notarization credentials not set; keeping unsigned development/notarization-free DMG path."
+  echo "Notarization credentials not set; keeping development/notarization-free DMG path."
 fi
 
 echo "Verifying DMG image..."

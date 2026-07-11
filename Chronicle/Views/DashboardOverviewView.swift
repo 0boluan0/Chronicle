@@ -92,7 +92,13 @@ struct DashboardOverviewView: View {
 
             markerTimelineSection
                 .frame(maxWidth: overviewReadableContentWidth, alignment: .topLeading)
-                .frame(maxWidth: .infinity, minHeight: 160, idealHeight: 360, maxHeight: .infinity, alignment: .topLeading)
+                .frame(
+                    maxWidth: .infinity,
+                    minHeight: 160,
+                    idealHeight: markerTimelineCueCount == 0 ? 180 : 360,
+                    maxHeight: markerTimelineCueCount == 0 ? 220 : .infinity,
+                    alignment: .topLeading
+                )
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
@@ -137,12 +143,23 @@ struct DashboardOverviewView: View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
             markerTimelineHeader
 
-            MarkerTimelineView(
-                rangeStart: rangeBounds.start,
-                rangeEnd: rangeBounds.end,
-                gridIntervalMinutes: $gridIntervalMinutes,
-                dateRangeMode: appState.dateRangeMode
-            )
+            if shouldShowOverviewLoadingState || markerTimelineCueCount > 0 {
+                MarkerTimelineView(
+                    rangeStart: rangeBounds.start,
+                    rangeEnd: rangeBounds.end,
+                    gridIntervalMinutes: $gridIntervalMinutes,
+                    dateRangeMode: appState.dateRangeMode
+                )
+            } else {
+                Button {
+                    AppWindowRouter.shared.open(.quickMarker)
+                } label: {
+                    ActionButtonLabel(L("markers.capture.add_cue"), systemImage: "square.and.pencil")
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(DesignSystem.Colors.accentSkyBlue)
+                .accessibilityIdentifier("dashboard.overview.markerTimelineAddCue")
+            }
         }
         .padding(20)
         .accessibilityIdentifier("dashboard.overview.markerTimelineSection")
@@ -389,9 +406,6 @@ struct DashboardOverviewView: View {
                 .lineLimit(3)
                 .fixedSize(horizontal: false, vertical: true)
 
-            activityMapEmptyPath
-                .padding(.top, DesignSystem.Spacing.xs)
-
             ActionButtonGrid(minimumItemWidth: 160) {
                 activityMapEmptyPrimaryButton
                 activityMapEmptySecondaryButton
@@ -399,83 +413,6 @@ struct DashboardOverviewView: View {
             .padding(.top, DesignSystem.Spacing.xs)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var activityMapEmptyPath: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 170), spacing: DesignSystem.Spacing.sm, alignment: .topLeading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            activityMapEmptyPathItem(
-                titleKey: activityMapEmptyCaptureTitleKey,
-                detailKey: activityMapEmptyCaptureDetailKey,
-                systemImage: activityMapEmptyCaptureIconName,
-                tone: activityMapEmptyPrimaryTone,
-                accessibilityIdentifier: "dashboard.overview.activityMap.empty.capture"
-            )
-            activityMapEmptyPathItem(
-                titleKey: "overview.activity_map.empty_path.context_title",
-                detailKey: "overview.activity_map.empty_path.context_detail",
-                systemImage: "square.and.pencil",
-                tone: .info,
-                accessibilityIdentifier: "dashboard.overview.activityMap.empty.context"
-            )
-            activityMapEmptyPathItem(
-                titleKey: "overview.activity_map.empty_path.review_title",
-                detailKey: "overview.activity_map.empty_path.review_detail",
-                systemImage: "clock.arrow.circlepath",
-                tone: .success,
-                accessibilityIdentifier: "dashboard.overview.activityMap.empty.review"
-            )
-        }
-        .accessibilityIdentifier("dashboard.overview.activityMap.emptyPath")
-    }
-
-    private func activityMapEmptyPathItem(
-        titleKey: String,
-        detailKey: String,
-        systemImage: String,
-        tone: DesignSystem.StatusTone,
-        accessibilityIdentifier: String
-    ) -> some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-            Image(systemName: systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(tone.color)
-                .frame(width: 22, height: 22)
-                .background(
-                    RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                        .fill(tone.color.opacity(0.11))
-                )
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(LocalizedStringKey(titleKey))
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(LocalizedStringKey(detailKey))
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(DesignSystem.Spacing.sm)
-        .frame(minWidth: 168, maxWidth: .infinity, minHeight: 70, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(tone.color.opacity(0.06))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .stroke(tone.color.opacity(0.18), lineWidth: 1)
-        )
-        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     private var activityMapEmptyPrimaryButton: some View {
@@ -542,8 +479,6 @@ struct DashboardOverviewView: View {
         VStack(alignment: .leading, spacing: 0) {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                 reviewHeroHeader
-                reviewSuggestedNextRow
-                reviewReadinessStrip
                 reviewActionRow
             }
             .padding(DesignSystem.Spacing.lg)
@@ -551,12 +486,6 @@ struct DashboardOverviewView: View {
                 RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
                     .fill(reviewTone.color.opacity(0.08))
             )
-
-            Divider()
-                .padding(.horizontal, DesignSystem.Spacing.lg)
-
-            todayReviewPath
-                .padding(DesignSystem.Spacing.lg)
 
             Divider()
                 .padding(.horizontal, DesignSystem.Spacing.lg)
@@ -686,103 +615,6 @@ struct DashboardOverviewView: View {
         .accessibilityIdentifier("dashboard.overview.activeTimeSummary")
     }
 
-    private var reviewSuggestedNextRow: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-                reviewSuggestedNextCopy
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                StatusPill(L(primaryReviewActionTitleKey), systemImage: primaryReviewActionIconName, tone: reviewTone)
-                    .fixedSize(horizontal: true, vertical: false)
-            }
-
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-                reviewSuggestedNextCopy
-                StatusPill(L(primaryReviewActionTitleKey), systemImage: primaryReviewActionIconName, tone: reviewTone)
-            }
-        }
-        .accessibilityIdentifier("dashboard.overview.suggestedNext")
-    }
-
-    private var reviewSuggestedNextCopy: some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-            Image(systemName: "arrow.forward.circle.fill")
-                .font(.caption.weight(.semibold))
-                .foregroundColor(reviewTone.color)
-                .frame(width: 16, height: 16)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text("overview.review.suggested_next")
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
-
-                Text(LocalizedStringKey(reviewSuggestedNextDetailKey))
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-
-    private var reviewReadinessStrip: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-                    reviewReadinessCopy
-                        .frame(maxWidth: .infinity, alignment: .leading)
-
-                    StatusPill(reviewReadinessProgressText, systemImage: reviewReadinessStatusIconName, tone: reviewReadinessTone)
-                        .fixedSize(horizontal: true, vertical: false)
-                }
-
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-                    reviewReadinessCopy
-                    StatusPill(reviewReadinessProgressText, systemImage: reviewReadinessStatusIconName, tone: reviewReadinessTone)
-                }
-            }
-
-            RatioBar(
-                filledFraction: reviewReadinessProgressFraction,
-                filledColor: reviewReadinessTone.color,
-                remainderColor: DesignSystem.Colors.separator
-            )
-        }
-        .padding(DesignSystem.Spacing.sm)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(DesignSystem.Colors.cardBackground.opacity(0.58))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .stroke(reviewReadinessTone.color.opacity(0.22), lineWidth: 1)
-        )
-        .accessibilityIdentifier("dashboard.overview.readiness")
-    }
-
-    private var reviewReadinessCopy: some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-            Image(systemName: reviewReadinessIconName)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(reviewReadinessTone.color)
-                .frame(width: 16, height: 16)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(LocalizedStringKey(reviewReadinessTitleKey))
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
-
-                Text(LocalizedStringKey(reviewReadinessDetailKey))
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-
     private var reviewMetricGrid: some View {
         LazyVGrid(
             columns: [GridItem(.adaptive(minimum: 150), spacing: DesignSystem.Spacing.md)],
@@ -835,133 +667,6 @@ struct DashboardOverviewView: View {
                 .stroke(reviewTone.color.opacity(0.22), lineWidth: 1)
         )
         .accessibilityIdentifier("dashboard.overview.actionRow")
-    }
-
-    private var todayReviewPath: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 176), spacing: DesignSystem.Spacing.sm)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            reviewPathStep(
-                stepNumber: 1,
-                titleKey: "overview.review.path.capture_title",
-                detailKey: reviewPathCaptureDetailKey,
-                systemImage: "record.circle",
-                tone: reviewActionState == .loading ? .info : (reviewActiveSeconds > 0 ? .success : .neutral),
-                isComplete: reviewActiveSeconds > 0,
-                isCurrent: reviewActionState == .loading || reviewActiveSeconds == 0,
-                accessibilityIdentifier: "dashboard.overview.path.capture"
-            )
-            reviewPathStep(
-                stepNumber: 2,
-                titleKey: "overview.review.path.context_title",
-                detailKey: reviewPathContextDetailKey,
-                systemImage: "text.badge.checkmark",
-                tone: reviewContextTone,
-                isComplete: reviewContextReady,
-                isCurrent: reviewActiveSeconds > 0 && !reviewContextReady,
-                accessibilityIdentifier: "dashboard.overview.path.context"
-            )
-            reviewPathStep(
-                stepNumber: 3,
-                titleKey: "overview.review.path.closeout_title",
-                detailKey: reviewPathCloseoutDetailKey,
-                systemImage: reviewPathCloseoutIconName,
-                tone: reviewCloseoutTone,
-                isComplete: reviewActionState == .saved,
-                isCurrent: reviewActionState == .needsFolder || reviewActionState == .ready || reviewActionState == .saveFailed,
-                accessibilityIdentifier: "dashboard.overview.path.closeout"
-            )
-        }
-        .accessibilityIdentifier("dashboard.overview.path")
-    }
-
-    private func reviewPathStep(
-        stepNumber: Int,
-        titleKey: String,
-        detailKey: String,
-        systemImage: String,
-        tone: DesignSystem.StatusTone,
-        isComplete: Bool,
-        isCurrent: Bool,
-        accessibilityIdentifier: String
-    ) -> some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-            reviewPathStepBadge(
-                stepNumber: stepNumber,
-                systemImage: systemImage,
-                tone: tone,
-                isComplete: isComplete
-            )
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(LocalizedStringKey(titleKey))
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
-
-                Text(LocalizedStringKey(detailKey))
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(DesignSystem.Spacing.sm)
-        .frame(minWidth: 176, maxWidth: .infinity, minHeight: 72, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(tone.color.opacity(isCurrent ? 0.12 : 0.07))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .stroke(tone.color.opacity(isCurrent ? 0.36 : 0.18), lineWidth: isCurrent ? 1.2 : 1)
-        )
-        .accessibilityIdentifier(accessibilityIdentifier)
-    }
-
-    private func reviewPathStepBadge(
-        stepNumber: Int,
-        systemImage: String,
-        tone: DesignSystem.StatusTone,
-        isComplete: Bool
-    ) -> some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .fill(tone.color.opacity(isComplete ? 0.18 : 0.10))
-                .overlay(
-                    RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                        .stroke(tone.color.opacity(isComplete ? 0.35 : 0.22), lineWidth: 1)
-                )
-
-            if isComplete {
-                Image(systemName: "checkmark")
-                    .font(.caption.weight(.bold))
-                    .foregroundColor(tone.color)
-            } else {
-                Text("\(stepNumber)")
-                    .font(.caption.weight(.bold))
-                    .foregroundColor(tone.color)
-            }
-        }
-        .frame(width: 24, height: 24)
-        .overlay(alignment: .bottomTrailing) {
-            if !isComplete {
-                Image(systemName: systemImage)
-                    .font(.system(size: 7, weight: .bold))
-                    .foregroundColor(tone.color)
-                    .padding(2)
-                    .background(
-                        Circle()
-                            .fill(DesignSystem.Colors.cardBackground)
-                    )
-                    .offset(x: 4, y: 4)
-            }
-        }
-        .accessibilityLabel(isComplete ? L("overview.review.path.step_complete") : String(format: L("overview.review.path.step_number"), stepNumber))
     }
 
     @ViewBuilder
@@ -1826,46 +1531,9 @@ struct DashboardOverviewView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            selectionEmptyPath
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityIdentifier("dashboard.overview.selection.emptyState")
-    }
-
-    private var selectionEmptyPath: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 170), spacing: DesignSystem.Spacing.sm, alignment: .topLeading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            selectionEmptyPathItems
-        }
-        .accessibilityIdentifier("dashboard.overview.selection.emptyPath")
-    }
-
-    @ViewBuilder
-    private var selectionEmptyPathItems: some View {
-        activityMapEmptyPathItem(
-            titleKey: "overview.selection.empty.path.inspect_title",
-            detailKey: "overview.selection.empty.path.inspect_detail",
-            systemImage: "cursorarrow.click",
-            tone: .info,
-            accessibilityIdentifier: "dashboard.overview.selection.emptyPath.inspect"
-        )
-        activityMapEmptyPathItem(
-            titleKey: "overview.selection.empty.path.timeline_title",
-            detailKey: "overview.selection.empty.path.timeline_detail",
-            systemImage: "clock",
-            tone: .success,
-            accessibilityIdentifier: "dashboard.overview.selection.emptyPath.timeline"
-        )
-        activityMapEmptyPathItem(
-            titleKey: "overview.selection.empty.path.note_title",
-            detailKey: "overview.selection.empty.path.note_detail",
-            systemImage: "square.and.pencil",
-            tone: .neutral,
-            accessibilityIdentifier: "dashboard.overview.selection.emptyPath.note"
-        )
     }
 
     private var selectionActionRow: some View {
@@ -2120,36 +1788,6 @@ struct DashboardOverviewView: View {
             return "overview.activity_map.empty_detail.check"
         }
         return "overview.activity_map.empty_detail"
-    }
-
-    private var activityMapEmptyCaptureTitleKey: String {
-        if appState.trackingPaused {
-            return "overview.activity_map.empty_path.resume_title"
-        }
-        if captureHasError {
-            return "overview.activity_map.empty_path.check_title"
-        }
-        return "overview.activity_map.empty_path.capture_title"
-    }
-
-    private var activityMapEmptyCaptureDetailKey: String {
-        if appState.trackingPaused {
-            return "overview.activity_map.empty_path.resume_detail"
-        }
-        if captureHasError {
-            return "overview.activity_map.empty_path.check_detail"
-        }
-        return "overview.activity_map.empty_path.capture_detail"
-    }
-
-    private var activityMapEmptyCaptureIconName: String {
-        if appState.trackingPaused {
-            return "play.fill"
-        }
-        if captureHasError {
-            return "stethoscope"
-        }
-        return "record.circle"
     }
 
     private var activityMapEmptyPrimaryActionTitleKey: String {
@@ -2465,249 +2103,6 @@ struct DashboardOverviewView: View {
         return .ready
     }
 
-    private var reviewContextReady: Bool {
-        reviewActionState == .needsFolder
-            || reviewActionState == .ready
-            || reviewActionState == .saveFailed
-            || reviewActionState == .saved
-    }
-
-    private var reviewReadinessReadyCount: Int {
-        var count = 0
-        if reviewActiveSeconds > 0 {
-            count += 1
-        }
-        if reviewContextReady {
-            count += 1
-        }
-        if reviewActionState == .saved {
-            count += 1
-        }
-        return count
-    }
-
-    private var reviewReadinessTotalCount: Int {
-        3
-    }
-
-    private var reviewReadinessProgressFraction: Double {
-        Double(reviewReadinessReadyCount) / Double(reviewReadinessTotalCount)
-    }
-
-    private var reviewReadinessProgressText: String {
-        if reviewActionState == .loading {
-            return L("overview.review.readiness.loading_value")
-        }
-        return String(
-            format: L("overview.review.readiness.value"),
-            reviewReadinessReadyCount,
-            reviewReadinessTotalCount
-        )
-    }
-
-    private var reviewReadinessStatusIconName: String {
-        if reviewActionState == .loading {
-            return "arrow.triangle.2.circlepath"
-        }
-        return reviewReadinessReadyCount == reviewReadinessTotalCount ? "checkmark.circle.fill" : "circle.dashed"
-    }
-
-    private var reviewReadinessTitleKey: String {
-        if reviewActionState == .loading {
-            return "overview.review.readiness.loading_title"
-        }
-        if appState.trackingPaused {
-            return "overview.review.readiness.paused_title"
-        }
-        if captureHasError && reviewActionState == .empty {
-            return "overview.review.readiness.check_title"
-        }
-        switch reviewActionState {
-        case .loading:
-            return "overview.review.readiness.loading_title"
-        case .empty:
-            return "overview.review.readiness.empty_title"
-        case .needsTags:
-            return "overview.review.readiness.tags_title"
-        case .needsMarkers:
-            return "overview.review.readiness.markers_title"
-        case .needsFolder:
-            return "overview.review.readiness.folder_title"
-        case .ready:
-            return "overview.review.readiness.ready_title"
-        case .saveFailed:
-            return "overview.review.readiness.failed_title"
-        case .saved:
-            return "overview.review.readiness.saved_title"
-        }
-    }
-
-    private var reviewReadinessDetailKey: String {
-        if reviewActionState == .loading {
-            return "overview.review.readiness.loading_detail"
-        }
-        if appState.trackingPaused {
-            return "overview.review.readiness.paused_detail"
-        }
-        switch reviewActionState {
-        case .loading:
-            return "overview.review.readiness.loading_detail"
-        case .empty:
-            return captureHasError ? "overview.review.readiness.check_detail" : "overview.review.readiness.empty_detail"
-        case .needsTags:
-            return "overview.review.readiness.tags_detail"
-        case .needsMarkers:
-            return "overview.review.readiness.markers_detail"
-        case .needsFolder:
-            return "overview.review.readiness.folder_detail"
-        case .ready:
-            return "overview.review.readiness.ready_detail"
-        case .saveFailed:
-            return "overview.review.readiness.failed_detail"
-        case .saved:
-            return "overview.review.readiness.saved_detail"
-        }
-    }
-
-    private var reviewReadinessIconName: String {
-        if reviewActionState == .loading {
-            return "arrow.triangle.2.circlepath"
-        }
-        if appState.trackingPaused {
-            return "pause.circle.fill"
-        }
-        switch reviewActionState {
-        case .loading:
-            return "arrow.triangle.2.circlepath"
-        case .empty:
-            return captureHasError ? "stethoscope" : "record.circle"
-        case .needsTags:
-            return "rectangle.split.3x1"
-        case .needsMarkers:
-            return "note.text.badge.plus"
-        case .needsFolder:
-            return "folder.badge.plus"
-        case .ready:
-            return "doc.badge.plus"
-        case .saveFailed:
-            return "exclamationmark.triangle.fill"
-        case .saved:
-            return "checkmark.seal.fill"
-        }
-    }
-
-    private var reviewReadinessTone: DesignSystem.StatusTone {
-        if reviewActionState == .loading {
-            return .info
-        }
-        if appState.trackingPaused {
-            return .warning
-        }
-        if captureHasError && reviewActionState == .empty {
-            return .critical
-        }
-        return reviewTone
-    }
-
-    private var reviewContextTone: DesignSystem.StatusTone {
-        switch reviewActionState {
-        case .loading:
-            return .neutral
-        case .empty:
-            return .neutral
-        case .needsTags:
-            return .warning
-        case .needsMarkers:
-            return .info
-        case .needsFolder:
-            return .success
-        case .ready:
-            return .success
-        case .saveFailed:
-            return .success
-        case .saved:
-            return .success
-        }
-    }
-
-    private var reviewCloseoutTone: DesignSystem.StatusTone {
-        switch reviewActionState {
-        case .saveFailed:
-            return .critical
-        case .saved:
-            return .success
-        case .needsFolder:
-            return .warning
-        case .ready:
-            return .info
-        default:
-            return .neutral
-        }
-    }
-
-    private var reviewPathCaptureDetailKey: String {
-        if reviewActionState == .loading {
-            return "overview.review.path.capture_loading"
-        }
-        if reviewActiveSeconds > 0 {
-            return "overview.review.path.capture_done"
-        }
-        return captureNeedsAttention ? "overview.review.path.capture_attention" : "overview.review.path.capture_ready"
-    }
-
-    private var reviewPathContextDetailKey: String {
-        switch reviewActionState {
-        case .loading:
-            return "overview.review.path.context_loading"
-        case .empty:
-            return "overview.review.path.context_waiting"
-        case .needsTags:
-            return "overview.review.path.context_tags"
-        case .needsMarkers:
-            return "overview.review.path.context_markers"
-        case .needsFolder:
-            return "overview.review.path.context_done"
-        case .ready:
-            return "overview.review.path.context_done"
-        case .saveFailed:
-            return "overview.review.path.context_done"
-        case .saved:
-            return "overview.review.path.context_done"
-        }
-    }
-
-    private var reviewPathCloseoutDetailKey: String {
-        switch reviewActionState {
-        case .loading:
-            return "overview.review.path.closeout_loading"
-        case .saved:
-            return "overview.review.path.closeout_done"
-        case .saveFailed:
-            return "overview.review.path.closeout_failed"
-        case .needsFolder:
-            return "overview.review.path.closeout_needs_folder"
-        case .ready:
-            return "overview.review.path.closeout_ready"
-        default:
-            return "overview.review.path.closeout_waiting"
-        }
-    }
-
-    private var reviewPathCloseoutIconName: String {
-        switch reviewActionState {
-        case .loading:
-            return "doc.text.magnifyingglass"
-        case .needsFolder:
-            return "folder.badge.plus"
-        case .saveFailed:
-            return "exclamationmark.triangle.fill"
-        case .saved:
-            return "checkmark.seal.fill"
-        default:
-            return "doc.text.magnifyingglass"
-        }
-    }
-
     private var reviewHeadlineKey: String {
         switch reviewActionState {
         case .loading:
@@ -2747,27 +2142,6 @@ struct DashboardOverviewView: View {
             return "overview.review.failed_detail"
         case .saved:
             return "overview.review.saved_detail"
-        }
-    }
-
-    private var reviewSuggestedNextDetailKey: String {
-        switch reviewActionState {
-        case .loading:
-            return "overview.review.suggested.loading_detail"
-        case .empty:
-            return captureNeedsAttention ? "overview.review.suggested.empty_attention_detail" : "overview.review.suggested.empty_detail"
-        case .needsTags:
-            return "overview.review.suggested.tags_detail"
-        case .needsMarkers:
-            return "overview.review.suggested.markers_detail"
-        case .needsFolder:
-            return "overview.review.suggested.folder_detail"
-        case .ready:
-            return "overview.review.suggested.ready_detail"
-        case .saveFailed:
-            return "overview.review.suggested.failed_detail"
-        case .saved:
-            return "overview.review.suggested.saved_detail"
         }
     }
 

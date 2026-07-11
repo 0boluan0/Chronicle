@@ -23,5 +23,6 @@ struct LocalizedRootView<Content: View>: View {
     var body: some View {
         content
             .environment(\.locale, Locale(identifier: languageManager.currentLanguage))
+            .defaultAppStorage(AppRuntime.configuredDefaults())
     }
 }

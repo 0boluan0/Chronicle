@@ -27,45 +27,6 @@ struct DashboardTimelineView: View {
         }
     }
 
-    private enum TimelineNextAction: Equatable {
-        case loading
-        case resumeCapture
-        case checkCapture
-        case startCapture
-        case resetFilters
-        case cleanupCategories
-        case addContext
-        case setupLogFolder
-        case closeout
-        case retryDailyLog
-        case openSavedLog
-    }
-
-    private enum TimelineStartReason {
-        case loading
-        case waiting
-        case filtered
-        case labels
-        case notes
-        case busiest
-        case idle
-    }
-
-    private struct TimelineStartRecommendation {
-        let reason: TimelineStartReason
-        let title: String
-        let detail: String
-        let status: String
-        let systemImage: String
-        let tone: DesignSystem.StatusTone
-        let activeValue: String
-        let contextValue: String
-        let flagValue: String
-        let flagTone: DesignSystem.StatusTone
-        let actionTitle: String
-        let actionIcon: String
-    }
-
     @EnvironmentObject private var appState: AppState
     @ObservedObject private var reportSettings = ReportSettings.shared
     @AppStorage("dashboard.selectedSection") private var selectedDashboardSectionRaw = DashboardView.Section.defaultSelection.rawValue
@@ -244,11 +205,11 @@ struct DashboardTimelineView: View {
             )
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("timeline.error.title")
+                Text(L("timeline.error.title"))
                     .font(.headline.weight(.semibold))
                     .foregroundColor(DesignSystem.Colors.primaryText)
 
-                Text("timeline.error.detail")
+                Text(L("timeline.error.detail"))
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
@@ -264,7 +225,7 @@ struct DashboardTimelineView: View {
             } label: {
                 timelineBusyActionLabel(
                     isBusy: isLoading,
-                    busyTitle: L("timeline.next.action.loading"),
+                    busyTitle: L("timeline.focus.status.loading"),
                     idleTitle: L("timeline.error.retry"),
                     systemImage: "arrow.clockwise"
                 )
@@ -308,10 +269,6 @@ struct DashboardTimelineView: View {
         SectionCard(title: "timeline.focus.title") {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                 reviewFocusHeader
-
-                timelineNextActionCard
-
-                timelineStartHerePanel
 
                 LazyVGrid(
                     columns: [GridItem(.adaptive(minimum: 240), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
@@ -385,183 +342,6 @@ struct DashboardTimelineView: View {
             }
         }
         .accessibilityIdentifier("dashboard.timeline.reviewFocusHeader")
-    }
-
-    private var timelineNextActionCard: some View {
-        RowSurface(tone: timelineNextActionTone, isHovering: false) {
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.md
-            ) {
-                timelineNextActionCopy
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                timelineNextActionButton
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-        }
-        .accessibilityIdentifier("dashboard.timeline.nextAction")
-    }
-
-    private var timelineNextActionCopy: some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-            IconWell(
-                systemImage: timelineNextActionIconName,
-                tone: timelineNextActionTone,
-                accessibilityLabel: L(timelineNextActionTitleKey)
-            )
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("timeline.next.label")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(1)
-
-                Text(LocalizedStringKey(timelineNextActionTitleKey))
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(LocalizedStringKey(timelineNextActionDetailKey))
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var timelineNextActionButton: some View {
-        Button {
-            performTimelineNextAction()
-        } label: {
-            timelineActionLabel(L(timelineNextActionButtonKey), systemImage: timelineNextActionButtonIconName)
-        }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.small)
-        .tint(timelineNextActionTone.color)
-        .disabled(timelineNextAction == .loading)
-        .accessibilityIdentifier("dashboard.timeline.nextAction.primary")
-    }
-
-    private var timelineStartHerePanel: some View {
-        let recommendation = timelineStartRecommendation
-
-        return RowSurface(tone: recommendation.tone, isHovering: false) {
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 260), spacing: DesignSystem.Spacing.md, alignment: .topLeading)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.md
-            ) {
-                timelineStartHereCopy(recommendation)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                timelineStartHereEvidence(recommendation)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-        }
-        .accessibilityIdentifier("dashboard.timeline.startHere")
-    }
-
-    private func timelineStartHereCopy(_ recommendation: TimelineStartRecommendation) -> some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-            IconWell(
-                systemImage: recommendation.systemImage,
-                tone: recommendation.tone,
-                accessibilityLabel: L("timeline.start.label")
-            )
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("timeline.start.label")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(recommendation.title)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(recommendation.detail)
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(3)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-
-    private func timelineStartHereEvidence(_ recommendation: TimelineStartRecommendation) -> some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
-                    StatusPill(
-                        recommendation.status,
-                        systemImage: recommendation.systemImage,
-                        tone: recommendation.tone
-                    )
-                    .fixedSize(horizontal: true, vertical: false)
-
-                    Spacer(minLength: 0)
-
-                    Button {
-                        performTimelineStartAction(for: recommendation.reason)
-                    } label: {
-                        timelineActionLabel(recommendation.actionTitle, systemImage: recommendation.actionIcon)
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .disabled(recommendation.reason == .loading)
-                    .accessibilityIdentifier("dashboard.timeline.startHere.action")
-                }
-
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-                    StatusPill(
-                        recommendation.status,
-                        systemImage: recommendation.systemImage,
-                        tone: recommendation.tone
-                    )
-
-                    Button {
-                        performTimelineStartAction(for: recommendation.reason)
-                    } label: {
-                        timelineActionLabel(recommendation.actionTitle, systemImage: recommendation.actionIcon)
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .disabled(recommendation.reason == .loading)
-                    .accessibilityIdentifier("dashboard.timeline.startHere.action")
-                }
-            }
-
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 88), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.sm
-            ) {
-                MetricValueView(
-                    title: "timeline.start.metric.active",
-                    value: recommendation.activeValue,
-                    systemImage: "bolt.fill",
-                    tone: .success
-                )
-                MetricValueView(
-                    title: "timeline.start.metric.context",
-                    value: recommendation.contextValue,
-                    systemImage: "note.text",
-                    tone: recommendation.contextValue == "0" ? .neutral : .info
-                )
-                MetricValueView(
-                    title: "timeline.start.metric.flag",
-                    value: recommendation.flagValue,
-                    systemImage: recommendation.systemImage,
-                    tone: recommendation.flagTone
-                )
-            }
-        }
     }
 
     private var reviewFocusCopy: some View {
@@ -734,18 +514,12 @@ struct DashboardTimelineView: View {
     private var filterCard: some View {
         SectionCard(title: "timeline.filters.title") {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                timelineFilterHeader
-
-                Divider()
-
                 LazyVGrid(
                     columns: [GridItem(.adaptive(minimum: 220), spacing: DesignSystem.Spacing.md, alignment: .leading)],
                     alignment: .leading,
                     spacing: DesignSystem.Spacing.sm
                 ) {
                     timelineSearchField
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    timelineRangePicker
                         .frame(maxWidth: .infinity, alignment: .leading)
                     timelineSortOrderPicker
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -773,46 +547,6 @@ struct DashboardTimelineView: View {
                 filterStateBar
             }
         }
-    }
-
-    private var timelineFilterHeader: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-                timelineFilterCopy
-
-                StatusPill(filterStateStatusText, systemImage: filterStateIconName, tone: filterStateTone)
-                    .fixedSize(horizontal: true, vertical: false)
-            }
-
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                timelineFilterCopy
-
-                StatusPill(filterStateStatusText, systemImage: filterStateIconName, tone: filterStateTone)
-            }
-        }
-        .accessibilityIdentifier("dashboard.timeline.filterGuide")
-    }
-
-    private var timelineFilterCopy: some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-            IconWell(
-                systemImage: filterStateIconName,
-                tone: filterStateTone,
-                accessibilityLabel: L("timeline.filters.title")
-            )
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(LocalizedStringKey(timelineFilterHeadlineKey))
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-
-                Text(LocalizedStringKey(timelineFilterDetailKey))
-                    .font(DesignSystem.Typography.caption)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var timelineSearchField: some View {
@@ -908,7 +642,7 @@ struct DashboardTimelineView: View {
     private var timelineAppPicker: some View {
         Picker("dashboard.timeline.app_filter", selection: $appState.selectedAppFilterName) {
             ForEach(appFilterOptions, id: \.self) { name in
-                Text(name).tag(name)
+                Text(name == "All Apps" ? L("All Apps") : name).tag(name)
             }
         }
         .frame(minWidth: 220, maxWidth: .infinity, alignment: .leading)
@@ -1506,7 +1240,7 @@ struct DashboardTimelineView: View {
         } label: {
             timelineBusyActionLabel(
                 isBusy: isLoading,
-                busyTitle: L("timeline.next.action.loading"),
+                busyTitle: L("timeline.focus.status.loading"),
                 idleTitle: L("common.load_more"),
                 systemImage: "arrow.down.circle"
             )
@@ -1520,8 +1254,6 @@ struct DashboardTimelineView: View {
         SectionCard {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                 emptyTimelineHeader
-
-                emptyTimelineGuidancePath
 
                 ActionButtonGrid(minimumItemWidth: 170) {
                     emptyTimelineActions
@@ -1571,105 +1303,6 @@ struct DashboardTimelineView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var emptyTimelineGuidancePath: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 170), spacing: DesignSystem.Spacing.sm)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            if hasAnyTimelineData {
-                emptyTimelineGuidanceItem(
-                    titleKey: "timeline.empty.path.filters_title",
-                    detailKey: "timeline.empty.path.filters_detail",
-                    systemImage: "line.3.horizontal.decrease.circle",
-                    tone: .warning,
-                    accessibilityIdentifier: "dashboard.timeline.emptyPath.filters"
-                )
-                emptyTimelineGuidanceItem(
-                    titleKey: "timeline.empty.path.range_title",
-                    detailKey: "timeline.empty.path.range_detail",
-                    systemImage: "calendar",
-                    tone: .info,
-                    accessibilityIdentifier: "dashboard.timeline.emptyPath.range"
-                )
-                emptyTimelineGuidanceItem(
-                    titleKey: "timeline.empty.path.today_title",
-                    detailKey: "timeline.empty.path.today_detail",
-                    systemImage: "sun.max",
-                    tone: .success,
-                    accessibilityIdentifier: "dashboard.timeline.emptyPath.today"
-                )
-            } else {
-                emptyTimelineGuidanceItem(
-                    titleKey: "timeline.empty.path.capture_title",
-                    detailKey: "timeline.empty.path.capture_detail",
-                    systemImage: "record.circle",
-                    tone: .info,
-                    accessibilityIdentifier: "dashboard.timeline.emptyPath.capture"
-                )
-                emptyTimelineGuidanceItem(
-                    titleKey: "timeline.empty.path.context_title",
-                    detailKey: "timeline.empty.path.context_detail",
-                    systemImage: "note.text.badge.plus",
-                    tone: .warning,
-                    accessibilityIdentifier: "dashboard.timeline.emptyPath.context"
-                )
-                emptyTimelineGuidanceItem(
-                    titleKey: "timeline.empty.path.review_title",
-                    detailKey: "timeline.empty.path.review_detail",
-                    systemImage: "clock.arrow.circlepath",
-                    tone: .success,
-                    accessibilityIdentifier: "dashboard.timeline.emptyPath.review"
-                )
-            }
-        }
-        .accessibilityIdentifier("dashboard.timeline.emptyPath")
-    }
-
-    private func emptyTimelineGuidanceItem(
-        titleKey: LocalizedStringKey,
-        detailKey: LocalizedStringKey,
-        systemImage: String,
-        tone: DesignSystem.StatusTone,
-        accessibilityIdentifier: String
-    ) -> some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-            Image(systemName: systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(tone.color)
-                .frame(width: 16)
-                .padding(.top, 1)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(titleKey)
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(detailKey)
-                    .font(.caption2)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, DesignSystem.Spacing.sm)
-        .padding(.vertical, 7)
-        .frame(maxWidth: .infinity, minHeight: 64, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .fill(tone.color.opacity(0.06))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .stroke(tone.color.opacity(0.14), lineWidth: 1)
-        )
-        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     @ViewBuilder
@@ -1955,7 +1588,12 @@ struct DashboardTimelineView: View {
                 batchSelectionRow
 
                 if selectedActivityIds.isEmpty {
-                    batchEmptyGuidance
+                    EmptyStateView(
+                        title: "timeline.batch.empty_title",
+                        subtitle: "timeline.batch.empty_detail",
+                        systemImage: "tray"
+                    )
+                    .accessibilityIdentifier("dashboard.timeline.batchEmpty")
                 }
 
                 batchApplyRow
@@ -2036,81 +1674,6 @@ struct DashboardTimelineView: View {
                 .foregroundColor(batchQueueTone.color)
         }
         .labelStyle(.titleAndIcon)
-    }
-
-    private var batchEmptyGuidance: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 170), spacing: DesignSystem.Spacing.sm)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            batchEmptyGuidanceItem(
-                titleKey: "timeline.batch.empty.path.filter_title",
-                detailKey: "timeline.batch.empty.path.filter_detail",
-                systemImage: "line.3.horizontal.decrease.circle",
-                tone: .info,
-                accessibilityIdentifier: "dashboard.timeline.batchEmpty.filter"
-            )
-            batchEmptyGuidanceItem(
-                titleKey: "timeline.batch.empty.path.select_title",
-                detailKey: "timeline.batch.empty.path.select_detail",
-                systemImage: "checkmark.circle",
-                tone: .neutral,
-                accessibilityIdentifier: "dashboard.timeline.batchEmpty.select"
-            )
-            batchEmptyGuidanceItem(
-                titleKey: "timeline.batch.empty.path.apply_title",
-                detailKey: "timeline.batch.empty.path.apply_detail",
-                systemImage: "rectangle.split.3x1",
-                tone: .success,
-                accessibilityIdentifier: "dashboard.timeline.batchEmpty.apply"
-            )
-        }
-        .accessibilityIdentifier("dashboard.timeline.batchEmpty")
-    }
-
-    private func batchEmptyGuidanceItem(
-        titleKey: LocalizedStringKey,
-        detailKey: LocalizedStringKey,
-        systemImage: String,
-        tone: DesignSystem.StatusTone,
-        accessibilityIdentifier: String
-    ) -> some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-            Image(systemName: systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(tone.color)
-                .frame(width: 16)
-                .padding(.top, 1)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(titleKey)
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(detailKey)
-                    .font(.caption2)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, DesignSystem.Spacing.sm)
-        .padding(.vertical, 7)
-        .frame(maxWidth: .infinity, minHeight: 64, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .fill(tone.color.opacity(0.06))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .stroke(tone.color.opacity(0.14), lineWidth: 1)
-        )
-        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     @ViewBuilder
@@ -2496,14 +2059,6 @@ struct DashboardTimelineView: View {
         return "\(title) - \(TimeFormatters.timeRange(start: focusRange.startTime, end: focusRange.endTime))"
     }
 
-    private var timelineFilterHeadlineKey: String {
-        filtersAreActive ? "timeline.filters.guide_filtered_title" : "timeline.filters.guide_all_title"
-    }
-
-    private var timelineFilterDetailKey: String {
-        filtersAreActive ? "timeline.filters.guide_filtered_detail" : "timeline.filters.guide_all_detail"
-    }
-
     private var filterStateTitleKey: String {
         filtersAreActive ? "timeline.filters.filtered_title" : "timeline.filters.all_title"
     }
@@ -2668,414 +2223,6 @@ struct DashboardTimelineView: View {
         return .success
     }
 
-    private var timelineNextAction: TimelineNextAction {
-        if isLoading {
-            return .loading
-        }
-        if timelineDailyLogFailedForRange {
-            return .retryDailyLog
-        }
-        if !hasAnyTimelineData {
-            if appState.trackingPaused {
-                return .resumeCapture
-            }
-            if timelineEmptyCaptureHasError {
-                return .checkCapture
-            }
-            return .startCapture
-        }
-        if filteredItems.isEmpty || filtersAreActive {
-            return .resetFilters
-        }
-        if untaggedActivityCount > 0 {
-            return .cleanupCategories
-        }
-        if summaryMarkerCount == 0, visibleActivityCount > 0 {
-            return .addContext
-        }
-        if timelineDailyLogSavedForRange {
-            return .openSavedLog
-        }
-        if appState.dateRangeMode == .day, !timelineDailyLogFolderReady {
-            return .setupLogFolder
-        }
-        return .closeout
-    }
-
-    private var timelineNextActionTitleKey: String {
-        switch timelineNextAction {
-        case .loading:
-            return "timeline.next.loading_title"
-        case .resumeCapture:
-            return "timeline.next.resume_title"
-        case .checkCapture:
-            return "timeline.next.check_title"
-        case .startCapture:
-            return "timeline.next.start_title"
-        case .resetFilters:
-            return "timeline.next.reset_title"
-        case .cleanupCategories:
-            return "timeline.next.cleanup_title"
-        case .addContext:
-            return "timeline.next.context_title"
-        case .setupLogFolder:
-            return "timeline.next.folder_title"
-        case .closeout:
-            return "timeline.next.closeout_title"
-        case .retryDailyLog:
-            return "timeline.next.failed_title"
-        case .openSavedLog:
-            return "timeline.next.saved_title"
-        }
-    }
-
-    private var timelineNextActionDetailKey: String {
-        switch timelineNextAction {
-        case .loading:
-            return "timeline.next.loading_detail"
-        case .resumeCapture:
-            return "timeline.next.resume_detail"
-        case .checkCapture:
-            return "timeline.next.check_detail"
-        case .startCapture:
-            return "timeline.next.start_detail"
-        case .resetFilters:
-            return "timeline.next.reset_detail"
-        case .cleanupCategories:
-            return "timeline.next.cleanup_detail"
-        case .addContext:
-            return "timeline.next.context_detail"
-        case .setupLogFolder:
-            return "timeline.next.folder_detail"
-        case .closeout:
-            return "timeline.next.closeout_detail"
-        case .retryDailyLog:
-            return "timeline.next.failed_detail"
-        case .openSavedLog:
-            return "timeline.next.saved_detail"
-        }
-    }
-
-    private var timelineNextActionButtonKey: String {
-        switch timelineNextAction {
-        case .loading:
-            return "timeline.next.action.loading"
-        case .resumeCapture:
-            return "timeline.next.action.resume"
-        case .checkCapture:
-            return "timeline.next.action.check"
-        case .startCapture:
-            return "timeline.next.action.start"
-        case .resetFilters:
-            return "timeline.next.action.reset"
-        case .cleanupCategories:
-            return "timeline.next.action.cleanup"
-        case .addContext:
-            return "timeline.next.action.context"
-        case .setupLogFolder:
-            return "timeline.next.action.set_folder"
-        case .closeout:
-            return "timeline.next.action.closeout"
-        case .retryDailyLog:
-            return "timeline.next.action.retry"
-        case .openSavedLog:
-            return "timeline.next.action.open_folder"
-        }
-    }
-
-    private var timelineNextActionIconName: String {
-        switch timelineNextAction {
-        case .loading:
-            return "arrow.clockwise"
-        case .resumeCapture:
-            return "play.fill"
-        case .checkCapture:
-            return "checkmark.shield"
-        case .startCapture:
-            return "square.and.pencil"
-        case .resetFilters:
-            return "line.3.horizontal.decrease.circle"
-        case .cleanupCategories:
-            return "exclamationmark.triangle.fill"
-        case .addContext:
-            return "note.text.badge.plus"
-        case .setupLogFolder:
-            return "folder.badge.plus"
-        case .closeout:
-            return "doc.badge.plus"
-        case .retryDailyLog:
-            return "exclamationmark.triangle.fill"
-        case .openSavedLog:
-            return "checkmark.seal.fill"
-        }
-    }
-
-    private var timelineNextActionButtonIconName: String {
-        switch timelineNextAction {
-        case .loading:
-            return "arrow.clockwise"
-        case .resumeCapture:
-            return "play.fill"
-        case .checkCapture:
-            return "stethoscope"
-        case .startCapture:
-            return "square.and.pencil"
-        case .resetFilters:
-            return "line.3.horizontal.decrease.circle"
-        case .cleanupCategories:
-            return "rectangle.split.3x1"
-        case .addContext:
-            return "note.text.badge.plus"
-        case .setupLogFolder:
-            return "folder.badge.plus"
-        case .closeout:
-            return "doc.badge.plus"
-        case .retryDailyLog:
-            return "arrow.clockwise"
-        case .openSavedLog:
-            return "folder"
-        }
-    }
-
-    private var timelineNextActionTone: DesignSystem.StatusTone {
-        switch timelineNextAction {
-        case .loading, .startCapture, .addContext:
-            return .info
-        case .resumeCapture, .checkCapture, .resetFilters, .cleanupCategories, .setupLogFolder:
-            return .warning
-        case .closeout, .openSavedLog:
-            return .success
-        case .retryDailyLog:
-            return .critical
-        }
-    }
-
-    private var timelineStartRecommendation: TimelineStartRecommendation {
-        if isLoading {
-            return TimelineStartRecommendation(
-                reason: .loading,
-                title: L("timeline.start.loading_title"),
-                detail: L("timeline.start.loading_detail"),
-                status: L("timeline.start.status.loading"),
-                systemImage: "arrow.clockwise",
-                tone: .info,
-                activeValue: formatDuration(summaryActiveSeconds),
-                contextValue: "\(summaryMarkerCount)",
-                flagValue: L("timeline.start.flag.loading"),
-                flagTone: .info,
-                actionTitle: L("timeline.next.action.loading"),
-                actionIcon: "arrow.clockwise"
-            )
-        }
-
-        if filteredItems.isEmpty {
-            if hasAnyTimelineData {
-                return TimelineStartRecommendation(
-                    reason: .filtered,
-                    title: L("timeline.start.filtered_title"),
-                    detail: L("timeline.start.filtered_detail"),
-                    status: L("timeline.start.status.filtered"),
-                    systemImage: "line.3.horizontal.decrease.circle",
-                    tone: .warning,
-                    activeValue: formatDuration(rawActiveSeconds),
-                    contextValue: "\(markers.count + markerSpans.count)",
-                    flagValue: L("timeline.start.flag.filtered"),
-                    flagTone: .warning,
-                    actionTitle: L("timeline.next.action.reset"),
-                    actionIcon: "line.3.horizontal.decrease.circle"
-                )
-            }
-
-            return TimelineStartRecommendation(
-                reason: .waiting,
-                title: L("timeline.start.waiting_title"),
-                detail: L("timeline.start.waiting_detail"),
-                status: L("timeline.start.status.waiting"),
-                systemImage: "note.text.badge.plus",
-                tone: .neutral,
-                activeValue: formatDuration(rawActiveSeconds),
-                contextValue: "\(markers.count + markerSpans.count)",
-                flagValue: L("timeline.start.flag.waiting"),
-                flagTone: .neutral,
-                actionTitle: timelineStartWaitingActionTitle,
-                actionIcon: timelineStartWaitingActionIconName
-            )
-        }
-
-        let candidates = groupedItems.map { group in
-            (group: group, summary: timelineGroupSummary(for: group))
-        }
-
-        if let labelCandidate = candidates
-            .filter({ $0.summary.untaggedCount > 0 })
-            .sorted(by: timelineStartPrioritySort)
-            .first
-        {
-            return timelineStartRecommendation(
-                for: labelCandidate.group,
-                summary: labelCandidate.summary,
-                reason: .labels
-            )
-        }
-
-        if let noteCandidate = candidates
-            .filter({ $0.summary.markerCount > 0 })
-            .sorted(by: timelineStartPrioritySort)
-            .first
-        {
-            return timelineStartRecommendation(
-                for: noteCandidate.group,
-                summary: noteCandidate.summary,
-                reason: .notes
-            )
-        }
-
-        if let activeCandidate = candidates.max(by: { lhs, rhs in
-            lhs.summary.activeSeconds < rhs.summary.activeSeconds
-        }), activeCandidate.summary.activeSeconds > 0 {
-            return timelineStartRecommendation(
-                for: activeCandidate.group,
-                summary: activeCandidate.summary,
-                reason: .busiest
-            )
-        }
-
-        if let fallbackCandidate = candidates.first {
-            return timelineStartRecommendation(
-                for: fallbackCandidate.group,
-                summary: fallbackCandidate.summary,
-                reason: .idle
-            )
-        }
-
-        return TimelineStartRecommendation(
-            reason: .waiting,
-            title: L("timeline.start.waiting_title"),
-            detail: L("timeline.start.waiting_detail"),
-            status: L("timeline.start.status.waiting"),
-            systemImage: "note.text.badge.plus",
-            tone: .neutral,
-            activeValue: formatDuration(rawActiveSeconds),
-            contextValue: "\(markers.count + markerSpans.count)",
-            flagValue: L("timeline.start.flag.waiting"),
-            flagTone: .neutral,
-            actionTitle: timelineStartWaitingActionTitle,
-            actionIcon: timelineStartWaitingActionIconName
-        )
-    }
-
-    private func timelineStartPrioritySort(
-        lhs: (group: TimelineGroup, summary: TimelineGroupSummary),
-        rhs: (group: TimelineGroup, summary: TimelineGroupSummary)
-    ) -> Bool {
-        if lhs.summary.untaggedCount != rhs.summary.untaggedCount {
-            return lhs.summary.untaggedCount > rhs.summary.untaggedCount
-        }
-        if lhs.summary.markerCount != rhs.summary.markerCount {
-            return lhs.summary.markerCount > rhs.summary.markerCount
-        }
-        if lhs.summary.activeSeconds != rhs.summary.activeSeconds {
-            return lhs.summary.activeSeconds > rhs.summary.activeSeconds
-        }
-        switch timelineSortOrder {
-        case .latestFirst:
-            return lhs.group.id > rhs.group.id
-        case .morningFirst:
-            return lhs.group.id < rhs.group.id
-        }
-    }
-
-    private func timelineStartRecommendation(
-        for group: TimelineGroup,
-        summary: TimelineGroupSummary,
-        reason: TimelineStartReason
-    ) -> TimelineStartRecommendation {
-        switch reason {
-        case .labels:
-            return TimelineStartRecommendation(
-                reason: reason,
-                title: String(format: L("timeline.start.labels_title"), group.label),
-                detail: String(format: L("timeline.start.labels_detail"), summary.untaggedCount),
-                status: L("timeline.start.status.labels"),
-                systemImage: "exclamationmark.triangle.fill",
-                tone: .warning,
-                activeValue: formatDuration(summary.activeSeconds),
-                contextValue: "\(summary.markerCount)",
-                flagValue: String(format: L("timeline.start.flag.labels"), summary.untaggedCount),
-                flagTone: .warning,
-                actionTitle: L("timeline.next.action.cleanup"),
-                actionIcon: "rectangle.split.3x1"
-            )
-        case .notes:
-            return TimelineStartRecommendation(
-                reason: reason,
-                title: String(format: L("timeline.start.notes_title"), group.label),
-                detail: String(format: L("timeline.start.notes_detail"), summary.markerCount),
-                status: L("timeline.start.status.notes"),
-                systemImage: "note.text",
-                tone: .info,
-                activeValue: formatDuration(summary.activeSeconds),
-                contextValue: "\(summary.markerCount)",
-                flagValue: L("timeline.start.flag.context"),
-                flagTone: .info,
-                actionTitle: L("timeline.next.action.context"),
-                actionIcon: "note.text.badge.plus"
-            )
-        case .busiest:
-            return TimelineStartRecommendation(
-                reason: reason,
-                title: String(format: L("timeline.start.busiest_title"), group.label),
-                detail: String(format: L("timeline.start.busiest_detail"), formatDuration(summary.activeSeconds)),
-                status: L("timeline.start.status.busiest"),
-                systemImage: "bolt.fill",
-                tone: .success,
-                activeValue: formatDuration(summary.activeSeconds),
-                contextValue: "\(summary.markerCount)",
-                flagValue: L("timeline.start.flag.busiest"),
-                flagTone: .success,
-                actionTitle: L("timeline.next.action.context"),
-                actionIcon: "note.text.badge.plus"
-            )
-        case .idle:
-            return TimelineStartRecommendation(
-                reason: reason,
-                title: String(format: L("timeline.start.idle_title"), group.label),
-                detail: L("timeline.start.idle_detail"),
-                status: L("timeline.start.status.idle"),
-                systemImage: "moon.zzz",
-                tone: .neutral,
-                activeValue: formatDuration(summary.activeSeconds),
-                contextValue: "\(summary.markerCount)",
-                flagValue: L("timeline.start.flag.idle"),
-                flagTone: .neutral,
-                actionTitle: L("timeline.next.action.context"),
-                actionIcon: "note.text.badge.plus"
-            )
-        case .loading, .waiting, .filtered:
-            return timelineStartRecommendation
-        }
-    }
-
-    private var timelineStartWaitingActionTitle: String {
-        if appState.trackingPaused {
-            return L("timeline.next.action.resume")
-        }
-        if timelineEmptyCaptureHasError {
-            return L("timeline.next.action.check")
-        }
-        return L("timeline.next.action.start")
-    }
-
-    private var timelineStartWaitingActionIconName: String {
-        if appState.trackingPaused {
-            return "play.fill"
-        }
-        if timelineEmptyCaptureHasError {
-            return "stethoscope"
-        }
-        return "square.and.pencil"
-    }
-
     private var timelineDailyLogSavedForRange: Bool {
         appState.dateRangeMode == .day
             && reportSettings.dailyExportSucceeded(for: appState.selectedDate)
@@ -3092,13 +2239,13 @@ struct DashboardTimelineView: View {
 
     private var timelineCloseoutHandoffTitle: String {
         if timelineDailyLogSavedForRange {
-            return L("timeline.next.action.open_folder")
+            return L("reports.closeout.action.open_folder")
         }
         if timelineDailyLogFailedForRange {
-            return L("timeline.next.action.retry")
+            return L("reports.closeout.action.retry_save")
         }
         if appState.dateRangeMode == .day, !timelineDailyLogFolderReady {
-            return L("timeline.next.action.set_folder")
+            return L("reports.closeout.action.choose_folder")
         }
         return L("timeline.focus.closeout")
     }
@@ -3758,56 +2905,6 @@ struct DashboardTimelineView: View {
         batchStatusIsError = false
     }
 
-    private func performTimelineNextAction() {
-        switch timelineNextAction {
-        case .loading:
-            return
-        case .resumeCapture:
-            appState.trackingPaused = false
-            selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
-        case .checkCapture:
-            AppWindowRouter.shared.open(.settings(.supportHealth))
-        case .startCapture:
-            AppWindowRouter.shared.open(.quickMarker)
-        case .resetFilters:
-            resetTimelineFilters()
-        case .cleanupCategories:
-            showUntaggedActivities()
-        case .addContext:
-            AppWindowRouter.shared.open(.quickMarker)
-        case .setupLogFolder:
-            selectedDashboardSectionRaw = DashboardView.Section.reports.rawValue
-        case .closeout:
-            selectedDashboardSectionRaw = DashboardView.Section.reports.rawValue
-        case .retryDailyLog:
-            selectedDashboardSectionRaw = DashboardView.Section.reports.rawValue
-        case .openSavedLog:
-            performTimelineCloseoutHandoff()
-        }
-    }
-
-    private func performTimelineStartAction(for reason: TimelineStartReason) {
-        switch reason {
-        case .loading:
-            return
-        case .waiting:
-            if appState.trackingPaused {
-                appState.trackingPaused = false
-                selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
-            } else if timelineEmptyCaptureHasError {
-                AppWindowRouter.shared.open(.settings(.supportHealth))
-            } else {
-                AppWindowRouter.shared.open(.quickMarker)
-            }
-        case .filtered:
-            resetTimelineFilters()
-        case .labels:
-            showUntaggedActivities()
-        case .notes, .busiest, .idle:
-            AppWindowRouter.shared.open(.quickMarker)
-        }
-    }
-
     private func performTimelineCloseoutHandoff() {
         if timelineDailyLogSavedForRange {
             if case .success = ReportService.shared.openDailyFolder() {
@@ -4253,31 +3350,6 @@ private struct TagPickerPopover: View {
                 systemImage: "exclamationmark.triangle.fill",
                 tone: .warning
             )
-
-            VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-                noTagsGuidanceItem(
-                    titleKey: "tag.picker.no_tags.path.auto_title",
-                    detailKey: "tag.picker.no_tags.path.auto_detail",
-                    systemImage: "wand.and.stars",
-                    tone: .info,
-                    accessibilityIdentifier: "tag.picker.noTags.path.auto"
-                )
-                noTagsGuidanceItem(
-                    titleKey: "tag.picker.no_tags.path.create_title",
-                    detailKey: "tag.picker.no_tags.path.create_detail",
-                    systemImage: "rectangle.split.3x1",
-                    tone: .neutral,
-                    accessibilityIdentifier: "tag.picker.noTags.path.create"
-                )
-                noTagsGuidanceItem(
-                    titleKey: "tag.picker.no_tags.path.return_title",
-                    detailKey: "tag.picker.no_tags.path.return_detail",
-                    systemImage: "arrow.uturn.left",
-                    tone: .success,
-                    accessibilityIdentifier: "tag.picker.noTags.path.return"
-                )
-            }
-            .accessibilityIdentifier("tag.picker.noTags.path")
         }
         .padding(DesignSystem.Spacing.sm)
         .background(
@@ -4289,50 +3361,6 @@ private struct TagPickerPopover: View {
                 .stroke(DesignSystem.StatusTone.info.color.opacity(0.12), lineWidth: 1)
         )
         .accessibilityIdentifier("tag.picker.noTags")
-    }
-
-    private func noTagsGuidanceItem(
-        titleKey: String,
-        detailKey: String,
-        systemImage: String,
-        tone: DesignSystem.StatusTone,
-        accessibilityIdentifier: String
-    ) -> some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-            Image(systemName: systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(tone.color)
-                .frame(width: 16)
-                .padding(.top, 1)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(L(titleKey))
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(L(detailKey))
-                    .font(.caption2)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, DesignSystem.Spacing.sm)
-        .padding(.vertical, 7)
-        .frame(maxWidth: .infinity, minHeight: 60, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .fill(tone.color.opacity(0.06))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.sm)
-                .stroke(tone.color.opacity(0.14), lineWidth: 1)
-        )
-        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     private var activitySummary: some View {

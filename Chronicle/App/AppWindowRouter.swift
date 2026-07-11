@@ -18,7 +18,7 @@ enum DashboardNavigationDestination {
     case debug
 #endif
 
-    func apply(to defaults: UserDefaults = .standard) {
+    func apply(to defaults: UserDefaults = AppRuntime.configuredDefaults()) {
         switch self {
         case .overview:
             defaults.set("overview", forKey: "dashboard.selectedSection")
@@ -50,7 +50,7 @@ enum PreferencesNavigationDestination {
     case debug
 #endif
 
-    func apply(to defaults: UserDefaults = .standard) {
+    func apply(to defaults: UserDefaults = AppRuntime.configuredDefaults()) {
         switch self {
         case .general:
             defaults.set("general", forKey: "preferences.selectedSection")

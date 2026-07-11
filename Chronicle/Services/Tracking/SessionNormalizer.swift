@@ -8,7 +8,7 @@
 import Foundation
 
 final class SessionNormalizer {
-    static let shared = SessionNormalizer()
+    static let shared = SessionNormalizer(database: .shared)
 
     struct ReplaySink {
         let insertActivity: (_ start: Int64, _ end: Int64, _ appName: String, _ bundleId: String?, _ windowTitle: String?, _ isIdle: Bool, _ tagId: Int64?) throws -> Int64
@@ -24,6 +24,7 @@ final class SessionNormalizer {
 
     private let queue = DispatchQueue(label: "com.chronicle.session-normalizer")
     private let appState = AppState.shared
+    private let database: DatabaseService
 
     private let ignoredBundleIds: Set<String> = ["com.Chronicle.Chronicle"]
     private let ignoredAppNames: Set<String> = ["Chronicle"]
@@ -52,7 +53,15 @@ final class SessionNormalizer {
     private var mergeCountToday = 0
     private var mergeCountDate: Date?
 
-    private init() {}
+    private init(database: DatabaseService) {
+        self.database = database
+    }
+
+    #if DEBUG
+    static func makeTestInstance(database: DatabaseService) -> SessionNormalizer {
+        SessionNormalizer(database: database)
+    }
+    #endif
 
     func replay(
         events: [RawEvent],
@@ -238,6 +247,7 @@ final class SessionNormalizer {
             onAppActivated(
                 appName: appName,
                 bundleId: bundleId,
+                windowTitle: event.windowTitle,
                 isIgnored: shouldIgnore,
                 date: date,
                 immediate: immediate
@@ -249,7 +259,12 @@ final class SessionNormalizer {
             onIdleEntered(now: date, idleSeconds: idleSeconds)
         case .idleExit:
             let date = Date(timeIntervalSince1970: TimeInterval(event.timestamp))
-            onIdleExited(now: date, frontmostAppName: event.appName, frontmostBundleId: event.bundleId)
+            onIdleExited(
+                now: date,
+                frontmostAppName: event.appName,
+                frontmostBundleId: event.bundleId,
+                frontmostWindowTitle: event.windowTitle
+            )
         case .markerAdded:
             break
         }
@@ -258,6 +273,7 @@ final class SessionNormalizer {
     func onAppActivated(
         appName: String,
         bundleId: String?,
+        windowTitle: String?,
         isIgnored: Bool,
         date: Date,
         immediate: Bool
@@ -266,6 +282,7 @@ final class SessionNormalizer {
             pendingActivation = PendingActivation(
                 appName: appName,
                 bundleId: bundleId,
+                windowTitle: windowTitle,
                 date: date,
                 isIgnored: isIgnored
             )
@@ -301,7 +318,7 @@ final class SessionNormalizer {
             currentAppName = "Idle"
 
             if let previousSession {
-                DatabaseService.shared.updateActivityEndTime(id: previousSession.id, endTime: idleStartEpoch) { result in
+                database.updateActivityEndTime(id: previousSession.id, endTime: idleStartEpoch) { result in
                     self.queue.async {
                         switch result {
                         case .success:
@@ -321,7 +338,12 @@ final class SessionNormalizer {
         }
     }
 
-    func onIdleExited(now: Date, frontmostAppName: String?, frontmostBundleId: String?) {
+    func onIdleExited(
+        now: Date,
+        frontmostAppName: String?,
+        frontmostBundleId: String?,
+        frontmostWindowTitle: String?
+    ) {
         queue.async { [self] in
             guard isIdleState else { return }
             isIdleState = false
@@ -332,7 +354,7 @@ final class SessionNormalizer {
             currentAppName = nil
 
             if let previousSession {
-                DatabaseService.shared.updateActivityEndTime(id: previousSession.id, endTime: nowEpoch) { result in
+                database.updateActivityEndTime(id: previousSession.id, endTime: nowEpoch) { result in
                     self.queue.async {
                         switch result {
                         case .success:
@@ -348,6 +370,7 @@ final class SessionNormalizer {
                             self.insertNewSession(
                                 appName: frontmostAppName,
                                 bundleId: frontmostBundleId,
+                                windowTitle: frontmostWindowTitle,
                                 startEpoch: nowEpoch,
                                 previousSession: nil,
                                 shouldMergePrevious: false
@@ -359,6 +382,7 @@ final class SessionNormalizer {
                 insertNewSession(
                     appName: frontmostAppName,
                     bundleId: frontmostBundleId,
+                    windowTitle: frontmostWindowTitle,
                     startEpoch: nowEpoch,
                     previousSession: nil,
                     shouldMergePrevious: false
@@ -367,11 +391,19 @@ final class SessionNormalizer {
         }
     }
 
-    func flushCurrentSession(timestamp: Date) {
+    func flushCurrentSession(timestamp: Date, completion: @escaping () -> Void = {}) {
         let nowEpoch = Int64(timestamp.timeIntervalSince1970)
         queue.async { [self] in
-            guard let currentSession else { return }
-            DatabaseService.shared.updateActivityEndTime(id: currentSession.id, endTime: nowEpoch) { result in
+            debounceWorkItem?.cancel()
+            debounceWorkItem = nil
+            pendingActivation = nil
+            guard let currentSession else {
+                completion()
+                return
+            }
+            self.currentSession = nil
+            currentAppName = nil
+            database.updateActivityEndTime(id: currentSession.id, endTime: nowEpoch) { result in
                 self.queue.async {
                     switch result {
                     case .success:
@@ -382,6 +414,7 @@ final class SessionNormalizer {
                         AppLogger.log("Flush session failed: \(error.localizedDescription)", category: "tracker")
                         self.updateDbError(error.localizedDescription)
                     }
+                    completion()
                 }
             }
         }
@@ -407,7 +440,7 @@ final class SessionNormalizer {
         let minDuration = minSessionDurationSeconds
         let mergeGap = mergeGapSeconds
 
-        DatabaseService.shared.compactRecentActivities(
+        database.compactRecentActivities(
             days: lookbackDays,
             minDurationSeconds: minDuration,
             mergeGapSeconds: mergeGap
@@ -454,7 +487,7 @@ final class SessionNormalizer {
 
         if activation.isIgnored {
             if let previousSession {
-                DatabaseService.shared.updateActivityEndTime(id: previousSession.id, endTime: nowEpoch) { result in
+                database.updateActivityEndTime(id: previousSession.id, endTime: nowEpoch) { result in
                     self.queue.async {
                         let shouldMerge: Bool
                         switch result {
@@ -482,7 +515,7 @@ final class SessionNormalizer {
         recordRapidSwitchEvent(appName: activation.appName, bundleId: activation.bundleId, date: activation.date)
 
         if let previousSession {
-            DatabaseService.shared.updateActivityEndTime(id: previousSession.id, endTime: nowEpoch) { result in
+            database.updateActivityEndTime(id: previousSession.id, endTime: nowEpoch) { result in
                 self.queue.async {
                     let shouldMerge: Bool
                     switch result {
@@ -499,6 +532,7 @@ final class SessionNormalizer {
                     self.insertNewSession(
                         appName: activation.appName,
                         bundleId: activation.bundleId,
+                        windowTitle: activation.windowTitle,
                         startEpoch: nowEpoch,
                         previousSession: previousSession,
                         shouldMergePrevious: shouldMerge
@@ -509,6 +543,7 @@ final class SessionNormalizer {
             insertNewSession(
                 appName: activation.appName,
                 bundleId: activation.bundleId,
+                windowTitle: activation.windowTitle,
                 startEpoch: nowEpoch,
                 previousSession: nil,
                 shouldMergePrevious: false
@@ -519,16 +554,17 @@ final class SessionNormalizer {
     private func insertNewSession(
         appName: String,
         bundleId: String?,
+        windowTitle: String?,
         startEpoch: Int64,
         previousSession: ActivitySession?,
         shouldMergePrevious: Bool
     ) {
         currentAppName = appName
-        DatabaseService.shared.insertActivity(
+        database.insertActivity(
             start: startEpoch,
             end: startEpoch,
             appName: appName,
-            windowTitle: nil,
+            windowTitle: windowTitle,
             isIdle: false,
             tagId: nil,
             bundleId: bundleId
@@ -546,10 +582,10 @@ final class SessionNormalizer {
                     )
                     self.updateLastRecordedChange(Date(timeIntervalSince1970: TimeInterval(startEpoch)))
                     self.updateDbError(nil)
-                    DatabaseService.shared.resolveTagForActivity(
+                    self.database.resolveTagForActivity(
                         bundleId: bundleId,
                         appName: appName,
-                        windowTitle: nil
+                        windowTitle: windowTitle
                     ) { resolveResult in
                         self.queue.async {
                             switch resolveResult {
@@ -588,7 +624,7 @@ final class SessionNormalizer {
     }
 
     private func startIdleSession(idleStartEpoch: Int64, nowEpoch: Int64) {
-        DatabaseService.shared.insertActivity(
+        database.insertActivity(
             start: idleStartEpoch,
             end: nowEpoch,
             appName: "Idle",
@@ -621,7 +657,7 @@ final class SessionNormalizer {
     }
 
     private func handleShortSessionIfNeeded(previousSession: ActivitySession, endEpoch: Int64) {
-        DatabaseService.shared.mergeShortActivityIfNeeded(
+        database.mergeShortActivityIfNeeded(
             activityId: previousSession.id,
             startTime: previousSession.startTime,
             endTime: endEpoch,
@@ -789,6 +825,7 @@ private struct ActivitySession {
 private struct PendingActivation {
     let appName: String
     let bundleId: String?
+    let windowTitle: String?
     let date: Date
     let isIgnored: Bool
 }

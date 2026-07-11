@@ -107,24 +107,6 @@ struct ContentView: View {
                 popoverHeaderActions
             }
 
-            popoverPositioningStrip
-
-            HStack(spacing: DesignSystem.Spacing.sm) {
-                RatioBar(
-                    filledFraction: commandCenterLoopProgressFraction,
-                    filledColor: commandCenterLoopTone.color,
-                    remainderColor: DesignSystem.Colors.separator
-                )
-                .frame(maxWidth: .infinity)
-
-                Text(commandCenterLoopProgressText)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundColor(commandCenterLoopTone.color)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.82)
-            }
-            .accessibilityElement(children: .combine)
-            .accessibilityIdentifier("popover.headerProgress")
         }
         .padding(.bottom, 2)
         .accessibilityElement(children: .contain)
@@ -279,11 +261,12 @@ struct ContentView: View {
                     status: exportNowStatus,
                     accessibilityIdentifier: "popover.exportStatus"
                 )
-                commandCenterLoopProgress
                 commandCenterMetrics
                 commandCenterFocusStrip
-                commandCenterFlow
-                commandCenterHealthStrip
+
+                if shouldShowCommandCenterHealthStrip {
+                    commandCenterHealthStrip
+                }
             }
         }
         .accessibilityIdentifier("popover.commandCenter")
@@ -511,148 +494,6 @@ struct ContentView: View {
         }
     }
 
-    private var commandCenterLoopProgress: some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            ViewThatFits(in: .horizontal) {
-                HStack(alignment: .top, spacing: DesignSystem.Spacing.md) {
-                    commandCenterLoopProgressCopy
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    commandCenterLoopProgressStatusPill
-                }
-
-                VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
-                    commandCenterLoopProgressCopy
-                    commandCenterLoopProgressStatusPill
-                }
-            }
-
-            RatioBar(
-                filledFraction: commandCenterLoopProgressFraction,
-                filledColor: commandCenterLoopTone.color,
-                remainderColor: DesignSystem.Colors.separator
-            )
-        }
-        .padding(DesignSystem.Spacing.sm)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(commandCenterLoopTone.color.opacity(0.07))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .stroke(commandCenterLoopTone.color.opacity(0.18), lineWidth: 1)
-        )
-        .accessibilityIdentifier("popover.commandCenter.progress")
-    }
-
-    private var commandCenterLoopProgressStatusPill: some View {
-        StatusPill(
-            commandCenterLoopProgressText,
-            systemImage: commandCenterLoopStatusIconName,
-            tone: commandCenterLoopTone
-        )
-        .fixedSize(horizontal: true, vertical: false)
-    }
-
-    private var commandCenterLoopProgressCopy: some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-            Image(systemName: commandCenterLoopIconName)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(commandCenterLoopTone.color)
-                .frame(width: 16)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(LocalizedStringKey(commandCenterLoopTitleKey))
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-
-                Text(LocalizedStringKey(commandCenterLoopDetailKey))
-                    .font(.caption2)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-
-    private var commandCenterFlow: some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: DesignSystem.Spacing.sm) {
-                commandCenterFlowSteps
-            }
-
-            VStack(spacing: DesignSystem.Spacing.sm) {
-                commandCenterFlowSteps
-            }
-        }
-        .accessibilityIdentifier("popover.commandCenter.flow")
-    }
-
-    @ViewBuilder
-    private var commandCenterFlowSteps: some View {
-        commandCenterFlowStep(
-            titleKey: "popover.command_center.flow.capture",
-            systemImage: "record.circle",
-            tone: dailySnapshot.activeSeconds > 0 ? .success : .info,
-            isComplete: dailySnapshot.activeSeconds > 0,
-            isCurrent: dailySnapshot.activeSeconds == 0,
-            accessibilityIdentifier: "popover.commandCenter.flow.capture"
-        )
-        commandCenterFlowStep(
-            titleKey: "popover.command_center.flow.context",
-            systemImage: "note.text",
-            tone: dailySnapshot.reviewCueCount > 0 ? .success : .warning,
-            isComplete: dailySnapshot.reviewCueCount > 0,
-            isCurrent: dailySnapshot.activeSeconds > 0 && dailySnapshot.reviewCueCount == 0,
-            accessibilityIdentifier: "popover.commandCenter.flow.context"
-        )
-        commandCenterFlowStep(
-            titleKey: "popover.command_center.flow.log",
-            systemImage: commandCenterLogStepIconName,
-            tone: commandCenterLogStepTone,
-            isComplete: dailyLogSavedToday,
-            isCurrent: dailySnapshot.activeSeconds > 0 && dailySnapshot.reviewCueCount > 0 && !dailyLogSavedToday,
-            accessibilityIdentifier: "popover.commandCenter.flow.log"
-        )
-    }
-
-    private func commandCenterFlowStep(
-        titleKey: LocalizedStringKey,
-        systemImage: String,
-        tone: DesignSystem.StatusTone,
-        isComplete: Bool,
-        isCurrent: Bool,
-        accessibilityIdentifier: String
-    ) -> some View {
-        HStack(spacing: DesignSystem.Spacing.xs) {
-            Image(systemName: isComplete ? "checkmark.circle.fill" : systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(tone.color)
-                .frame(width: 16)
-
-            Text(titleKey)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(isCurrent ? DesignSystem.Colors.primaryText : DesignSystem.Colors.secondaryText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.82)
-
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, DesignSystem.Spacing.sm)
-        .padding(.vertical, 7)
-        .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(tone.color.opacity(isCurrent ? 0.12 : 0.07))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .stroke(tone.color.opacity(isCurrent ? 0.34 : 0.16), lineWidth: isCurrent ? 1.2 : 1)
-        )
-        .accessibilityIdentifier(accessibilityIdentifier)
-    }
-
     private func commandCenterMetric(
         titleKey: LocalizedStringKey,
         value: String,
@@ -812,7 +653,9 @@ struct ContentView: View {
 
                 trackingCurrentAppView
 
-                trackingPrivacyGuardrailView
+                if shouldShowTrackingPrivacyGuardrail {
+                    trackingPrivacyGuardrailView
+                }
             }
         }
         .accessibilityIdentifier("popover.trackingCard")
@@ -1155,7 +998,6 @@ struct ContentView: View {
             }
 
             snapshotCueStatusView
-            dailySnapshotEmptyPath
 
             popoverActionGrid {
                 Button {
@@ -1184,83 +1026,6 @@ struct ContentView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 2)
-    }
-
-    private var dailySnapshotEmptyPath: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 148), spacing: DesignSystem.Spacing.sm, alignment: .topLeading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
-            dailySnapshotEmptyPathItems
-        }
-        .accessibilityIdentifier("popover.dailySnapshot.emptyPath")
-    }
-
-    @ViewBuilder
-    private var dailySnapshotEmptyPathItems: some View {
-        dailySnapshotEmptyPathItem(
-            titleKey: "popover.daily_snapshot.empty.path.capture_title",
-            detailKey: "popover.daily_snapshot.empty.path.capture_detail",
-            systemImage: "record.circle",
-            tone: .info,
-            accessibilityIdentifier: "popover.dailySnapshot.emptyPath.capture"
-        )
-        dailySnapshotEmptyPathItem(
-            titleKey: "popover.daily_snapshot.empty.path.context_title",
-            detailKey: "popover.daily_snapshot.empty.path.context_detail",
-            systemImage: "note.text.badge.plus",
-            tone: .warning,
-            accessibilityIdentifier: "popover.dailySnapshot.emptyPath.context"
-        )
-        dailySnapshotEmptyPathItem(
-            titleKey: "popover.daily_snapshot.empty.path.closeout_title",
-            detailKey: "popover.daily_snapshot.empty.path.closeout_detail",
-            systemImage: "doc.text.magnifyingglass",
-            tone: .success,
-            accessibilityIdentifier: "popover.dailySnapshot.emptyPath.closeout"
-        )
-    }
-
-    private func dailySnapshotEmptyPathItem(
-        titleKey: String,
-        detailKey: String,
-        systemImage: String,
-        tone: DesignSystem.StatusTone,
-        accessibilityIdentifier: String
-    ) -> some View {
-        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
-            Image(systemName: systemImage)
-                .font(.caption.weight(.semibold))
-                .foregroundColor(tone.color)
-                .frame(width: 16)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(LocalizedStringKey(titleKey))
-                    .font(.caption.weight(.semibold))
-                    .foregroundColor(DesignSystem.Colors.primaryText)
-                    .lineLimit(1)
-
-                Text(LocalizedStringKey(detailKey))
-                    .font(.caption2)
-                    .foregroundColor(DesignSystem.Colors.secondaryText)
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(DesignSystem.Spacing.sm)
-        .frame(minWidth: 128, maxWidth: .infinity, minHeight: 74, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .fill(tone.color.opacity(0.06))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
-                .stroke(tone.color.opacity(0.16), lineWidth: 1)
-        )
-        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     private var dailySnapshotEmptyOpenTodayButton: some View {
@@ -1461,22 +1226,23 @@ struct ContentView: View {
         .accessibilityIdentifier("popover.dailySnapshot.workBlock")
     }
 
+    @ViewBuilder
     private var snapshotReviewGuidanceView: some View {
-        let guidance = dailySnapshotGuidance
-
-        return RowSurface(tone: guidance.tone) {
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 220), spacing: DesignSystem.Spacing.md, alignment: .leading)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.sm
-            ) {
-                snapshotReviewGuidanceSummary(guidance)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                snapshotReviewGuidanceAction(guidance)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+        if let guidance = dailySnapshotGuidance {
+            RowSurface(tone: guidance.tone) {
+                LazyVGrid(
+                    columns: [GridItem(.adaptive(minimum: 220), spacing: DesignSystem.Spacing.md, alignment: .leading)],
+                    alignment: .leading,
+                    spacing: DesignSystem.Spacing.sm
+                ) {
+                    snapshotReviewGuidanceSummary(guidance)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    snapshotReviewGuidanceAction(guidance)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
+            .accessibilityIdentifier("popover.dailySnapshot.guidance")
         }
-        .accessibilityIdentifier("popover.dailySnapshot.guidance")
     }
 
     private func snapshotReviewGuidanceSummary(_ guidance: DailySnapshotGuidanceKind) -> some View {
@@ -1526,29 +1292,17 @@ struct ContentView: View {
         .accessibilityIdentifier(guidance.accessibilityIdentifier)
     }
 
-    private var dailySnapshotGuidance: DailySnapshotGuidanceKind {
+    private var dailySnapshotGuidance: DailySnapshotGuidanceKind? {
         if dailyExportState.isRunning {
             return .exporting
-        }
-        if dailySnapshot.activeSeconds >= 15 * 60 && dailySnapshot.reviewCueCount == 0 && !dailyLogExportFailedToday {
-            return .needsContext
-        }
-        if !hasDailyExportFolderConfigured {
-            return .setupExports
         }
         if dailyLogExportFailedToday {
             return .failed
         }
-        if dailyLogSavedToday {
-            return .saved
+        if !hasDailyExportFolderConfigured {
+            return .setupExports
         }
-        if dailySnapshot.reviewCueCount > 0 {
-            return .readyWithContext
-        }
-        if dailySnapshot.activeSeconds >= 15 * 60 {
-            return .needsContext
-        }
-        return .building
+        return nil
     }
 
     private func runSnapshotGuidanceAction(_ guidance: DailySnapshotGuidanceKind) {
@@ -1557,14 +1311,6 @@ struct ContentView: View {
             openExportPreferences()
         case .failed:
             exportDailyNow()
-        case .saved:
-            openDailyFolder()
-        case .readyWithContext:
-            exportDailyNow()
-        case .needsContext:
-            AppWindowRouter.shared.open(.quickMarker)
-        case .building:
-            openDashboardTimeline()
         case .exporting:
             break
         }
@@ -1873,7 +1619,7 @@ struct ContentView: View {
     }
 
     private func openDashboardTimeline() {
-        UserDefaults.standard.set(DashboardView.Section.timeline.rawValue, forKey: "dashboard.selectedSection")
+        AppRuntime.configuredDefaults().set(DashboardView.Section.timeline.rawValue, forKey: "dashboard.selectedSection")
         AppWindowRouter.shared.open(.dashboard)
     }
 
@@ -1913,12 +1659,12 @@ struct ContentView: View {
     }
 
     private func openDashboardMarkers() {
-        UserDefaults.standard.set(DashboardView.Section.markers.rawValue, forKey: "dashboard.selectedSection")
+        AppRuntime.configuredDefaults().set(DashboardView.Section.markers.rawValue, forKey: "dashboard.selectedSection")
         AppWindowRouter.shared.open(.dashboard)
     }
 
     private func openDashboardStats() {
-        UserDefaults.standard.set(DashboardView.Section.stats.rawValue, forKey: "dashboard.selectedSection")
+        AppRuntime.configuredDefaults().set(DashboardView.Section.stats.rawValue, forKey: "dashboard.selectedSection")
         AppWindowRouter.shared.open(.dashboard)
     }
 
@@ -2055,131 +1801,6 @@ struct ContentView: View {
         return .info
     }
 
-    private var commandCenterLoopReadyCount: Int {
-        var count = 0
-        if dailySnapshot.activeSeconds > 0 {
-            count += 1
-        }
-        if dailySnapshot.reviewCueCount > 0 {
-            count += 1
-        }
-        if dailyLogSavedToday {
-            count += 1
-        }
-        return count
-    }
-
-    private var commandCenterLoopTotalCount: Int {
-        3
-    }
-
-    private var commandCenterLoopProgressFraction: Double {
-        Double(commandCenterLoopReadyCount) / Double(commandCenterLoopTotalCount)
-    }
-
-    private var commandCenterLoopProgressText: String {
-        String(
-            format: L("popover.command_center.progress.value"),
-            commandCenterLoopReadyCount,
-            commandCenterLoopTotalCount
-        )
-    }
-
-    private var commandCenterLoopStatusIconName: String {
-        commandCenterLoopReadyCount == commandCenterLoopTotalCount ? "checkmark.circle.fill" : "circle.dashed"
-    }
-
-    private var commandCenterLoopTitleKey: String {
-        if dailyExportState.isRunning {
-            return "popover.command_center.progress.exporting_title"
-        }
-        if appState.trackingPaused {
-            return "popover.command_center.progress.paused_title"
-        }
-        if dailyLogSavedToday {
-            return "popover.command_center.progress.saved_title"
-        }
-        if dailyLogExportFailedToday {
-            return "popover.command_center.progress.failed_title"
-        }
-        if !hasDailyExportFolderConfigured {
-            return "popover.command_center.progress.folder_title"
-        }
-        if dailySnapshot.activeSeconds == 0 {
-            return "popover.command_center.progress.start_title"
-        }
-        if dailySnapshot.reviewCueCount == 0 {
-            return "popover.command_center.progress.context_title"
-        }
-        return "popover.command_center.progress.closeout_title"
-    }
-
-    private var commandCenterLoopDetailKey: String {
-        if dailyExportState.isRunning {
-            return "popover.command_center.progress.exporting_detail"
-        }
-        if appState.trackingPaused {
-            return "popover.command_center.progress.paused_detail"
-        }
-        if dailyLogSavedToday {
-            return "popover.command_center.progress.saved_detail"
-        }
-        if dailyLogExportFailedToday {
-            return "popover.command_center.progress.failed_detail"
-        }
-        if !hasDailyExportFolderConfigured {
-            return "popover.command_center.progress.folder_detail"
-        }
-        if dailySnapshot.activeSeconds == 0 {
-            return "popover.command_center.progress.start_detail"
-        }
-        if dailySnapshot.reviewCueCount == 0 {
-            return "popover.command_center.progress.context_detail"
-        }
-        return "popover.command_center.progress.closeout_detail"
-    }
-
-    private var commandCenterLoopIconName: String {
-        if dailyExportState.isRunning {
-            return "arrow.clockwise"
-        }
-        if appState.trackingPaused {
-            return "pause.circle.fill"
-        }
-        if dailyLogSavedToday {
-            return "checkmark.seal.fill"
-        }
-        if dailyLogExportFailedToday {
-            return "exclamationmark.triangle.fill"
-        }
-        if !hasDailyExportFolderConfigured {
-            return "folder.badge.plus"
-        }
-        if dailySnapshot.activeSeconds == 0 {
-            return "record.circle"
-        }
-        if dailySnapshot.reviewCueCount == 0 {
-            return "note.text.badge.plus"
-        }
-        return "doc.badge.plus"
-    }
-
-    private var commandCenterLoopTone: DesignSystem.StatusTone {
-        if dailyExportState.isRunning {
-            return .info
-        }
-        if appState.trackingPaused || !hasDailyExportFolderConfigured || dailyLogExportFailedToday {
-            return .warning
-        }
-        if dailyLogSavedToday {
-            return .success
-        }
-        if dailySnapshot.activeSeconds == 0 || dailySnapshot.reviewCueCount == 0 {
-            return .info
-        }
-        return .success
-    }
-
     private var popoverHeaderStatusText: String {
         if appState.trackingPaused {
             return L("popover.header.status.paused")
@@ -2239,38 +1860,6 @@ struct ContentView: View {
             return .warning
         }
         return .success
-    }
-
-    private var commandCenterLogStepIconName: String {
-        if dailyExportState.isRunning {
-            return "arrow.clockwise"
-        }
-        if !hasDailyExportFolderConfigured {
-            return "folder.badge.questionmark"
-        }
-        if dailyLogExportFailedToday {
-            return "exclamationmark.triangle.fill"
-        }
-        if dailyLogSavedToday {
-            return "checkmark.seal.fill"
-        }
-        return "doc.badge.plus"
-    }
-
-    private var commandCenterLogStepTone: DesignSystem.StatusTone {
-        if dailyExportState.isRunning {
-            return .info
-        }
-        if !hasDailyExportFolderConfigured {
-            return .warning
-        }
-        if dailyLogExportFailedToday {
-            return .warning
-        }
-        if dailyLogSavedToday || dailySnapshot.reviewCueCount > 0 {
-            return .success
-        }
-        return .neutral
     }
 
     private var selfCheckHeadline: String {
@@ -2362,6 +1951,10 @@ struct ContentView: View {
         healthCheckService.lastReport != nil || healthCheckService.lastError != nil
     }
 
+    private var shouldShowCommandCenterHealthStrip: Bool {
+        healthCheckService.isRunning || selfCheckTone == .warning || selfCheckTone == .critical
+    }
+
     private func selfCheckIssueCounts(for report: HealthCheckReport) -> (errors: Int, warnings: Int) {
         report.issues.reduce(into: (errors: 0, warnings: 0)) { result, issue in
             switch issue.severity {
@@ -2403,6 +1996,10 @@ struct ContentView: View {
             return .warning
         }
         return appState.windowTitlePrivacyMode == .raw ? .warning : .success
+    }
+
+    private var shouldShowTrackingPrivacyGuardrail: Bool {
+        popoverPrivacyTone == .warning || popoverPrivacyTone == .critical
     }
 
     private var popoverPrivacyIconName: String {
@@ -3039,10 +2636,6 @@ private struct DailySnapshotComparison {
 private enum DailySnapshotGuidanceKind {
     case setupExports
     case failed
-    case saved
-    case readyWithContext
-    case needsContext
-    case building
     case exporting
 
     var titleKey: String {
@@ -3051,14 +2644,6 @@ private enum DailySnapshotGuidanceKind {
             return "popover.daily_snapshot.guidance.setup_title"
         case .failed:
             return "popover.daily_snapshot.guidance.failed_title"
-        case .saved:
-            return "popover.daily_snapshot.guidance.saved_title"
-        case .readyWithContext:
-            return "popover.daily_snapshot.guidance.ready_title"
-        case .needsContext:
-            return "popover.daily_snapshot.guidance.context_title"
-        case .building:
-            return "popover.daily_snapshot.guidance.building_title"
         case .exporting:
             return "popover.daily_snapshot.guidance.exporting_title"
         }
@@ -3070,14 +2655,6 @@ private enum DailySnapshotGuidanceKind {
             return "popover.daily_snapshot.guidance.setup_detail"
         case .failed:
             return "popover.daily_snapshot.guidance.failed_detail"
-        case .saved:
-            return "popover.daily_snapshot.guidance.saved_detail"
-        case .readyWithContext:
-            return "popover.daily_snapshot.guidance.ready_detail"
-        case .needsContext:
-            return "popover.daily_snapshot.guidance.context_detail"
-        case .building:
-            return "popover.daily_snapshot.guidance.building_detail"
         case .exporting:
             return "popover.daily_snapshot.guidance.exporting_detail"
         }
@@ -3089,14 +2666,6 @@ private enum DailySnapshotGuidanceKind {
             return "popover.daily_snapshot.guidance.status.setup"
         case .failed:
             return "popover.daily_snapshot.guidance.status.failed"
-        case .saved:
-            return "popover.daily_snapshot.guidance.status.saved"
-        case .readyWithContext:
-            return "popover.daily_snapshot.guidance.status.ready"
-        case .needsContext:
-            return "popover.daily_snapshot.guidance.status.context"
-        case .building:
-            return "popover.daily_snapshot.guidance.status.building"
         case .exporting:
             return "popover.daily_snapshot.guidance.status.exporting"
         }
@@ -3108,14 +2677,6 @@ private enum DailySnapshotGuidanceKind {
             return "folder.badge.plus"
         case .failed:
             return "exclamationmark.triangle.fill"
-        case .saved:
-            return "checkmark.seal.fill"
-        case .readyWithContext:
-            return "doc.badge.plus"
-        case .needsContext:
-            return "note.text.badge.plus"
-        case .building:
-            return "clock"
         case .exporting:
             return "arrow.clockwise"
         }
@@ -3127,14 +2688,6 @@ private enum DailySnapshotGuidanceKind {
             return "folder"
         case .failed:
             return "arrow.clockwise"
-        case .saved:
-            return "checkmark"
-        case .readyWithContext:
-            return "doc.badge.plus"
-        case .needsContext:
-            return "plus"
-        case .building:
-            return "record.circle"
         case .exporting:
             return "arrow.clockwise"
         }
@@ -3142,12 +2695,8 @@ private enum DailySnapshotGuidanceKind {
 
     var tone: DesignSystem.StatusTone {
         switch self {
-        case .setupExports, .failed, .needsContext:
+        case .setupExports, .failed:
             return .warning
-        case .building:
-            return .info
-        case .saved, .readyWithContext:
-            return .success
         case .exporting:
             return .info
         }
@@ -3159,14 +2708,6 @@ private enum DailySnapshotGuidanceKind {
             return "popover.action.setup_exports"
         case .failed:
             return "popover.action.retry_daily_log"
-        case .saved:
-            return "popover.action.open_daily_folder"
-        case .readyWithContext:
-            return "popover.action.export_daily"
-        case .needsContext:
-            return "popover.action.quick_marker"
-        case .building:
-            return "popover.action.review_timeline"
         case .exporting:
             return "menu.exporting"
         }
@@ -3178,14 +2719,6 @@ private enum DailySnapshotGuidanceKind {
             return "folder.badge.plus"
         case .failed:
             return "arrow.clockwise"
-        case .saved:
-            return "folder"
-        case .readyWithContext:
-            return "doc.badge.plus"
-        case .needsContext:
-            return "note.text"
-        case .building:
-            return "clock"
         case .exporting:
             return "arrow.clockwise"
         }
@@ -3197,14 +2730,6 @@ private enum DailySnapshotGuidanceKind {
             return "popover.dailySnapshot.guidance.setupExports"
         case .failed:
             return "popover.dailySnapshot.guidance.retryDailyLog"
-        case .saved:
-            return "popover.dailySnapshot.guidance.openFolder"
-        case .readyWithContext:
-            return "popover.dailySnapshot.guidance.exportDaily"
-        case .needsContext:
-            return "popover.dailySnapshot.guidance.addNote"
-        case .building:
-            return "popover.dailySnapshot.guidance.reviewTimeline"
         case .exporting:
             return "popover.dailySnapshot.guidance.exporting"
         }
@@ -3212,9 +2737,9 @@ private enum DailySnapshotGuidanceKind {
 
     var runsDailyExport: Bool {
         switch self {
-        case .failed, .readyWithContext, .exporting:
+        case .failed, .exporting:
             return true
-        case .setupExports, .saved, .needsContext, .building:
+        case .setupExports:
             return false
         }
     }
