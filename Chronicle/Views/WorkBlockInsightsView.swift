@@ -25,7 +25,8 @@ struct WorkBlockInsightsView: View {
                 accessibilityPrefix: "insights.workBlocks",
                 onPreviousDay: { shiftDate(by: -1) },
                 onNextDay: { shiftDate(by: 1) },
-                onToday: { appState.selectedDate = Date() }
+                onToday: { appState.selectedDate = Date() },
+                onRefresh: load
             )
 
             ScrollView {
@@ -43,10 +44,12 @@ struct WorkBlockInsightsView: View {
                         ProgressView("insights.work_blocks.loading")
                             .frame(maxWidth: .infinity, minHeight: 260)
                     } else if let errorText, !hasSuccessfulSummary {
-                        ContentUnavailableView(
-                            "insights.work_blocks.error",
-                            systemImage: "exclamationmark.triangle",
-                            description: Text(errorText)
+                        RecoverableContentUnavailableView(
+                            title: "insights.work_blocks.error",
+                            message: errorText,
+                            accessibilityIdentifier: "insights.workBlocks.error",
+                            retryAccessibilityIdentifier: "insights.workBlocks.retry",
+                            onRetry: load
                         )
                         .frame(maxWidth: .infinity, minHeight: 260)
                     } else if !isLoading, summary.blockCount == 0 {

@@ -37,10 +37,12 @@ struct WorkBlockTimelineView: View {
                 ProgressView("timeline.work_blocks.loading")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let errorText, !hasSuccessfulRows {
-                ContentUnavailableView(
-                    "timeline.work_blocks.error",
-                    systemImage: "exclamationmark.triangle",
-                    description: Text(errorText)
+                RecoverableContentUnavailableView(
+                    title: "timeline.work_blocks.error",
+                    message: errorText,
+                    accessibilityIdentifier: "timeline.workBlocks.error",
+                    retryAccessibilityIdentifier: "timeline.workBlocks.retry",
+                    onRetry: load
                 )
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if filteredRows.isEmpty {

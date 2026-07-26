@@ -19,6 +19,7 @@ struct DateNavigationHeader: View {
     let onPreviousDay: () -> Void
     let onNextDay: () -> Void
     let onToday: () -> Void
+    var onRefresh: (() -> Void)? = nil
 
     var body: some View {
         LazyVGrid(
@@ -55,6 +56,8 @@ struct DateNavigationHeader: View {
                 if isLoading {
                     loadingIndicator
                 }
+
+                refreshButton
             }
 
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.xs) {
@@ -66,8 +69,26 @@ struct DateNavigationHeader: View {
                     if isLoading {
                         loadingIndicator
                     }
+
+                    refreshButton
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var refreshButton: some View {
+        if let onRefresh {
+            Button(action: onRefresh) {
+                Image(systemName: "arrow.clockwise")
+                    .frame(width: 18, height: 18)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .disabled(isLoading)
+            .help(L("actions.refresh"))
+            .accessibilityLabel(L("actions.refresh"))
+            .accessibilityIdentifier("\(accessibilityPrefix).refresh")
         }
     }
 

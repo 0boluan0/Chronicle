@@ -17,6 +17,7 @@ struct ExportIntegrationsView: View {
     @State private var mode: Mode = .reviewedMarkdown
     @State private var snapshots: [ReviewSnapshotRow] = []
     @State private var isLoading = true
+    @State private var snapshotLoadError: String?
     @State private var exportingSnapshotID: Int64?
     @State private var deletingEvidenceSnapshotID: Int64?
     @State private var evidenceDeletionCandidate: ReviewSnapshotRow?
@@ -24,6 +25,8 @@ struct ExportIntegrationsView: View {
     @State private var acknowledgesPlaintext = false
     @State private var statusMessage: StatusMessage?
     @State private var exportRecords: [ExportRecord] = []
+    @State private var isLoadingExportHistory = true
+    @State private var exportHistoryLoadError: String?
     @State private var exportHistorySearchText = ""
 
     var body: some View {
@@ -85,6 +88,21 @@ struct ExportIntegrationsView: View {
             .pickerStyle(.segmented)
             .frame(width: 360)
             .accessibilityIdentifier("integrations.mode")
+            if isLoading || isLoadingExportHistory {
+                ProgressView()
+                    .controlSize(.small)
+                    .accessibilityLabel(L("integrations.loading"))
+            }
+            Button {
+                load()
+            } label: {
+                Image(systemName: "arrow.clockwise")
+            }
+            .buttonStyle(.bordered)
+            .disabled(isLoading || isLoadingExportHistory)
+            .help(L("actions.refresh"))
+            .accessibilityLabel(L("actions.refresh"))
+            .accessibilityIdentifier("integrations.refresh")
         }
     }
 
@@ -151,8 +169,17 @@ struct ExportIntegrationsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                if isLoading {
+                if isLoading, snapshots.isEmpty {
                     ProgressView()
+                } else if let snapshotLoadError, snapshots.isEmpty {
+                    RecoverableContentUnavailableView(
+                        title: "integrations.snapshots.load_error",
+                        message: snapshotLoadError,
+                        accessibilityIdentifier: "integrations.snapshots.loadError",
+                        retryAccessibilityIdentifier: "integrations.snapshots.retry",
+                        onRetry: loadSnapshots
+                    )
+                    .frame(minHeight: 160)
                 } else if snapshots.isEmpty {
                     ContentUnavailableView(
                         "integrations.snapshots.empty",
@@ -161,6 +188,10 @@ struct ExportIntegrationsView: View {
                     )
                     .frame(minHeight: 160)
                 } else {
+                    StatusBannerView(
+                        status: snapshotStaleStatus,
+                        accessibilityIdentifier: "integrations.snapshots.staleStatus"
+                    )
                     ForEach(snapshots) { snapshot in
                         HStack(spacing: DesignSystem.Spacing.md) {
                             Image(systemName: "checkmark.seal.fill")
@@ -279,7 +310,24 @@ struct ExportIntegrationsView: View {
                     }
                 }
 
-                if exportRecords.isEmpty {
+                StatusBannerView(
+                    status: exportHistoryStaleStatus,
+                    accessibilityIdentifier: "integrations.history.staleStatus"
+                )
+
+                if isLoadingExportHistory, exportRecords.isEmpty {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, minHeight: 70)
+                } else if let exportHistoryLoadError, exportRecords.isEmpty {
+                    RecoverableContentUnavailableView(
+                        title: "integrations.history.load_error",
+                        message: exportHistoryLoadError,
+                        accessibilityIdentifier: "integrations.history.loadError",
+                        retryAccessibilityIdentifier: "integrations.history.retry",
+                        onRetry: loadExportHistory
+                    )
+                    .frame(minHeight: 120)
+                } else if exportRecords.isEmpty {
                     Text("integrations.history.empty")
                         .font(.callout)
                         .foregroundStyle(.secondary)
@@ -379,6 +427,22 @@ struct ExportIntegrationsView: View {
         }
     }
 
+    private var snapshotStaleStatus: StatusMessage? {
+        guard !snapshots.isEmpty, let snapshotLoadError else { return nil }
+        return StatusMessage(
+            text: String(format: L("integrations.snapshots.stale"), snapshotLoadError),
+            isError: true
+        )
+    }
+
+    private var exportHistoryStaleStatus: StatusMessage? {
+        guard !exportRecords.isEmpty, let exportHistoryLoadError else { return nil }
+        return StatusMessage(
+            text: String(format: L("integrations.history.stale"), exportHistoryLoadError),
+            isError: true
+        )
+    }
+
     private func chooseFolder() {
         SystemFolderPicker.chooseFolder(prompt: L("integrations.folder.choose")) { url in
             guard let url else { return }
@@ -409,15 +473,14 @@ struct ExportIntegrationsView: View {
             DispatchQueue.main.async {
                 isLoading = false
                 switch result {
-                case .success(let loaded): snapshots = loaded
+                case .success(let loaded):
+                    snapshots = loaded
+                    snapshotLoadError = nil
                 case .failure(let error):
-                    statusMessage = StatusMessage(
-                        text: UserFacingErrorMessage.loggedMessage(
-                            for: error,
-                            context: "Load completed review snapshots failed",
-                            category: "db"
-                        ),
-                        isError: true
+                    snapshotLoadError = UserFacingErrorMessage.loggedMessage(
+                        for: error,
+                        context: "Load completed review snapshots failed",
+                        category: "db"
                     )
                 }
             }
@@ -425,19 +488,19 @@ struct ExportIntegrationsView: View {
     }
 
     private func loadExportHistory() {
+        isLoadingExportHistory = true
         DatabaseService.shared.fetchExportRecords { result in
             DispatchQueue.main.async {
+                isLoadingExportHistory = false
                 switch result {
                 case .success(let loaded):
                     exportRecords = loaded
+                    exportHistoryLoadError = nil
                 case .failure(let error):
-                    statusMessage = StatusMessage(
-                        text: UserFacingErrorMessage.loggedMessage(
-                            for: error,
-                            context: "Load reviewed Markdown export history failed",
-                            category: "db"
-                        ),
-                        isError: true
+                    exportHistoryLoadError = UserFacingErrorMessage.loggedMessage(
+                        for: error,
+                        context: "Load reviewed Markdown export history failed",
+                        category: "db"
                     )
                 }
             }

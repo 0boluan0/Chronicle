@@ -41,10 +41,12 @@ struct NotesLibraryView: View {
                             .frame(maxWidth: .infinity, minHeight: 240)
                     } else if let loadError = loadLifecycle.errorDescription,
                               !loadLifecycle.hasSuccessfulLoad {
-                        ContentUnavailableView(
-                            "notes.library.load.error",
-                            systemImage: "exclamationmark.triangle",
-                            description: Text(String(format: L("notes.library.load.failed"), loadError))
+                        RecoverableContentUnavailableView(
+                            title: "notes.library.load.error",
+                            message: String(format: L("notes.library.load.failed"), loadError),
+                            accessibilityIdentifier: "notes.load.error",
+                            retryAccessibilityIdentifier: "notes.load.retry",
+                            onRetry: load
                         )
                         .frame(minHeight: 240)
                     } else if filteredItems.isEmpty, !loadLifecycle.isLoading {
@@ -99,6 +101,21 @@ struct NotesLibraryView: View {
                 .textFieldStyle(.roundedBorder)
                 .frame(width: 300)
                 .accessibilityIdentifier("notes.search")
+            if loadLifecycle.isLoading {
+                ProgressView()
+                    .controlSize(.small)
+                    .accessibilityLabel(L("notes.library.loading"))
+            }
+            Button {
+                load()
+            } label: {
+                Image(systemName: "arrow.clockwise")
+            }
+            .buttonStyle(.bordered)
+            .disabled(loadLifecycle.isLoading)
+            .help(L("actions.refresh"))
+            .accessibilityLabel(L("actions.refresh"))
+            .accessibilityIdentifier("notes.refresh")
             Button {
                 AppWindowRouter.shared.openQuickMarker(mode: .interval)
             } label: {

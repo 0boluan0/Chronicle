@@ -2376,6 +2376,7 @@
 
 "Apps" = "应用";
 "actions.refresh" = "刷新";
+"actions.retry" = "重试";
 "apps.action.refreshing" = "刷新中";
 "apps.action.loading_more" = "加载中";
 "apps.page.subtitle" = "先决定每个应用未来在今日日志里出现的位置，再按需要更新已保存活动。";
@@ -2941,6 +2942,7 @@
 "integrations.mode" = "工作区";
 "integrations.mode.reviewed_markdown" = "已复盘 Markdown";
 "integrations.mode.formats_templates" = "格式与模板";
+"integrations.loading" = "正在刷新导出与联动";
 "integrations.folder.title" = "Markdown 文件夹";
 "integrations.folder.detail" = "跨多天的复盘会默认拆成每天一个 Markdown 文件。";
 "integrations.folder.choose" = "选择文件夹…";
@@ -2954,11 +2956,15 @@
 "integrations.snapshots.empty_detail" = "请先完成一次复盘；临时导出可前往“格式与模板”。";
 "integrations.snapshots.completed" = "完成于 %@";
 "integrations.snapshots.export" = "导出";
+"integrations.snapshots.load_error" = "暂时无法加载复盘快照";
+"integrations.snapshots.stale" = "刷新失败，仍显示最近一次成功加载的复盘快照。%@";
 "integrations.managed.title" = "托管 Markdown 区块";
 "integrations.managed.detail" = "Chronicle 只更新匹配的分隔区块；没有并发编辑时，区块外内容会原样保留。";
 "integrations.managed.safety" = "分隔符缺失、重复或损坏，目标文件类型不支持，或检测到并发修改时，都会停止写入。导出时请暂停其他编辑器。";
 "integrations.managed.copy" = "复制分隔符";
 "integrations.history.title" = "已复盘 Markdown 导出历史";
+"integrations.history.load_error" = "暂时无法加载导出历史";
+"integrations.history.stale" = "刷新失败，仍显示最近一次成功加载的导出历史。%@";
 "integrations.export.success" = "已导出 %d 个每日 Markdown 文件。";
 "integrations.export.history_warning" = "已导出 %d 个每日 Markdown 文件，但 Chronicle 无法将本次尝试写入加密历史：%@";
 /* 笔记库 */

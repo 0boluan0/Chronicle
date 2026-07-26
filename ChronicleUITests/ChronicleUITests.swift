@@ -421,6 +421,7 @@ final class ChronicleUITests: XCTestCase {
         clickElement(notesSection, in: app)
 
         XCTAssertTrue(app.descendants(matching: .any)["notes.page"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["notes.refresh"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.textFields["notes.search"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.textFields["notes.capture.text"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["notes.capture.save"].waitForExistence(timeout: 5))
@@ -448,6 +449,7 @@ final class ChronicleUITests: XCTestCase {
         XCTAssertTrue(app.buttons["insights.workBlocks.previous"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["insights.workBlocks.next"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["insights.workBlocks.today"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["insights.workBlocks.refresh"].waitForExistence(timeout: 5))
 
         app.terminate()
     }
@@ -501,6 +503,7 @@ final class ChronicleUITests: XCTestCase {
 
         XCTAssertTrue(app.descendants(matching: .any)["integrations.page"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.descendants(matching: .any)["integrations.mode"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["integrations.refresh"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["integrations.chooseFolder"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["integrations.plaintext.confirm"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.textFields["integrations.history.search"].waitForExistence(timeout: 5))

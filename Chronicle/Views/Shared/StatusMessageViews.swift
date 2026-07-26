@@ -13,6 +13,30 @@ struct StatusMessage: Equatable {
     let isError: Bool
 }
 
+struct RecoverableContentUnavailableView: View {
+    let title: LocalizedStringKey
+    let message: String
+    let accessibilityIdentifier: String
+    let retryAccessibilityIdentifier: String
+    let onRetry: () -> Void
+
+    var body: some View {
+        ContentUnavailableView {
+            Label(title, systemImage: "exclamationmark.triangle")
+        } description: {
+            Text(message)
+                .textSelection(.enabled)
+        } actions: {
+            Button(action: onRetry) {
+                Label("actions.retry", systemImage: "arrow.clockwise")
+            }
+            .buttonStyle(.borderedProminent)
+            .accessibilityIdentifier(retryAccessibilityIdentifier)
+        }
+        .accessibilityIdentifier(accessibilityIdentifier)
+    }
+}
+
 struct StatusBannerView: View {
     let status: StatusMessage?
     let accessibilityIdentifier: String?

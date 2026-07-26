@@ -2376,6 +2376,7 @@
 
 "Apps" = "Apps";
 "actions.refresh" = "Refresh";
+"actions.retry" = "Try Again";
 "apps.action.refreshing" = "Refreshing";
 "apps.action.loading_more" = "Loading more";
 "apps.page.subtitle" = "Choose where each app should appear in future daily logs, then update saved activity only when needed.";
@@ -2942,6 +2943,7 @@
 "integrations.mode" = "Workspace";
 "integrations.mode.reviewed_markdown" = "Reviewed Markdown";
 "integrations.mode.formats_templates" = "Formats & Templates";
+"integrations.loading" = "Refreshing Export & Integrations";
 "integrations.folder.title" = "Markdown folder";
 "integrations.folder.detail" = "Multi-day reviews are split into one daily Markdown file per day.";
 "integrations.folder.choose" = "Choose Folder…";
@@ -2955,11 +2957,15 @@
 "integrations.snapshots.empty_detail" = "Complete a review first, or use Formats & Templates for an ad-hoc export.";
 "integrations.snapshots.completed" = "Completed %@";
 "integrations.snapshots.export" = "Export";
+"integrations.snapshots.load_error" = "Review snapshots are unavailable";
+"integrations.snapshots.stale" = "Refresh failed. The last successfully loaded review snapshots are still shown. %@";
 "integrations.managed.title" = "Managed Markdown block";
 "integrations.managed.detail" = "Chronicle updates only the matching delimited block and preserves content outside it during ordinary, non-concurrent writes.";
 "integrations.managed.safety" = "Missing, duplicated, or broken delimiters, unsupported file types, and detected concurrent changes stop the write. Pause other editors while exporting.";
 "integrations.managed.copy" = "Copy Delimiters";
 "integrations.history.title" = "Reviewed Markdown history";
+"integrations.history.load_error" = "Export history is unavailable";
+"integrations.history.stale" = "Refresh failed. The last successfully loaded export history is still shown. %@";
 "integrations.export.success" = "Exported %d daily Markdown files.";
 "integrations.export.history_warning" = "Exported %d daily Markdown files, but Chronicle could not save this attempt to encrypted history: %@";
 /* Notes library */
