@@ -26,7 +26,7 @@ enum DateRangeMode: String, CaseIterable, Identifiable {
         }
     }
 
-    func bounds(for date: Date, calendar: Calendar = Calendar.current) -> (start: Int64, end: Int64) {
+    func bounds(for date: Date, calendar: Calendar = .autoupdatingCurrent) -> (start: Int64, end: Int64) {
         let interval = dateInterval(for: date, calendar: calendar)
         return (
             start: Int64(interval.start.timeIntervalSince1970),
@@ -34,9 +34,7 @@ enum DateRangeMode: String, CaseIterable, Identifiable {
         )
     }
 
-    func dateInterval(for date: Date, calendar: Calendar = Calendar.current) -> DateInterval {
-        var calendar = calendar
-        calendar.timeZone = .current
+    func dateInterval(for date: Date, calendar: Calendar = .autoupdatingCurrent) -> DateInterval {
         switch self {
         case .day:
             let startDate = calendar.startOfDay(for: date)
@@ -66,16 +64,11 @@ enum DateRangeMode: String, CaseIterable, Identifiable {
         }
     }
 
-    func date(byShifting date: Date, value: Int, calendar: Calendar = Calendar.current) -> Date {
-        var calendar = calendar
-        calendar.timeZone = .current
+    func date(byShifting date: Date, value: Int, calendar: Calendar = .autoupdatingCurrent) -> Date {
         return calendar.date(byAdding: calendarComponent, value: value, to: date) ?? date
     }
 
-    func displaySubtitle(for date: Date, calendar: Calendar = Calendar.current, locale: Locale = .current) -> String {
-        var calendar = calendar
-        calendar.timeZone = .current
-
+    func displaySubtitle(for date: Date, calendar: Calendar = .autoupdatingCurrent, locale: Locale = .current) -> String {
         switch self {
         case .day:
             let formatter = DateFormatter()

@@ -5,6 +5,7 @@
 //  Created by Codex on 2026/4/17.
 //
 
+import AppKit
 import SwiftUI
 
 struct StatusMessage: Equatable {
@@ -55,9 +56,12 @@ struct StatusBannerView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .accessibilityElement(children: .combine)
+                .accessibilityLabel("\(L(titleKey(for: status))). \(status.text)")
                 .accessibilityIdentifier(accessibilityIdentifier ?? "")
             }
         }
+        .onAppear { announce(status) }
+        .onChange(of: status) { _, newStatus in announce(newStatus) }
     }
 
     private func titleKey(for status: StatusMessage) -> String {
@@ -74,6 +78,14 @@ struct StatusBannerView: View {
 
     private func messageLineLimit(for status: StatusMessage) -> Int {
         status.isError ? 5 : 3
+    }
+
+    private func announce(_ status: StatusMessage?) {
+        guard let status else { return }
+        postAccessibilityAnnouncement(
+            "\(L(titleKey(for: status))). \(status.text)",
+            priority: status.isError ? .high : .medium
+        )
     }
 }
 
@@ -121,30 +133,56 @@ struct ExportStatusLine: View {
                 .accessibilityElement(children: .combine)
             }
         }
+        .onAppear { announce(status) }
+        .onChange(of: status) { _, newStatus in announce(newStatus) }
     }
 
     private func tone(for status: StatusMessage) -> DesignSystem.StatusTone {
         status.isError ? .warning : .info
     }
+
+    private func announce(_ status: StatusMessage?) {
+        guard let status else { return }
+        postAccessibilityAnnouncement(
+            status.text,
+            priority: status.isError ? .high : .low
+        )
+    }
+}
+
+@MainActor
+private func postAccessibilityAnnouncement(
+    _ text: String,
+    priority: NSAccessibilityPriorityLevel
+) {
+    guard NSWorkspace.shared.isVoiceOverEnabled else { return }
+    NSAccessibility.post(
+        element: NSApplication.shared,
+        notification: .announcementRequested,
+        userInfo: [
+            .announcement: text,
+            .priority: NSNumber(value: priority.rawValue)
+        ]
+    )
 }
 
 struct WindowTitleSafetyReviewView: View {
     let isCaptureEnabled: Bool
     let privacyMode: WindowTitlePrivacyMode
-    let blockedBundleCount: Int
+    let allowedBundleCount: Int
     let accessibilityIdentifier: String
     let manageAction: (() -> Void)?
 
     init(
         isCaptureEnabled: Bool,
         privacyMode: WindowTitlePrivacyMode,
-        blockedBundleCount: Int,
+        allowedBundleCount: Int,
         accessibilityIdentifier: String,
         manageAction: (() -> Void)? = nil
     ) {
         self.isCaptureEnabled = isCaptureEnabled
         self.privacyMode = privacyMode
-        self.blockedBundleCount = blockedBundleCount
+        self.allowedBundleCount = allowedBundleCount
         self.accessibilityIdentifier = accessibilityIdentifier
         self.manageAction = manageAction
     }
@@ -199,12 +237,12 @@ struct WindowTitleSafetyReviewView: View {
                     )
 
                     titleSafetyItem(
-                        titleKey: "privacy.capture.safety.blocked_title",
-                        value: blockedTitleAppStatusText,
-                        detail: blockedTitleAppDetailText,
-                        systemImage: blockedBundleCount == 0 ? "app.badge" : "eye.slash.fill",
-                        tone: blockedBundleCount == 0 ? .neutral : .success,
-                        accessibilityIdentifier: childIdentifier("blocked")
+                        titleKey: "privacy.capture.safety.allowed_title",
+                        value: allowedTitleAppStatusText,
+                        detail: allowedTitleAppDetailText,
+                        systemImage: allowedBundleCount == 0 ? "eye.slash" : "checkmark.shield",
+                        tone: allowedBundleCount == 0 ? .neutral : .success,
+                        accessibilityIdentifier: childIdentifier("allowed")
                     )
                 }
             }
@@ -227,7 +265,7 @@ struct WindowTitleSafetyReviewView: View {
                     )
                 }
                 .buttonStyle(.bordered)
-                .accessibilityIdentifier(childIdentifier("manageBlockedApps"))
+                .accessibilityIdentifier(childIdentifier("manageAllowedApps"))
             }
         } else {
             StatusPill(titleSafetyStatusText, systemImage: titleSafetyIconName, tone: titleSafetyTone)
@@ -291,23 +329,23 @@ struct WindowTitleSafetyReviewView: View {
         if !isCaptureEnabled {
             return L("privacy.capture.safety.status.app_only")
         }
-        if privacyMode == .raw && blockedBundleCount == 0 {
-            return L("privacy.capture.safety.status.review")
+        if allowedBundleCount == 0 {
+            return L("privacy.capture.safety.status.no_apps")
         }
-        if blockedBundleCount > 0 {
-            let key = blockedBundleCount == 1
-                ? "privacy.capture.safety.status.blocked_one"
-                : "privacy.capture.safety.status.blocked_many"
-            return String(format: L(key), blockedBundleCount)
-        }
-        return L("privacy.capture.safety.status.sanitized")
+        let key = allowedBundleCount == 1
+            ? "privacy.capture.safety.status.allowed_one"
+            : "privacy.capture.safety.status.allowed_many"
+        return String(format: L(key), allowedBundleCount)
     }
 
     private var titleSafetyIconName: String {
         if !isCaptureEnabled {
             return "eye.slash"
         }
-        if privacyMode == .raw && blockedBundleCount == 0 {
+        if allowedBundleCount == 0 {
+            return "app.badge"
+        }
+        if privacyMode == .raw {
             return "exclamationmark.triangle.fill"
         }
         return "checkmark.seal.fill"
@@ -317,7 +355,10 @@ struct WindowTitleSafetyReviewView: View {
         if !isCaptureEnabled {
             return .neutral
         }
-        if privacyMode == .raw && blockedBundleCount == 0 {
+        if allowedBundleCount == 0 {
+            return .neutral
+        }
+        if privacyMode == .raw {
             return .warning
         }
         return .success
@@ -327,24 +368,24 @@ struct WindowTitleSafetyReviewView: View {
         L(privacyMode.titleKey)
     }
 
-    private var blockedTitleAppStatusText: String {
-        if blockedBundleCount <= 0 {
-            return L("privacy.capture.safety.blocked_empty")
+    private var allowedTitleAppStatusText: String {
+        if allowedBundleCount <= 0 {
+            return L("privacy.capture.safety.allowed_empty")
         }
-        let key = blockedBundleCount == 1
-            ? "privacy.capture.safety.blocked_one"
-            : "privacy.capture.safety.blocked_many"
-        return String(format: L(key), blockedBundleCount)
+        let key = allowedBundleCount == 1
+            ? "privacy.capture.safety.allowed_one"
+            : "privacy.capture.safety.allowed_many"
+        return String(format: L(key), allowedBundleCount)
     }
 
-    private var blockedTitleAppDetailText: String {
-        if blockedBundleCount <= 0 {
-            return L("privacy.capture.safety.blocked_empty_detail")
+    private var allowedTitleAppDetailText: String {
+        if allowedBundleCount <= 0 {
+            return L("privacy.capture.safety.allowed_empty_detail")
         }
-        let key = blockedBundleCount == 1
-            ? "privacy.capture.safety.blocked_one_detail"
-            : "privacy.capture.safety.blocked_many_detail"
-        return String(format: L(key), blockedBundleCount)
+        let key = allowedBundleCount == 1
+            ? "privacy.capture.safety.allowed_one_detail"
+            : "privacy.capture.safety.allowed_many_detail"
+        return String(format: L(key), allowedBundleCount)
     }
 
     private func childIdentifier(_ suffix: String) -> String {

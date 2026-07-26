@@ -559,7 +559,7 @@ struct DashboardStatsView: View {
     private func statsOpenTodayButton(isPrimary: Bool) -> some View {
         if isPrimary {
             Button {
-                selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
+                selectedDashboardSectionRaw = DashboardView.Section.pendingReview.rawValue
             } label: {
                 statsActionLabel(L("dashboard.stats.review.open_today"), systemImage: "sun.max")
             }
@@ -569,7 +569,7 @@ struct DashboardStatsView: View {
             .accessibilityIdentifier("dashboard.stats.openToday")
         } else {
             Button {
-                selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
+                selectedDashboardSectionRaw = DashboardView.Section.pendingReview.rawValue
             } label: {
                 statsActionLabel(L("dashboard.stats.review.open_today"), systemImage: "sun.max")
             }
@@ -608,7 +608,7 @@ struct DashboardStatsView: View {
         if isPrimary {
             Button {
                 appState.trackingPaused = false
-                selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
+                selectedDashboardSectionRaw = DashboardView.Section.pendingReview.rawValue
             } label: {
                 statsActionLabel(L("dashboard.stats.review.resume_capture"), systemImage: "play.fill")
             }
@@ -619,7 +619,7 @@ struct DashboardStatsView: View {
         } else {
             Button {
                 appState.trackingPaused = false
-                selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
+                selectedDashboardSectionRaw = DashboardView.Section.pendingReview.rawValue
             } label: {
                 statsActionLabel(L("dashboard.stats.review.resume_capture"), systemImage: "play.fill")
             }
@@ -654,7 +654,7 @@ struct DashboardStatsView: View {
 
     private var openMarkersButton: some View {
         Button {
-            selectedDashboardSectionRaw = DashboardView.Section.markers.rawValue
+            selectedDashboardSectionRaw = DashboardView.Section.notes.rawValue
         } label: {
             statsActionLabel(L("dashboard.stats.review.open_markers"), systemImage: "note.text")
         }
@@ -665,7 +665,7 @@ struct DashboardStatsView: View {
 
     private var openLogSettingsButton: some View {
         Button {
-            AppWindowRouter.shared.open(.settings(.export))
+            AppWindowRouter.shared.openDashboard(destination: .integrations)
         } label: {
             statsActionLabel(L("dashboard.stats.review.open_log_settings"), systemImage: "gearshape")
         }
@@ -703,7 +703,7 @@ struct DashboardStatsView: View {
                 return
             }
         }
-        selectedDashboardSectionRaw = DashboardView.Section.reports.rawValue
+        selectedDashboardSectionRaw = DashboardView.Section.integrations.rawValue
     }
 
     private func showUnlabeledTimeline() {
@@ -947,7 +947,7 @@ struct DashboardStatsView: View {
     private func dataQualityPrimaryActionButton(stats: RangeStats) -> some View {
         if stats.summary.totalSeconds == 0 {
             Button {
-                selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
+                selectedDashboardSectionRaw = DashboardView.Section.pendingReview.rawValue
             } label: {
                 statsActionLabel(L("dashboard.stats.review.open_today"), systemImage: "sun.max")
             }

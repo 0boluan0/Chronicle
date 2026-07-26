@@ -4,26 +4,134 @@
 //
 
 import Foundation
-import SQLite3
+import SQLCipher
 
 // MARK: - Schema DAO
 
 extension DatabaseService {
     func openDatabaseIfNeeded() throws {
+        guard !context.archiveAccessDisabledAfterWipe else {
+            throw DatabaseError.archiveAccessDisabledAfterWipe
+        }
         if isInitialized {
             return
         }
 
-        try FileManager.default.createDirectory(at: appSupportURL, withIntermediateDirectories: true)
+        try SQLCipherDatabase.ensureTrustedDirectory(
+            at: appSupportURL,
+            trustedRoots: databasePathScope
+        )
+        try SQLCipherDatabase.ensureTrustedDirectory(
+            at: databaseURL.deletingLastPathComponent(),
+            trustedRoots: databasePathScope
+        )
+        if context.archiveLifecycleLock == nil {
+            context.archiveLifecycleLock = try SQLCipherDatabase.acquireArchiveLifecycleLock(
+                for: databaseURL,
+                mode: .shared,
+                trustedRoots: databasePathScope
+            )
+        }
+        guard let lifecycleLock = context.archiveLifecycleLock else {
+            throw DatabaseError.openFailed("The archive lifecycle lock was not retained.")
+        }
+        try SQLCipherDatabase.validateArchiveLifecycleLock(
+            lifecycleLock,
+            for: databaseURL,
+            trustedRoots: databasePathScope
+        )
+        try preOpenPreparation()
+        try SQLCipherDatabase.validateArchiveLifecycleLock(
+            lifecycleLock,
+            for: databaseURL,
+            trustedRoots: databasePathScope
+        )
 
-        var connection: OpaquePointer?
-        if sqlite3_open(databaseURL.path, &connection) != SQLITE_OK {
-            let message = sqliteErrorMessage(connection)
-            sqlite3_close(connection)
-            logSQLiteError(operation: "open", sql: nil, message: message)
-            throw DatabaseError.openFailed(message)
+        var inspectedPath = try SQLCipherDatabase.inspectPathState(
+            at: databaseURL,
+            trustedRoots: databasePathScope
+        )
+        let databaseFormat = inspectedPath.format
+        if databaseFormat == .empty {
+            throw DatabaseError.openFailed(
+                "The Chronicle database file exists but is empty. It was not replaced or initialized; restore a verified backup or move the empty file aside explicitly."
+            )
+        }
+        if databaseFormat == .missing {
+            // A canonical sidecar can contain committed encrypted pages even when the primary is
+            // temporarily absent. Reject it before key lookup so a missing Keychain item cannot
+            // be replaced and SQLite cannot create a new primary beside unowned recovery state.
+            try SQLCipherDatabase.requireNoCanonicalDatabaseSidecars(
+                for: databaseURL,
+                trustedRoots: databasePathScope
+            )
         }
 
+        let encryptionKey: Data
+        do {
+            // Never create a replacement key beside an existing encrypted/unknown archive.
+            // Pending migration artifacts are also key-bound recovery state. In particular, a
+            // pre-swap receipt can coexist with a plaintext canonical leaf, and a damaged
+            // namespace can leave the canonical leaf missing. Creating a new key in either state
+            // would poison recovery of the receipt-owned encrypted candidate.
+            let hasPendingMigrationArtifacts = try SQLCipherDatabase.hasMigrationArtifacts(
+                for: databaseURL,
+                trustedRoots: databasePathScope
+            )
+            encryptionKey = try databaseKeyProvider(
+                !hasPendingMigrationArtifacts
+                    && (databaseFormat == .missing || databaseFormat == .plaintextSQLite)
+            )
+        } catch {
+            throw DatabaseError.keyManagementFailed(error.localizedDescription)
+        }
+
+        if databaseFormat == .missing {
+            // Key lookup may create or unlock durable key state and can run arbitrary Keychain
+            // interaction. Close the observation gap before proceeding toward primary creation:
+            // a sidecar that appeared during that call belongs to an unverified archive state.
+            try SQLCipherDatabase.requireNoCanonicalDatabaseSidecars(
+                for: databaseURL,
+                trustedRoots: databasePathScope
+            )
+        }
+
+        try SQLCipherDatabase.requirePathState(
+            inspectedPath,
+            at: databaseURL,
+            trustedRoots: databasePathScope
+        )
+        try SQLCipherDatabase.validateArchiveLifecycleLock(
+            lifecycleLock,
+            for: databaseURL,
+            trustedRoots: databasePathScope
+        )
+
+        if databaseFormat == .plaintextSQLite {
+            try SQLCipherDatabase.migratePlaintextDatabaseInPlace(
+                at: databaseURL,
+                key: encryptionKey,
+                trustedRoots: databasePathScope
+            )
+            inspectedPath = try SQLCipherDatabase.inspectPathState(
+                at: databaseURL,
+                trustedRoots: databasePathScope
+            )
+            guard inspectedPath.format == .encryptedOrUnknown else {
+                throw DatabaseError.openFailed(
+                    "The migrated archive did not remain bound to an encrypted database leaf."
+                )
+            }
+        }
+
+        let opened = try SQLCipherDatabase.openEncryptedDatabase(
+            at: databaseURL,
+            key: encryptionKey,
+            createIfMissing: databaseFormat == .missing,
+            expectedPathState: inspectedPath,
+            trustedRoots: databasePathScope
+        )
+        let connection = opened.handle
         db = connection
         var initializationSucceeded = false
         defer {
@@ -32,14 +140,22 @@ extension DatabaseService {
                 self.db = nil
             }
         }
-        sqlite3_busy_timeout(connection, Self.busyTimeoutMillis)
-        AppLogger.log("Database opened at \(databaseURL.path)", category: "db")
+        AppLogger.log(
+            "Encrypted database opened at \(databaseURL.path) with SQLCipher \(opened.cipherVersion)",
+            category: "db"
+        )
+        try SQLCipherDatabase.validateArchiveLifecycleLock(
+            lifecycleLock,
+            for: databaseURL,
+            trustedRoots: databasePathScope
+        )
         try execute(sql: "PRAGMA journal_mode=WAL;")
         try createTablesIfNeeded()
         try cleanupStaleMigrationTableIfNeeded()
         if try needsWindowTitleMigration() {
             try migrateActivitiesWindowTitleNullable()
         }
+        try execute(sql: "PRAGMA foreign_keys=ON;")
         try runMigrationsIfNeeded()
         hasBundleIdColumn = (try? activitiesColumnExists("bundle_id")) ?? false
         hasRuleTagColumn = (try? activitiesColumnExists("rule_tag_id")) ?? false
@@ -55,6 +171,15 @@ extension DatabaseService {
         }
         try ensureDefaultTagsIfNeeded()
         try ensureDefaultAppMappingsIfNeeded()
+        try SQLCipherDatabase.removeVerifiedMigrationArtifacts(
+            for: databaseURL,
+            trustedRoots: databasePathScope
+        )
+        try SQLCipherDatabase.validateArchiveLifecycleLock(
+            lifecycleLock,
+            for: databaseURL,
+            trustedRoots: databasePathScope
+        )
         isInitialized = true
         initializationSucceeded = true
     }
@@ -249,6 +374,24 @@ extension DatabaseService {
             },
             SchemaMigration(id: "2026_05_app_mappings_tagging_mode") { [self] in
                 try migrateAddAppMappingsTaggingModeIfNeeded()
+            },
+            SchemaMigration(id: "2026_06_review_domain") { [self] in
+                try createReviewDomainTablesIfNeeded()
+            },
+            SchemaMigration(id: "2026_07_review_revision_leaf") { [self] in
+                try createReviewRevisionIndexesIfNeeded()
+            },
+            SchemaMigration(id: "2026_08_export_history") { [self] in
+                try createExportHistoryTableIfNeeded()
+            },
+            SchemaMigration(id: "2026_09_review_snapshot_tag_name") { [self] in
+                try migrateReviewSnapshotTagNameIfNeeded()
+            },
+            SchemaMigration(id: "2026_10_activity_split_aliases") { [self] in
+                try createActivitySplitAliasesTableIfNeeded()
+            },
+            SchemaMigration(id: "2026_11_work_block_structural_edits") { [self] in
+                try createWorkBlockStructuralEditsTableIfNeeded()
             }
         ]
 
@@ -272,6 +415,205 @@ extension DatabaseService {
         );
         """
         try execute(sql: sql)
+    }
+
+    func createReviewDomainTablesIfNeeded() throws {
+        try execute(sql: "BEGIN IMMEDIATE TRANSACTION;")
+        do {
+            try execute(sql: """
+            CREATE TABLE IF NOT EXISTS ReviewSnapshots (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                range_start INTEGER NOT NULL,
+                range_end INTEGER NOT NULL,
+                completed_at INTEGER NOT NULL,
+                overall_note TEXT,
+                checkpoint_after INTEGER NOT NULL,
+                revision_of_id INTEGER,
+                evidence_deleted_at INTEGER,
+                CHECK (range_end > range_start),
+                CHECK (checkpoint_after >= range_end),
+                FOREIGN KEY (revision_of_id) REFERENCES ReviewSnapshots(id) ON DELETE SET NULL
+            );
+            """)
+
+            try execute(sql: """
+            CREATE TABLE IF NOT EXISTS WorkBlocks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                start_time INTEGER NOT NULL,
+                end_time INTEGER NOT NULL,
+                source TEXT NOT NULL,
+                algorithm_version TEXT NOT NULL,
+                inferred_title TEXT NOT NULL,
+                inferred_tag_id INTEGER,
+                primary_app_name TEXT,
+                reviewed_snapshot_id INTEGER,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL,
+                CHECK (end_time > start_time),
+                CHECK (source IN ('inferred', 'manual')),
+                FOREIGN KEY (inferred_tag_id) REFERENCES Tags(id) ON DELETE SET NULL,
+                FOREIGN KEY (reviewed_snapshot_id) REFERENCES ReviewSnapshots(id) ON DELETE RESTRICT
+            );
+            """)
+
+            try execute(sql: """
+            CREATE TABLE IF NOT EXISTS WorkBlockOverrides (
+                work_block_id INTEGER PRIMARY KEY,
+                user_title TEXT,
+                user_start_time INTEGER,
+                user_end_time INTEGER,
+                tag_override_mode TEXT NOT NULL DEFAULT 'inherit',
+                user_tag_id INTEGER,
+                updated_at INTEGER NOT NULL,
+                CHECK (
+                    (user_start_time IS NULL AND user_end_time IS NULL)
+                    OR (user_start_time IS NOT NULL AND user_end_time IS NOT NULL AND user_end_time > user_start_time)
+                ),
+                CHECK (tag_override_mode IN ('inherit', 'set', 'cleared')),
+                CHECK (
+                    (tag_override_mode = 'set' AND user_tag_id IS NOT NULL)
+                    OR (tag_override_mode IN ('inherit', 'cleared') AND user_tag_id IS NULL)
+                ),
+                FOREIGN KEY (work_block_id) REFERENCES WorkBlocks(id) ON DELETE CASCADE,
+                FOREIGN KEY (user_tag_id) REFERENCES Tags(id) ON DELETE RESTRICT
+            );
+            """)
+
+            try createWorkBlockStructuralEditsTableIfNeeded()
+
+            try execute(sql: """
+            CREATE TABLE IF NOT EXISTS WorkBlockEvidence (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                work_block_id INTEGER NOT NULL,
+                activity_id INTEGER,
+                contribution_start INTEGER NOT NULL,
+                contribution_end INTEGER NOT NULL,
+                ordinal INTEGER NOT NULL,
+                CHECK (contribution_end > contribution_start),
+                UNIQUE (work_block_id, ordinal),
+                FOREIGN KEY (work_block_id) REFERENCES WorkBlocks(id) ON DELETE CASCADE,
+                FOREIGN KEY (activity_id) REFERENCES Activities(id) ON DELETE SET NULL
+            );
+            """)
+
+            try execute(sql: """
+            CREATE TABLE IF NOT EXISTS ReviewSnapshotBlocks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                snapshot_id INTEGER NOT NULL,
+                ordinal INTEGER NOT NULL,
+                source_work_block_id INTEGER,
+                start_time INTEGER NOT NULL,
+                end_time INTEGER NOT NULL,
+                title TEXT NOT NULL,
+                tag_id INTEGER,
+                tag_name TEXT,
+                source TEXT NOT NULL,
+                algorithm_version TEXT NOT NULL,
+                evidence_summary_json TEXT NOT NULL DEFAULT '[]',
+                CHECK (end_time > start_time),
+                CHECK (source IN ('inferred', 'manual')),
+                UNIQUE (snapshot_id, ordinal),
+                FOREIGN KEY (snapshot_id) REFERENCES ReviewSnapshots(id) ON DELETE CASCADE,
+                FOREIGN KEY (source_work_block_id) REFERENCES WorkBlocks(id) ON DELETE SET NULL,
+                FOREIGN KEY (tag_id) REFERENCES Tags(id) ON DELETE SET NULL
+            );
+            """)
+
+            try execute(sql: "CREATE INDEX IF NOT EXISTS idx_work_blocks_range ON WorkBlocks(start_time, end_time);")
+            try execute(sql: "CREATE INDEX IF NOT EXISTS idx_work_blocks_review_range ON WorkBlocks(reviewed_snapshot_id, start_time, end_time);")
+            try execute(sql: "CREATE INDEX IF NOT EXISTS idx_work_blocks_source ON WorkBlocks(source);")
+            try execute(sql: "CREATE INDEX IF NOT EXISTS idx_work_block_overrides_updated_at ON WorkBlockOverrides(updated_at);")
+            try execute(sql: "CREATE INDEX IF NOT EXISTS idx_work_block_evidence_activity_id ON WorkBlockEvidence(activity_id);")
+            try execute(sql: "CREATE INDEX IF NOT EXISTS idx_work_block_evidence_block_ordinal ON WorkBlockEvidence(work_block_id, ordinal);")
+            try execute(sql: "CREATE INDEX IF NOT EXISTS idx_review_snapshots_checkpoint ON ReviewSnapshots(checkpoint_after DESC);")
+            try execute(sql: "CREATE INDEX IF NOT EXISTS idx_review_snapshots_range ON ReviewSnapshots(range_start, range_end);")
+            try createReviewRevisionIndexesIfNeeded()
+            try execute(sql: "CREATE INDEX IF NOT EXISTS idx_review_snapshot_blocks_snapshot_ordinal ON ReviewSnapshotBlocks(snapshot_id, ordinal);")
+
+            try execute(sql: "COMMIT;")
+        } catch {
+            try? execute(sql: "ROLLBACK;")
+            throw error
+        }
+    }
+
+    /// A row in this table records user-authored block structure independently
+    /// from optional title, boundary, and tag overrides. Projection must never
+    /// erase or recombine a block carrying this marker.
+    func createWorkBlockStructuralEditsTableIfNeeded() throws {
+        try execute(sql: """
+        CREATE TABLE IF NOT EXISTS WorkBlockStructuralEdits (
+            work_block_id INTEGER PRIMARY KEY,
+            updated_at INTEGER NOT NULL,
+            FOREIGN KEY (work_block_id) REFERENCES WorkBlocks(id) ON DELETE CASCADE
+        );
+        """)
+    }
+
+    func createReviewRevisionIndexesIfNeeded() throws {
+        try execute(sql: """
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_review_snapshots_revision_parent
+        ON ReviewSnapshots(revision_of_id)
+        WHERE revision_of_id IS NOT NULL;
+        """)
+    }
+
+    func createExportHistoryTableIfNeeded() throws {
+        try execute(sql: "BEGIN IMMEDIATE TRANSACTION;")
+        do {
+            try execute(sql: """
+            CREATE TABLE IF NOT EXISTS ExportRecords (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                snapshot_id INTEGER,
+                format TEXT NOT NULL,
+                destination_path TEXT NOT NULL,
+                file_count INTEGER NOT NULL,
+                exported_at INTEGER NOT NULL,
+                status TEXT NOT NULL,
+                error_message TEXT,
+                CHECK (file_count >= 0),
+                CHECK (status IN ('succeeded', 'failed')),
+                FOREIGN KEY (snapshot_id) REFERENCES ReviewSnapshots(id) ON DELETE SET NULL
+            );
+            """)
+            try execute(sql: """
+            CREATE INDEX IF NOT EXISTS idx_export_records_exported_at
+            ON ExportRecords(exported_at DESC, id DESC);
+            """)
+            try execute(sql: "COMMIT;")
+        } catch {
+            try? execute(sql: "ROLLBACK;")
+            throw error
+        }
+    }
+
+    /// Keeps a durable edge for every evidence-preserving Activity split.
+    ///
+    /// The ids intentionally are not foreign keys. A frozen review snapshot can
+    /// retain the id of an Activity row after that row is deleted, and resolving
+    /// it must still be able to walk through the historical edge to a surviving
+    /// descendant segment.
+    func createActivitySplitAliasesTableIfNeeded() throws {
+        try execute(sql: "BEGIN IMMEDIATE TRANSACTION;")
+        do {
+            try execute(sql: """
+            CREATE TABLE IF NOT EXISTS ActivitySplitAliases (
+                source_activity_id INTEGER NOT NULL,
+                child_activity_id INTEGER NOT NULL PRIMARY KEY,
+                split_at INTEGER NOT NULL,
+                created_at INTEGER NOT NULL,
+                CHECK (source_activity_id != child_activity_id)
+            );
+            """)
+            try execute(sql: """
+            CREATE INDEX IF NOT EXISTS idx_activity_split_aliases_source
+            ON ActivitySplitAliases(source_activity_id, split_at, child_activity_id);
+            """)
+            try execute(sql: "COMMIT;")
+        } catch {
+            try? execute(sql: "ROLLBACK;")
+            throw error
+        }
     }
 
     func fetchAppliedMigrationIds() throws -> Set<String> {
@@ -436,6 +778,25 @@ extension DatabaseService {
         return false
     }
 
+    func reviewSnapshotBlocksColumnExists(_ name: String) throws -> Bool {
+        let sql = "PRAGMA table_info(ReviewSnapshotBlocks);"
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "prepare", sql: sql, message: message)
+            throw DatabaseError.prepareFailed(message, sql: sql)
+        }
+        defer { sqlite3_finalize(statement) }
+
+        while sqlite3_step(statement) == SQLITE_ROW {
+            guard let nameC = sqlite3_column_text(statement, 1) else { continue }
+            if String(cString: nameC) == name {
+                return true
+            }
+        }
+        return false
+    }
+
     func migrateAddBundleIdColumnIfNeeded() throws {
         if try activitiesColumnExists("bundle_id") {
             hasBundleIdColumn = true
@@ -495,6 +856,35 @@ extension DatabaseService {
         AppLogger.log("Migration: adding AppMappings.tagging_mode", category: "db")
         try execute(sql: "ALTER TABLE AppMappings ADD COLUMN tagging_mode TEXT NOT NULL DEFAULT 'auto';")
         hasAppMappingsTaggingModeColumn = true
+    }
+
+    /// Adds the denormalized label that makes a reviewed block semantically
+    /// immutable. Existing rows get the best available label from the current
+    /// tag table; future rows always write the label at snapshot time.
+    func migrateReviewSnapshotTagNameIfNeeded() throws {
+        try execute(sql: "BEGIN IMMEDIATE TRANSACTION;")
+        do {
+            if !(try reviewSnapshotBlocksColumnExists("tag_name")) {
+                AppLogger.log(
+                    "Migration: adding ReviewSnapshotBlocks.tag_name",
+                    category: "db"
+                )
+                try execute(sql: "ALTER TABLE ReviewSnapshotBlocks ADD COLUMN tag_name TEXT;")
+            }
+            try execute(sql: """
+            UPDATE ReviewSnapshotBlocks
+            SET tag_name = (
+                SELECT Tags.name
+                FROM Tags
+                WHERE Tags.id = ReviewSnapshotBlocks.tag_id
+            )
+            WHERE tag_name IS NULL AND tag_id IS NOT NULL;
+            """)
+            try execute(sql: "COMMIT;")
+        } catch {
+            try? execute(sql: "ROLLBACK;")
+            throw error
+        }
     }
 
     func ensureDefaultTagsIfNeeded() throws {

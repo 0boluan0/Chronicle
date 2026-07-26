@@ -22,11 +22,29 @@ final class AXWindowTitleProvider: WindowTitleProviding {
 
     private func resolveApp(bundleId: String?) -> NSRunningApplication? {
         let frontmost = NSWorkspace.shared.frontmostApplication
-        guard let bundleId else { return frontmost }
-        if frontmost?.bundleIdentifier == bundleId {
+        return Self.resolveApplication(
+            requestedBundleId: bundleId,
+            frontmost: frontmost,
+            bundleIdentifier: { $0.bundleIdentifier },
+            matchingApplications: { NSRunningApplication.runningApplications(withBundleIdentifier: $0) }
+        )
+    }
+
+    /// Resolves only the application the caller asked for. Falling back to an unrelated
+    /// frontmost application could capture its title under an allowlisted bundle ID.
+    static func resolveApplication<Application>(
+        requestedBundleId: String?,
+        frontmost: Application?,
+        bundleIdentifier: (Application) -> String?,
+        matchingApplications: (String) -> [Application]
+    ) -> Application? {
+        guard let requestedBundleId else { return frontmost }
+        if let frontmost, bundleIdentifier(frontmost) == requestedBundleId {
             return frontmost
         }
-        return NSRunningApplication.runningApplications(withBundleIdentifier: bundleId).first ?? frontmost
+        return matchingApplications(requestedBundleId).first {
+            bundleIdentifier($0) == requestedBundleId
+        }
     }
 
     private func windowTitle(for app: NSRunningApplication) -> String? {

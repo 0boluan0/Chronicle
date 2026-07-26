@@ -9,7 +9,7 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
-private struct WindowTitleBlocklistRemoval {
+private struct WindowTitleAllowlistRemoval {
     let bundleId: String
     let name: String
 }
@@ -19,13 +19,13 @@ struct GeneralPreferencesView: View {
     @EnvironmentObject private var languageManager: AppLanguageManager
 
     @State private var allowlistSearch = ""
-    @State private var windowTitleBlocklistSearch = ""
+    @State private var windowTitleAllowlistSearch = ""
     @State private var trackingQualityExpanded = false
     @State private var idleSettingsExpanded = false
     @State private var launchAtLoginMessage: String?
     @State private var captureProfileStatus: StatusMessage?
-    @State private var windowTitleBlocklistStatus: StatusMessage?
-    @State private var pendingWindowTitleBlocklistRemoval: WindowTitleBlocklistRemoval?
+    @State private var windowTitleAllowlistStatus: StatusMessage?
+    @State private var pendingWindowTitleAllowlistRemoval: WindowTitleAllowlistRemoval?
 
     var body: some View {
         PreferencesPageLayout(
@@ -48,13 +48,13 @@ struct GeneralPreferencesView: View {
             AccessibilityPermissionManager.shared.syncAppState(appState)
         }
         .confirmationDialog(
-            L("preferences.window_titles.blocklist.remove_confirm.title"),
-            isPresented: windowTitleBlocklistRemovalConfirmationBinding,
+            L("preferences.window_titles.allowlist.remove_confirm.title"),
+            isPresented: windowTitleAllowlistRemovalConfirmationBinding,
             titleVisibility: .visible
         ) {
-            windowTitleBlocklistRemovalConfirmationActions
+            windowTitleAllowlistRemovalConfirmationActions
         } message: {
-            Text(windowTitleBlocklistRemovalConfirmationMessage)
+            Text(windowTitleAllowlistRemovalConfirmationMessage)
         }
     }
 
@@ -141,7 +141,7 @@ struct GeneralPreferencesView: View {
             }
             .buttonStyle(.borderedProminent)
             .accessibilityIdentifier("preferences.readiness.action.recommended")
-        } else if appState.windowTitleCaptureEnabled && !appState.accessibilityAuthorized {
+        } else if appState.windowTitleCaptureRequiresAccessibility && !appState.accessibilityAuthorized {
             Button {
                 AccessibilityPermissionManager.shared.requestPermissionAndOpenSystemSettings()
             } label: {
@@ -284,17 +284,6 @@ struct GeneralPreferencesView: View {
                         .font(DesignSystem.Typography.caption)
                         .foregroundColor(DesignSystem.Colors.secondaryText)
                 }
-
-                Divider()
-
-                preferenceToggleSetting(
-                    systemImage: "dock.rectangle",
-                    title: "preferences.entry_fallback.show_dock_icon",
-                    detail: "preferences.entry_fallback.note",
-                    isOn: $appState.showDockIcon,
-                    onTone: .info,
-                    identifier: "preferences.general.dockEntry"
-                )
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -359,7 +348,7 @@ struct GeneralPreferencesView: View {
                     identifier: "preferences.general.languageHeader"
                 )
 
-                Picker("preferences.language.label", selection: $languageManager.currentLanguage) {
+                Picker("preferences.language.label", selection: languageSelectionBinding) {
                     Text("language.english").tag("en")
                     Text("language.zh_hans").tag("zh-Hans")
                 }
@@ -368,6 +357,18 @@ struct GeneralPreferencesView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+
+    private var languageSelectionBinding: Binding<String> {
+        Binding(
+            get: { languageManager.currentLanguage },
+            set: { requestedLanguage in
+                DispatchQueue.main.async {
+                    guard languageManager.currentLanguage != requestedLanguage else { return }
+                    languageManager.currentLanguage = requestedLanguage
+                }
+            }
+        )
     }
 
     private var advancedSection: some View {
@@ -707,13 +708,13 @@ struct GeneralPreferencesView: View {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
                 windowTitlePrivacyPicker
 
-                if appState.windowTitleCaptureEnabled && !appState.accessibilityAuthorized {
+                if appState.windowTitleCaptureRequiresAccessibility && !appState.accessibilityAuthorized {
                     windowTitlePermissionCard
                 }
 
                 Divider()
 
-                windowTitleBlocklistPanel
+                windowTitleAllowlistPanel
             }
         }
         .accessibilityIdentifier("preferences.windowTitles.detailPanel")
@@ -771,20 +772,20 @@ struct GeneralPreferencesView: View {
         .accessibilityIdentifier("preferences.windowTitles.permissionCard")
     }
 
-    private var windowTitleBlocklistPanel: some View {
+    private var windowTitleAllowlistPanel: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            Text("preferences.window_titles.blocklist")
+            Text("preferences.window_titles.allowlist")
                 .font(.subheadline.weight(.semibold))
                 .foregroundColor(DesignSystem.Colors.primaryText)
 
             preferencesSearchField(
-                "preferences.window_titles.blocklist.search",
-                text: $windowTitleBlocklistSearch,
-                accessibilityIdentifier: "preferences.windowTitles.blocklistSearch",
-                clearAccessibilityIdentifier: "preferences.windowTitles.clearBlocklistSearch"
+                "preferences.window_titles.allowlist.search",
+                text: $windowTitleAllowlistSearch,
+                accessibilityIdentifier: "preferences.windowTitles.allowlistSearch",
+                clearAccessibilityIdentifier: "preferences.windowTitles.clearAllowlistSearch"
             )
 
-            blockedWindowTitleAppsList
+            allowedWindowTitleAppsList
 
             LazyVGrid(
                 columns: adaptiveColumns(minimum: 220, spacing: DesignSystem.Spacing.sm),
@@ -792,21 +793,22 @@ struct GeneralPreferencesView: View {
                 spacing: DesignSystem.Spacing.sm
             ) {
                 Button {
-                    addWindowTitleBlockedApp()
+                    addWindowTitleAllowedApp()
                 } label: {
-                    generalActionLabel(L("preferences.window_titles.blocklist.add"), systemImage: "plus")
+                    generalActionLabel(L("preferences.window_titles.allowlist.add"), systemImage: "plus")
                 }
                 .buttonStyle(.bordered)
+                .accessibilityIdentifier("preferences.windowTitles.allowlistAdd")
 
-                Text("preferences.window_titles.blocklist.note")
+                Text("preferences.window_titles.allowlist.note")
                     .font(DesignSystem.Typography.caption)
                     .foregroundColor(DesignSystem.Colors.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
             StatusBannerView(
-                status: windowTitleBlocklistStatus,
-                accessibilityIdentifier: "preferences.windowTitles.blocklistStatus"
+                status: windowTitleAllowlistStatus,
+                accessibilityIdentifier: "preferences.windowTitles.allowlistStatus"
             )
         }
     }
@@ -993,28 +995,28 @@ struct GeneralPreferencesView: View {
         }
     }
 
-    private var blockedWindowTitleAppsList: some View {
+    private var allowedWindowTitleAppsList: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-                if windowTitleBlocklistItems.isEmpty {
-                    windowTitleBlocklistEmptyGuidance
-                } else if filteredWindowTitleBlocklistItems.isEmpty {
+                if windowTitleAllowlistItems.isEmpty {
+                    windowTitleAllowlistEmptyGuidance
+                } else if filteredWindowTitleAllowlistItems.isEmpty {
                     preferencesInlineEmptyState(
-                        titleKey: "preferences.window_titles.blocklist.no_results",
-                        detailKey: "preferences.window_titles.blocklist.no_results_detail",
+                        titleKey: "preferences.window_titles.allowlist.no_results",
+                        detailKey: "preferences.window_titles.allowlist.no_results_detail",
                         systemImage: "magnifyingglass",
                         tone: .neutral,
-                        accessibilityIdentifier: "preferences.windowTitles.blocklistNoResults"
+                        accessibilityIdentifier: "preferences.windowTitles.allowlistNoResults"
                     )
                 } else {
-                    ForEach(filteredWindowTitleBlocklistItems) { item in
+                    ForEach(filteredWindowTitleAllowlistItems) { item in
                         compactAppRow(
                             item: item,
-                            detailKey: "preferences.window_titles.blocklist.row_detail",
-                            removeLabelKey: "preferences.window_titles.blocklist.allow_title_capture",
-                            removeSystemImage: "text.viewfinder"
+                            detailKey: "preferences.window_titles.allowlist.row_detail",
+                            removeLabelKey: "preferences.window_titles.allowlist.stop_title_capture",
+                            removeSystemImage: "minus.circle"
                         ) {
-                            pendingWindowTitleBlocklistRemoval = WindowTitleBlocklistRemoval(
+                            pendingWindowTitleAllowlistRemoval = WindowTitleAllowlistRemoval(
                                 bundleId: item.bundleId,
                                 name: item.name
                             )
@@ -1028,14 +1030,14 @@ struct GeneralPreferencesView: View {
         .frame(maxHeight: 180)
     }
 
-    private var windowTitleBlocklistEmptyGuidance: some View {
+    private var windowTitleAllowlistEmptyGuidance: some View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
             preferencesInlineEmptyState(
-                titleKey: "preferences.window_titles.blocklist.empty",
-                detailKey: "preferences.window_titles.blocklist.empty_detail",
-                systemImage: "text.viewfinder",
+                titleKey: "preferences.window_titles.allowlist.empty",
+                detailKey: "preferences.window_titles.allowlist.empty_detail",
+                systemImage: "app.badge",
                 tone: .info,
-                accessibilityIdentifier: "preferences.windowTitles.blocklistEmpty"
+                accessibilityIdentifier: "preferences.windowTitles.allowlistEmpty"
             )
         }
     }
@@ -1099,7 +1101,7 @@ struct GeneralPreferencesView: View {
         if isDailyUseReady {
             return "preferences.readiness.headline.ready"
         }
-        if appState.windowTitleCaptureEnabled && !appState.accessibilityAuthorized {
+        if appState.windowTitleCaptureRequiresAccessibility && !appState.accessibilityAuthorized {
             return "preferences.readiness.headline.permission"
         }
         if !usesCleanTimelineDefaults {
@@ -1112,7 +1114,7 @@ struct GeneralPreferencesView: View {
         if isDailyUseReady {
             return "preferences.readiness.detail.ready"
         }
-        if appState.windowTitleCaptureEnabled && !appState.accessibilityAuthorized {
+        if appState.windowTitleCaptureRequiresAccessibility && !appState.accessibilityAuthorized {
             return "preferences.readiness.detail.permission"
         }
         if !usesCleanTimelineDefaults {
@@ -1125,7 +1127,7 @@ struct GeneralPreferencesView: View {
         if isDailyUseReady {
             return L("preferences.readiness.status.ready")
         }
-        if appState.windowTitleCaptureEnabled && !appState.accessibilityAuthorized {
+        if appState.windowTitleCaptureRequiresAccessibility && !appState.accessibilityAuthorized {
             return L("preferences.readiness.status.permission")
         }
         if !usesCleanTimelineDefaults {
@@ -1138,7 +1140,7 @@ struct GeneralPreferencesView: View {
         if isDailyUseReady {
             return .success
         }
-        if appState.windowTitleCaptureEnabled && !appState.accessibilityAuthorized {
+        if appState.windowTitleCaptureRequiresAccessibility && !appState.accessibilityAuthorized {
             return .warning
         }
         if !usesCleanTimelineDefaults {
@@ -1151,7 +1153,7 @@ struct GeneralPreferencesView: View {
         if isDailyUseReady {
             return "checkmark.seal.fill"
         }
-        if appState.windowTitleCaptureEnabled && !appState.accessibilityAuthorized {
+        if appState.windowTitleCaptureRequiresAccessibility && !appState.accessibilityAuthorized {
             return "exclamationmark.triangle.fill"
         }
         if !usesCleanTimelineDefaults {
@@ -1163,7 +1165,7 @@ struct GeneralPreferencesView: View {
     private var isDailyUseReady: Bool {
         appState.launchAtLoginEnabled &&
         usesCleanTimelineDefaults &&
-        (!appState.windowTitleCaptureEnabled || appState.accessibilityAuthorized)
+        (!appState.windowTitleCaptureRequiresAccessibility || appState.accessibilityAuthorized)
     }
 
     private var startupSummaryText: String {
@@ -1181,13 +1183,11 @@ struct GeneralPreferencesView: View {
     }
 
     private var entrySummaryText: String {
-        appState.showDockIcon
-            ? L("preferences.status.dock_backup")
-            : L("preferences.status.menu_bar")
+        L("preferences.status.dynamic_dock")
     }
 
     private var entryTone: DesignSystem.StatusTone {
-        appState.showDockIcon ? .info : .neutral
+        .info
     }
 
     private var selfTrackingSummaryText: String {
@@ -1208,6 +1208,9 @@ struct GeneralPreferencesView: View {
         if !appState.windowTitleCaptureEnabled {
             return L("privacy.status.off")
         }
+        if appState.windowTitleAllowedBundleIDs.isEmpty {
+            return L("privacy.status.no_apps_allowed")
+        }
         if !appState.accessibilityAuthorized {
             return L("privacy.status.needs_permission")
         }
@@ -1216,6 +1219,9 @@ struct GeneralPreferencesView: View {
 
     private var windowTitleTone: DesignSystem.StatusTone {
         if !appState.windowTitleCaptureEnabled {
+            return .neutral
+        }
+        if appState.windowTitleAllowedBundleIDs.isEmpty {
             return .neutral
         }
         if !appState.accessibilityAuthorized {
@@ -1227,6 +1233,9 @@ struct GeneralPreferencesView: View {
     private var windowTitleIconName: String {
         if !appState.windowTitleCaptureEnabled {
             return "pause.circle"
+        }
+        if appState.windowTitleAllowedBundleIDs.isEmpty {
+            return "app.badge"
         }
         if !appState.accessibilityAuthorized {
             return "exclamationmark.triangle.fill"
@@ -1255,7 +1264,7 @@ struct GeneralPreferencesView: View {
     }
 
     private var privacyDepthSummaryText: String {
-        if !appState.windowTitleCaptureEnabled {
+        if !appState.windowTitleCaptureEnabled || appState.windowTitleAllowedBundleIDs.isEmpty {
             return L("preferences.daily_use.status.app_only")
         }
         if !appState.accessibilityAuthorized {
@@ -1265,7 +1274,7 @@ struct GeneralPreferencesView: View {
     }
 
     private var privacyDepthTone: DesignSystem.StatusTone {
-        if !appState.windowTitleCaptureEnabled {
+        if !appState.windowTitleCaptureEnabled || appState.windowTitleAllowedBundleIDs.isEmpty {
             return .neutral
         }
         if !appState.accessibilityAuthorized {
@@ -1275,7 +1284,7 @@ struct GeneralPreferencesView: View {
     }
 
     private var privacyDepthIconName: String {
-        if !appState.windowTitleCaptureEnabled {
+        if !appState.windowTitleCaptureEnabled || appState.windowTitleAllowedBundleIDs.isEmpty {
             return "lock.shield"
         }
         if !appState.accessibilityAuthorized {
@@ -1493,7 +1502,7 @@ struct GeneralPreferencesView: View {
             get: { appState.windowTitleCaptureEnabled },
             set: { newValue in
                 appState.windowTitleCaptureEnabled = newValue
-                if newValue {
+                if newValue && !appState.windowTitleAllowedBundleIDs.isEmpty {
                     _ = AccessibilityPermissionManager.shared.requestPermission(prompt: true)
                 }
                 AccessibilityPermissionManager.shared.syncAppState(appState)
@@ -2166,18 +2175,18 @@ struct GeneralPreferencesView: View {
         }
     }
 
-    private var windowTitleBlocklistItems: [AllowlistItem] {
-        appState.windowTitleBlockedBundleIDs.compactMap { bundleId in
+    private var windowTitleAllowlistItems: [AllowlistItem] {
+        appState.windowTitleAllowedBundleIDs.compactMap { bundleId in
             let info = resolveAppInfo(bundleId: bundleId)
             return AllowlistItem(bundleId: bundleId, name: info.name, icon: info.icon)
         }
         .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
     }
 
-    private var filteredWindowTitleBlocklistItems: [AllowlistItem] {
-        let search = windowTitleBlocklistSearch.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard !search.isEmpty else { return windowTitleBlocklistItems }
-        return windowTitleBlocklistItems.filter {
+    private var filteredWindowTitleAllowlistItems: [AllowlistItem] {
+        let search = windowTitleAllowlistSearch.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !search.isEmpty else { return windowTitleAllowlistItems }
+        return windowTitleAllowlistItems.filter {
             $0.name.lowercased().contains(search) || $0.bundleId.lowercased().contains(search)
         }
     }
@@ -2236,7 +2245,7 @@ struct GeneralPreferencesView: View {
         appState.idleSuppressedBundleIDs.removeAll { $0 == bundleId }
     }
 
-    private func addWindowTitleBlockedApp() {
+    private func addWindowTitleAllowedApp() {
         let panel = NSOpenPanel()
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
@@ -2246,54 +2255,54 @@ struct GeneralPreferencesView: View {
             guard response == .OK, let url = panel.url else { return }
             guard let bundle = Bundle(url: url), let bundleId = bundle.bundleIdentifier else { return }
             DispatchQueue.main.async {
-                if !appState.windowTitleBlockedBundleIDs.contains(bundleId) {
-                    appState.windowTitleBlockedBundleIDs.append(bundleId)
+                if !appState.windowTitleAllowedBundleIDs.contains(bundleId) {
+                    appState.windowTitleAllowedBundleIDs.append(bundleId)
                 }
             }
         }
     }
 
-    private func removeWindowTitleBlockedApp(bundleId: String) {
-        appState.windowTitleBlockedBundleIDs.removeAll { $0 == bundleId }
+    private func removeWindowTitleAllowedApp(bundleId: String) {
+        appState.windowTitleAllowedBundleIDs.removeAll { $0 == bundleId }
     }
 
-    private var windowTitleBlocklistRemovalConfirmationBinding: Binding<Bool> {
+    private var windowTitleAllowlistRemovalConfirmationBinding: Binding<Bool> {
         Binding(
-            get: { pendingWindowTitleBlocklistRemoval != nil },
+            get: { pendingWindowTitleAllowlistRemoval != nil },
             set: { isPresented in
                 if !isPresented {
-                    pendingWindowTitleBlocklistRemoval = nil
+                    pendingWindowTitleAllowlistRemoval = nil
                 }
             }
         )
     }
 
     @ViewBuilder
-    private var windowTitleBlocklistRemovalConfirmationActions: some View {
-        if let pendingWindowTitleBlocklistRemoval {
-            Button(L("preferences.window_titles.blocklist.remove_confirm.action"), role: .destructive) {
-                removeWindowTitleBlockedApp(bundleId: pendingWindowTitleBlocklistRemoval.bundleId)
-                windowTitleBlocklistStatus = StatusMessage(
+    private var windowTitleAllowlistRemovalConfirmationActions: some View {
+        if let pendingWindowTitleAllowlistRemoval {
+            Button(L("preferences.window_titles.allowlist.remove_confirm.action"), role: .destructive) {
+                removeWindowTitleAllowedApp(bundleId: pendingWindowTitleAllowlistRemoval.bundleId)
+                windowTitleAllowlistStatus = StatusMessage(
                     text: String(
-                        format: L("preferences.window_titles.blocklist.remove_confirm.removed"),
-                        pendingWindowTitleBlocklistRemoval.name
+                        format: L("preferences.window_titles.allowlist.remove_confirm.removed"),
+                        pendingWindowTitleAllowlistRemoval.name
                     ),
                     isError: false
                 )
-                self.pendingWindowTitleBlocklistRemoval = nil
+                self.pendingWindowTitleAllowlistRemoval = nil
             }
         }
 
         Button(L("actions.cancel"), role: .cancel) {
-            pendingWindowTitleBlocklistRemoval = nil
+            pendingWindowTitleAllowlistRemoval = nil
         }
     }
 
-    private var windowTitleBlocklistRemovalConfirmationMessage: String {
-        guard let pendingWindowTitleBlocklistRemoval else { return "" }
+    private var windowTitleAllowlistRemovalConfirmationMessage: String {
+        guard let pendingWindowTitleAllowlistRemoval else { return "" }
         return String(
-            format: L("preferences.window_titles.blocklist.remove_confirm.message"),
-            pendingWindowTitleBlocklistRemoval.name
+            format: L("preferences.window_titles.allowlist.remove_confirm.message"),
+            pendingWindowTitleAllowlistRemoval.name
         )
     }
 

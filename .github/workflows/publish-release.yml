@@ -1,0 +1,943 @@
+name: Publish Verified Candidate
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Exact signed candidate tag to publish (for example v1.1.0)"
+        required: true
+        type: string
+      staging_run_id:
+        description: "Successful Release DMG workflow run ID that produced the candidate artifact"
+        required: true
+        type: string
+      staging_run_attempt:
+        description: "Exact successful staging run attempt containing the candidate artifact"
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  # GitHub concurrency groups are repository-scoped. Serialize every Chronicle
+  # publication, across all tags, so cooperative release writers cannot overlap.
+  group: chronicle-release-publication
+  cancel-in-progress: false
+
+jobs:
+  validate-candidate:
+    runs-on: ubuntu-latest
+    environment: chronicle-release-publish
+    permissions:
+      actions: read
+      contents: read
+    env:
+      RELEASE_TAG: ${{ inputs.release_tag }}
+      STAGING_RUN_ID: ${{ inputs.staging_run_id }}
+      STAGING_RUN_ATTEMPT_INPUT: ${{ inputs.staging_run_attempt }}
+      TRUSTED_WORKFLOW_SHA: ${{ github.workflow_sha }}
+      TRUSTED_WORKFLOW_REF: ${{ github.workflow_ref }}
+    outputs:
+      publish_ready_artifact: ${{ steps.ready.outputs.publish_ready_artifact }}
+      candidate_artifact: ${{ steps.ready.outputs.candidate_artifact }}
+      candidate_artifact_id: ${{ steps.ready.outputs.candidate_artifact_id }}
+      candidate_artifact_digest: ${{ steps.ready.outputs.candidate_artifact_digest }}
+      manifest_sha256: ${{ steps.ready.outputs.manifest_sha256 }}
+      release_tag: ${{ steps.ready.outputs.release_tag }}
+      source_commit: ${{ steps.ready.outputs.source_commit }}
+      staging_run_id: ${{ steps.ready.outputs.staging_run_id }}
+      staging_run_attempt: ${{ steps.ready.outputs.staging_run_attempt }}
+      staging_head_sha: ${{ steps.ready.outputs.staging_head_sha }}
+      staging_workflow_ref: ${{ steps.ready.outputs.staging_workflow_ref }}
+      staging_workflow_sha: ${{ steps.ready.outputs.staging_workflow_sha }}
+      dmg_name: ${{ steps.ready.outputs.dmg_name }}
+      dmg_size: ${{ steps.ready.outputs.dmg_size }}
+      dmg_sha256: ${{ steps.ready.outputs.dmg_sha256 }}
+      checksum_name: ${{ steps.ready.outputs.checksum_name }}
+      checksum_size: ${{ steps.ready.outputs.checksum_size }}
+      checksum_sha256: ${{ steps.ready.outputs.checksum_sha256 }}
+      notes_size: ${{ steps.ready.outputs.notes_size }}
+      notes_sha256: ${{ steps.ready.outputs.notes_sha256 }}
+      metadata_size: ${{ steps.ready.outputs.metadata_size }}
+      metadata_sha256: ${{ steps.ready.outputs.metadata_sha256 }}
+      prerelease: ${{ steps.ready.outputs.prerelease }}
+      make_latest: ${{ steps.ready.outputs.make_latest }}
+    steps:
+      - name: Restrict validation dispatch to protected main
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_EVENT_NAME" != "workflow_dispatch" || "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "Publication validation must be manually dispatched from refs/heads/main." >&2
+            exit 1
+          fi
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$ ]] || {
+            echo "release_tag must be a safe semantic-version tag." >&2
+            exit 1
+          }
+          [[ "$STAGING_RUN_ID" =~ ^[1-9][0-9]*$ && "$STAGING_RUN_ATTEMPT_INPUT" =~ ^[1-9][0-9]*$ ]] || {
+            echo "staging_run_id and staging_run_attempt must be positive integers." >&2
+            exit 1
+          }
+
+      - name: Checkout independent trusted publication tools
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          ref: ${{ github.workflow_sha }}
+          path: trusted-tools
+          persist-credentials: false
+
+      - name: Verify trusted workflow and tool provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_ref="${GITHUB_REPOSITORY}/.github/workflows/publish-release.yml@refs/heads/main"
+          [[ "$TRUSTED_WORKFLOW_REF" == "$expected_ref" ]] || {
+            echo "Unexpected trusted workflow ref: ${TRUSTED_WORKFLOW_REF}" >&2
+            exit 1
+          }
+          [[ "$TRUSTED_WORKFLOW_SHA" =~ ^[0-9a-f]{40,64}$ && "$TRUSTED_WORKFLOW_SHA" == "$GITHUB_SHA" ]] || {
+            echo "The workflow SHA is not the protected main dispatch SHA." >&2
+            exit 1
+          }
+          [[ "$(git -C trusted-tools rev-parse HEAD)" == "$TRUSTED_WORKFLOW_SHA" ]] || {
+            echo "Trusted-tools checkout does not match the workflow SHA." >&2
+            exit 1
+          }
+          git -C trusted-tools show-ref --verify --quiet refs/remotes/origin/main || {
+            echo "Trusted origin/main is unavailable." >&2
+            exit 1
+          }
+          git -C trusted-tools merge-base --is-ancestor "$TRUSTED_WORKFLOW_SHA" refs/remotes/origin/main || {
+            echo "Trusted workflow SHA is not on protected main history." >&2
+            exit 1
+          }
+          for path in \
+            trusted-tools/script/support/release_candidate_manifest.rb \
+            trusted-tools/script/support/verify_clean_account_release_attestation.rb; do
+            [[ -f "$path" && ! -L "$path" ]] || {
+              echo "Trusted publication tool is missing or unsafe: ${path}" >&2
+              exit 1
+            }
+          done
+
+      - name: Resolve exact candidate and staging provenance
+        id: provenance
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          run_json="$RUNNER_TEMP/chronicle-staging-run.json"
+          artifact_json="$RUNNER_TEMP/chronicle-staging-artifacts.json"
+          provenance_env="$RUNNER_TEMP/chronicle-staging-provenance.env"
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${STAGING_RUN_ID}" > "$run_json"
+          candidate_artifact_name="chronicle-release-candidate-${RELEASE_TAG}-${STAGING_RUN_ATTEMPT_INPUT}"
+          gh api \
+            "repos/${GITHUB_REPOSITORY}/actions/runs/${STAGING_RUN_ID}/artifacts?per_page=100&name=${candidate_artifact_name}" \
+            > "$artifact_json"
+          remote_tag_sha="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${RELEASE_TAG}" --jq '.sha')"
+          [[ "$remote_tag_sha" =~ ^[0-9a-f]{40,64}$ ]] || {
+            echo "Remote release tag did not resolve to a full commit ID." >&2
+            exit 1
+          }
+          local_tag_sha="$(git -C trusted-tools rev-parse "refs/tags/${RELEASE_TAG}^{commit}")"
+          [[ "$local_tag_sha" == "$remote_tag_sha" ]] || {
+            echo "Local and remote release tag commits differ." >&2
+            exit 1
+          }
+          git -C trusted-tools merge-base --is-ancestor "$remote_tag_sha" refs/remotes/origin/main || {
+            echo "Candidate source is outside protected main history." >&2
+            exit 1
+          }
+
+          ruby -rjson -e '
+            run = JSON.parse(File.binread(ARGV.fetch(0)))
+            artifact_response = JSON.parse(File.binread(ARGV.fetch(1)))
+            expected_id = Integer(ARGV.fetch(2), 10)
+            expected_attempt = Integer(ARGV.fetch(3), 10)
+            expected_repo = ARGV.fetch(4)
+            expected_tag = ARGV.fetch(5)
+            release_sha = ARGV.fetch(6)
+            artifact_name = ARGV.fetch(7)
+            abort "staging run ID mismatch" unless run["id"] == expected_id
+            abort "staging run repository mismatch" unless run.dig("repository", "full_name") == expected_repo
+            abort "staging run used the wrong workflow" unless run["path"] == ".github/workflows/release.yml"
+            abort "staging run is not complete and successful" unless run["status"] == "completed" && run["conclusion"] == "success"
+            abort "staging run attempt mismatch" unless run["run_attempt"] == expected_attempt
+            head_sha = run["head_sha"]
+            abort "staging run head SHA is invalid" unless head_sha.is_a?(String) && head_sha.match?(/\A[0-9a-f]{40,64}\z/)
+            workflow_ref = case run["event"]
+            when "workflow_dispatch"
+              abort "manual staging run did not run from main" unless run["head_branch"] == "main"
+              "#{expected_repo}/.github/workflows/release.yml@refs/heads/main"
+            when "push"
+              abort "tag staging run head SHA mismatch" unless head_sha == release_sha
+              abort "tag staging run branch/tag mismatch" unless run["head_branch"] == expected_tag
+              "#{expected_repo}/.github/workflows/release.yml@refs/tags/#{expected_tag}"
+            else
+              abort "staging run event is not allowed: #{run["event"].inspect}"
+            end
+
+            artifacts = artifact_response["artifacts"]
+            total_count = artifact_response["total_count"]
+            abort "staging artifact response is invalid" unless artifacts.is_a?(Array) && total_count.is_a?(Integer) && total_count >= 0
+            abort "staging artifact response was truncated" unless total_count == artifacts.length
+            matches = artifacts.select { |artifact| artifact.is_a?(Hash) && artifact["name"] == artifact_name }
+            abort "expected exactly one named candidate artifact, got #{matches.length}" unless matches.length == 1
+            artifact = matches.fetch(0)
+            artifact_id = artifact["id"]
+            abort "candidate artifact ID is invalid" unless artifact_id.is_a?(Integer) && artifact_id.positive?
+            abort "candidate artifact is expired" unless artifact["expired"] == false
+            abort "candidate artifact size is invalid" unless artifact["size_in_bytes"].is_a?(Integer) && artifact["size_in_bytes"].positive?
+            artifact_digest = artifact["digest"].to_s.sub(/\Asha256:/i, "").downcase
+            abort "candidate artifact digest is unavailable or invalid" unless artifact_digest.match?(/\A[0-9a-f]{64}\z/)
+            artifact_run = artifact["workflow_run"]
+            abort "candidate artifact workflow_run is missing" unless artifact_run.is_a?(Hash)
+            abort "candidate artifact run ID mismatch" unless artifact_run["id"] == expected_id
+            abort "candidate artifact head SHA mismatch" unless artifact_run["head_sha"] == head_sha
+            if artifact_run.key?("run_attempt")
+              abort "candidate artifact run attempt mismatch" unless artifact_run["run_attempt"] == expected_attempt
+            end
+            puts "EXPECTED_RELEASE_SHA=#{release_sha}"
+            puts "STAGING_RUN_ATTEMPT=#{expected_attempt}"
+            puts "STAGING_RUN_HEAD_SHA=#{head_sha}"
+            puts "STAGING_WORKFLOW_REF=#{workflow_ref}"
+            puts "STAGING_WORKFLOW_SHA=#{head_sha}"
+            puts "CANDIDATE_ARTIFACT_NAME=#{artifact_name}"
+            puts "CANDIDATE_ARTIFACT_ID=#{artifact_id}"
+            puts "CANDIDATE_ARTIFACT_DIGEST=#{artifact_digest}"
+          ' "$run_json" "$artifact_json" "$STAGING_RUN_ID" "$STAGING_RUN_ATTEMPT_INPUT" \
+            "$GITHUB_REPOSITORY" "$RELEASE_TAG" "$remote_tag_sha" "$candidate_artifact_name" \
+            > "$provenance_env"
+          cat "$provenance_env" >> "$GITHUB_ENV"
+          while IFS='=' read -r name value; do
+            printf '%s=%s\n' "${name,,}" "$value" >> "$GITHUB_OUTPUT"
+          done < "$provenance_env"
+
+      - name: Download exact immutable staging candidate artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ steps.provenance.outputs.candidate_artifact_id }}
+          path: candidate-input
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.staging_run_id }}
+
+      - name: Verify candidate manifest, bytes, and full provenance with trusted tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          /usr/bin/ruby "$GITHUB_WORKSPACE/trusted-tools/script/support/release_candidate_manifest.rb" verify \
+            "$GITHUB_WORKSPACE/candidate-input/candidate-manifest.json" \
+            "$GITHUB_WORKSPACE/candidate-input" \
+            "$CANDIDATE_ARTIFACT_NAME" \
+            "$RELEASE_TAG" \
+            "$EXPECTED_RELEASE_SHA" \
+            "$GITHUB_REPOSITORY" \
+            "$STAGING_RUN_ID" \
+            "$STAGING_RUN_ATTEMPT" \
+            "$STAGING_RUN_HEAD_SHA" \
+            "$STAGING_WORKFLOW_REF" \
+            "$STAGING_WORKFLOW_SHA"
+
+      - name: Fetch exact published v1.0.5 release and DMG
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          previous_json="$RUNNER_TEMP/chronicle-v1.0.5-release.json"
+          previous_dmg="$RUNNER_TEMP/Chronicle-v1.0.5.dmg"
+          gh api "repos/${GITHUB_REPOSITORY}/releases/tags/v1.0.5" > "$previous_json"
+          previous_asset_id="$(
+            ruby -rjson -e '
+              release = JSON.parse(File.binread(ARGV.fetch(0)))
+              abort "v1.0.5 release is not published" unless release["tag_name"] == "v1.0.5" && release["draft"] == false
+              matches = release.fetch("assets", []).select { |asset| asset["name"] == "Chronicle-v1.0.5.dmg" }
+              abort "expected exactly one published v1.0.5 DMG" unless matches.length == 1
+              id = matches.fetch(0)["id"]
+              abort "published v1.0.5 DMG asset ID is invalid" unless id.is_a?(Integer) && id.positive?
+              puts id
+            ' "$previous_json"
+          )"
+          gh api \
+            --header "Accept: application/octet-stream" \
+            "repos/${GITHUB_REPOSITORY}/releases/assets/${previous_asset_id}" \
+            > "$previous_dmg"
+          [[ -s "$previous_dmg" && ! -L "$previous_dmg" ]] || {
+            echo "Published v1.0.5 DMG download is missing or unsafe." >&2
+            exit 1
+          }
+          {
+            echo "PREVIOUS_RELEASE_JSON=${previous_json}"
+            echo "PREVIOUS_DMG_PATH=${previous_dmg}"
+          } >> "$GITHUB_ENV"
+
+      - name: Decode protected signed clean-account candidate attestation
+        shell: bash
+        env:
+          CLEAN_ACCOUNT_ATTESTATION_PAYLOAD_BASE64: ${{ secrets.CLEAN_ACCOUNT_ATTESTATION_PAYLOAD_BASE64 }}
+          CLEAN_ACCOUNT_ATTESTATION_SIGNATURE_BASE64: ${{ secrets.CLEAN_ACCOUNT_ATTESTATION_SIGNATURE_BASE64 }}
+        run: |
+          set -euo pipefail
+          [[ -n "$CLEAN_ACCOUNT_ATTESTATION_PAYLOAD_BASE64" && -n "$CLEAN_ACCOUNT_ATTESTATION_SIGNATURE_BASE64" ]] || {
+            echo "The protected environment is missing the signed clean-account payload or detached signature." >&2
+            exit 1
+          }
+          umask 077
+          payload="$RUNNER_TEMP/chronicle-clean-account-attestation.json"
+          signature="$RUNNER_TEMP/chronicle-clean-account-attestation.sig"
+          public_key="$GITHUB_WORKSPACE/trusted-tools/docs/release-keys/clean-account-ed25519-public.pem"
+          printf '%s' "$CLEAN_ACCOUNT_ATTESTATION_PAYLOAD_BASE64" | base64 --decode > "$payload"
+          printf '%s' "$CLEAN_ACCOUNT_ATTESTATION_SIGNATURE_BASE64" | base64 --decode > "$signature"
+          [[ -s "$payload" && ! -L "$payload" && -s "$signature" && ! -L "$signature" ]] || {
+            echo "Decoded clean-account payload or signature is missing or unsafe." >&2
+            exit 1
+          }
+          [[ -f "$public_key" && ! -L "$public_key" ]] || {
+            echo "Reviewed production Ed25519 public key is absent from trusted workflow source." >&2
+            exit 1
+          }
+          {
+            echo "CLEAN_ACCOUNT_ATTESTATION_PAYLOAD=${payload}"
+            echo "CLEAN_ACCOUNT_ATTESTATION_SIGNATURE=${signature}"
+            echo "CLEAN_ACCOUNT_ATTESTATION_PUBLIC_KEY=${public_key}"
+          } >> "$GITHUB_ENV"
+
+      - name: Verify clean-account candidate gate with independent trusted verifier
+        shell: bash
+        run: |
+          set -euo pipefail
+          manifest_sha="$(/usr/bin/ruby -rdigest -e 'puts Digest::SHA256.file(ARGV.fetch(0)).hexdigest' candidate-input/candidate-manifest.json)"
+          nonce="chronicle:${GITHUB_REPOSITORY}:${STAGING_RUN_ID}:${STAGING_RUN_ATTEMPT}:${CANDIDATE_ARTIFACT_ID}:${CANDIDATE_ARTIFACT_NAME}:${manifest_sha}"
+          OPENSSL_BIN=/usr/bin/openssl \
+          /usr/bin/ruby "$GITHUB_WORKSPACE/trusted-tools/script/support/verify_clean_account_release_attestation.rb" \
+            "$CLEAN_ACCOUNT_ATTESTATION_PAYLOAD" \
+            "$CLEAN_ACCOUNT_ATTESTATION_SIGNATURE" \
+            "$CLEAN_ACCOUNT_ATTESTATION_PUBLIC_KEY" \
+            "$GITHUB_WORKSPACE/candidate-input/candidate-manifest.json" \
+            "$GITHUB_WORKSPACE/candidate-input" \
+            "$PREVIOUS_RELEASE_JSON" \
+            "$PREVIOUS_DMG_PATH" \
+            "$RELEASE_TAG" \
+            "$EXPECTED_RELEASE_SHA" \
+            "$GITHUB_REPOSITORY" \
+            "$nonce" \
+            "$CANDIDATE_ARTIFACT_NAME" \
+            "$CANDIDATE_ARTIFACT_ID" \
+            "$CANDIDATE_ARTIFACT_DIGEST" \
+            "$STAGING_RUN_ID" \
+            "$STAGING_RUN_ATTEMPT" \
+            "$STAGING_RUN_HEAD_SHA" \
+            "$STAGING_WORKFLOW_REF" \
+            "$STAGING_WORKFLOW_SHA"
+
+      - name: Prepare exact publish-ready artifact and validated scalar outputs
+        id: ready
+        shell: bash
+        run: |
+          set -euo pipefail
+          ready_dir="build/publish-ready"
+          mkdir -p "$ready_dir"
+          cp candidate-input/* "$ready_dir/"
+          /usr/bin/ruby "$GITHUB_WORKSPACE/trusted-tools/script/support/release_candidate_manifest.rb" verify \
+            "$GITHUB_WORKSPACE/$ready_dir/candidate-manifest.json" \
+            "$GITHUB_WORKSPACE/$ready_dir" \
+            "$CANDIDATE_ARTIFACT_NAME" \
+            "$RELEASE_TAG" \
+            "$EXPECTED_RELEASE_SHA" \
+            "$GITHUB_REPOSITORY" \
+            "$STAGING_RUN_ID" \
+            "$STAGING_RUN_ATTEMPT" \
+            "$STAGING_RUN_HEAD_SHA" \
+            "$STAGING_WORKFLOW_REF" \
+            "$STAGING_WORKFLOW_SHA"
+          PUBLISH_READY_ARTIFACT="chronicle-publish-ready-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+          READY_DIR="$ready_dir" \
+          /usr/bin/ruby -rjson -rdigest -e '
+            dir = ENV.fetch("READY_DIR")
+            manifest = JSON.parse(File.binread(File.join(dir, "candidate-manifest.json")))
+            metadata = JSON.parse(File.binread(File.join(dir, "candidate-metadata.json")))
+            files = manifest.fetch("files").to_h { |entry| [entry.fetch("name"), entry] }
+            output = ENV.fetch("GITHUB_OUTPUT")
+            values = {
+              "publish_ready_artifact" => ENV.fetch("PUBLISH_READY_ARTIFACT"),
+              "candidate_artifact" => manifest.dig("actions_artifact", "name"),
+              "candidate_artifact_id" => Integer(ENV.fetch("CANDIDATE_ARTIFACT_ID"), 10),
+              "candidate_artifact_digest" => ENV.fetch("CANDIDATE_ARTIFACT_DIGEST"),
+              "manifest_sha256" => Digest::SHA256.file(File.join(dir, "candidate-manifest.json")).hexdigest,
+              "release_tag" => manifest.fetch("tag_name"),
+              "source_commit" => manifest.fetch("source_commit"),
+              "staging_run_id" => manifest.dig("staging_provenance", "run_id"),
+              "staging_run_attempt" => manifest.dig("staging_provenance", "run_attempt"),
+              "staging_head_sha" => manifest.dig("staging_provenance", "head_sha"),
+              "staging_workflow_ref" => manifest.dig("staging_provenance", "workflow_ref"),
+              "staging_workflow_sha" => manifest.dig("staging_provenance", "workflow_sha"),
+              "dmg_name" => metadata.fetch("dmg_name"),
+              "dmg_size" => files.fetch(metadata.fetch("dmg_name")).fetch("size"),
+              "dmg_sha256" => files.fetch(metadata.fetch("dmg_name")).fetch("sha256"),
+              "checksum_name" => metadata.fetch("checksum_name"),
+              "checksum_size" => files.fetch(metadata.fetch("checksum_name")).fetch("size"),
+              "checksum_sha256" => files.fetch(metadata.fetch("checksum_name")).fetch("sha256"),
+              "notes_size" => files.fetch("release-notes.md").fetch("size"),
+              "notes_sha256" => files.fetch("release-notes.md").fetch("sha256"),
+              "metadata_size" => files.fetch("candidate-metadata.json").fetch("size"),
+              "metadata_sha256" => files.fetch("candidate-metadata.json").fetch("sha256"),
+              "prerelease" => metadata.fetch("prerelease"),
+              "make_latest" => metadata.fetch("make_latest")
+            }
+            File.open(output, "a") do |file|
+              values.each do |name, value|
+                text = value.to_s
+                abort "unsafe output #{name}" if text.empty? || text.match?(/[\r\n]/)
+                file.puts "#{name}=#{text}"
+              end
+            end
+          '
+
+      - name: Upload immutable publish-ready evidence for this run
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.ready.outputs.publish_ready_artifact }}
+          path: build/publish-ready/
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
+  publish-candidate:
+    needs: validate-candidate
+    runs-on: ubuntu-latest
+    environment: chronicle-release-publish
+    permissions:
+      actions: read
+      contents: read
+    env:
+      EXPECTED_PUBLISH_READY_ARTIFACT: ${{ needs.validate-candidate.outputs.publish_ready_artifact }}
+      EXPECTED_CANDIDATE_ARTIFACT: ${{ needs.validate-candidate.outputs.candidate_artifact }}
+      EXPECTED_CANDIDATE_ARTIFACT_ID: ${{ needs.validate-candidate.outputs.candidate_artifact_id }}
+      EXPECTED_CANDIDATE_ARTIFACT_DIGEST: ${{ needs.validate-candidate.outputs.candidate_artifact_digest }}
+      EXPECTED_MANIFEST_SHA256: ${{ needs.validate-candidate.outputs.manifest_sha256 }}
+      EXPECTED_RELEASE_TAG: ${{ needs.validate-candidate.outputs.release_tag }}
+      EXPECTED_SOURCE_COMMIT: ${{ needs.validate-candidate.outputs.source_commit }}
+      EXPECTED_STAGING_RUN_ID: ${{ needs.validate-candidate.outputs.staging_run_id }}
+      EXPECTED_STAGING_RUN_ATTEMPT: ${{ needs.validate-candidate.outputs.staging_run_attempt }}
+      EXPECTED_STAGING_HEAD_SHA: ${{ needs.validate-candidate.outputs.staging_head_sha }}
+      EXPECTED_STAGING_WORKFLOW_REF: ${{ needs.validate-candidate.outputs.staging_workflow_ref }}
+      EXPECTED_STAGING_WORKFLOW_SHA: ${{ needs.validate-candidate.outputs.staging_workflow_sha }}
+      EXPECTED_DMG_NAME: ${{ needs.validate-candidate.outputs.dmg_name }}
+      EXPECTED_DMG_SIZE: ${{ needs.validate-candidate.outputs.dmg_size }}
+      EXPECTED_DMG_SHA256: ${{ needs.validate-candidate.outputs.dmg_sha256 }}
+      EXPECTED_CHECKSUM_NAME: ${{ needs.validate-candidate.outputs.checksum_name }}
+      EXPECTED_CHECKSUM_SIZE: ${{ needs.validate-candidate.outputs.checksum_size }}
+      EXPECTED_CHECKSUM_SHA256: ${{ needs.validate-candidate.outputs.checksum_sha256 }}
+      EXPECTED_NOTES_SIZE: ${{ needs.validate-candidate.outputs.notes_size }}
+      EXPECTED_NOTES_SHA256: ${{ needs.validate-candidate.outputs.notes_sha256 }}
+      EXPECTED_METADATA_SIZE: ${{ needs.validate-candidate.outputs.metadata_size }}
+      EXPECTED_METADATA_SHA256: ${{ needs.validate-candidate.outputs.metadata_sha256 }}
+      EXPECTED_PRERELEASE: ${{ needs.validate-candidate.outputs.prerelease }}
+      EXPECTED_MAKE_LATEST: ${{ needs.validate-candidate.outputs.make_latest }}
+    steps:
+      - name: Download this run's publish-ready evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ needs.validate-candidate.outputs.publish_ready_artifact }}
+          path: publish-ready
+
+      - name: Verify, create, upload, publish, and final-verify
+        shell: bash
+        env:
+          RELEASE_PUBLISH_TOKEN: ${{ secrets.RELEASE_PUBLISH_TOKEN }}
+        run: |
+          set -euo pipefail
+          [[ -n "$RELEASE_PUBLISH_TOKEN" ]] || {
+            echo "Missing protected RELEASE_PUBLISH_TOKEN." >&2
+            exit 1
+          }
+          /usr/bin/ruby <<'RUBY'
+          require "digest"
+          require "json"
+          require "net/http"
+          require "openssl"
+          require "uri"
+
+          SHA256_PATTERN = /\A[0-9a-f]{64}\z/
+          OID_PATTERN = /\A[0-9a-f]{40,64}\z/
+          REPOSITORY_PATTERN = /\A[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\z/
+          TAG_PATTERN = /\Av\d+\.\d+\.\d+(?:-[0-9A-Za-z][0-9A-Za-z.-]*)?\z/
+          MANIFEST_FILES = %w[candidate-manifest.json candidate-metadata.json release-notes.md].freeze
+
+          def fail_publish(message)
+            raise "publication mutation: #{message}"
+          end
+
+          def string_env(name, pattern = nil)
+            value = ENV.fetch(name)
+            fail_publish("#{name} is empty or multiline") if value.empty? || value.match?(/[\r\n]/)
+            fail_publish("#{name} has an invalid format") if pattern && !value.match?(pattern)
+            value
+          end
+
+          def integer_env(name)
+            value = Integer(string_env(name), 10)
+            fail_publish("#{name} must be positive") unless value.positive?
+            value
+          rescue ArgumentError
+            fail_publish("#{name} must be an integer")
+          end
+
+          def boolean_env(name)
+            value = string_env(name)
+            return true if value == "true"
+            return false if value == "false"
+            fail_publish("#{name} must be true or false")
+          end
+
+          def required_remote_sha256(value, label)
+            digest = value.to_s.sub(/\Asha256:/i, "").downcase
+            fail_publish("#{label} digest is unavailable or invalid") unless digest.match?(SHA256_PATTERN)
+            digest
+          end
+
+          def canonical(value)
+            case value
+            when Hash then value.keys.sort.to_h { |key| [key, canonical(value.fetch(key))] }
+            when Array then value.map { |item| canonical(item) }
+            else value
+            end
+          end
+
+          def exact_keys(value, expected, label)
+            fail_publish("#{label} must be an object") unless value.is_a?(Hash)
+            fail_publish("#{label} keys differ") unless value.keys.sort == expected.sort
+          end
+
+          def safe_regular(path, label)
+            stat = File.lstat(path)
+            fail_publish("#{label} is not an exact regular non-symlink file") unless stat.file? && !stat.symlink? && stat.size.positive?
+            stat
+          rescue SystemCallError => error
+            fail_publish("#{label} is unavailable (#{error.class})")
+          end
+
+          def json_file(path, label, canonical_required: false)
+            bytes = File.binread(path) if safe_regular(path, label)
+            value = JSON.parse(bytes)
+            fail_publish("#{label} must contain an object") unless value.is_a?(Hash)
+            if canonical_required
+              expected = JSON.generate(canonical(value)) << "\n"
+              fail_publish("#{label} is not canonical JSON") unless bytes == expected
+            end
+            [value, bytes]
+          rescue JSON::ParserError => error
+            fail_publish("#{label} is invalid JSON: #{error.message}")
+          end
+
+          def github_request(method, uri, token, body: nil, headers: {}, allowed: [200])
+            fail_publish("GitHub URI must use https") unless uri.is_a?(URI::HTTPS)
+            http = Net::HTTP.new(uri.host, uri.port)
+            http.use_ssl = true
+            http.verify_mode = OpenSSL::SSL::VERIFY_PEER
+            request_class = {
+              "GET" => Net::HTTP::Get,
+              "POST" => Net::HTTP::Post,
+              "PATCH" => Net::HTTP::Patch
+            }.fetch(method)
+            request = request_class.new(uri)
+            request["Authorization"] = "Bearer #{token}"
+            request["Accept"] = "application/vnd.github+json"
+            request["X-GitHub-Api-Version"] = "2022-11-28"
+            request["User-Agent"] = "Chronicle-protected-release-publisher"
+            headers.each { |name, value| request[name] = value }
+            request.body = body if body
+            response = http.request(request)
+            unless allowed.include?(response.code.to_i)
+              fail_publish("GitHub #{method} #{uri.path} failed with HTTP #{response.code}: #{response.body.to_s.byteslice(0, 500)}")
+            end
+            response
+          end
+
+          def download_release_asset_bytes(repo, asset_id, token)
+            uri = URI("https://api.github.com/repos/#{repo}/releases/assets/#{asset_id}")
+            redirects = 0
+            loop do
+              fail_publish("release asset URI must use https without userinfo") unless uri.is_a?(URI::HTTPS) && !uri.userinfo
+              if redirects.zero?
+                expected_path = "/repos/#{repo}/releases/assets/#{asset_id}"
+                unless uri.host == "api.github.com" && uri.path == expected_path && !uri.query
+                  fail_publish("release asset API URI is not bound to the uploaded asset ID")
+                end
+              else
+                host = uri.host.to_s.downcase
+                unless host == "github.com" || host.end_with?(".githubusercontent.com")
+                  fail_publish("release asset redirect left GitHub-owned HTTPS hosts")
+                end
+              end
+
+              http = Net::HTTP.new(uri.host, uri.port)
+              http.use_ssl = true
+              http.verify_mode = OpenSSL::SSL::VERIFY_PEER
+              request = Net::HTTP::Get.new(uri)
+              request["Accept"] = "application/octet-stream"
+              request["Accept-Encoding"] = "identity"
+              request["User-Agent"] = "Chronicle-protected-release-publisher"
+              if redirects.zero?
+                request["Authorization"] = "Bearer #{token}"
+                request["X-GitHub-Api-Version"] = "2022-11-28"
+              end
+              response = http.request(request)
+              case response.code.to_i
+              when 200
+                encoding = response["content-encoding"].to_s
+                fail_publish("release asset response used an unexpected content encoding") unless encoding.empty? || encoding == "identity"
+                return response.body.b
+              when 301, 302, 303, 307, 308
+                fail_publish("release asset download exceeded the redirect limit") if redirects >= 3
+                location = response["location"].to_s
+                fail_publish("release asset redirect is missing Location") if location.empty? || location.match?(/[\r\n]/)
+                uri = URI.join(uri, location)
+                redirects += 1
+              else
+                fail_publish("release asset GET failed with HTTP #{response.code}")
+              end
+            end
+          rescue URI::InvalidURIError
+            fail_publish("release asset redirect URI is invalid")
+          end
+
+          def parse_json_response(response, label)
+            value = JSON.parse(response.body)
+            fail_publish("#{label} response must be an object") unless value.is_a?(Hash)
+            value
+          rescue JSON::ParserError => error
+            fail_publish("#{label} response is invalid JSON: #{error.message}")
+          end
+
+          def parse_json_array_response(response, label)
+            value = JSON.parse(response.body)
+            fail_publish("#{label} response must be an array of objects") unless value.is_a?(Array) && value.all? { |item| item.is_a?(Hash) }
+            value
+          rescue JSON::ParserError => error
+            fail_publish("#{label} response is invalid JSON: #{error.message}")
+          end
+
+          token = string_env("RELEASE_PUBLISH_TOKEN")
+          repo = string_env("GITHUB_REPOSITORY", REPOSITORY_PATTERN)
+          tag = string_env("EXPECTED_RELEASE_TAG", TAG_PATTERN)
+          source_commit = string_env("EXPECTED_SOURCE_COMMIT", OID_PATTERN)
+          candidate_artifact = string_env("EXPECTED_CANDIDATE_ARTIFACT")
+          candidate_artifact_id = integer_env("EXPECTED_CANDIDATE_ARTIFACT_ID")
+          candidate_artifact_digest = string_env("EXPECTED_CANDIDATE_ARTIFACT_DIGEST", SHA256_PATTERN)
+          string_env("EXPECTED_PUBLISH_READY_ARTIFACT")
+          manifest_sha = string_env("EXPECTED_MANIFEST_SHA256", SHA256_PATTERN)
+          run_id = integer_env("EXPECTED_STAGING_RUN_ID")
+          run_attempt = integer_env("EXPECTED_STAGING_RUN_ATTEMPT")
+          staging_head = string_env("EXPECTED_STAGING_HEAD_SHA", OID_PATTERN)
+          staging_ref = string_env("EXPECTED_STAGING_WORKFLOW_REF")
+          staging_workflow_sha = string_env("EXPECTED_STAGING_WORKFLOW_SHA", OID_PATTERN)
+          dmg_name = string_env("EXPECTED_DMG_NAME")
+          checksum_name = string_env("EXPECTED_CHECKSUM_NAME")
+          expected_files = [dmg_name, checksum_name, "candidate-metadata.json", "release-notes.md"]
+          expected_dir_entries = (expected_files + ["candidate-manifest.json"]).sort
+          prerelease = boolean_env("EXPECTED_PRERELEASE")
+          make_latest = boolean_env("EXPECTED_MAKE_LATEST")
+          fail_publish("release channel flags are inconsistent") unless make_latest == !prerelease
+
+          dir = File.expand_path("publish-ready", ENV.fetch("GITHUB_WORKSPACE"))
+          dir_stat = File.lstat(dir)
+          fail_publish("publish-ready must be a non-symlink directory") unless dir_stat.directory? && !dir_stat.symlink?
+          actual_entries = Dir.children(dir).sort
+          fail_publish("publish-ready file set mismatch: #{actual_entries.inspect}") unless actual_entries == expected_dir_entries
+          actual_entries.each { |name| safe_regular(File.join(dir, name), name) }
+
+          manifest_path = File.join(dir, "candidate-manifest.json")
+          manifest, manifest_bytes = json_file(manifest_path, "candidate manifest", canonical_required: true)
+          fail_publish("candidate manifest SHA-256 mismatch") unless Digest::SHA256.hexdigest(manifest_bytes) == manifest_sha
+          exact_keys(manifest, %w[actions_artifact files manifest_type repository schema_version source_commit staging_provenance tag_name], "candidate manifest")
+          fail_publish("candidate manifest schema/type mismatch") unless manifest["schema_version"] == 1 && manifest["manifest_type"] == "chronicle_release_candidate_manifest"
+          fail_publish("candidate artifact name mismatch") unless manifest.dig("actions_artifact", "name") == candidate_artifact
+          fail_publish("candidate identity mismatch") unless manifest["repository"] == repo && manifest["tag_name"] == tag && manifest["source_commit"] == source_commit
+          expected_provenance = {
+            "repository" => repo,
+            "run_id" => run_id,
+            "run_attempt" => run_attempt,
+            "head_sha" => staging_head,
+            "workflow_ref" => staging_ref,
+            "workflow_sha" => staging_workflow_sha
+          }
+          fail_publish("candidate staging provenance mismatch") unless manifest["staging_provenance"] == expected_provenance
+
+          expected_scalars = {
+            dmg_name => [integer_env("EXPECTED_DMG_SIZE"), string_env("EXPECTED_DMG_SHA256", SHA256_PATTERN)],
+            checksum_name => [integer_env("EXPECTED_CHECKSUM_SIZE"), string_env("EXPECTED_CHECKSUM_SHA256", SHA256_PATTERN)],
+            "release-notes.md" => [integer_env("EXPECTED_NOTES_SIZE"), string_env("EXPECTED_NOTES_SHA256", SHA256_PATTERN)],
+            "candidate-metadata.json" => [integer_env("EXPECTED_METADATA_SIZE"), string_env("EXPECTED_METADATA_SHA256", SHA256_PATTERN)]
+          }
+          manifest_files = manifest["files"]
+          fail_publish("candidate manifest files must be objects") unless manifest_files.is_a?(Array) && manifest_files.all? { |item| item.is_a?(Hash) }
+          parsed_files = manifest_files.to_h do |entry|
+            exact_keys(entry, %w[name sha256 size], "candidate manifest file")
+            name = entry["name"]
+            fail_publish("candidate filename is not an exact basename") unless name.is_a?(String) && File.basename(name) == name
+            [name, entry]
+          end
+          fail_publish("candidate manifest file set mismatch") unless parsed_files.keys.sort == expected_files.sort
+          expected_scalars.each do |name, (expected_size, expected_sha)|
+            entry = parsed_files.fetch(name)
+            fail_publish("manifest scalar mismatch for #{name}") unless entry["size"] == expected_size && entry["sha256"] == expected_sha
+            path = File.join(dir, name)
+            fail_publish("file size mismatch for #{name}") unless File.size(path) == expected_size
+            fail_publish("file SHA-256 mismatch for #{name}") unless Digest::SHA256.file(path).hexdigest == expected_sha
+          end
+
+          metadata, = json_file(File.join(dir, "candidate-metadata.json"), "candidate metadata", canonical_required: true)
+          exact_keys(metadata, %w[checksum_name dmg_name make_latest metadata_type prerelease release_name release_notes_name repository schema_version source_commit tag_name], "candidate metadata")
+          expected_metadata = {
+            "schema_version" => 1,
+            "metadata_type" => "chronicle_release_candidate",
+            "repository" => repo,
+            "tag_name" => tag,
+            "source_commit" => source_commit,
+            "release_name" => tag,
+            "prerelease" => prerelease,
+            "make_latest" => make_latest,
+            "dmg_name" => dmg_name,
+            "checksum_name" => checksum_name,
+            "release_notes_name" => "release-notes.md"
+          }
+          fail_publish("candidate metadata mismatch") unless metadata == expected_metadata
+          dmg_path = File.join(dir, dmg_name)
+          checksum_path = File.join(dir, checksum_name)
+          notes_path = File.join(dir, "release-notes.md")
+          expected_checksum = "#{Digest::SHA256.file(dmg_path).hexdigest}  #{dmg_name}\n"
+          fail_publish("checksum file does not exactly bind candidate DMG") unless File.binread(checksum_path) == expected_checksum
+          notes = File.binread(notes_path)
+
+          api_base = URI("https://api.github.com")
+          tag_path = "/repos/#{repo}/commits/#{tag}"
+          tag_response = github_request("GET", api_base + tag_path, token)
+          tag_json = parse_json_response(tag_response, "release tag")
+          fail_publish("remote tag source mismatch") unless tag_json["sha"] == source_commit
+
+          release_page_number = 1
+          loop do
+            fail_publish("repository release inventory exceeds the bounded duplicate-tag scan") if release_page_number > 100
+            release_page_uri = api_base + "/repos/#{repo}/releases?per_page=100&page=#{release_page_number}"
+            release_page_response = github_request("GET", release_page_uri, token)
+            release_page = parse_json_array_response(release_page_response, "repository release inventory page #{release_page_number}")
+            if release_page.any? { |item| item["tag_name"] == tag }
+              fail_publish("a GitHub Release already exists for #{tag}; refusing to edit or overwrite it")
+            end
+            break if release_page.length < 100
+            release_page_number += 1
+          end
+
+          release_id = nil
+          release_url = nil
+          publication_attempted = false
+          publication_confirmed = false
+          validate_release = nil
+          validate_publication_transition = nil
+          verify_published_pointers = nil
+          pre_patch_draft_snapshot = nil
+          begin
+            create_body = JSON.generate(
+              "tag_name" => tag,
+              "target_commitish" => source_commit,
+              "name" => tag,
+              "body" => notes,
+              "draft" => true,
+              "prerelease" => prerelease
+            )
+            create_response = github_request(
+              "POST",
+              api_base + "/repos/#{repo}/releases",
+              token,
+              body: create_body,
+              headers: { "Content-Type" => "application/json" },
+              allowed: [201]
+            )
+            created = parse_json_response(create_response, "create release")
+            release_id = created["id"]
+            fail_publish("created Draft release ID is invalid") unless release_id.is_a?(Integer) && release_id.positive?
+            release_url = created["html_url"]
+            upload_template = created["upload_url"].to_s
+            upload_endpoint = upload_template.sub(/\{\?name,label\}\z/, "")
+            fail_publish("created release upload URL is not templated") if upload_endpoint == upload_template
+            upload_uri = URI(upload_endpoint)
+            expected_upload_path = "/repos/#{repo}/releases/#{release_id}/assets"
+            unless upload_uri.is_a?(URI::HTTPS) && upload_uri.host == "uploads.github.com" && upload_uri.path == expected_upload_path && !upload_uri.query && !upload_uri.userinfo
+              fail_publish("created release upload endpoint is not bound to the created release ID")
+            end
+
+            uploaded = {}
+            [[dmg_name, dmg_path], [checksum_name, checksum_path]].each do |name, path|
+              uri = upload_uri.dup
+              uri.query = URI.encode_www_form("name" => name)
+              response = github_request(
+                "POST", uri, token,
+                body: File.binread(path),
+                headers: { "Content-Type" => "application/octet-stream" },
+                allowed: [201]
+              )
+              asset = parse_json_response(response, "upload #{name}")
+              expected_size, expected_sha = expected_scalars.fetch(name)
+              fail_publish("uploaded asset identity mismatch for #{name}") unless asset["name"] == name && asset["size"] == expected_size && asset["state"] == "uploaded"
+              asset_id = asset["id"]
+              fail_publish("uploaded asset ID is invalid for #{name}") unless asset_id.is_a?(Integer) && asset_id.positive?
+              digest = required_remote_sha256(asset["digest"], "uploaded asset #{name}")
+              fail_publish("uploaded asset digest mismatch for #{name}") unless digest == expected_sha
+              uploaded[name] = asset_id
+            end
+
+            read_uploaded_asset_bytes = lambda do
+              uploaded.to_h do |name, asset_id|
+                expected_size, expected_sha = expected_scalars.fetch(name)
+                remote_bytes = download_release_asset_bytes(repo, asset_id, token)
+                fail_publish("remote asset byte size mismatch for #{name}") unless remote_bytes.bytesize == expected_size
+                fail_publish("remote asset bytes SHA-256 mismatch for #{name}") unless Digest::SHA256.hexdigest(remote_bytes) == expected_sha
+                [asset_id, remote_bytes]
+              end
+            end
+
+            validate_release = lambda do |data, expected_draft, prefetched_asset_bytes = nil|
+              fail_publish("release ID mismatch") unless data["id"] == release_id
+              fail_publish("release tag/name/source mismatch") unless data["tag_name"] == tag && data["name"] == tag && data["target_commitish"] == source_commit
+              fail_publish("release notes body mismatch") unless data["body"] == notes
+              fail_publish("release draft state mismatch") unless data["draft"] == expected_draft
+              fail_publish("release prerelease state mismatch") unless data["prerelease"] == prerelease
+              release_updated_at = data["updated_at"].to_s
+              fail_publish("release updated_at is missing or multiline") if release_updated_at.empty? || release_updated_at.match?(/[\r\n]/)
+              published_at = data["published_at"].to_s
+              if expected_draft
+                fail_publish("Draft unexpectedly has published_at") unless published_at.empty?
+              else
+                fail_publish("published release is missing published_at") if published_at.empty? || published_at.match?(/[\r\n]/)
+              end
+              assets = data["assets"]
+              fail_publish("release assets must be an array") unless assets.is_a?(Array)
+              fail_publish("release asset set mismatch") unless assets.map { |asset| asset["name"] }.sort == [dmg_name, checksum_name].sort
+              asset_snapshots = assets.map do |asset|
+                name = asset["name"]
+                expected_size, expected_sha = expected_scalars.fetch(name)
+                fail_publish("remote asset binding mismatch for #{name}") unless asset["id"] == uploaded.fetch(name) && asset["size"] == expected_size && asset["state"] == "uploaded"
+                digest = required_remote_sha256(asset["digest"], "remote asset #{name}")
+                fail_publish("remote asset digest mismatch for #{name}") unless digest == expected_sha
+                asset_updated_at = asset["updated_at"].to_s
+                fail_publish("remote asset updated_at is missing or multiline for #{name}") if asset_updated_at.empty? || asset_updated_at.match?(/[\r\n]/)
+                remote_bytes = if prefetched_asset_bytes
+                                 prefetched_asset_bytes.fetch(asset.fetch("id"))
+                               else
+                                 download_release_asset_bytes(repo, asset.fetch("id"), token)
+                               end
+                fail_publish("remote asset byte size mismatch for #{name}") unless remote_bytes.bytesize == expected_size
+                remote_bytes_sha256 = Digest::SHA256.hexdigest(remote_bytes)
+                fail_publish("remote asset bytes SHA-256 mismatch for #{name}") unless remote_bytes_sha256 == expected_sha
+                {
+                  "id" => asset.fetch("id"),
+                  "name" => name,
+                  "size" => asset.fetch("size"),
+                  "state" => asset.fetch("state"),
+                  "digest" => digest,
+                  "updated_at" => asset_updated_at,
+                  "remote_bytes_sha256" => remote_bytes_sha256
+                }
+              end.sort_by { |asset| asset.fetch("name") }
+              {
+                "id" => data.fetch("id"),
+                "tag_name" => data.fetch("tag_name"),
+                "target_commitish" => data.fetch("target_commitish"),
+                "name" => data.fetch("name"),
+                "body_sha256" => Digest::SHA256.hexdigest(data.fetch("body")),
+                "draft" => data.fetch("draft"),
+                "prerelease" => data.fetch("prerelease"),
+                "published_at" => published_at,
+                "updated_at" => release_updated_at,
+                "assets" => asset_snapshots
+              }
+            end
+
+            validate_publication_transition = lambda do |published_snapshot, draft_snapshot|
+              expected = draft_snapshot.merge(
+                "draft" => false,
+                "published_at" => published_snapshot.fetch("published_at"),
+                "updated_at" => published_snapshot.fetch("updated_at")
+              )
+              fail_publish("published release changed outside the draft-state transition") unless published_snapshot == expected
+            end
+
+            verify_published_pointers = lambda do |phase|
+              current_tag = parse_json_response(github_request("GET", api_base + tag_path, token), "#{phase} release tag")
+              fail_publish("remote tag changed during #{phase}") unless current_tag["sha"] == source_commit
+              if make_latest
+                latest = parse_json_response(github_request("GET", api_base + "/repos/#{repo}/releases/latest", token), "#{phase} latest release")
+                fail_publish("published stable release is not latest during #{phase}") unless latest["id"] == release_id && latest["tag_name"] == tag
+              end
+            end
+
+            exact_uri = api_base + "/repos/#{repo}/releases/#{release_id}"
+            draft_response = github_request("GET", exact_uri, token)
+            draft = parse_json_response(draft_response, "exact Draft release")
+            trusted_draft_snapshot = validate_release.call(draft, true)
+            pre_patch_tag = parse_json_response(github_request("GET", api_base + tag_path, token), "pre-publication tag")
+            fail_publish("remote tag changed before publication") unless pre_patch_tag["sha"] == source_commit
+
+            pre_patch_asset_bytes = read_uploaded_asset_bytes.call
+            pre_patch_response = github_request("GET", exact_uri, token)
+            pre_patch_draft = parse_json_response(pre_patch_response, "pre-PATCH exact Draft release")
+            pre_patch_draft_snapshot = validate_release.call(pre_patch_draft, true, pre_patch_asset_bytes)
+            fail_publish("exact Draft drifted between trusted snapshots") unless pre_patch_draft_snapshot == trusted_draft_snapshot
+
+            publication_attempted = true
+            patch_response = github_request(
+              "PATCH", exact_uri, token,
+              body: JSON.generate("draft" => false),
+              headers: { "Content-Type" => "application/json" },
+              allowed: [200]
+            )
+            patched = parse_json_response(patch_response, "publish release")
+            patched_snapshot = validate_release.call(patched, false)
+            validate_publication_transition.call(patched_snapshot, pre_patch_draft_snapshot)
+
+            final_response = github_request("GET", exact_uri, token)
+            final_snapshot = validate_release.call(parse_json_response(final_response, "final published release"), false)
+            fail_publish("final published release drifted after PATCH response") unless final_snapshot == patched_snapshot
+            validate_publication_transition.call(final_snapshot, pre_patch_draft_snapshot)
+            verify_published_pointers.call("final verification")
+            publication_confirmed = true
+            puts "Published verified release #{tag} as ID #{release_id} from candidate artifact #{candidate_artifact} ID #{candidate_artifact_id} archive #{candidate_artifact_digest}: #{release_url}"
+          rescue StandardError => error
+            recovered_publication = false
+            if release_id && publication_attempted && validate_release && validate_publication_transition && verify_published_pointers && pre_patch_draft_snapshot
+              begin
+                recovery_response = github_request("GET", exact_uri, token)
+                recovery_release = parse_json_response(recovery_response, "read-only PATCH recovery exact release")
+                if recovery_release["draft"] == false
+                  recovery_snapshot = validate_release.call(recovery_release, false)
+                  validate_publication_transition.call(recovery_snapshot, pre_patch_draft_snapshot)
+                  verify_published_pointers.call("read-only PATCH recovery")
+                  publication_confirmed = true
+                  recovered_publication = true
+                  warn "::warning::The publication request returned an error, but read-only exact-release, asset-byte, tag, and latest checks confirmed release ID #{release_id} is published. No mutation was retried."
+                  puts "Recovered and verified published release #{tag} as ID #{release_id} from candidate artifact #{candidate_artifact} ID #{candidate_artifact_id} archive #{candidate_artifact_digest}: #{release_url}"
+                elsif recovery_release["draft"] == true
+                  recovery_snapshot = validate_release.call(recovery_release, true)
+                  fail_publish("Draft drifted after the publication attempt") unless recovery_snapshot == pre_patch_draft_snapshot
+                  warn "::error::Publication was not confirmed: exact read-only recovery found the unchanged Draft release ID #{release_id}. No automatic retry, deletion, reuse, or overwrite was attempted. URL: #{release_url}"
+                else
+                  fail_publish("read-only PATCH recovery returned an invalid draft state")
+                end
+              rescue StandardError => recovery_error
+                warn "::error::Publication state could not be confirmed by exact read-only recovery for release ID #{release_id}: #{recovery_error.message}. No automatic retry, deletion, reuse, or overwrite was attempted. URL: #{release_url}"
+              end
+            elsif release_id && publication_confirmed
+              warn "::error::Publication was confirmed but later verification failed for release ID #{release_id}. Inspect the public release immediately; no automatic deletion or overwrite was attempted."
+            elsif release_id
+              warn "::error::Publication failed after Draft creation. Draft release ID #{release_id} remains for deliberate inspection/removal; it was not deleted or overwritten. URL: #{release_url}"
+            end
+            raise error unless recovered_publication
+          end
+          RUBY

@@ -349,11 +349,9 @@ struct AppMappingsView: View {
     }
 
     private var mappingReviewActions: some View {
-        LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 150), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
-            alignment: .leading,
-            spacing: DesignSystem.Spacing.sm
-        ) {
+        // This is a tiny, bounded action set. Keeping it non-lazy makes every action available to
+        // VoiceOver even when the review board begins below the visible portion of the scroll view.
+        HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
             primaryMappingReviewAction
             secondaryMappingReviewActions
         }
@@ -489,11 +487,9 @@ struct AppMappingsView: View {
     private var mappingFilterBar: some View {
         SectionCard(title: "apps.filters.title") {
             VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
-                LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 220), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
-                    alignment: .leading,
-                    spacing: DesignSystem.Spacing.sm
-                ) {
+                // This is a fixed pair of controls, so keeping it non-lazy makes
+                // both actions discoverable to VoiceOver before the user scrolls.
+                HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
                     mappingSearchField
                     mappingRefreshButton
                 }
@@ -505,6 +501,7 @@ struct AppMappingsView: View {
                 }
             }
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("appMappings.filterWorkspace")
     }
 
@@ -608,6 +605,7 @@ struct AppMappingsView: View {
                 }
             }
         }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("appMappings.activeFilters")
     }
 
@@ -894,11 +892,10 @@ struct AppMappingsView: View {
                 tone: appMappings.isEmpty ? .neutral : .warning
             )
 
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 150), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.sm
-            ) {
+            // The empty state has at most two actions. Eagerly materialize them
+            // so assistive technologies can discover the recovery path even
+            // while the card is below the visible scroll viewport.
+            HStack(alignment: .center, spacing: DesignSystem.Spacing.sm) {
                 mappingEmptyPrimaryAction
                 mappingEmptySecondaryAction
             }
@@ -912,6 +909,7 @@ struct AppMappingsView: View {
             RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
                 .stroke(DesignSystem.Colors.separator.opacity(0.35), lineWidth: 1)
         )
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("appMappings.emptyState")
     }
 

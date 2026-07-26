@@ -8,6 +8,9 @@
 
 /* Begin PBXBuildFile section */
 		0084CF5A55CD3C6DDBCFB45B /* tagging_override.json in Resources */ = {isa = PBXBuildFile; fileRef = 8760FEF43B32D5A701C05D5A /* tagging_override.json */; };
+		1CDB00000000000000000001 /* SQLCipher in Frameworks */ = {isa = PBXBuildFile; productRef = 1CDB00000000000000000002 /* SQLCipher */; };
+		1CDB00000000000000000004 /* SQLCipher in Frameworks */ = {isa = PBXBuildFile; productRef = 1CDB00000000000000000002 /* SQLCipher */; };
+		1CDB00000000000000000005 /* SQLCipher in Frameworks */ = {isa = PBXBuildFile; productRef = 1CDB00000000000000000002 /* SQLCipher */; };
 		0BA8F5350114997C95817A15 /* ChronicleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1203C189604D52C40C167A2E /* ChronicleTests.swift */; };
 		1DB9E2F23518C6880CE09CBC /* cross_midnight.json in Resources */ = {isa = PBXBuildFile; fileRef = 0B8F4AEC54EDB2BCA1EB4DC5 /* cross_midnight.json */; };
 		2F8300482F1646EC0023E02F /* Product Requirements Document_ Offline Timeline Activity Tracker (macOS).pdf in Resources */ = {isa = PBXBuildFile; fileRef = 2F8300472F1646EC0023E02F /* Product Requirements Document_ Offline Timeline Activity Tracker (macOS).pdf */; };
@@ -15,6 +18,9 @@
 		429915FE166D04B9523EED2A /* idle_enter_exit.json in Resources */ = {isa = PBXBuildFile; fileRef = 5A593DB17CCAAB03B384A93A /* idle_enter_exit.json */; };
 		4F7369213AC3237B1203D336 /* rapid_switching.json in Resources */ = {isa = PBXBuildFile; fileRef = CB4DF8501218326A0C1CA3D0 /* rapid_switching.json */; };
 		A051CF4E0893D9D5BA0EA350 /* basic_switching.json in Resources */ = {isa = PBXBuildFile; fileRef = 1E4F79882FAFED45F764308D /* basic_switching.json */; };
+		D1A600000000000000000001 /* DiagnosticsPackageServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1A600000000000000000002 /* DiagnosticsPackageServiceTests.swift */; };
+		E71000000000000000000001 /* SQLCipherDatabaseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E71000000000000000000002 /* SQLCipherDatabaseTests.swift */; };
+		E71000000000000000000003 /* ExportHistoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E71000000000000000000004 /* ExportHistoryTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -46,6 +52,9 @@
 		5A593DB17CCAAB03B384A93A /* idle_enter_exit.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = idle_enter_exit.json; sourceTree = "<group>"; };
 		8760FEF43B32D5A701C05D5A /* tagging_override.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = tagging_override.json; sourceTree = "<group>"; };
 		CB4DF8501218326A0C1CA3D0 /* rapid_switching.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = rapid_switching.json; sourceTree = "<group>"; };
+		D1A600000000000000000002 /* DiagnosticsPackageServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiagnosticsPackageServiceTests.swift; sourceTree = "<group>"; };
+		E71000000000000000000002 /* SQLCipherDatabaseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SQLCipherDatabaseTests.swift; sourceTree = "<group>"; };
+		E71000000000000000000004 /* ExportHistoryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportHistoryTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -61,6 +70,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1CDB00000000000000000005 /* SQLCipher in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -68,6 +78,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1CDB00000000000000000004 /* SQLCipher in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -75,6 +86,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				1CDB00000000000000000001 /* SQLCipher in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -85,6 +97,9 @@
 			isa = PBXGroup;
 			children = (
 				1203C189604D52C40C167A2E /* ChronicleTests.swift */,
+				D1A600000000000000000002 /* DiagnosticsPackageServiceTests.swift */,
+				E71000000000000000000002 /* SQLCipherDatabaseTests.swift */,
+				E71000000000000000000004 /* ExportHistoryTests.swift */,
 				82E20EE77BC7500257ADC66F /* Fixtures */,
 			);
 			path = ChronicleTests;
@@ -151,6 +166,7 @@
 			);
 			name = Chronicle;
 			packageProductDependencies = (
+				1CDB00000000000000000002 /* SQLCipher */,
 			);
 			productName = Chronicle;
 			productReference = 2F8300392F1646840023E02F /* Chronicle.app */;
@@ -170,6 +186,9 @@
 				76A7C31A52A64DD08C63D29A /* PBXTargetDependency */,
 			);
 			name = ChronicleTests;
+			packageProductDependencies = (
+				1CDB00000000000000000002 /* SQLCipher */,
+			);
 			productName = ChronicleTests;
 			productReference = 24DDCB6AE1AEE626D3A2AE46 /* ChronicleTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
@@ -188,6 +207,9 @@
 				520B8EDEA6EC4E8741526D00 /* PBXTargetDependency */,
 			);
 			name = ChronicleUITests;
+			packageProductDependencies = (
+				1CDB00000000000000000002 /* SQLCipher */,
+			);
 			productName = ChronicleUITests;
 			productReference = 23C265FE9C8E358183AFB499 /* ChronicleUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
@@ -226,6 +248,9 @@
 			minimizedProjectReferenceProxies = 1;
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 2F83003A2F1646840023E02F /* Products */;
+			packageReferences = (
+				1CDB00000000000000000003 /* XCRemoteSwiftPackageReference "SQLCipher.swift" */,
+			);
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -292,6 +317,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				0BA8F5350114997C95817A15 /* ChronicleTests.swift in Sources */,
+				D1A600000000000000000001 /* DiagnosticsPackageServiceTests.swift in Sources */,
+				E71000000000000000000001 /* SQLCipherDatabaseTests.swift in Sources */,
+				E71000000000000000000003 /* ExportHistoryTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -304,6 +332,25 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		1CDB00000000000000000003 /* XCRemoteSwiftPackageReference "SQLCipher.swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sqlcipher/SQLCipher.swift.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.10.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		1CDB00000000000000000002 /* SQLCipher */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 1CDB00000000000000000003 /* XCRemoteSwiftPackageReference "SQLCipher.swift" */;
+			productName = SQLCipher;
+		};
+/* End XCSwiftPackageProductDependency section */
 
 /* Begin XCBuildConfiguration section */
 		2F8300422F1646840023E02F /* Debug */ = {
@@ -434,6 +481,10 @@
 				CURRENT_PROJECT_VERSION = 8;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"SQLITE_HAS_CODEC=1",
+				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -464,6 +515,10 @@
 				CURRENT_PROJECT_VERSION = 8;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_PREVIEWS = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"SQLITE_HAS_CODEC=1",
+				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -494,6 +549,10 @@
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_HARDENED_RUNTIME = NO;
 				ENABLE_TESTABILITY = YES;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"SQLITE_HAS_CODEC=1",
+				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = ChronicleTests;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -520,6 +579,10 @@
 				CODE_SIGN_IDENTITY = "";
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_HARDENED_RUNTIME = NO;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"SQLITE_HAS_CODEC=1",
+				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = ChronicleTests;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -543,6 +606,10 @@
 				CODE_SIGN_IDENTITY = "";
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_HARDENED_RUNTIME = NO;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"SQLITE_HAS_CODEC=1",
+				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = ChronicleUITests;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -567,6 +634,10 @@
 				CODE_SIGN_IDENTITY = "";
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_HARDENED_RUNTIME = NO;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"SQLITE_HAS_CODEC=1",
+				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = ChronicleUITests;
 				LD_RUNPATH_SEARCH_PATHS = (

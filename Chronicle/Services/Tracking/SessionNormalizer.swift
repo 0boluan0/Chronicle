@@ -7,8 +7,42 @@
 
 import Foundation
 
+enum ActivityRolloverError: Error, LocalizedError, Equatable {
+    case activityNotFound
+    case cutoffPrecedesSessionStart
+
+    var errorDescription: String? {
+        switch self {
+        case .activityNotFound:
+            return "The foreground activity to roll over no longer exists."
+        case .cutoffPrecedesSessionStart:
+            return "The review cutoff cannot precede the foreground session."
+        }
+    }
+}
+
+enum SessionNormalizerLifecycleError: Error, LocalizedError, Equatable {
+    case stopped
+
+    var errorDescription: String? {
+        "The activity tracker is stopped."
+    }
+}
+
 final class SessionNormalizer {
     static let shared = SessionNormalizer(database: .shared)
+
+    typealias ActivityEndUpdater = (
+        _ id: Int64,
+        _ endTime: Int64,
+        _ completion: @escaping (Result<Void, Error>) -> Void
+    ) -> Void
+
+    struct RolloverResult: Equatable {
+        let closedActivityId: Int64
+        let resumedActivityId: Int64
+        let cutoff: Int64
+    }
 
     struct ReplaySink {
         let insertActivity: (_ start: Int64, _ end: Int64, _ appName: String, _ bundleId: String?, _ windowTitle: String?, _ isIdle: Bool, _ tagId: Int64?) throws -> Int64
@@ -25,6 +59,7 @@ final class SessionNormalizer {
     private let queue = DispatchQueue(label: "com.chronicle.session-normalizer")
     private let appState = AppState.shared
     private let database: DatabaseService
+    private let pauseActivityEndUpdater: ActivityEndUpdater
 
     private let ignoredBundleIds: Set<String> = ["com.Chronicle.Chronicle"]
     private let ignoredAppNames: Set<String> = ["Chronicle"]
@@ -34,6 +69,12 @@ final class SessionNormalizer {
     private var pendingActivation: PendingActivation?
     private var debounceWorkItem: DispatchWorkItem?
     private var isIdleState = false
+    // Updated when ordered RawEvents are accepted, rather than when their asynchronous
+    // database transition eventually runs. This prevents activations observed during an
+    // outstanding idle transition from surviving debounce and being replayed backwards.
+    private var suppressActivationsUntilIdleExit = false
+    private var sessionTransitions: [(@escaping () -> Void) -> Void] = []
+    private var isSessionTransitionRunning = false
 
     private var aggregationEnabled = true
     private var minSessionDurationSeconds: Int64 = 5
@@ -48,18 +89,32 @@ final class SessionNormalizer {
     private var compactionLookbackDays = 7
     private var lastCompactionDayKey: String?
     private var compactionWorkItem: DispatchWorkItem?
+    private var isStopped = false
+    private var trackingGeneration: UInt64 = 0
 
     private var idleThresholdSeconds: Int64 = 300
     private var mergeCountToday = 0
     private var mergeCountDate: Date?
 
-    private init(database: DatabaseService) {
+    private init(
+        database: DatabaseService,
+        pauseActivityEndUpdater: ActivityEndUpdater? = nil
+    ) {
         self.database = database
+        self.pauseActivityEndUpdater = pauseActivityEndUpdater ?? { id, endTime, completion in
+            database.updateActivityEndTime(id: id, endTime: endTime, completion: completion)
+        }
     }
 
     #if DEBUG
-    static func makeTestInstance(database: DatabaseService) -> SessionNormalizer {
-        SessionNormalizer(database: database)
+    static func makeTestInstance(
+        database: DatabaseService,
+        pauseActivityEndUpdater: ActivityEndUpdater? = nil
+    ) -> SessionNormalizer {
+        SessionNormalizer(
+            database: database,
+            pauseActivityEndUpdater: pauseActivityEndUpdater
+        )
     }
     #endif
 
@@ -110,6 +165,7 @@ final class SessionNormalizer {
                 id: id,
                 appName: segment.appName,
                 bundleId: segment.bundleId,
+                windowTitle: segment.windowTitle,
                 tagId: resolvedTagId,
                 isIdle: segment.isIdle,
                 start: start,
@@ -132,12 +188,19 @@ final class SessionNormalizer {
             try writeSegment(segment)
         }
 
-        for event in events.sorted(by: { $0.timestamp < $1.timestamp }) {
+        let orderedEvents = Self.orderedReplayEvents(events)
+
+        for event in orderedEvents {
             switch event.type {
             case .appActivated:
                 if state.isIdle { continue }
                 let appName = event.appName ?? event.bundleId ?? "Unknown"
-                if state.currentAppName == appName { continue }
+                if let current = state.current,
+                   current.appName == appName,
+                   current.bundleId == event.bundleId,
+                   current.windowTitle == event.windowTitle {
+                    continue
+                }
                 let shouldIgnore = isIgnoredApp(appName: appName, bundleId: event.bundleId)
                 try closeCurrentSession(at: event.timestamp)
                 state.currentAppName = appName
@@ -184,6 +247,16 @@ final class SessionNormalizer {
                     isIdle: false,
                     start: event.timestamp
                 )
+            case .trackingPaused:
+                try closeCurrentSession(at: event.timestamp)
+                state.currentAppName = nil
+                state.isIdle = false
+                // A pause is a hard privacy boundary, not a mergeable gap. Clearing the last
+                // written segment prevents a short pause from being coalesced on rebuild.
+                state.lastWritten = nil
+            case .trackingResumed:
+                // The first subsequent activation starts the resumed session.
+                continue
             case .markerAdded:
                 continue
             }
@@ -196,6 +269,35 @@ final class SessionNormalizer {
             mergedCount: mergedCount,
             droppedCount: droppedCount
         )
+    }
+
+    /// Database rows have IDs and use them to break equal-timestamp ties. Hand-built replay
+    /// inputs may mix ID-bearing and ID-less events; in that case preserve the entire timestamp
+    /// group's input order rather than using a pairwise comparator that can become non-transitive.
+    static func orderedReplayEvents(_ events: [RawEvent]) -> [RawEvent] {
+        let indexedEvents = events.enumerated().map { (offset: $0.offset, event: $0.element) }
+        let groups = Dictionary(grouping: indexedEvents, by: { $0.event.timestamp })
+        return groups.keys.sorted().flatMap { timestamp in
+            let group = groups[timestamp] ?? []
+            if group.allSatisfy({ $0.event.id != nil }) {
+                return group.sorted {
+                    if $0.event.id != $1.event.id {
+                        return ($0.event.id ?? 0) < ($1.event.id ?? 0)
+                    }
+                    return $0.offset < $1.offset
+                }.map(\.event)
+            }
+            return group.sorted(by: { $0.offset < $1.offset }).map(\.event)
+        }
+    }
+
+    /// Reopens the live normalizer after an explicit ActivityTracker start. Work queued by an
+    /// older lifecycle retains its generation and cannot revive maintenance after a later stop.
+    func startTracking() {
+        queue.async { [self] in
+            trackingGeneration &+= 1
+            isStopped = false
+        }
     }
 
     func updateAggregationConfig(minDuration: Int, mergeGap: Int, debounce: Int) {
@@ -265,6 +367,12 @@ final class SessionNormalizer {
                 frontmostBundleId: event.bundleId,
                 frontmostWindowTitle: event.windowTitle
             )
+        case .trackingPaused:
+            flushCurrentSession(
+                timestamp: Date(timeIntervalSince1970: TimeInterval(event.timestamp))
+            )
+        case .trackingResumed:
+            break
         case .markerAdded:
             break
         }
@@ -279,6 +387,7 @@ final class SessionNormalizer {
         immediate: Bool
     ) {
         queue.async { [self] in
+            guard !isStopped, !suppressActivationsUntilIdleExit else { return }
             pendingActivation = PendingActivation(
                 appName: appName,
                 bundleId: bundleId,
@@ -290,50 +399,83 @@ final class SessionNormalizer {
 
             let debounce = aggregationEnabled ? switchDebounceSeconds : 0
             if immediate || debounce <= 0 {
-                processPendingActivation()
+                enqueuePendingActivationForProcessing()
             } else {
                 let workItem = DispatchWorkItem { [weak self] in
-                    self?.processPendingActivation()
+                    self?.debounceWorkItem = nil
+                    self?.enqueuePendingActivationForProcessing()
                 }
                 debounceWorkItem = workItem
                 queue.asyncAfter(deadline: .now() + debounce, execute: workItem)
-                AppLogger.log("Debounced switch: \(appName)", category: "tracker")
+                AppLogger.log("Debounced foreground-context switch", category: "tracker")
             }
         }
     }
 
     func onIdleEntered(now: Date, idleSeconds: TimeInterval) {
         queue.async { [self] in
-            guard !isIdleState else { return }
-
-            let nowEpoch = Int64(now.timeIntervalSince1970)
-            let idleStartEpoch = clampIdleStart(nowEpoch: nowEpoch, idleSeconds: idleSeconds)
-            if idleStartEpoch > nowEpoch {
-                return
-            }
-
-            isIdleState = true
-            let previousSession = currentSession
-            currentSession = nil
-            currentAppName = "Idle"
-
-            if let previousSession {
-                database.updateActivityEndTime(id: previousSession.id, endTime: idleStartEpoch) { result in
-                    self.queue.async {
-                        switch result {
-                        case .success:
-                            AppLogger.log("Closed session id=\(previousSession.id) app=\(previousSession.appName) for idle", category: "tracker")
-                            self.updateDbError(nil)
-                            self.handleShortSessionIfNeeded(previousSession: previousSession, endEpoch: idleStartEpoch)
-                        case .failure(let error):
-                            AppLogger.log("Failed to close session for idle: \(error.localizedDescription)", category: "tracker")
-                            self.updateDbError(error.localizedDescription)
-                        }
-                        self.startIdleSession(idleStartEpoch: idleStartEpoch, nowEpoch: nowEpoch)
-                    }
+            guard !isStopped else { return }
+            // Preserve RawEvent FIFO even when another asynchronous transition is running:
+            // an activation accepted before idle must be promoted ahead of the idle boundary.
+            // Activations accepted after this point are ignored until idleExit supplies the
+            // authoritative foreground context.
+            debounceWorkItem?.cancel()
+            debounceWorkItem = nil
+            enqueuePendingActivationForProcessing()
+            suppressActivationsUntilIdleExit = true
+            enqueueSessionTransition { finish in
+                guard !self.isIdleState else {
+                    finish()
+                    return
                 }
-            } else {
-                startIdleSession(idleStartEpoch: idleStartEpoch, nowEpoch: nowEpoch)
+
+                let nowEpoch = Int64(now.timeIntervalSince1970)
+                let idleStartEpoch = self.clampIdleStart(
+                    nowEpoch: nowEpoch,
+                    idleSeconds: idleSeconds
+                )
+                guard idleStartEpoch <= nowEpoch else {
+                    finish()
+                    return
+                }
+
+                self.isIdleState = true
+                let previousSession = self.currentSession
+                self.currentSession = nil
+                self.currentAppName = "Idle"
+
+                if let previousSession {
+                    self.database.updateActivityEndTime(
+                        id: previousSession.id,
+                        endTime: idleStartEpoch
+                    ) { result in
+                        self.queue.async {
+                            switch result {
+                            case .success:
+                                AppLogger.log("Closed session id=\(previousSession.id) for idle", category: "tracker")
+                                self.updateDbError(nil)
+                                self.handleShortSessionIfNeeded(
+                                    previousSession: previousSession,
+                                    endEpoch: idleStartEpoch
+                                )
+                            case .failure(let error):
+                                AppLogger.log("Failed to close session for idle: \(error.localizedDescription)", category: "tracker")
+                                self.updateDbError(error.localizedDescription)
+                            }
+                            self.startIdleSession(
+                                idleStartEpoch: idleStartEpoch,
+                                nowEpoch: nowEpoch,
+                                completion: finish
+                            )
+                        }
+                    }
+                } else {
+                    self.startIdleSession(
+                        idleStartEpoch: idleStartEpoch,
+                        nowEpoch: nowEpoch,
+                        completion: finish
+                    )
+                }
             }
         }
     }
@@ -345,48 +487,63 @@ final class SessionNormalizer {
         frontmostWindowTitle: String?
     ) {
         queue.async { [self] in
-            guard isIdleState else { return }
-            isIdleState = false
+            guard !isStopped else { return }
+            pendingActivation = nil
+            debounceWorkItem?.cancel()
+            debounceWorkItem = nil
+            suppressActivationsUntilIdleExit = false
+            enqueueSessionTransition { finish in
+                guard self.isIdleState else {
+                    finish()
+                    return
+                }
+                self.isIdleState = false
 
-            let nowEpoch = Int64(now.timeIntervalSince1970)
-            let previousSession = currentSession
-            currentSession = nil
-            currentAppName = nil
+                let nowEpoch = Int64(now.timeIntervalSince1970)
+                let previousSession = self.currentSession
+                self.currentSession = nil
+                self.currentAppName = nil
 
-            if let previousSession {
-                database.updateActivityEndTime(id: previousSession.id, endTime: nowEpoch) { result in
-                    self.queue.async {
-                        switch result {
-                        case .success:
-                            AppLogger.log("Closed idle session id=\(previousSession.id)", category: "tracker")
-                            self.updateDbError(nil)
-                            self.handleShortSessionIfNeeded(previousSession: previousSession, endEpoch: nowEpoch)
-                        case .failure(let error):
-                            AppLogger.log("Failed to close idle session: \(error.localizedDescription)", category: "tracker")
-                            self.updateDbError(error.localizedDescription)
-                        }
-
-                        if let frontmostAppName {
-                            self.insertNewSession(
-                                appName: frontmostAppName,
-                                bundleId: frontmostBundleId,
-                                windowTitle: frontmostWindowTitle,
-                                startEpoch: nowEpoch,
-                                previousSession: nil,
-                                shouldMergePrevious: false
-                            )
-                        }
+                let startForegroundSession = {
+                    if let frontmostAppName {
+                        self.insertNewSession(
+                            appName: frontmostAppName,
+                            bundleId: frontmostBundleId,
+                            windowTitle: frontmostWindowTitle,
+                            startEpoch: nowEpoch,
+                            previousSession: nil,
+                            shouldMergePrevious: false,
+                            completion: finish
+                        )
+                    } else {
+                        finish()
                     }
                 }
-            } else if let frontmostAppName {
-                insertNewSession(
-                    appName: frontmostAppName,
-                    bundleId: frontmostBundleId,
-                    windowTitle: frontmostWindowTitle,
-                    startEpoch: nowEpoch,
-                    previousSession: nil,
-                    shouldMergePrevious: false
-                )
+
+                if let previousSession {
+                    self.database.updateActivityEndTime(
+                        id: previousSession.id,
+                        endTime: nowEpoch
+                    ) { result in
+                        self.queue.async {
+                            switch result {
+                            case .success:
+                                AppLogger.log("Closed idle session id=\(previousSession.id)", category: "tracker")
+                                self.updateDbError(nil)
+                                self.handleShortSessionIfNeeded(
+                                    previousSession: previousSession,
+                                    endEpoch: nowEpoch
+                                )
+                            case .failure(let error):
+                                AppLogger.log("Failed to close idle session: \(error.localizedDescription)", category: "tracker")
+                                self.updateDbError(error.localizedDescription)
+                            }
+                            startForegroundSession()
+                        }
+                    }
+                } else {
+                    startForegroundSession()
+                }
             }
         }
     }
@@ -394,43 +551,291 @@ final class SessionNormalizer {
     func flushCurrentSession(timestamp: Date, completion: @escaping () -> Void = {}) {
         let nowEpoch = Int64(timestamp.timeIntervalSince1970)
         queue.async { [self] in
-            debounceWorkItem?.cancel()
-            debounceWorkItem = nil
-            pendingActivation = nil
-            guard let currentSession else {
+            guard !isStopped else {
                 completion()
                 return
             }
-            self.currentSession = nil
-            currentAppName = nil
-            database.updateActivityEndTime(id: currentSession.id, endTime: nowEpoch) { result in
-                self.queue.async {
-                    switch result {
-                    case .success:
-                        AppLogger.log("Flushed session id=\(currentSession.id)", category: "tracker")
-                        self.updateDbError(nil)
-                        self.handleShortSessionIfNeeded(previousSession: currentSession, endEpoch: nowEpoch)
-                    case .failure(let error):
-                        AppLogger.log("Flush session failed: \(error.localizedDescription)", category: "tracker")
-                        self.updateDbError(error.localizedDescription)
-                    }
+            debounceWorkItem?.cancel()
+            debounceWorkItem = nil
+            pendingActivation = nil
+            enqueueSessionTransition { finish in
+                guard let currentSession = self.currentSession else {
                     completion()
+                    finish()
+                    return
+                }
+                self.currentSession = nil
+                self.currentAppName = nil
+                self.database.updateActivityEndTime(id: currentSession.id, endTime: nowEpoch) { result in
+                    self.queue.async {
+                        switch result {
+                        case .success:
+                            AppLogger.log("Flushed session id=\(currentSession.id)", category: "tracker")
+                            self.updateDbError(nil)
+                            self.handleShortSessionIfNeeded(
+                                previousSession: currentSession,
+                                endEpoch: nowEpoch
+                            )
+                        case .failure(let error):
+                            AppLogger.log("Flush session failed: \(error.localizedDescription)", category: "tracker")
+                            self.updateDbError(error.localizedDescription)
+                        }
+                        completion()
+                        finish()
+                    }
+                }
+            }
+        }
+    }
+
+    /// A pause is a serialized state transition, not just an end-time write. Accepted debounced
+    /// activation is promoted before the boundary, and idle state is cleared so an active resume
+    /// can start a foreground session without requiring a synthetic idle-exit event.
+    func pauseTracking(
+        at timestamp: Date,
+        completion: @escaping (Result<Void, Error>) -> Void = { _ in }
+    ) {
+        closeTrackingState(at: timestamp, stopping: false, completion: completion)
+    }
+
+    /// Permanently closes this lifecycle. Unlike an ordinary pause, completion is a strict
+    /// database barrier: all accepted transitions, short-session cleanup, and maintenance work
+    /// submitted before stop have completed before the callback runs.
+    func stopTracking(
+        at timestamp: Date,
+        completion: @escaping (Result<Void, Error>) -> Void = { _ in }
+    ) {
+        closeTrackingState(at: timestamp, stopping: true, completion: completion)
+    }
+
+    private func closeTrackingState(
+        at timestamp: Date,
+        stopping: Bool,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        let requestedEnd = Int64(timestamp.timeIntervalSince1970)
+        queue.async { [self] in
+            if stopping {
+                isStopped = true
+                trackingGeneration &+= 1
+                compactionWorkItem?.cancel()
+                compactionWorkItem = nil
+            } else if isStopped {
+                completion(.failure(SessionNormalizerLifecycleError.stopped))
+                return
+            }
+
+            debounceWorkItem?.cancel()
+            debounceWorkItem = nil
+            if isIdleState {
+                pendingActivation = nil
+            } else {
+                enqueuePendingActivationForProcessing(allowWhenStopped: stopping)
+            }
+
+            enqueueSessionTransition { finish in
+                let completeTransition: (Result<Void, Error>) -> Void = { result in
+                    guard stopping else {
+                        completion(result)
+                        finish()
+                        return
+                    }
+
+                    // pauseActivityEndUpdater may enqueue short-session cleanup, and a
+                    // compaction may already have reached the database queue before stop.
+                    // Drain that serial queue so stop cannot return ahead of either write.
+                    self.database.drainPendingOperations {
+                        self.queue.async {
+                            completion(result)
+                            finish()
+                        }
+                    }
+                }
+                let currentSession = self.currentSession
+                self.currentSession = nil
+                self.currentAppName = nil
+                self.pendingActivation = nil
+                self.isIdleState = false
+                self.suppressActivationsUntilIdleExit = false
+
+                guard let currentSession else {
+                    completeTransition(.success(()))
+                    return
+                }
+
+                let persistedEnd = max(currentSession.startTime, requestedEnd)
+                self.pauseActivityEndUpdater(currentSession.id, persistedEnd) { result in
+                    self.queue.async {
+                        switch result {
+                        case .success:
+                            AppLogger.log(
+                                "Paused session id=\(currentSession.id)",
+                                category: "tracker"
+                            )
+                            self.updateDbError(nil)
+                            self.handleShortSessionIfNeeded(
+                                previousSession: currentSession,
+                                endEpoch: persistedEnd
+                            )
+                            completeTransition(.success(()))
+                        case .failure(let error):
+                            AppLogger.log(
+                                "Pause session failed: \(error.localizedDescription)",
+                                category: "tracker"
+                            )
+                            if !stopping {
+                                // Pause remains fail-closed, so retaining the in-memory closure
+                                // is safe and lets the durable-boundary retry reattempt this exact
+                                // session instead of falsely succeeding with no current state.
+                                self.currentSession = currentSession
+                                self.currentAppName = currentSession.appName
+                                self.isIdleState = currentSession.isIdle
+                                self.suppressActivationsUntilIdleExit = currentSession.isIdle
+                            }
+                            self.updateDbError(error.localizedDescription)
+                            completeTransition(.failure(error))
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// Persists the current session's observed end without closing it. A periodic
+    /// checkpoint bounds the amount of activity time lost if the process is
+    /// terminated before `stop` can flush the session.
+    func checkpointCurrentSession(
+        at timestamp: Date,
+        completion: @escaping (Result<Int64?, Error>) -> Void = { _ in }
+    ) {
+        let requestedEnd = Int64(timestamp.timeIntervalSince1970)
+        queue.async { [self] in
+            guard !isStopped else {
+                completion(.failure(SessionNormalizerLifecycleError.stopped))
+                return
+            }
+            enqueueSessionTransition { finish in
+                guard let session = self.currentSession else {
+                    completion(.success(nil))
+                    finish()
+                    return
+                }
+
+                let persistedEnd = max(session.startTime, requestedEnd)
+                self.database.updateActivityEndTime(id: session.id, endTime: persistedEnd) { result in
+                    self.queue.async {
+                        switch result {
+                        case .success:
+                            self.updateLastRecordedChange(
+                                Date(timeIntervalSince1970: TimeInterval(persistedEnd))
+                            )
+                            self.updateDbError(nil)
+                            completion(.success(session.id))
+                        case .failure(let error):
+                            AppLogger.log(
+                                "Session checkpoint failed: \(error.localizedDescription)",
+                                category: "tracker"
+                            )
+                            self.updateDbError(error.localizedDescription)
+                            completion(.failure(error))
+                        }
+                        finish()
+                    }
+                }
+            }
+        }
+    }
+
+    func rolloverCurrentSession(
+        at cutoff: Date,
+        completion: @escaping (Result<RolloverResult?, Error>) -> Void
+    ) {
+        let cutoffEpoch = Int64(cutoff.timeIntervalSince1970)
+        queue.async { [self] in
+            guard !isStopped else {
+                completion(.failure(SessionNormalizerLifecycleError.stopped))
+                return
+            }
+            // A delayed foreground switch has already crossed ActivityTracker's raw-event
+            // barrier even though its debounce timer has not fired. Promote it into the
+            // serialized transition stream before placing the rollover marker.
+            debounceWorkItem?.cancel()
+            debounceWorkItem = nil
+            enqueuePendingActivationForProcessing()
+
+            enqueueSessionTransition { finish in
+                guard let session = self.currentSession else {
+                    completion(.success(nil))
+                    finish()
+                    return
+                }
+                guard cutoffEpoch >= session.startTime else {
+                    completion(.failure(ActivityRolloverError.cutoffPrecedesSessionStart))
+                    finish()
+                    return
+                }
+                guard cutoffEpoch > session.startTime else {
+                    // The continuation already starts at this half-open boundary,
+                    // so it contributes nothing before the cutoff. Avoid cloning
+                    // another zero-length Activity on refresh/completion retries.
+                    completion(.success(nil))
+                    finish()
+                    return
+                }
+
+                self.database.rolloverActivity(id: session.id, at: cutoffEpoch) { result in
+                    self.queue.async {
+                        switch result {
+                        case .success(let resumedActivityID):
+                            self.currentSession = ActivitySession(
+                                id: resumedActivityID,
+                                appName: session.appName,
+                                bundleId: session.bundleId,
+                                windowTitle: session.windowTitle,
+                                tagId: session.tagId,
+                                isIdle: session.isIdle,
+                                startTime: cutoffEpoch
+                            )
+                            self.updateLastRecordedChange(cutoff)
+                            self.updateDbError(nil)
+                            AppLogger.log(
+                                "Rolled session id=\(session.id) to resumed_id=\(resumedActivityID) cutoff=\(cutoffEpoch)",
+                                category: "tracker"
+                            )
+                            completion(.success(RolloverResult(
+                                closedActivityId: session.id,
+                                resumedActivityId: resumedActivityID,
+                                cutoff: cutoffEpoch
+                            )))
+                        case .failure(let error):
+                            self.updateDbError(error.localizedDescription)
+                            completion(.failure(error))
+                        }
+                        finish()
+                    }
                 }
             }
         }
     }
 
     func scheduleCompactionIfNeeded() {
-        compactionWorkItem?.cancel()
-        let workItem = DispatchWorkItem { [weak self] in
-            self?.runCompactionIfNeeded()
+        queue.async { [self] in
+            guard !isStopped else { return }
+            compactionWorkItem?.cancel()
+            let generation = trackingGeneration
+            let workItem = DispatchWorkItem { [weak self] in
+                self?.runCompactionIfNeeded(generation: generation)
+            }
+            compactionWorkItem = workItem
+            queue.asyncAfter(deadline: .now() + 1.0, execute: workItem)
         }
-        compactionWorkItem = workItem
-        queue.asyncAfter(deadline: .now() + 1.0, execute: workItem)
     }
 
-    private func runCompactionIfNeeded() {
-        guard compactionEnabled else { return }
+    private func runCompactionIfNeeded(generation: UInt64) {
+        guard !isStopped,
+              generation == trackingGeneration,
+              compactionEnabled else { return }
+        compactionWorkItem = nil
         let dayKey = Self.dayKey(for: Date())
         if let lastCompactionDayKey, lastCompactionDayKey == dayKey {
             return
@@ -444,8 +849,11 @@ final class SessionNormalizer {
             days: lookbackDays,
             minDurationSeconds: minDuration,
             mergeGapSeconds: mergeGap
-        ) { result in
-            self.queue.async {
+        ) { [weak self] result in
+            self?.queue.async { [weak self] in
+                guard let self,
+                      !self.isStopped,
+                      self.trackingGeneration == generation else { return }
                 switch result {
                 case .success(let summary):
                     self.lastCompactionDayKey = dayKey
@@ -469,50 +877,92 @@ final class SessionNormalizer {
         }
     }
 
-    private func processPendingActivation() {
-        if isIdleState {
-            return
-        }
-        guard let activation = pendingActivation else { return }
-        pendingActivation = nil
+    private func enqueueSessionTransition(
+        _ transition: @escaping (@escaping () -> Void) -> Void
+    ) {
+        sessionTransitions.append(transition)
+        runNextSessionTransitionIfNeeded()
+    }
 
-        if currentAppName == activation.appName {
+    private func runNextSessionTransitionIfNeeded() {
+        guard !isSessionTransitionRunning, !sessionTransitions.isEmpty else { return }
+        isSessionTransitionRunning = true
+        let transition = sessionTransitions.removeFirst()
+        transition { [self] in
+            isSessionTransitionRunning = false
+            runNextSessionTransitionIfNeeded()
+        }
+    }
+
+    private func enqueuePendingActivationForProcessing(allowWhenStopped: Bool = false) {
+        guard (allowWhenStopped || !isStopped),
+              !isIdleState,
+              let activation = pendingActivation else { return }
+        pendingActivation = nil
+        debounceWorkItem?.cancel()
+        debounceWorkItem = nil
+        enqueueSessionTransition { finish in
+            self.processActivation(activation, completion: finish)
+        }
+    }
+
+    private func processActivation(
+        _ activation: PendingActivation,
+        completion: @escaping () -> Void
+    ) {
+        if currentAppName == activation.appName,
+           currentSession?.bundleId == activation.bundleId,
+           currentSession?.windowTitle == activation.windowTitle {
+            completion()
             return
         }
 
         let nowEpoch = Int64(activation.date.timeIntervalSince1970)
         let previousSession = currentSession
+        let previousAppName = currentAppName
         currentAppName = activation.appName
         currentSession = nil
 
         if activation.isIgnored {
-            if let previousSession {
-                database.updateActivityEndTime(id: previousSession.id, endTime: nowEpoch) { result in
-                    self.queue.async {
-                        let shouldMerge: Bool
-                        switch result {
-                        case .success:
-                            AppLogger.log("Closed session id=\(previousSession.id) app=\(previousSession.appName)", category: "tracker")
-                            self.updateDbError(nil)
-                            shouldMerge = true
-                        case .failure(let error):
-                            AppLogger.log("Failed to close session id=\(previousSession.id): \(error.localizedDescription)", category: "tracker")
-                            self.updateDbError(error.localizedDescription)
-                            shouldMerge = false
-                        }
-
-                        if shouldMerge {
-                            self.handleShortSessionIfNeeded(previousSession: previousSession, endEpoch: nowEpoch)
-                        } else {
-                            self.postSessionRecorded()
-                        }
+            guard let previousSession else {
+                completion()
+                return
+            }
+            database.updateActivityEndTime(id: previousSession.id, endTime: nowEpoch) { result in
+                self.queue.async {
+                    let shouldMerge: Bool
+                    switch result {
+                    case .success:
+                        AppLogger.log("Closed session id=\(previousSession.id)", category: "tracker")
+                        self.updateDbError(nil)
+                        shouldMerge = true
+                    case .failure(let error):
+                        AppLogger.log("Failed to close session id=\(previousSession.id): \(error.localizedDescription)", category: "tracker")
+                        self.updateDbError(error.localizedDescription)
+                        shouldMerge = false
                     }
+
+                    if shouldMerge {
+                        self.handleShortSessionIfNeeded(
+                            previousSession: previousSession,
+                            endEpoch: nowEpoch
+                        )
+                    } else {
+                        self.postSessionRecorded()
+                    }
+                    completion()
                 }
             }
             return
         }
 
-        recordRapidSwitchEvent(appName: activation.appName, bundleId: activation.bundleId, date: activation.date)
+        if previousAppName != activation.appName {
+            recordRapidSwitchEvent(
+                appName: activation.appName,
+                bundleId: activation.bundleId,
+                date: activation.date
+            )
+        }
 
         if let previousSession {
             database.updateActivityEndTime(id: previousSession.id, endTime: nowEpoch) { result in
@@ -520,7 +970,7 @@ final class SessionNormalizer {
                     let shouldMerge: Bool
                     switch result {
                     case .success:
-                        AppLogger.log("Closed session id=\(previousSession.id) app=\(previousSession.appName)", category: "tracker")
+                        AppLogger.log("Closed session id=\(previousSession.id)", category: "tracker")
                         self.updateDbError(nil)
                         shouldMerge = true
                     case .failure(let error):
@@ -535,7 +985,8 @@ final class SessionNormalizer {
                         windowTitle: activation.windowTitle,
                         startEpoch: nowEpoch,
                         previousSession: previousSession,
-                        shouldMergePrevious: shouldMerge
+                        shouldMergePrevious: shouldMerge,
+                        completion: completion
                     )
                 }
             }
@@ -546,7 +997,8 @@ final class SessionNormalizer {
                 windowTitle: activation.windowTitle,
                 startEpoch: nowEpoch,
                 previousSession: nil,
-                shouldMergePrevious: false
+                shouldMergePrevious: false,
+                completion: completion
             )
         }
     }
@@ -557,7 +1009,8 @@ final class SessionNormalizer {
         windowTitle: String?,
         startEpoch: Int64,
         previousSession: ActivitySession?,
-        shouldMergePrevious: Bool
+        shouldMergePrevious: Bool,
+        completion: @escaping () -> Void
     ) {
         currentAppName = appName
         database.insertActivity(
@@ -570,12 +1023,20 @@ final class SessionNormalizer {
             bundleId: bundleId
         ) { result in
             self.queue.async {
+                if let previousSession, shouldMergePrevious {
+                    self.handleShortSessionIfNeeded(
+                        previousSession: previousSession,
+                        endEpoch: startEpoch
+                    )
+                }
+
                 switch result {
                 case .success(let rowId):
                     self.currentSession = ActivitySession(
                         id: rowId,
                         appName: appName,
                         bundleId: bundleId,
+                        windowTitle: windowTitle,
                         tagId: nil,
                         isIdle: false,
                         startTime: startEpoch
@@ -595,6 +1056,7 @@ final class SessionNormalizer {
                                         id: session.id,
                                         appName: session.appName,
                                         bundleId: session.bundleId,
+                                        windowTitle: session.windowTitle,
                                         tagId: tagId,
                                         isIdle: session.isIdle,
                                         startTime: session.startTime
@@ -602,28 +1064,30 @@ final class SessionNormalizer {
                                     self.currentSession = session
                                 }
                                 self.postSessionRecorded()
-                                AppLogger.log("Started session id=\(rowId) app=\(appName)", category: "tracker")
+                                AppLogger.log("Started session id=\(rowId)", category: "tracker")
                             case .failure(let error):
                                 AppLogger.log("Resolve tag failed for activity id=\(rowId): \(error.localizedDescription)", category: "tracker")
                                 self.updateDbError(error.localizedDescription)
                                 self.postSessionRecorded()
-                                AppLogger.log("Started session id=\(rowId) app=\(appName)", category: "tracker")
+                                AppLogger.log("Started session id=\(rowId)", category: "tracker")
                             }
+                            completion()
                         }
                     }
                 case .failure(let error):
-                    AppLogger.log("Failed to start session for app=\(appName): \(error.localizedDescription)", category: "tracker")
+                    AppLogger.log("Failed to start session: \(error.localizedDescription)", category: "tracker")
                     self.updateDbError(error.localizedDescription)
-                }
-
-                if let previousSession, shouldMergePrevious {
-                    self.handleShortSessionIfNeeded(previousSession: previousSession, endEpoch: startEpoch)
+                    completion()
                 }
             }
         }
     }
 
-    private func startIdleSession(idleStartEpoch: Int64, nowEpoch: Int64) {
+    private func startIdleSession(
+        idleStartEpoch: Int64,
+        nowEpoch: Int64,
+        completion: @escaping () -> Void
+    ) {
         database.insertActivity(
             start: idleStartEpoch,
             end: nowEpoch,
@@ -640,6 +1104,7 @@ final class SessionNormalizer {
                         id: rowId,
                         appName: "Idle",
                         bundleId: nil,
+                        windowTitle: nil,
                         tagId: nil,
                         isIdle: true,
                         startTime: idleStartEpoch
@@ -652,6 +1117,7 @@ final class SessionNormalizer {
                     AppLogger.log("Failed to start idle session: \(error.localizedDescription)", category: "tracker")
                     self.updateDbError(error.localizedDescription)
                 }
+                completion()
             }
         }
     }
@@ -817,6 +1283,7 @@ private struct ActivitySession {
     let id: Int64
     let appName: String
     let bundleId: String?
+    let windowTitle: String?
     let tagId: Int64?
     let isIdle: Bool
     let startTime: Int64
@@ -864,6 +1331,7 @@ private struct ReplaySegment {
         guard previous.isIdle == isIdle else { return false }
         guard previous.appName == appName else { return false }
         guard previous.bundleId == bundleId else { return false }
+        guard previous.windowTitle == windowTitle else { return false }
         guard previous.tagId == tagId else { return false }
         let gap = max(0, newStart - previous.end)
         return gap <= gapSeconds
@@ -874,6 +1342,7 @@ private struct ReplayWritten {
     let id: Int64
     let appName: String
     let bundleId: String?
+    let windowTitle: String?
     let tagId: Int64?
     let isIdle: Bool
     var start: Int64

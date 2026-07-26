@@ -198,6 +198,7 @@ struct SectionCard<Content: View>: View {
                     .foregroundColor(DesignSystem.Colors.primaryText)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityAddTraits(.isHeader)
             }
             content
         }

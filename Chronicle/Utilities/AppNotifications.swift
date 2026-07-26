@@ -18,7 +18,6 @@ final class DailyReviewReminderNotificationService {
 
     private let center = UNUserNotificationCenter.current()
     private let appState = AppState.shared
-    private let reportSettings = ReportSettings.shared
     private let defaults = AppRuntime.configuredDefaults()
 
     private init() {}
@@ -52,23 +51,60 @@ final class DailyReviewReminderNotificationService {
     }
 
     func maybeSendReminder(now: Date = Date()) {
+        let current = Calendar.current.dateComponents([.hour, .minute], from: now)
+        let nowMinutes = (current.hour ?? 0) * 60 + (current.minute ?? 0)
+        guard appState.dailyReviewReminderEnabled,
+              nowMinutes >= appState.dailyReviewReminderTimeMinutes,
+              appState.archiveReady else {
+            setReminderDue(false)
+            return
+        }
+
+        DatabaseService.shared.fetchReviewInbox(now: now) { [weak self] result in
+            guard let self else { return }
+            DispatchQueue.main.async {
+                guard case .success(let inbox) = result else {
+                    self.appState.dailyReviewReminderDue = false
+                    return
+                }
+                let reminderDue = Self.shouldShowReminder(
+                    enabled: self.appState.dailyReviewReminderEnabled,
+                    nowMinutes: nowMinutes,
+                    scheduledMinutes: self.appState.dailyReviewReminderTimeMinutes,
+                    hasPendingReview: !inbox.isEmpty
+                )
+                self.appState.dailyReviewReminderDue = reminderDue
+                guard reminderDue else { return }
+                self.sendSystemNotificationIfNeeded(now: now)
+            }
+        }
+    }
+
+    static func shouldShowReminder(
+        enabled: Bool,
+        nowMinutes: Int,
+        scheduledMinutes: Int,
+        hasPendingReview: Bool
+    ) -> Bool {
+        enabled && nowMinutes >= scheduledMinutes && hasPendingReview
+    }
+
+    private func setReminderDue(_ isDue: Bool) {
+        if Thread.isMainThread {
+            appState.dailyReviewReminderDue = isDue
+        } else {
+            DispatchQueue.main.async {
+                self.appState.dailyReviewReminderDue = isDue
+            }
+        }
+    }
+
+    private func sendSystemNotificationIfNeeded(now: Date) {
         guard !AppRuntime.disablesSystemPrompts else { return }
-        guard appState.dailyReviewReminderEnabled else { return }
         guard appState.dailyReviewSystemNotificationEnabled else { return }
 
         let dayKey = ReportService.dayKey(for: now)
-        if defaults.string(forKey: Self.lastNotifiedDayKey) == dayKey {
-            return
-        }
-
-        let minutes = appState.dailyReviewReminderTimeMinutes
-        let current = Calendar.current.dateComponents([.hour, .minute], from: now)
-        let nowMinutes = (current.hour ?? 0) * 60 + (current.minute ?? 0)
-        guard nowMinutes >= minutes else { return }
-
-        if reportSettings.dailyExportSucceeded(for: now) {
-            return
-        }
+        guard defaults.string(forKey: Self.lastNotifiedDayKey) != dayKey else { return }
 
         requestAuthorization { granted in
             guard granted else {

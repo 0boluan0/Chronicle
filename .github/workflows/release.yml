@@ -7,32 +7,90 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: "Tag name to upload assets to (e.g. v1.0.0)"
+        description: "Exact tag name to release (e.g. v1.0.0)"
         required: true
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+  cancel-in-progress: false
 
 jobs:
-  release-readiness:
+  validate-release-tag:
     runs-on: ubuntu-latest
     env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+    outputs:
+      release_sha: ${{ steps.verify-tag.outputs.release_sha }}
+    steps:
+      - name: Restrict manual release dispatch to main
+        shell: bash
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "Manual release runs must be dispatched from refs/heads/main; got ${GITHUB_REF}." >&2
+            exit 1
+          fi
+
+      - name: Checkout exact release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          ref: refs/tags/${{ env.RELEASE_TAG }}
+          persist-credentials: false
+
+      - name: Verify tag and HEAD
+        id: verify-tag
+        shell: bash
+        run: |
+          tag_ref="refs/tags/${RELEASE_TAG}"
+          git show-ref --verify --quiet "$tag_ref" || {
+            echo "Exact release tag does not exist: $tag_ref" >&2
+            exit 1
+          }
+          release_sha="$(git rev-parse "${tag_ref}^{commit}")"
+          head_sha="$(git rev-parse HEAD)"
+          if [[ "$head_sha" != "$release_sha" ]]; then
+            echo "Checked-out HEAD ${head_sha} does not match ${tag_ref} commit ${release_sha}" >&2
+            exit 1
+          fi
+          main_ref="refs/remotes/origin/main"
+          git show-ref --verify --quiet "$main_ref" || {
+            echo "The trusted main branch is unavailable at ${main_ref}." >&2
+            exit 1
+          }
+          if ! git merge-base --is-ancestor "$release_sha" "$main_ref"; then
+            echo "Release tag ${RELEASE_TAG} points outside the trusted main history: ${release_sha}." >&2
+            exit 1
+          fi
+          echo "release_sha=${release_sha}" >> "$GITHUB_OUTPUT"
+          echo "Verified ${tag_ref} at ${release_sha} on trusted main history."
+
+  release-readiness:
+    needs: validate-release-tag
+    runs-on: ubuntu-latest
+    environment: chronicle-release
+    env:
       CHRONICLE_UI_SMOKE_ENABLED: ${{ vars.CHRONICLE_UI_SMOKE_ENABLED }}
-      CODESIGN_IDENTITY: ${{ secrets.CODESIGN_IDENTITY }}
-      MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
-      MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
-      APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
-      APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-      APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
     steps:
       - name: Verify release infrastructure
+        env:
+          CODESIGN_IDENTITY: ${{ secrets.CODESIGN_IDENTITY }}
+          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           if [[ "$CHRONICLE_UI_SMOKE_ENABLED" != "1" ]]; then
             echo "Set the CHRONICLE_UI_SMOKE_ENABLED repository variable to 1 only after an online chronicle-ui runner is configured." >&2
             exit 1
           fi
           missing=()
-          for name in CODESIGN_IDENTITY MACOS_CERTIFICATE_P12 MACOS_CERTIFICATE_PASSWORD APPLE_API_KEY_BASE64 APPLE_API_KEY_ID APPLE_API_ISSUER_ID; do
+          for name in CODESIGN_IDENTITY MACOS_CERTIFICATE_P12 MACOS_CERTIFICATE_PASSWORD APPLE_API_KEY_BASE64 APPLE_API_KEY_ID APPLE_API_ISSUER_ID APPLE_TEAM_ID; do
             if [[ -z "${!name:-}" ]]; then
               missing+=("$name")
             fi
@@ -41,77 +99,240 @@ jobs:
             printf 'Missing required release secret: %s\n' "${missing[@]}" >&2
             exit 1
           fi
+          if ! [[ "$APPLE_TEAM_ID" =~ ^[A-Z0-9]{10}$ ]]; then
+            echo "APPLE_TEAM_ID must be the exact 10-character TeamIdentifier expected in the Developer ID signature." >&2
+            exit 1
+          fi
 
   ui-smoke:
-    needs: release-readiness
+    needs: [validate-release-tag, release-readiness]
     runs-on: [self-hosted, macOS, chronicle-ui]
-    timeout-minutes: 45
+    timeout-minutes: 70
+    environment: chronicle-release
     env:
       RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+      EXPECTED_RELEASE_SHA: ${{ needs.validate-release-tag.outputs.release_sha }}
     steps:
-      - name: Checkout release tag
-        uses: actions/checkout@v4
+      - name: Checkout exact release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-          ref: ${{ env.RELEASE_TAG }}
+          fetch-tags: true
+          ref: refs/tags/${{ env.RELEASE_TAG }}
+          persist-credentials: false
+
+      - name: Verify tag and HEAD
+        shell: bash
+        run: |
+          tag_ref="refs/tags/${RELEASE_TAG}"
+          tag_sha="$(git rev-parse "${tag_ref}^{commit}")"
+          head_sha="$(git rev-parse HEAD)"
+          if [[ "$tag_sha" != "$EXPECTED_RELEASE_SHA" || "$head_sha" != "$EXPECTED_RELEASE_SHA" ]]; then
+            echo "Release checkout mismatch: tag=${tag_sha}, HEAD=${head_sha}, expected=${EXPECTED_RELEASE_SHA}" >&2
+            exit 1
+          fi
 
       - name: Set up Xcode
-        uses: maxim-lobanov/setup-xcode@v1
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
         with:
           xcode-version: "26.2"
 
       - name: Run full bilingual UI smoke
+        id: ui_smoke
         run: |
           chmod +x script/run_ui_smoke.sh
           ./script/run_ui_smoke.sh full
 
+      - name: Upload passed release UI-smoke evidence
+        if: ${{ !cancelled() && steps.ui_smoke.outcome == 'success' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: chronicle-release-ui-${{ env.RELEASE_TAG }}-${{ github.run_attempt }}
+          path: |
+            build/ui-smoke-results/full-en.xcresult
+            build/ui-smoke-results/full-zh-Hans.xcresult
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload failed release UI-smoke diagnostics
+        if: ${{ !cancelled() && steps.ui_smoke.outcome == 'failure' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: chronicle-release-ui-failed-${{ env.RELEASE_TAG }}-${{ github.run_attempt }}
+          path: |
+            build/ui-smoke-results/full-en.xcresult
+            build/ui-smoke-results/full-zh-Hans.xcresult
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Run bounded previous-release upgrade drill
+        id: upgrade_drill
+        shell: bash
+        run: bash script/run_previous_release_upgrade_drill.sh
+
+      - name: Upload passed bounded upgrade-drill evidence
+        if: ${{ !cancelled() && steps.upgrade_drill.outcome == 'success' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: chronicle-upgrade-drill-${{ env.RELEASE_TAG }}-${{ github.run_attempt }}
+          path: build/release-evidence/
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
+      - name: Upload failed bounded upgrade-drill diagnostics
+        if: ${{ !cancelled() && steps.upgrade_drill.outcome == 'failure' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: chronicle-upgrade-drill-failed-${{ env.RELEASE_TAG }}-${{ github.run_attempt }}
+          path: build/release-evidence/*.log
+          if-no-files-found: warn
+          retention-days: 14
+
   build-dmg:
-    needs: [release-readiness, ui-smoke]
+    needs: [validate-release-tag, release-readiness, ui-smoke]
     runs-on: macos-26
+    environment: chronicle-release
     env:
       RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+      EXPECTED_RELEASE_SHA: ${{ needs.validate-release-tag.outputs.release_sha }}
       CHRONICLE_UNIT_TEST_MODE: "1"
       LANG: en_US.UTF-8
       LC_ALL: en_US.UTF-8
-      CODESIGN_IDENTITY: ${{ secrets.CODESIGN_IDENTITY }}
-      MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
-      MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
-      APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
-      APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-      APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
-      REQUIRE_SIGNING: "1"
-      REQUIRE_NOTARIZATION: "1"
+      REQUIRE_OPEN_SOURCE_LICENSE: "1"
+      REQUIRE_FINAL_RELEASE_NOTES: "1"
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout exact release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-          ref: ${{ env.RELEASE_TAG }}
+          fetch-tags: true
+          ref: refs/tags/${{ env.RELEASE_TAG }}
+          persist-credentials: false
+
+      - name: Verify tag and HEAD
+        shell: bash
+        run: |
+          tag_ref="refs/tags/${RELEASE_TAG}"
+          tag_sha="$(git rev-parse "${tag_ref}^{commit}")"
+          head_sha="$(git rev-parse HEAD)"
+          if [[ "$tag_sha" != "$EXPECTED_RELEASE_SHA" || "$head_sha" != "$EXPECTED_RELEASE_SHA" ]]; then
+            echo "Release checkout mismatch: tag=${tag_sha}, HEAD=${head_sha}, expected=${EXPECTED_RELEASE_SHA}" >&2
+            exit 1
+          fi
+
+      - name: Capture clean release source fingerprint
+        shell: bash
+        run: |
+          set -euo pipefail
+          fingerprint="$(ruby script/support/release_source_fingerprint.rb .)"
+          dirty="$(ruby script/support/release_source_fingerprint.rb . --dirty)"
+          [[ "$dirty" == "false" ]] || {
+            echo "Release checkout is dirty before validation." >&2
+            exit 1
+          }
+          echo "EXPECTED_SOURCE_FINGERPRINT=${fingerprint}" >> "$GITHUB_ENV"
 
       - name: Set up Xcode
-        uses: maxim-lobanov/setup-xcode@v1
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
         with:
           xcode-version: "26.2"
+
+      - name: Run release guard fixture tests
+        run: script/test_release_guards.sh
+
+      - name: Download passed bounded upgrade-drill evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: chronicle-upgrade-drill-${{ env.RELEASE_TAG }}-${{ github.run_attempt }}
+          path: build/release-evidence
 
       - name: Run Release Preflight
         run: script/run_release_preflight.sh
 
-      - name: Run Unit Tests
+      - name: Verify source unchanged after preflight
+        shell: bash
         run: |
-          xcodebuild \
-            -project Chronicle.xcodeproj \
-            -scheme Chronicle \
-            -configuration Debug \
-            -destination 'platform=macOS,arch=arm64' \
-            -derivedDataPath build/release-tests \
-            CODE_SIGNING_ALLOWED=NO \
-            -parallel-testing-enabled NO \
-            -testLanguage en \
-            -testRegion US \
-            test
+          set -euo pipefail
+          current="$(ruby script/support/release_source_fingerprint.rb .)"
+          dirty="$(ruby script/support/release_source_fingerprint.rb . --dirty)"
+          [[ "$current" == "$EXPECTED_SOURCE_FINGERPRINT" && "$dirty" == "false" ]] || {
+            echo "Release inputs changed during preflight." >&2
+            exit 1
+          }
+
+      - name: Run Unit Tests
+        id: unit_tests
+        env:
+          UNIT_TEST_DERIVED_DATA_PATH: ${{ github.workspace }}/build/release-tests
+          UNIT_TEST_RESULT_BUNDLE_PATH: ${{ github.workspace }}/build/unit-test-results/ChronicleTests.xcresult
+        run: script/run_unit_tests.sh
+
+      - name: Upload passed release unit-test evidence
+        if: ${{ !cancelled() && steps.unit_tests.outcome == 'success' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: chronicle-release-unit-${{ env.RELEASE_TAG }}-${{ github.run_attempt }}
+          path: build/unit-test-results/ChronicleTests.xcresult
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload failed release unit-test diagnostics
+        if: ${{ !cancelled() && steps.unit_tests.outcome == 'failure' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: chronicle-release-unit-failed-${{ env.RELEASE_TAG }}-${{ github.run_attempt }}
+          path: build/unit-test-results/ChronicleTests.xcresult
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Run universal Release Analyze
+        id: release_analyze
+        env:
+          RELEASE_ANALYZE_DERIVED_DATA_PATH: ${{ github.workspace }}/build/release-analyze
+          RELEASE_ANALYZE_LOG_PATH: ${{ github.workspace }}/build/release-evidence/release-analyze.log
+          RELEASE_ANALYZE_RECEIPT_PATH: ${{ github.workspace }}/build/release-evidence/release-analyze.receipt.json
+        run: |
+          RELEASE_ANALYZE_SOURCE_FINGERPRINT="$EXPECTED_SOURCE_FINGERPRINT" \
+            bash script/run_release_analyze.sh
+
+      - name: Upload passed Release Analyze evidence
+        if: ${{ !cancelled() && steps.release_analyze.outcome == 'success' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: chronicle-release-analyze-${{ env.RELEASE_TAG }}-${{ github.run_attempt }}
+          path: |
+            build/release-evidence/release-analyze.log
+            build/release-evidence/release-analyze.receipt.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload failed Release Analyze diagnostics
+        if: ${{ !cancelled() && steps.release_analyze.outcome == 'failure' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: chronicle-release-analyze-failed-${{ env.RELEASE_TAG }}-${{ github.run_attempt }}
+          path: |
+            build/release-evidence/release-analyze.log
+            build/release-evidence/release-analyze.receipt.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Verify source unchanged after tests and Release Analyze
+        shell: bash
+        run: |
+          set -euo pipefail
+          current="$(ruby script/support/release_source_fingerprint.rb .)"
+          dirty="$(ruby script/support/release_source_fingerprint.rb . --dirty)"
+          [[ "$current" == "$EXPECTED_SOURCE_FINGERPRINT" && "$dirty" == "false" ]] || {
+            echo "Release inputs changed during tests or Release Analyze." >&2
+            exit 1
+          }
 
       - name: Import signing certificate
-        if: ${{ env.MACOS_CERTIFICATE_P12 != '' && env.MACOS_CERTIFICATE_PASSWORD != '' }}
+        env:
+          MACOS_CERTIFICATE_P12: ${{ secrets.MACOS_CERTIFICATE_P12 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
         run: |
           CERT_PATH="$RUNNER_TEMP/chronicle-signing.p12"
           KEYCHAIN_PATH="$RUNNER_TEMP/chronicle-signing.keychain-db"
@@ -124,87 +345,240 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "" "$KEYCHAIN_PATH"
 
       - name: Prepare notarization key
-        if: ${{ env.APPLE_API_KEY_BASE64 != '' && env.APPLE_API_KEY_ID != '' && env.APPLE_API_ISSUER_ID != '' }}
+        env:
+          APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
         run: |
-          KEY_PATH="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
+          KEY_PATH="$RUNNER_TEMP/chronicle-notarization-key.p8"
           echo "$APPLE_API_KEY_BASE64" | base64 --decode > "$KEY_PATH"
-          {
-            echo "NOTARYTOOL_KEY_PATH=$KEY_PATH"
-            echo "NOTARYTOOL_KEY_ID=$APPLE_API_KEY_ID"
-            echo "NOTARYTOOL_ISSUER_ID=$APPLE_API_ISSUER_ID"
-          } >> "$GITHUB_ENV"
+          chmod 600 "$KEY_PATH"
 
       - name: Build DMG
         env:
           DMG_VERSION: ${{ env.RELEASE_TAG }}
-          NOTARYTOOL_KEY_PATH: ${{ env.NOTARYTOOL_KEY_PATH }}
-          NOTARYTOOL_KEY_ID: ${{ env.NOTARYTOOL_KEY_ID }}
-          NOTARYTOOL_ISSUER_ID: ${{ env.NOTARYTOOL_ISSUER_ID }}
+          CODE_SIGNING_ALLOWED: "NO"
+          CODESIGN_IDENTITY: ${{ secrets.CODESIGN_IDENTITY }}
+          NOTARYTOOL_KEY_PATH: ${{ runner.temp }}/chronicle-notarization-key.p8
+          NOTARYTOOL_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          NOTARYTOOL_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
           REQUIRE_SIGNING: "1"
           REQUIRE_NOTARIZATION: "1"
         run: |
-          chmod +x script/build_and_run.sh
           chmod +x scripts/build_dmg.sh
           scripts/build_dmg.sh
 
-      - name: Verify DMG checksum
+      - name: Inspect signed and notarized release artifact
+        env:
+          EXPECTED_TEAM_IDENTIFIER: ${{ secrets.APPLE_TEAM_ID }}
         run: |
-          cd dist
-          for checksum_file in *.dmg.sha256; do
-            shasum -a 256 -c "$checksum_file"
-          done
+          bash script/inspect_release_artifact.sh \
+            "dist/Chronicle-${RELEASE_TAG}.dmg" \
+            release
+
+      - name: Verify source unchanged after signed build
+        shell: bash
+        run: |
+          set -euo pipefail
+          current="$(ruby script/support/release_source_fingerprint.rb .)"
+          dirty="$(ruby script/support/release_source_fingerprint.rb . --dirty)"
+          [[ "$current" == "$EXPECTED_SOURCE_FINGERPRINT" && "$dirty" == "false" ]] || {
+            echo "Release inputs changed during the signed build." >&2
+            exit 1
+          }
+
+      - name: Remove signing credentials
+        if: ${{ always() }}
+        run: |
+          rm -f "$RUNNER_TEMP/chronicle-signing.p12"
+          rm -f "$RUNNER_TEMP/chronicle-notarization-key.p8"
+          if [[ -f "$RUNNER_TEMP/chronicle-signing.keychain-db" ]]; then
+            security delete-keychain "$RUNNER_TEMP/chronicle-signing.keychain-db" || true
+          fi
+
+      - name: Verify exact DMG checksum
+        run: |
+          checksum_path="dist/Chronicle-${RELEASE_TAG}.dmg.sha256"
+          [[ -f "$checksum_path" ]] || {
+            echo "Missing exact checksum asset: $checksum_path" >&2
+            exit 1
+          }
+          (cd dist && shasum -a 256 -c "Chronicle-${RELEASE_TAG}.dmg.sha256")
 
       - name: Prepare release notes
         run: |
           mkdir -p build
-          NOTES_PATH="docs/releases/${RELEASE_TAG}.md"
-          awk '{print $1}' dist/*.dmg.sha256 | tr 'A-F' 'a-f' | sort -u > build/release-asset-hashes.txt
-          if [ -f "$NOTES_PATH" ]; then
-            grep -Ei '^[[:space:]]*-[[:space:]]*SHA-256:' "$NOTES_PATH" \
-              | grep -Eio '[0-9a-f]{64}' \
-              | tr 'A-F' 'a-f' \
-              | sort -u > build/release-note-hashes.txt || true
-            if [ -s build/release-note-hashes.txt ]; then
-              while read -r note_hash; do
-                if ! grep -qx "$note_hash" build/release-asset-hashes.txt; then
-                  echo "Release notes artifact checksum ${note_hash} does not match built DMG checksum(s):" >&2
-                  cat build/release-asset-hashes.txt >&2
-                  exit 1
-                fi
-              done < build/release-note-hashes.txt
-            fi
-            cp "$NOTES_PATH" build/release-notes.md
-          else
-            printf '# %s\n' "$RELEASE_TAG" > build/release-notes.md
+          notes_path="docs/releases/${RELEASE_TAG}.md"
+          dmg_path="dist/Chronicle-${RELEASE_TAG}.dmg"
+          checksum_path="${dmg_path}.sha256"
+          [[ -f "$notes_path" && -f "$dmg_path" && -f "$checksum_path" ]] || {
+            echo "Release notes or exact release assets are missing." >&2
+            exit 1
+          }
+
+          checksum_value="$(awk 'NF { print tolower($1); exit }' "$checksum_path")"
+          grep -Ei '^[[:space:]]*-[[:space:]]*SHA-256:' "$notes_path" \
+            | grep -Eio '[0-9a-f]{64}' \
+            | tr 'A-F' 'a-f' \
+            | sort -u > build/release-note-hashes.txt || true
+          if [[ -s build/release-note-hashes.txt ]]; then
+            while read -r note_hash; do
+              if [[ "$note_hash" != "$checksum_value" ]]; then
+                echo "Release notes artifact checksum ${note_hash} does not match built DMG checksum ${checksum_value}." >&2
+                exit 1
+              fi
+            done < build/release-note-hashes.txt
           fi
+
+          cp "$notes_path" build/release-notes.md
+          dmg_name="$(basename "$dmg_path")"
+          checksum_name="$(basename "$checksum_path")"
+          size_bytes="$(stat -f%z "$dmg_path")"
           {
             printf '\n## Workflow-Built Assets\n\n'
             printf 'Generated from this release workflow run before upload.\n\n'
-            for dmg_path in dist/*.dmg; do
-              dmg_name="$(basename "$dmg_path")"
-              checksum_path="${dmg_path}.sha256"
-              checksum_name="$(basename "$checksum_path")"
-              checksum_value="$(awk '{print $1}' "$checksum_path")"
-              size_bytes="$(stat -f%z "$dmg_path")"
-              printf -- '- `%s`\n' "$dmg_name"
-              printf -- '  - Size: %s bytes\n' "$size_bytes"
-              printf -- '  - SHA-256: `%s`\n' "$checksum_value"
-              printf -- '  - Checksum asset: `%s`\n' "$checksum_name"
-            done
+            printf -- '- `%s`\n' "$dmg_name"
+            printf -- '  - Size: %s bytes\n' "$size_bytes"
+            printf -- '  - SHA-256: `%s`\n' "$checksum_value"
+            printf -- '  - Checksum asset: `%s`\n' "$checksum_name"
           } >> build/release-notes.md
 
-      - name: Upload Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ env.RELEASE_TAG }}
-          name: ${{ env.RELEASE_TAG }}
-          body_path: build/release-notes.md
-          make_latest: true
-          files: |
-            dist/*.dmg
-            dist/*.sha256
+      - name: Stage exact release payload
+        run: |
+          payload_dir="build/release-payload"
+          mkdir -p "$payload_dir"
+          cp "dist/Chronicle-${RELEASE_TAG}.dmg" "$payload_dir/"
+          cp "dist/Chronicle-${RELEASE_TAG}.dmg.sha256" "$payload_dir/"
+          cp build/release-notes.md "$payload_dir/"
+          [[ "$(find "$payload_dir" -mindepth 1 | wc -l | tr -d ' ')" == "3" ]] || {
+            echo "Release payload must contain exactly the DMG, checksum, and release notes." >&2
+            exit 1
+          }
 
-      - name: Verify Uploaded Release Assets
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: bash script/check_release_assets.sh "$RELEASE_TAG"
+      - name: Verify source unchanged after release payload staging
+        shell: bash
+        run: |
+          set -euo pipefail
+          current="$(ruby script/support/release_source_fingerprint.rb .)"
+          dirty="$(ruby script/support/release_source_fingerprint.rb . --dirty)"
+          [[ "$current" == "$EXPECTED_SOURCE_FINGERPRINT" && "$dirty" == "false" ]] || {
+            echo "Release inputs changed before the exact payload upload." >&2
+            exit 1
+          }
+
+      - name: Upload private workflow artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: chronicle-release-${{ env.RELEASE_TAG }}-${{ github.run_attempt }}
+          path: |
+            build/release-payload/Chronicle-${{ env.RELEASE_TAG }}.dmg
+            build/release-payload/Chronicle-${{ env.RELEASE_TAG }}.dmg.sha256
+            build/release-payload/release-notes.md
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
+  stage-candidate-artifact:
+    needs: [validate-release-tag, build-dmg]
+    runs-on: ubuntu-latest
+    environment: chronicle-release
+    permissions:
+      contents: read
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+      EXPECTED_RELEASE_SHA: ${{ needs.validate-release-tag.outputs.release_sha }}
+      CANDIDATE_ARTIFACT_NAME: chronicle-release-candidate-${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}-${{ github.run_attempt }}
+    steps:
+      - name: Checkout exact release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          ref: refs/tags/${{ env.RELEASE_TAG }}
+          persist-credentials: false
+
+      - name: Verify tag and HEAD
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag_ref="refs/tags/${RELEASE_TAG}"
+          tag_sha="$(git rev-parse "${tag_ref}^{commit}")"
+          head_sha="$(git rev-parse HEAD)"
+          if [[ "$tag_sha" != "$EXPECTED_RELEASE_SHA" || "$head_sha" != "$EXPECTED_RELEASE_SHA" ]]; then
+            echo "Release checkout mismatch: tag=${tag_sha}, HEAD=${head_sha}, expected=${EXPECTED_RELEASE_SHA}" >&2
+            exit 1
+          fi
+
+      - name: Download signed candidate payload from this run
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: chronicle-release-${{ env.RELEASE_TAG }}-${{ github.run_attempt }}
+          path: release-payload
+
+      - name: Build canonical read-only candidate evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          dmg_name="Chronicle-${RELEASE_TAG}.dmg"
+          checksum_name="${dmg_name}.sha256"
+          expected=("${dmg_name}" "${checksum_name}" release-notes.md)
+          for name in "${expected[@]}"; do
+            path="release-payload/${name}"
+            [[ -f "$path" && ! -L "$path" && -s "$path" ]] || {
+              echo "Missing, empty, or unsafe signed candidate payload: ${path}" >&2
+              exit 1
+            }
+          done
+          [[ "$(find release-payload -mindepth 1 | wc -l | tr -d ' ')" == "3" ]] || {
+            echo "Signed candidate payload contains unexpected files." >&2
+            find release-payload -mindepth 1 -print >&2
+            exit 1
+          }
+          (cd release-payload && sha256sum -c "$checksum_name")
+
+          candidate_dir="build/release-candidate"
+          mkdir -p "$candidate_dir"
+          cp "release-payload/${dmg_name}" "$candidate_dir/${dmg_name}"
+          cp "release-payload/${checksum_name}" "$candidate_dir/${checksum_name}"
+          cp release-payload/release-notes.md "$candidate_dir/release-notes.md"
+
+          ruby script/support/release_candidate_manifest.rb metadata \
+            "$candidate_dir/candidate-metadata.json" \
+            "$RELEASE_TAG" \
+            "$EXPECTED_RELEASE_SHA" \
+            "$GITHUB_REPOSITORY"
+          ruby script/support/release_candidate_manifest.rb create \
+            "$candidate_dir/candidate-manifest.json" \
+            "$candidate_dir" \
+            "$CANDIDATE_ARTIFACT_NAME" \
+            "$RELEASE_TAG" \
+            "$EXPECTED_RELEASE_SHA" \
+            "$GITHUB_REPOSITORY" \
+            "$GITHUB_RUN_ID" \
+            "$GITHUB_RUN_ATTEMPT" \
+            "$GITHUB_SHA" \
+            "$GITHUB_WORKFLOW_REF" \
+            "$GITHUB_WORKFLOW_SHA"
+          ruby script/support/release_candidate_manifest.rb verify \
+            "$candidate_dir/candidate-manifest.json" \
+            "$candidate_dir" \
+            "$CANDIDATE_ARTIFACT_NAME" \
+            "$RELEASE_TAG" \
+            "$EXPECTED_RELEASE_SHA" \
+            "$GITHUB_REPOSITORY" \
+            "$GITHUB_RUN_ID" \
+            "$GITHUB_RUN_ATTEMPT" \
+            "$GITHUB_SHA" \
+            "$GITHUB_WORKFLOW_REF" \
+            "$GITHUB_WORKFLOW_SHA"
+          [[ "$(find "$candidate_dir" -mindepth 1 | wc -l | tr -d ' ')" == "5" ]] || {
+            echo "Candidate Actions artifact must contain exactly five evidence files." >&2
+            exit 1
+          }
+
+      - name: Upload immutable signed candidate artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ env.CANDIDATE_ARTIFACT_NAME }}
+          path: build/release-candidate/
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0

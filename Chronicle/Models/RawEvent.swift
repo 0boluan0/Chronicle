@@ -11,6 +11,8 @@ enum RawEventType: String {
     case appActivated = "app_activated"
     case idleEnter = "idle_enter"
     case idleExit = "idle_exit"
+    case trackingPaused = "tracking_paused"
+    case trackingResumed = "tracking_resumed"
     case markerAdded = "marker_added"
 }
 

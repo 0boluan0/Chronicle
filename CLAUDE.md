@@ -1,174 +1,79 @@
-```
-# CLAUDE.md
+# Chronicle Repository Guide
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-```
+Chronicle is a fully offline native macOS automatic work log. It converts local Activity Evidence into editable Work Blocks, then freezes user-confirmed ranges as immutable Review Snapshots. The encrypted Chronicle archive is authoritative; Markdown and CSV exports are optional, one way, and plaintext outside the archive.
 
-## Chronicle macOS App
+## Sources of truth
 
-Chronicle is a macOS menu bar app for offline activity tracking. It records foreground app sessions into SQLite and provides analytics through Timeline/Stats views and a Dashboard window.
+Read these before changing product behavior:
 
-## Development Commands
+- [docs/product-constitution.md](docs/product-constitution.md) — binding product scope and five-page information architecture.
+- [CONTEXT.md](CONTEXT.md) — canonical domain language.
+- [docs/adr/0001-separate-evidence-work-blocks-and-review-snapshots.md](docs/adr/0001-separate-evidence-work-blocks-and-review-snapshots.md) — evidence/review model.
+- [docs/adr/0002-local-archive-with-one-way-managed-markdown-export.md](docs/adr/0002-local-archive-with-one-way-managed-markdown-export.md) — archive and export ownership.
+- [UI-design.md](UI-design.md) — implemented UI architecture.
+- [docs/data-safety.md](docs/data-safety.md) and [docs/migrations-and-upgrades.md](docs/migrations-and-upgrades.md) — backup, migration, and rollback contracts.
 
-### Build and Run
-- **Open in Xcode:** `open Chronicle.xcodeproj`
-- **Run from Xcode:** Select `Chronicle` scheme and click Run (⌘R)
-- **Build from command line:**
-  ```bash
-  xcodebuild -project Chronicle.xcodeproj -scheme Chronicle -configuration Debug -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO build
-  ```
-- **Clean build:**
-  ```bash
-  xcodebuild -project Chronicle.xcodeproj -scheme Chronicle -configuration Debug -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO clean build
-  ```
+The original PRD and old release notes are historical. If they conflict with the constitution, ADRs, or current code, use the current sources above.
 
-### Testing
-- **Run all tests from command line:**
-  ```bash
-  xcodebuild -project Chronicle.xcodeproj -scheme Chronicle -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO test
-  ```
-- **Run specific test class:**
-  ```bash
-  xcodebuild -project Chronicle.xcodeproj -scheme Chronicle -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO test -only-testing:ChronicleTests/ClassName
-  ```
-- **Run specific test method:**
-  ```bash
-  xcodebuild -project Chronicle.xcodeproj -scheme Chronicle -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO test -only-testing:ChronicleTests/ClassName/testMethodName
-  ```
+## Development commands
 
-### Release
-- **Build DMG locally:**
-  ```bash
-  chmod +x scripts/build_dmg.sh
-  scripts/build_dmg.sh
-  ```
-  Outputs to `dist/Chronicle-dev.dmg`
+Build and launch:
 
-- **GitHub Release:** Push a tag like `v1.0.0` to trigger the `Release DMG` workflow
-
-## Code Architecture
-
-### High-Level Structure
-```
-Chronicle/
-├── App/                      # AppKit integration (AppDelegate, window controllers)
-├── ContentView.swift         # Main popover view
-├── ChronicleApp.swift        # SwiftUI app entry point
-├── Services/                 # Core business logic
-│   ├── Database/            # SQLite database operations (DatabaseService.swift)
-│   ├── Tracking/            # Activity tracking services
-│   ├── Reports/             # Report generation and export
-│   ├── AggregationService.swift    # Stats aggregation
-│   ├── HealthCheckService.swift    # Database health checks
-│   ├── MarkerSpanService.swift     # Marker management
-│   ├── TaggingEngine.swift         # Tagging logic
-│   └── ...
-├── Models/                   # Data models and database rows
-├── Views/                    # SwiftUI views
-│   ├── Dashboard*View.swift  # Dashboard windows
-│   ├── PreferencesView.swift    # Settings UI
-│   ├── TimelineView.swift       # Timeline display
-│   ├── StatsView.swift          # Statistics views
-│   └── ...
-├── Components/               # Reusable UI components
-├── DesignSystem/             # Design system and styling
-├── Utilities/                # Helper functions and extensions
-└── Resources/                # Assets, localization
-    ├── en.lproj/
-    └── zh-Hans.lproj/
+```sh
+./script/build_and_run.sh
 ```
 
-### Core Services
+Run isolated unit tests through the repository wrapper:
 
-#### Database Service (`Services/Database/DatabaseService.swift`)
-- Singleton: `DatabaseService.shared`
-- Provides CRUD operations for all data types (activities, tags, markers, app mappings, raw events)
-- Uses SQLite with `GRDB.swift` library
-- Key operations: `fetchActivities()`, `insertTag()`, `deleteMarker()`, etc.
-
-#### Activity Tracking (`Services/Tracking/`)
-- `ActivityTracker`: Records foreground app sessions
-- `IdleDetector`: Detects user idle time
-- `AppInfoProvider`: Fetches app metadata (bundle ID, name, icon)
-- Emits `didRecordSessionNotification` when new sessions are saved
-
-#### Aggregation Service (`AggregationService.swift`)
-- Computes aggregated statistics from raw activity data
-- Provides timeline items, summary stats, top apps/tags
-- Methods: `fetchTimelineItems()`, `fetchSummaryStats()`, `fetchTopApps()`, etc.
-
-#### Report Service (`Services/Reports/`)
-- Generates CSV and Markdown reports
-- Handles auto-export scheduling
-- Methods: `generateDailyReport()`, `autoExportIfNeeded()`, `exportCSV()`
-
-### UI Architecture
-
-#### Main Entry Points
-1. **Menu Bar Popover** (`ContentView.swift`)
-   - Shows Timeline or Stats views via segmented control
-   - Embeds `TimelineView` or `StatsView`
-   - Remembers last selected tab
-
-2. **Dashboard Window** (`DashboardWindowController.swift`)
-   - Separate window with navigation sidebar
-   - Views: Timeline, Overview, Stats, Markers, Debug
-   - Uses `NavigationSplitView` for sidebar navigation
-
-3. **Preferences Window** (`PreferencesWindowController.swift`)
-   - Tab-based settings UI
-   - Sections: General, Apps, Tags & Rules, Privacy
-   - Uses `PreferencesView` with TabView
-
-4. **Quick Marker Panel** (`QuickMarkerPanelController.swift`)
-   - Floating panel for quick marker entry
-   - Triggered by hotkey ⌥⌘M
-
-#### State Management
-- `AppState` (ObservableObject): Holds user preferences and UI state
-- `UserDefaults` for persistence
-- Published properties drive UI updates
-
-### Data Flow
-
-```
-User Action → View → Service → Database → Service (notify) → View updates
+```sh
+./script/run_unit_tests.sh
 ```
 
-Examples:
-- Adding a marker: QuickMarkerPanelView → MarkerSpanService → DatabaseService → Notification → TimelineView refreshes
-- Changing preferences: PreferencesView → AppState → UserDefaults
-- Viewing stats: StatsView → AggregationService → DatabaseService → StatsView displays
+Run UI automation separately on a prepared macOS UI runner:
 
-### Key Technologies
+```sh
+./script/run_ui_smoke.sh all
+./script/run_ui_smoke.sh full
+```
 
-- **SwiftUI**: Declarative UI for all views
-- **AppKit**: Window/menu bar management
-- **GRDB.swift**: SQLite ORM
-- **Swift Concurrency**: Async/await for database operations
-- **Combine**: Notification-based updates
+Run release checks and rehearsals:
 
-### Database Schema
+```sh
+./script/run_release_preflight.sh
+./script/test_release_guards.sh
+./script/run_previous_release_upgrade_drill.sh
+./script/run_release_dry_run.sh
+```
 
-Main tables:
-- `activities`: App usage sessions with start/end times, bundle ID, window title
-- `tags`: User-defined tags with colors
-- `tagRules`: Rules for automatic tagging
-- `appMappings`: Manual tag overrides per app
-- `markers`: Point and interval markers (notes, sessions)
-- `markerSpans`: Marker interval data
-- `rawEvents`: Unprocessed tracking events
+The unit and UI wrappers enforce isolated Application Support and preferences state and retain result bundles. Do not replace them with an ad-hoc `xcodebuild test` command when recording release evidence.
 
-### Development Notes
+## Architecture map
 
-- The app runs without a Dock icon (LSUIElement = true)
-- Window title capture requires Accessibility permission (disabled by default)
-- Data is stored locally in `~/Library/Application Support/Chronicle/` (SQLite database)
-- No network synchronization - fully offline
-- Supports English and Simplified Chinese localizations
+- `Chronicle/App` — lifecycle, menu-bar controller, scene configuration, window routing, activation policy, and runtime storage/defaults migration.
+- `Chronicle/Models` — evidence, review, export, history, and presentation models.
+- `Chronicle/Services/Database` — SQLCipher keying, fail-closed archive opening, schema and cross-directory migrations, and domain persistence.
+- `Chronicle/Services/Tracking` — foreground-app, idle, and explicitly allowlisted window-title evidence.
+- `Chronicle/Services/Reports` — Markdown/CSV generation, managed blocks, coordinated writes, and export settings.
+- `Chronicle/Views` — menu-bar controller, Pending Review, Timeline, Notes, Insights, Export & Integrations, Settings, onboarding, and recovery UI.
+- `Chronicle/DesignSystem` — shared visual and interaction primitives.
+- `ChronicleTests` and `ChronicleUITests` — unit, migration, privacy, export, and bilingual runtime UI coverage.
+- `script` and `scripts` — verification, release policy, upgrade drill, and packaging entrypoints.
 
-### CI/CD
+The main window destinations are Pending Review, Timeline, Notes, Insights, and Export & Integrations. The menu-bar popover stays a light controller. Settings contains General, Privacy, Tags, and Support. `DashboardView` and some legacy filenames remain implementation names, not the current product taxonomy.
 
-- **GitHub Actions**: `.github/workflows/ci.yml` runs tests on all pushes
-- **Release workflow**: `.github/workflows/release.yml` builds DMG on tag pushes
-- **AI Pipeline**: `ops/ai-pipeline/` contains automation for AI-assisted development
+## Non-negotiable implementation rules
+
+- Keep the product single-user, local-only, and free of remote telemetry, account sync, team monitoring, and productivity scoring.
+- Read window titles only for applications on the explicit allowlist. Accessibility permission is contextual to that feature.
+- Keep Activity Evidence distinct from Work Blocks. Automatic grouping must remain transparent and correctable.
+- Completing a review must not require a note, tag, or export. Completed snapshots are immutable; changes require explicit revision/re-review.
+- Keep reviewed Markdown and template-report namespaces separate. Modify only Chronicle-managed blocks and preserve surrounding user text.
+- Treat exported Markdown, CSV, diagnostics, and local-counter snapshots as plaintext ordinary files.
+- Open and migrate the archive fail closed. Unknown, corrupt, wrongly keyed, or ambiguous primary/sidecar states must never be replaced with an empty database.
+- During sandbox-to-unsandboxed migration, preserve the source, destination, canonical `-wal`/`-shm`/`-journal` side files, and receipt when ownership cannot be proven. Never repair a user archive by splicing individual files.
+- Keep test preferences and storage isolated from production domains. Release evidence must come from the repository wrappers and their validated result bundles.
+- Do not claim published-binary upgrade coverage from the exact-tag Release-source safety drill; the actual published v1.0.5 → candidate path remains a clean-account gate.
+
+## Release boundary
+
+GitHub Releases is the public artifact source of truth. A dry-run DMG is not a public release. Stable publication requires the full bilingual UI gate, a selected reviewed source license, Developer ID signing, notarization, stapling, and public asset verification. Do not invent a license or mark release notes final without maintainer authorization and completed evidence.

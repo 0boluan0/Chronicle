@@ -4,7 +4,7 @@
 //
 
 import Foundation
-import SQLite3
+import SQLCipher
 
 // MARK: - SQLite Helpers
 
@@ -14,12 +14,6 @@ extension DatabaseService {
             let message = sqliteErrorMessage(db)
             logSQLiteError(operation: "exec", sql: sql, message: message)
             throw DatabaseError.executeFailed(message, sql: sql)
-        }
-    }
-
-    func removeIfExists(url: URL) throws {
-        if FileManager.default.fileExists(atPath: url.path) {
-            try FileManager.default.removeItem(at: url)
         }
     }
 

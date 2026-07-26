@@ -20,6 +20,7 @@ final class OnboardingWindowController {
     private init() {}
 
     func show() {
+        AppActivationCoordinator.shared.prepareForWindowPresentation()
         TelemetryService.shared.increment("onboarding_started")
         if window == nil {
             let rootView = LocalizedRootView {
@@ -39,6 +40,7 @@ final class OnboardingWindowController {
             window.isReleasedWhenClosed = false
             window.setFrameAutosaveName(Self.frameAutosaveName)
             prepareInitialFrame(for: window)
+            AppActivationCoordinator.shared.registerStandardWindow(window)
             self.window = window
         }
 
@@ -47,6 +49,7 @@ final class OnboardingWindowController {
             window?.deminiaturize(nil)
         }
         window?.makeKeyAndOrderFront(nil)
+        AppActivationCoordinator.shared.refreshSoon()
         AppLogger.log("Onboarding opened", category: "ui")
     }
 

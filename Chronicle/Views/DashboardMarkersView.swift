@@ -285,7 +285,7 @@ struct DashboardMarkersView: View {
 
         if !cueCaptureReadyForCloseout || cueDailyLogSavedForRange {
             Button {
-                selectedDashboardSectionRaw = DashboardView.Section.reports.rawValue
+                selectedDashboardSectionRaw = DashboardView.Section.integrations.rawValue
             } label: {
                 cueCaptureActionLabel(L("markers.capture.closeout"), systemImage: "doc.badge.plus")
                     .frame(maxWidth: .infinity)
@@ -297,7 +297,7 @@ struct DashboardMarkersView: View {
 
         if cueDailyLogFailedForRange {
             Button {
-                AppWindowRouter.shared.open(.settings(.export))
+                AppWindowRouter.shared.openDashboard(destination: .integrations)
             } label: {
                 cueCaptureActionLabel(L("markers.capture.open_log_settings"), systemImage: "gearshape")
                     .frame(maxWidth: .infinity)
@@ -596,18 +596,18 @@ struct DashboardMarkersView: View {
         } else if isLoadingCueSummary {
             AppWindowRouter.shared.open(.quickMarker)
         } else if cueDailyLogFailedForRange {
-            selectedDashboardSectionRaw = DashboardView.Section.reports.rawValue
+            selectedDashboardSectionRaw = DashboardView.Section.integrations.rawValue
         } else if cueSummary.ongoingCount > 0 {
             appState.quickMarkerMode = .interval
             AppWindowRouter.shared.open(.quickMarker)
         } else if cueNeedsLogFolder {
-            selectedDashboardSectionRaw = DashboardView.Section.reports.rawValue
+            selectedDashboardSectionRaw = DashboardView.Section.integrations.rawValue
         } else if cueDailyLogSavedForRange {
             if case .failure = ReportService.shared.openDailyFolder() {
-                selectedDashboardSectionRaw = DashboardView.Section.reports.rawValue
+                selectedDashboardSectionRaw = DashboardView.Section.integrations.rawValue
             }
         } else if cueCaptureReadyForCloseout {
-            selectedDashboardSectionRaw = DashboardView.Section.reports.rawValue
+            selectedDashboardSectionRaw = DashboardView.Section.integrations.rawValue
         } else {
             AppWindowRouter.shared.open(.quickMarker)
         }

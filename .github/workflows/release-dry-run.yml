@@ -1,0 +1,154 @@
+name: Unsigned Release Dry Run
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unsigned-release-dry-run:
+    runs-on: macos-26
+    timeout-minutes: 70
+    outputs:
+      artifact_id: ${{ steps.upload_candidate.outputs.artifact-id }}
+    env:
+      CHRONICLE_UNIT_TEST_MODE: "1"
+      LANG: en_US.UTF-8
+      LC_ALL: en_US.UTF-8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
+        with:
+          xcode-version: "26.2"
+
+      - name: Run unsigned release dry-run
+        id: dry_run
+        env:
+          DRY_RUN_MODE: authoritative
+          DRY_RUN_SKIP_TESTS: "0"
+          UNIT_TEST_RESULT_BUNDLE_PATH: ${{ github.workspace }}/build/unit-test-results/ChronicleTests.xcresult
+        run: bash script/run_release_dry_run.sh
+
+      - name: Upload successful dry-run unit-test evidence
+        if: ${{ !cancelled() && steps.dry_run.outcome == 'success' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: chronicle-dry-run-unit-${{ github.run_id }}-${{ github.run_attempt }}
+          path: build/unit-test-results/ChronicleTests.xcresult
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload failed dry-run unit-test diagnostics
+        if: ${{ !cancelled() && steps.dry_run.outcome == 'failure' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: chronicle-dry-run-unit-failed-${{ github.run_id }}-${{ github.run_attempt }}
+          path: build/unit-test-results/ChronicleTests.xcresult
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload failed dry-run Release Analyze diagnostics
+        if: ${{ !cancelled() && steps.dry_run.outcome == 'failure' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: chronicle-dry-run-analyze-failed-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            dist/dry-run/*.release-analyze.log
+            dist/dry-run/*.release-analyze.receipt.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload candidate unsigned dry-run artifact
+        id: upload_candidate
+        if: ${{ steps.dry_run.outcome == 'success' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: chronicle-unsigned-dry-run-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            build/dry-run-upload/*.dmg
+            build/dry-run-upload/*.dmg.sha256
+            build/dry-run-upload/*.dry-run-manifest.json
+            build/dry-run-upload/*.unit-test-summary.json
+            build/dry-run-upload/*.release-analyze.log
+            build/dry-run-upload/*.release-analyze.receipt.json
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
+  verify-immutable-dry-run-artifact:
+    needs: unsigned-release-dry-run
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout the exact workflow source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Download immutable dry-run artifact by ID
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1; digest mismatch defaults to error
+        with:
+          artifact-ids: ${{ needs.unsigned-release-dry-run.outputs.artifact_id }}
+          path: build/immutable-dry-run-evidence
+
+      - name: Re-verify downloaded exact payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          fingerprint="$(ruby script/support/release_source_fingerprint.rb .)"
+          dirty="$(ruby script/support/release_source_fingerprint.rb . --dirty)"
+          [[ "$dirty" == "false" ]] || {
+            echo "Downloaded dry-run verification checkout is dirty." >&2
+            exit 1
+          }
+          head_sha="$(git rev-parse HEAD)"
+          [[ "$head_sha" == "$GITHUB_SHA" ]] || {
+            echo "Downloaded dry-run verification checkout does not match github.sha." >&2
+            exit 1
+          }
+          app_version="$(awk -F ' = ' '/MARKETING_VERSION = / { gsub(/;/, "", $2); print $2 }' Chronicle.xcodeproj/project.pbxproj | sort -u)"
+          app_build="$(awk -F ' = ' '/CURRENT_PROJECT_VERSION = / { gsub(/;/, "", $2); print $2 }' Chronicle.xcodeproj/project.pbxproj | sort -u)"
+          [[ -n "$app_version" && "$app_version" != *$'\n'* ]] || {
+            echo "Could not resolve one expected app version from the downloaded verification checkout." >&2
+            exit 1
+          }
+          [[ -n "$app_build" && "$app_build" != *$'\n'* ]] || {
+            echo "Could not resolve one expected app build from the downloaded verification checkout." >&2
+            exit 1
+          }
+          expected_tag="v${app_version}"
+          mapfile -d '' manifests < <(
+            find build/immutable-dry-run-evidence -mindepth 1 -maxdepth 1 \
+              -type f -name 'Chronicle-*.dry-run-manifest.json' -print0
+          )
+          [[ "${#manifests[@]}" == "1" ]] || {
+            echo "Expected exactly one downloaded dry-run manifest; found ${#manifests[@]}." >&2
+            exit 1
+          }
+          ruby script/support/verify_release_dry_run_manifest.rb \
+            "${manifests[0]}" \
+            build/immutable-dry-run-evidence \
+            "$fingerprint" \
+            "$GITHUB_SHA" \
+            "$expected_tag" \
+            "$app_version" \
+            "$app_build" \
+            false \
+            --exact-files
+          echo "Immutable artifact downloaded by ID passed independent downloaded-payload verification."

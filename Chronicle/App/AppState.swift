@@ -174,6 +174,12 @@ final class AppState: ObservableObject {
     @Published var currentActiveAppName = "Unknown"
     @Published var currentActiveAppBundleId: String?
     @Published var lastRecordedAppChange: Date?
+    /// A launch-time archive failure is distinct from an ordinary query error: capture never
+    /// starts until this is cleared by a successful encrypted-database open.
+    @Published var archiveStartupErrorMessage: String?
+    /// False while the encrypted archive is being opened and after a startup failure. UI must
+    /// never claim capture is running until this becomes true.
+    @Published var archiveReady = AppRuntime.disablesRuntimeServices
     @Published var lastDbErrorMessage: String?
     @Published var autoMergedSegmentsToday = 0
     @Published var trackingAggregationEnabled: Bool {
@@ -226,8 +232,11 @@ final class AppState: ObservableObject {
     @Published var windowTitlePrivacyMode: WindowTitlePrivacyMode {
         didSet { defaults.set(windowTitlePrivacyMode.rawValue, forKey: Keys.windowTitlePrivacyMode) }
     }
-    @Published var windowTitleBlockedBundleIDs: [String] {
-        didSet { defaults.set(windowTitleBlockedBundleIDs, forKey: Keys.windowTitleBlockedBundleIDs) }
+    @Published var windowTitleAllowedBundleIDs: [String] {
+        didSet { defaults.set(windowTitleAllowedBundleIDs, forKey: Keys.windowTitleAllowedBundleIDs) }
+    }
+    var windowTitleCaptureRequiresAccessibility: Bool {
+        windowTitleCaptureEnabled && !windowTitleAllowedBundleIDs.isEmpty
     }
     @Published var accessibilityAuthorized: Bool {
         didSet {
@@ -243,9 +252,9 @@ final class AppState: ObservableObject {
     @Published var quickMarkerAction: QuickMarkerAction {
         didSet { defaults.set(quickMarkerAction.rawValue, forKey: Keys.quickMarkerAction) }
     }
-    @Published var quickMarkerLastText: String? {
-        didSet { defaults.set(quickMarkerLastText, forKey: Keys.quickMarkerLastText) }
-    }
+    /// Convenience within the current process only. User-authored note text belongs in the
+    /// encrypted archive, never in plaintext UserDefaults.
+    @Published var quickMarkerLastText: String?
     @Published var launchAtLoginEnabled: Bool {
         didSet { defaults.set(launchAtLoginEnabled, forKey: Keys.launchAtLoginEnabled) }
     }
@@ -294,6 +303,8 @@ final class AppState: ObservableObject {
     @Published var dailyReviewSystemNotificationEnabled: Bool {
         didSet { defaults.set(dailyReviewSystemNotificationEnabled, forKey: Keys.dailyReviewSystemNotificationEnabled) }
     }
+    /// Runtime-only state shown in the menubar popover after the configured review time.
+    @Published var dailyReviewReminderDue = false
     @Published var trackingPaused: Bool {
         didSet { defaults.set(trackingPaused, forKey: Keys.trackingPaused) }
     }
@@ -343,7 +354,15 @@ final class AppState: ObservableObject {
         } else {
             windowTitlePrivacyMode = .hashed
         }
-        windowTitleBlockedBundleIDs = defaults.stringArray(forKey: Keys.windowTitleBlockedBundleIDs) ?? []
+        windowTitleAllowedBundleIDs = Array(
+            Set(defaults.stringArray(forKey: Keys.windowTitleAllowedBundleIDs) ?? [])
+        )
+        .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+        .sorted()
+        if defaults.object(forKey: Keys.windowTitleAllowedBundleIDs) == nil {
+            defaults.set([], forKey: Keys.windowTitleAllowedBundleIDs)
+        }
+        defaults.removeObject(forKey: Keys.legacyWindowTitleDenylist)
         accessibilityAuthorized = defaults.object(forKey: Keys.accessibilityAuthorized) as? Bool ?? false
         launchAtLoginEnabled = defaults.object(forKey: Keys.launchAtLoginEnabled) as? Bool ?? false
         showDockIcon = defaults.object(forKey: Keys.showDockIcon) as? Bool ?? false
@@ -385,7 +404,7 @@ final class AppState: ObservableObject {
             debugLoggingEnabled = Self.defaultDebugLoggingEnabled
         }
         telemetryEnabled = defaults.object(forKey: Keys.telemetryEnabled) as? Bool ?? false
-        let storedDailyReviewReminderEnabled = defaults.object(forKey: Keys.dailyReviewReminderEnabled) as? Bool ?? true
+        let storedDailyReviewReminderEnabled = defaults.object(forKey: Keys.dailyReviewReminderEnabled) as? Bool ?? false
         dailyReviewReminderEnabled = AppRuntime.uiTestDailyReviewReminderEnabled ?? storedDailyReviewReminderEnabled
         dailyReviewReminderTimeMinutes = Self.clampMinutesOfDay(defaults.object(forKey: Keys.dailyReviewReminderTimeMinutes) as? Int ?? 18 * 60)
         dailyReviewSystemNotificationEnabled = defaults.object(forKey: Keys.dailyReviewSystemNotificationEnabled) as? Bool ?? false
@@ -402,7 +421,8 @@ final class AppState: ObservableObject {
         } else {
             quickMarkerAction = .toggle
         }
-        quickMarkerLastText = defaults.string(forKey: Keys.quickMarkerLastText)
+        quickMarkerLastText = nil
+        defaults.removeObject(forKey: Keys.quickMarkerLastText)
     }
 
     nonisolated deinit {}
@@ -412,7 +432,8 @@ final class AppState: ObservableObject {
         static let ignoreChronicleSelf = "settings.ignoreChronicleSelf"
         static let windowTitleCaptureEnabled = "settings.windowTitleCaptureEnabled"
         static let windowTitlePrivacyMode = "settings.windowTitlePrivacyMode"
-        static let windowTitleBlockedBundleIDs = "settings.windowTitleBlockedBundleIDs"
+        static let windowTitleAllowedBundleIDs = "settings.windowTitleAllowedBundleIDs"
+        static let legacyWindowTitleDenylist = "settings.windowTitle" + "Blocked" + "BundleIDs"
         static let accessibilityAuthorized = "settings.accessibilityAuthorized"
         static let quickMarkerMode = "settings.quickMarkerMode"
         static let quickMarkerAction = "settings.quickMarkerAction"

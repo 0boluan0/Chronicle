@@ -6,14 +6,14 @@
 //
 
 import Foundation
-import SQLite3
+import SQLCipher
 
 final class DatabaseService {
     static let shared = DatabaseService()
 
 
     static let epochMillisThreshold: Int64 = 1_000_000_000_000
-    static let busyTimeoutMillis: Int32 = 200
+    nonisolated static let busyTimeoutMillis: Int32 = 200
     static let defaultTags: [(name: String, color: String)] = [
         ("Coding", "#4A90E2"),
         ("Study/Research", "#50E3C2"),
@@ -65,31 +65,169 @@ final class DatabaseService {
     ]
 
     let context: DatabaseContext
+    let databaseKeyProvider: (_ createIfMissing: Bool) throws -> Data
+    let databaseKeyDeleter: () throws -> Void
+    let localStateWiper: () throws -> Void
+    let wipeDatabaseURLs: [URL]
+    let preOpenPreparation: () throws -> Void
+    let wipeBusyTimeoutMillis: Int32
+    let databasePathScope: SQLCipherDatabase.TrustedPathScope
+    let wipeBeforeFirstRemoval: (() throws -> Void)?
 
-    private init(databaseURL: URL? = nil, appSupportURL: URL? = nil) {
+    private init(
+        databaseURL: URL? = nil,
+        appSupportURL: URL? = nil,
+        databaseKeyProvider: ((_ createIfMissing: Bool) throws -> Data)? = nil,
+        databaseKeyDeleter: (() throws -> Void)? = nil,
+        localStateWiper: (() throws -> Void)? = nil,
+        wipeDatabaseURLs: [URL]? = nil,
+        preOpenPreparation: (() throws -> Void)? = nil,
+        databasePathScope: SQLCipherDatabase.TrustedPathScope? = nil,
+        wipeBeforeFirstRemoval: (() throws -> Void)? = nil,
+        wipeBusyTimeoutMillis: Int32 = 5_000
+    ) {
         let resolvedAppSupportURL: URL
         let resolvedDatabaseURL: URL
+        let productionAppName: String?
+        let isolatedRuntimeKey: Data?
 
         if let databaseURL = databaseURL {
             resolvedDatabaseURL = databaseURL
             resolvedAppSupportURL = appSupportURL ?? databaseURL.deletingLastPathComponent()
+            productionAppName = nil
+            isolatedRuntimeKey = nil
+        } else if let unitTestHostStorage = AppRuntime.unitTestHostStorage {
+            resolvedAppSupportURL = unitTestHostStorage.appSupportDirectory
+            resolvedDatabaseURL = unitTestHostStorage.appSupportDirectory
+                .appendingPathComponent("activity.sqlite")
+            productionAppName = nil
+            isolatedRuntimeKey = unitTestHostStorage.databaseKey
         } else if let appSupportOverride = AppRuntime.uiTestAppSupportDirectory {
             resolvedAppSupportURL = appSupportOverride
             resolvedDatabaseURL = appSupportOverride.appendingPathComponent("activity.sqlite")
+            productionAppName = nil
+            #if DEBUG
+            isolatedRuntimeKey = Data(repeating: 0xA5, count: 32)
+            #else
+            isolatedRuntimeKey = nil
+            #endif
         } else {
             let appName = Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String ?? "Chronicle"
             resolvedAppSupportURL = AppRuntime.resolvedAppSupportDirectory(appName: appName)
             resolvedDatabaseURL = resolvedAppSupportURL.appendingPathComponent("activity.sqlite")
+            productionAppName = appName
+            isolatedRuntimeKey = nil
         }
 
+        let resolvedDatabasePathScope: SQLCipherDatabase.TrustedPathScope
+        if let databasePathScope {
+            resolvedDatabasePathScope = databasePathScope
+        } else if databaseURL != nil || AppRuntime.unitTestHostStorage != nil {
+            resolvedDatabasePathScope = SQLCipherDatabase.TrustedPathScope(
+                trustedRoots: [FileManager.default.temporaryDirectory]
+            )
+        } else if let appSupportOverride = AppRuntime.uiTestAppSupportDirectory {
+            resolvedDatabasePathScope = SQLCipherDatabase.TrustedPathScope(
+                trustedRoots: [appSupportOverride.deletingLastPathComponent()]
+            )
+        } else {
+            resolvedDatabasePathScope = SQLCipherDatabase.TrustedPathScope(
+                trustedRoots: [FileManager.default.homeDirectoryForCurrentUser]
+            )
+        }
         context = DatabaseContext(databaseURL: resolvedDatabaseURL, appSupportURL: resolvedAppSupportURL)
+        self.databasePathScope = resolvedDatabasePathScope
+
+        if let databaseKeyProvider {
+            self.databaseKeyProvider = databaseKeyProvider
+        } else if let isolatedRuntimeKey {
+            // UI and unit tests use isolated application-support directories and must never
+            // read or mutate the user's production Keychain item. A stable test-only key also
+            // lets UI tests relaunch against the same isolated archive without an auth prompt.
+            self.databaseKeyProvider = { _ in isolatedRuntimeKey }
+        } else {
+            self.databaseKeyProvider = {
+                try DatabaseKeyStore.shared.databaseKey(createIfMissing: $0)
+            }
+        }
+        if let databaseKeyDeleter {
+            self.databaseKeyDeleter = databaseKeyDeleter
+        } else if productionAppName != nil {
+            self.databaseKeyDeleter = { try DatabaseKeyStore.shared.deleteDatabaseKey() }
+        } else {
+            self.databaseKeyDeleter = {}
+        }
+        if let localStateWiper {
+            self.localStateWiper = localStateWiper
+        } else if let productionAppName {
+            self.localStateWiper = {
+                try AppRuntime.wipeConfiguredLocalState(appName: productionAppName)
+            }
+        } else if AppRuntime.isUITestMode {
+            self.localStateWiper = {
+                try AppRuntime.wipeConfiguredLocalState(
+                    feedbackDirectories: [
+                        resolvedAppSupportURL.appendingPathComponent("feedback", isDirectory: true)
+                    ],
+                    legacyPreferencesURL: nil,
+                    trustedRoots: [resolvedAppSupportURL]
+                )
+            }
+        } else {
+            self.localStateWiper = {}
+        }
+        if let wipeDatabaseURLs {
+            self.wipeDatabaseURLs = wipeDatabaseURLs
+        } else if let productionAppName {
+            self.wipeDatabaseURLs = AppRuntime.knownDatabaseURLs(appName: productionAppName)
+        } else {
+            self.wipeDatabaseURLs = [resolvedDatabaseURL]
+        }
+        if let preOpenPreparation {
+            self.preOpenPreparation = preOpenPreparation
+        } else if let productionAppName {
+            self.preOpenPreparation = {
+                try AppRuntime.prepareDatabaseForOpen(
+                    appName: productionAppName,
+                    databaseURL: resolvedDatabaseURL,
+                    databasePathScope: resolvedDatabasePathScope
+                )
+            }
+        } else {
+            self.preOpenPreparation = {}
+        }
+        self.wipeBeforeFirstRemoval = wipeBeforeFirstRemoval
+        self.wipeBusyTimeoutMillis = wipeBusyTimeoutMillis
     }
 
     nonisolated deinit {}
 
     #if DEBUG
-    static func makeTestInstance(databaseURL: URL) -> DatabaseService {
-        DatabaseService(databaseURL: databaseURL)
+    static func makeTestInstance(
+        databaseURL: URL,
+        encryptionKey: Data = Data(repeating: 0xA5, count: 32),
+        databaseKeyProvider: ((_ createIfMissing: Bool) throws -> Data)? = nil,
+        wipeDatabaseURLs: [URL]? = nil,
+        databaseKeyDeleter: @escaping () throws -> Void = {},
+        localStateWiper: @escaping () throws -> Void = {},
+        preOpenPreparation: @escaping () throws -> Void = {},
+        databasePathScope: SQLCipherDatabase.TrustedPathScope = .init(
+            trustedRoots: [FileManager.default.temporaryDirectory]
+        ),
+        wipeBeforeFirstRemoval: (() throws -> Void)? = nil,
+        wipeBusyTimeoutMillis: Int32 = 5_000
+    ) -> DatabaseService {
+        DatabaseService(
+            databaseURL: databaseURL,
+            databaseKeyProvider: databaseKeyProvider ?? { _ in encryptionKey },
+            databaseKeyDeleter: databaseKeyDeleter,
+            localStateWiper: localStateWiper,
+            wipeDatabaseURLs: wipeDatabaseURLs,
+            preOpenPreparation: preOpenPreparation,
+            databasePathScope: databasePathScope,
+            wipeBeforeFirstRemoval: wipeBeforeFirstRemoval,
+            wipeBusyTimeoutMillis: wipeBusyTimeoutMillis
+        )
     }
     #endif
 
@@ -143,14 +281,25 @@ final class DatabaseService {
         }
     }
 
-    func initializeIfNeeded() {
+    /// Completes after every database operation submitted before this call has finished.
+    /// Callers use this as a lifecycle barrier before closing or deleting the archive.
+    func drainPendingOperations(completion: @escaping () -> Void) {
+        queue.async(execute: completion)
+    }
+
+    func initializeIfNeeded(
+        completion: ((Result<Void, Error>) -> Void)? = nil
+    ) {
         queue.async { [self] in
             do {
                 try self.openDatabaseIfNeeded()
+                completion?(.success(()))
             } catch let error as DatabaseError {
                 AppLogger.log("Database init failed: \(error.logDescription)", category: "db")
+                completion?(.failure(error))
             } catch {
                 AppLogger.log("Database init failed: \(error.localizedDescription)", category: "db")
+                completion?(.failure(error))
             }
         }
     }
@@ -237,6 +386,34 @@ final class DatabaseService {
         }
     }
 
+    func fetchLatestCaptureControlEvent(
+        completion: @escaping (Result<RawEvent?, Error>) -> Void
+    ) {
+        queue.async { [self] in
+            do {
+                try openDatabaseIfNeeded()
+                completion(.success(try fetchLatestCaptureControlEventInternal()))
+            } catch {
+                completion(.failure(error))
+            }
+        }
+    }
+
+    func fetchTrackingPauseBoundaries(
+        start: Int64,
+        end: Int64,
+        completion: @escaping (Result<[Int64], Error>) -> Void
+    ) {
+        queue.async { [self] in
+            do {
+                try openDatabaseIfNeeded()
+                completion(.success(try fetchTrackingPauseBoundariesInternal(start: start, end: end)))
+            } catch {
+                completion(.failure(error))
+            }
+        }
+    }
+
     func fetchRawEventCount(start: Int64, end: Int64, completion: @escaping (Result<Int, Error>) -> Void) {
         if Thread.isMainThread {
             AppLogger.log("Warning: fetchRawEventCount called on main thread", category: "db")
@@ -265,9 +442,31 @@ final class DatabaseService {
         enqueueWrite(operation: "delete_activities_range") { [self] in
             do {
                 try self.openDatabaseIfNeeded()
-                let deleted = try self.deleteActivitiesInRangeInternal(start: start, end: end)
-                AggregationService.shared.recordDatabaseChange(rangeStart: start, rangeEnd: end)
-                completion(.success(deleted))
+                try self.execute(sql: "BEGIN IMMEDIATE;")
+                do {
+                    guard let mutableRange = try self.unreviewedMutationRangeInternal(
+                        rangeStart: start,
+                        rangeEnd: end,
+                        operation: "delete_activities_range"
+                    ) else {
+                        try self.execute(sql: "COMMIT;")
+                        completion(.success(0))
+                        return
+                    }
+                    let deleted = try self.deleteActivitiesInRangeInternal(
+                        start: mutableRange.start,
+                        end: mutableRange.end
+                    )
+                    try self.execute(sql: "COMMIT;")
+                    AggregationService.shared.recordDatabaseChange(
+                        rangeStart: mutableRange.start,
+                        rangeEnd: mutableRange.end
+                    )
+                    completion(.success(deleted))
+                } catch {
+                    try? self.execute(sql: "ROLLBACK;")
+                    throw error
+                }
             } catch let error as DatabaseError {
                 AppLogger.log("Delete activities failed: \(error.logDescription)", category: "db")
                 completion(.failure(error))
@@ -291,10 +490,27 @@ final class DatabaseService {
         enqueueWrite(operation: "rebuild_sessions") { [self] in
             do {
                 try self.openDatabaseIfNeeded()
-                let start = max(0, rangeStart - lookbackSeconds)
-                let events = try self.fetchRawEventsInternal(start: start, end: rangeEnd)
                 try self.execute(sql: "BEGIN IMMEDIATE;")
-                _ = try self.deleteActivitiesInRangeInternal(start: rangeStart, end: rangeEnd)
+                guard let mutableRange = try self.unreviewedMutationRangeInternal(
+                    rangeStart: rangeStart,
+                    rangeEnd: rangeEnd,
+                    operation: "rebuild_sessions"
+                ) else {
+                    try self.execute(sql: "COMMIT;")
+                    completion(.success(SessionNormalizer.ReplaySummary(
+                        insertedCount: 0,
+                        mergedCount: 0,
+                        droppedCount: 0
+                    )))
+                    return
+                }
+                let replayLookback = max(Int64(0), lookbackSeconds)
+                let eventStart = max(0, mutableRange.start - replayLookback)
+                let events = try self.fetchRawEventsInternal(start: eventStart, end: mutableRange.end)
+                _ = try self.deleteActivitiesInRangeInternal(
+                    start: mutableRange.start,
+                    end: mutableRange.end
+                )
 
                 let sink = SessionNormalizer.ReplaySink(
                     insertActivity: { [self] start, end, appName, bundleId, windowTitle, isIdle, tagId in
@@ -322,17 +538,23 @@ final class DatabaseService {
 
                 let summary = try SessionNormalizer.shared.replay(
                     events: events,
-                    rangeStart: rangeStart,
-                    rangeEnd: rangeEnd,
+                    rangeStart: mutableRange.start,
+                    rangeEnd: mutableRange.end,
                     sink: sink
                 )
                 try self.execute(sql: "COMMIT;")
                 do {
-                    _ = try self.recomputeTagsInternal(rangeStart: rangeStart, rangeEnd: rangeEnd)
+                    _ = try self.recomputeTagsInternal(
+                        rangeStart: mutableRange.start,
+                        rangeEnd: mutableRange.end
+                    )
                 } catch {
                     AppLogger.log("Recompute tags after rebuild failed: \(error.localizedDescription)", category: "db")
                 }
-                AggregationService.shared.recordDatabaseChange(rangeStart: rangeStart, rangeEnd: rangeEnd)
+                AggregationService.shared.recordDatabaseChange(
+                    rangeStart: mutableRange.start,
+                    rangeEnd: mutableRange.end
+                )
                 completion(.success(summary))
             } catch let error as DatabaseError {
                 try? self.execute(sql: "ROLLBACK;")
@@ -624,7 +846,10 @@ final class DatabaseService {
                 self.validateEpochSeconds(endTime, label: "end_time")
                 let updated = try self.endMarkerSpanByTextInternal(text: text, endTime: endTime)
                 let changes = self.sqliteChanges()
-                AppLogger.log("End marker span by text success op=end_marker_span_by_text updated=\(updated) changes=\(changes) text=\(text)", category: "db")
+                AppLogger.log(
+                    "End marker span by text success op=end_marker_span_by_text updated=\(updated) changes=\(changes) text_length=\(text.count)",
+                    category: "db"
+                )
                 if updated > 0 {
                     AggregationService.shared.recordDatabaseChange(rangeStart: 0, rangeEnd: Int64.max)
                 }
@@ -1654,21 +1879,122 @@ final class DatabaseService {
     func wipeDatabase(completion: @escaping (Result<Void, Error>) -> Void) {
         enqueueWrite(operation: "wipe_database") { [self] in
             do {
+                // This gate is intentionally terminal even if a deletion step fails. Runtime
+                // services and ordinary archive access stay disabled, while this wipe method
+                // remains retryable because every deletion step is idempotent.
+                context.archiveAccessDisabledAfterWipe = true
+
                 if let connection = db {
-                    sqlite3_close(connection)
+                    let closeResult = sqlite3_close(connection)
+                    guard closeResult == SQLITE_OK else {
+                        throw DatabaseError.openFailed(
+                            "Could not close the encrypted archive before wiping it: \(sqliteErrorMessage(connection))"
+                        )
+                    }
                     db = nil
                 }
                 context.resetSchemaState()
 
-                let mainURL = databaseURL
-                let walURL = URL(fileURLWithPath: databaseURL.path + "-wal")
-                let shmURL = URL(fileURLWithPath: databaseURL.path + "-shm")
+                let currentPath = databaseURL.standardizedFileURL.path
+                var seenLifecyclePaths = Set<String>()
+                let lifecycleTargets = (wipeDatabaseURLs + [databaseURL])
+                    .map(\.standardizedFileURL)
+                    .filter { seenLifecyclePaths.insert($0.path).inserted }
+                    .sorted { $0.path < $1.path }
 
-                try removeIfExists(url: mainURL)
-                try removeIfExists(url: walURL)
-                try removeIfExists(url: shmURL)
+                if context.archiveLifecycleLock?.mode != .exclusive {
+                    // Dropping our shared holder before the nonblocking exclusive acquisition
+                    // creates only a safe race: a concurrent opener may win a shared lock, in
+                    // which case wipe fails before deleting any archive, local state, or key.
+                    context.archiveLifecycleLock = nil
+                }
+                var secondaryLifecycleLocks: [(url: URL, lock: ArchiveLifecycleLock)] = []
+                defer { secondaryLifecycleLocks.removeAll() }
+                for target in lifecycleTargets {
+                    if target.path == currentPath, context.archiveLifecycleLock?.mode == .exclusive {
+                        continue
+                    }
+                    let lock = try SQLCipherDatabase.acquireArchiveLifecycleLock(
+                        for: target,
+                        mode: .exclusive,
+                        trustedRoots: databasePathScope
+                    )
+                    if target.path == currentPath {
+                        context.archiveLifecycleLock = lock
+                    } else {
+                        secondaryLifecycleLocks.append((target, lock))
+                    }
+                }
 
-                AppLogger.log("Database wiped", category: "db")
+                func validateLifecycleLocks() throws {
+                    guard let currentLock = context.archiveLifecycleLock,
+                          currentLock.mode == .exclusive else {
+                        throw DatabaseError.openFailed(
+                            "The exclusive archive lifecycle lock was not retained for wipe."
+                        )
+                    }
+                    try SQLCipherDatabase.validateArchiveLifecycleLock(
+                        currentLock,
+                        for: databaseURL,
+                        trustedRoots: databasePathScope
+                    )
+                    for held in secondaryLifecycleLocks {
+                        try SQLCipherDatabase.validateArchiveLifecycleLock(
+                            held.lock,
+                            for: held.url,
+                            trustedRoots: databasePathScope
+                        )
+                    }
+                }
+                try validateLifecycleLocks()
+
+                var wipeEncryptionKey: Data?
+                for wipeURL in wipeDatabaseURLs {
+                    let state = try SQLCipherDatabase.inspectPathState(
+                        at: wipeURL,
+                        trustedRoots: databasePathScope
+                    )
+                    if try SQLCipherDatabase.requiresEncryptedSQLiteLock(
+                        state,
+                        at: wipeURL,
+                        trustedRoots: databasePathScope
+                    ) {
+                        do {
+                            wipeEncryptionKey = try databaseKeyProvider(false)
+                        } catch {
+                            throw DatabaseError.keyManagementFailed(error.localizedDescription)
+                        }
+                        break
+                    }
+                }
+                try validateLifecycleLocks()
+
+                try SQLCipherDatabase.wipeDatabaseFiles(
+                    at: wipeDatabaseURLs,
+                    encryptionKey: wipeEncryptionKey,
+                    busyTimeoutMillis: wipeBusyTimeoutMillis,
+                    beforeFirstRemoval: { [self] in
+                        try wipeBeforeFirstRemoval?()
+                        try validateLifecycleLocks()
+                    },
+                    beforeFinalResidualValidation: { [self] in
+                        try validateLifecycleLocks()
+                        try localStateWiper()
+                        try validateLifecycleLocks()
+                    },
+                    afterFinalResidualValidation: { [self] in
+                        try validateLifecycleLocks()
+                        // This is deliberately the last throwing callback. Any archive/support or
+                        // local-state failure preserves the key needed to recover what remains.
+                        try databaseKeyDeleter()
+                    },
+                    trustedRoots: databasePathScope
+                )
+
+                AppLogger.log(
+                    "Database files, sensitive local state, support packages, and encryption key wiped",
+                    category: "db"
+                )
                 completion(.success(()))
             } catch {
                 AppLogger.log("Database wipe failed: \(error.localizedDescription)", category: "db")

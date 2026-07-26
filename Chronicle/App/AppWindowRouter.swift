@@ -8,28 +8,157 @@
 import AppKit
 import Foundation
 
+extension Notification.Name {
+    static let chronicleRequestManualWorkBlock = Notification.Name("ChronicleRequestManualWorkBlock")
+}
+
+final class AppActivationCoordinator {
+    static let shared = AppActivationCoordinator()
+
+    private final class WeakWindow {
+        weak var value: NSWindow?
+
+        init(_ value: NSWindow) {
+            self.value = value
+        }
+    }
+
+    private var trackedWindows: [ObjectIdentifier: WeakWindow] = [:]
+    private var observers: [NSObjectProtocol] = []
+    private var isStarted = false
+
+    private init() {}
+
+    func start() {
+        performOnMain { [weak self] in
+            guard let self, !self.isStarted else { return }
+            self.isStarted = true
+            self.refreshActivationPolicy()
+        }
+    }
+
+    func stop() {
+        performOnMain { [weak self] in
+            guard let self else { return }
+            for observer in self.observers {
+                NotificationCenter.default.removeObserver(observer)
+            }
+            self.observers.removeAll()
+            self.trackedWindows.removeAll()
+            self.isStarted = false
+        }
+    }
+
+    func prepareForWindowPresentation() {
+        performOnMain {
+            _ = NSApp.setActivationPolicy(.regular)
+        }
+    }
+
+    static func isStandardMainWindow(_ window: NSWindow) -> Bool {
+        !(window is NSPanel) && window.styleMask.contains(.titled)
+    }
+
+    func registerStandardWindow(_ window: NSWindow) {
+        performOnMain { [weak self, weak window] in
+            guard let self, let window else { return }
+            guard Self.isStandardMainWindow(window) else {
+                self.refreshSoon()
+                return
+            }
+            let identifier = ObjectIdentifier(window)
+            guard self.trackedWindows[identifier] == nil else {
+                self.refreshSoon()
+                return
+            }
+
+            self.trackedWindows[identifier] = WeakWindow(window)
+            let names: [Notification.Name] = [
+                NSWindow.didBecomeKeyNotification,
+                NSWindow.didBecomeMainNotification,
+                NSWindow.didMiniaturizeNotification,
+                NSWindow.didDeminiaturizeNotification,
+                NSWindow.didResignKeyNotification,
+                NSWindow.willCloseNotification
+            ]
+            for name in names {
+                let observer = NotificationCenter.default.addObserver(
+                    forName: name,
+                    object: window,
+                    queue: .main
+                ) { [weak self] _ in
+                    self?.refreshSoon()
+                }
+                self.observers.append(observer)
+            }
+            self.refreshSoon()
+        }
+    }
+
+    func refreshSoon() {
+        performOnMain { [weak self] in
+            guard let self else { return }
+            DispatchQueue.main.async { [weak self] in
+                self?.refreshActivationPolicy()
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+                self?.refreshActivationPolicy()
+            }
+        }
+    }
+
+    private func refreshActivationPolicy() {
+        trackedWindows = trackedWindows.filter { $0.value.value != nil }
+        let hasVisibleWindow = trackedWindows.values.contains { tracked in
+            guard let window = tracked.value else { return false }
+            return window.isVisible && !window.isMiniaturized
+        }
+        _ = NSApp.setActivationPolicy(hasVisibleWindow ? .regular : .accessory)
+    }
+
+    private func performOnMain(_ action: @escaping () -> Void) {
+        if Thread.isMainThread {
+            action()
+        } else {
+            DispatchQueue.main.async(execute: action)
+        }
+    }
+}
+
 enum DashboardNavigationDestination {
-    case overview
+    case pendingReview
     case timeline
-    case markers
-    case reports
-    case stats
+    case notes
+    case insights
+    case integrations
 #if DEBUG
     case debug
 #endif
 
+    @available(*, deprecated, renamed: "pendingReview")
+    static var overview: Self { .pendingReview }
+
+    @available(*, deprecated, renamed: "notes")
+    static var markers: Self { .notes }
+
+    @available(*, deprecated, renamed: "integrations")
+    static var reports: Self { .integrations }
+
+    @available(*, deprecated, renamed: "insights")
+    static var stats: Self { .insights }
+
     func apply(to defaults: UserDefaults = AppRuntime.configuredDefaults()) {
         switch self {
-        case .overview:
+        case .pendingReview:
             defaults.set("overview", forKey: "dashboard.selectedSection")
         case .timeline:
             defaults.set("timeline", forKey: "dashboard.selectedSection")
-        case .markers:
+        case .notes:
             defaults.set("markers", forKey: "dashboard.selectedSection")
-        case .reports:
-            defaults.set("reports", forKey: "dashboard.selectedSection")
-        case .stats:
+        case .insights:
             defaults.set("stats", forKey: "dashboard.selectedSection")
+        case .integrations:
+            defaults.set("reports", forKey: "dashboard.selectedSection")
 #if DEBUG
         case .debug:
             defaults.set("debug", forKey: "dashboard.selectedSection")
@@ -42,7 +171,6 @@ enum PreferencesNavigationDestination {
     case general
     case tagsRules
     case tagWizard
-    case export
     case support
     case supportHealth
     case privacy
@@ -61,8 +189,6 @@ enum PreferencesNavigationDestination {
         case .tagWizard:
             defaults.set("tags", forKey: "preferences.selectedSection")
             defaults.set("appMappings", forKey: "preferences.tags.selectedSubsection")
-        case .export:
-            defaults.set("export", forKey: "preferences.selectedSection")
         case .support:
             defaults.set("support", forKey: "preferences.selectedSection")
             defaults.set(false, forKey: "preferences.support.openHealthReport")
@@ -81,6 +207,7 @@ enum PreferencesNavigationDestination {
 
 enum AppWindowRoute {
     case dashboard
+    case integrations
     case settings(PreferencesNavigationDestination? = nil)
     case welcome
     case quickMarker
@@ -91,6 +218,7 @@ final class AppWindowRouter {
 
     private var openSceneHandler: ((String) -> Void)?
     private var dismissSceneHandler: ((String) -> Void)?
+    private var hasPendingManualWorkRequest = false
 
     private init() {}
 
@@ -106,7 +234,9 @@ final class AppWindowRouter {
         DispatchQueue.main.async {
             switch route {
             case .dashboard:
-                self.openDashboardScene(destination: nil)
+                self.openDashboardScene(destination: .pendingReview)
+            case .integrations:
+                self.openDashboardScene(destination: .integrations)
             case .settings(let destination):
                 self.openSettings(destination: destination)
             case .welcome:
@@ -119,16 +249,44 @@ final class AppWindowRouter {
         }
     }
 
-    func openDashboard(destination: DashboardNavigationDestination? = nil) {
+    func openDashboard(destination: DashboardNavigationDestination = .pendingReview) {
         DispatchQueue.main.async {
             self.openDashboardScene(destination: destination)
         }
     }
 
+    /// Opens the capture panel with an explicit semantic mode. Use this for
+    /// labeled entry points such as “Add Note” and “Interval Note” so the
+    /// panel never inherits an unrelated mode from its previous use.
+    func openQuickMarker(
+        mode: QuickMarkerMode,
+        action: QuickMarkerAction = .toggle
+    ) {
+        DispatchQueue.main.async {
+            AppState.shared.quickMarkerMode = mode
+            AppState.shared.quickMarkerAction = action
+            QuickMarkerPanelController.shared.show()
+        }
+    }
+
+    func openManualWorkBlock() {
+        DispatchQueue.main.async {
+            self.hasPendingManualWorkRequest = true
+            self.openDashboardScene(destination: .pendingReview)
+            NotificationCenter.default.post(name: .chronicleRequestManualWorkBlock, object: nil)
+        }
+    }
+
+    func consumeManualWorkBlockRequest() -> Bool {
+        guard hasPendingManualWorkRequest else { return false }
+        hasPendingManualWorkRequest = false
+        return true
+    }
+
     func close(_ route: AppWindowRoute) {
         DispatchQueue.main.async {
             switch route {
-            case .dashboard:
+            case .dashboard, .integrations:
                 self.dismissScene(id: AppWindowSceneID.dashboard) {
                     DashboardWindowController.shared.close()
                 }
@@ -155,10 +313,8 @@ final class AppWindowRouter {
         }
     }
 
-    private func openDashboardScene(destination: DashboardNavigationDestination?) {
-        if let destination {
-            destination.apply()
-        }
+    private func openDashboardScene(destination: DashboardNavigationDestination) {
+        destination.apply()
         self.openScene(id: AppWindowSceneID.dashboard) {
             DashboardWindowController.shared.show()
         }
@@ -169,6 +325,7 @@ final class AppWindowRouter {
     }
 
     private func openScene(id: String, fallback: () -> Void) {
+        AppActivationCoordinator.shared.prepareForWindowPresentation()
         if AppRuntime.isUITestMode {
             NSApp.activate(ignoringOtherApps: true)
             fallback()
@@ -186,13 +343,16 @@ final class AppWindowRouter {
     private func dismissScene(id: String, fallback: () -> Void) {
         if AppRuntime.isUITestMode {
             fallback()
+            AppActivationCoordinator.shared.refreshSoon()
             return
         }
 
         guard let dismissSceneHandler else {
             fallback()
+            AppActivationCoordinator.shared.refreshSoon()
             return
         }
         dismissSceneHandler(id)
+        AppActivationCoordinator.shared.refreshSoon()
     }
 }

@@ -11,7 +11,6 @@ struct PreferencesView: View {
     enum Section: String, CaseIterable, Identifiable {
         case general
         case tags
-        case export
         case support
         case privacy
 #if DEBUG
@@ -30,8 +29,6 @@ struct PreferencesView: View {
                 return "preferences.general"
             case .tags:
                 return "preferences.tags"
-            case .export:
-                return "preferences.export"
             case .support:
                 return "preferences.support"
             case .privacy:
@@ -49,8 +46,6 @@ struct PreferencesView: View {
                 return "gearshape"
             case .tags:
                 return "rectangle.split.3x1"
-            case .export:
-                return "doc.text.magnifyingglass"
             case .support:
                 return "questionmark.circle"
             case .privacy:
@@ -72,8 +67,6 @@ struct PreferencesView: View {
                 return "preferences.sidebar.general"
             case .tags:
                 return "preferences.sidebar.tags"
-            case .export:
-                return "preferences.sidebar.export"
             case .support:
                 return "preferences.sidebar.support"
             case .privacy:
@@ -86,7 +79,7 @@ struct PreferencesView: View {
         }
 
         static var allCases: [Section] {
-            var sections: [Section] = [.general, .privacy, .tags, .export, .support]
+            var sections: [Section] = [.general, .privacy, .tags, .support]
 #if DEBUG
             if DeveloperDiagnostics.showNavigationItems {
                 sections.append(.debug)
@@ -191,10 +184,6 @@ struct PreferencesView: View {
         case .tags:
             PreferencesSectionScrollView {
                 TagsPreferencesView()
-            }
-        case .export:
-            PreferencesSectionScrollView {
-                ExportPreferencesView()
             }
         case .support:
             PreferencesSectionScrollView {

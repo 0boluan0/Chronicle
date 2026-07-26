@@ -4,11 +4,76 @@
 //
 
 import Foundation
-import SQLite3
+import SQLCipher
 
 // MARK: - Activity DAO
 
 extension DatabaseService {
+    func rolloverActivity(
+        id: Int64,
+        at cutoff: Int64,
+        completion: @escaping (Result<Int64, Error>) -> Void
+    ) {
+        queue.async { [self] in
+            do {
+                try openDatabaseIfNeeded()
+                validateEpochSeconds(cutoff, label: "rollover_cutoff")
+                try execute(sql: "BEGIN IMMEDIATE TRANSACTION;")
+                do {
+                    guard let bounds = try fetchActivityBoundsInternal(id: id) else {
+                        throw ActivityRolloverError.activityNotFound
+                    }
+                    guard cutoff >= bounds.start else {
+                        throw ActivityRolloverError.cutoffPrecedesSessionStart
+                    }
+
+                    try updateActivityEndTimeInternal(id: id, endTime: cutoff)
+                    let resumedID = try cloneActivityForRolloverInternal(id: id, cutoff: cutoff)
+                    try execute(sql: "COMMIT;")
+                    AggregationService.shared.recordDatabaseChange(
+                        rangeStart: bounds.start,
+                        rangeEnd: cutoff == Int64.max ? cutoff : cutoff + 1
+                    )
+                    completion(.success(resumedID))
+                } catch {
+                    try? execute(sql: "ROLLBACK;")
+                    throw error
+                }
+            } catch {
+                AppLogger.log("Activity rollover failed: \(error.localizedDescription)", category: "db")
+                completion(.failure(error))
+            }
+        }
+    }
+
+    func cloneActivityForRolloverInternal(id: Int64, cutoff: Int64) throws -> Int64 {
+        let sql = """
+        INSERT INTO Activities (
+            start_time, end_time, app_name, bundle_id, window_title, is_idle,
+            tag_id, rule_tag_id, user_tag_override_id, effective_tag_id
+        )
+        SELECT ?, ?, app_name, bundle_id, window_title, is_idle,
+               tag_id, rule_tag_id, user_tag_override_id, effective_tag_id
+        FROM Activities
+        WHERE id = ?;
+        """
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+            throw DatabaseError.prepareFailed(sqliteErrorMessage(db), sql: sql)
+        }
+        defer { sqlite3_finalize(statement) }
+        try bind(sql: sql, result: sqlite3_bind_int64(statement, 1, cutoff), detail: "start_time")
+        try bind(sql: sql, result: sqlite3_bind_int64(statement, 2, cutoff), detail: "end_time")
+        try bind(sql: sql, result: sqlite3_bind_int64(statement, 3, id), detail: "source_activity_id")
+        guard sqlite3_step(statement) == SQLITE_DONE else {
+            throw DatabaseError.stepFailed(sqliteErrorMessage(db), sql: sql)
+        }
+        guard sqlite3_changes(db) == 1 else {
+            throw ActivityRolloverError.activityNotFound
+        }
+        return sqlite3_last_insert_rowid(db)
+    }
+
     func insertActivityInternal(
         start: Int64,
         end: Int64,
@@ -257,6 +322,67 @@ extension DatabaseService {
         return events
     }
 
+    func fetchLatestCaptureControlEventInternal() throws -> RawEvent? {
+        let sql = """
+        SELECT id, ts, type, bundle_id, app_name, window_title, payload
+        FROM RawEvents
+        WHERE type IN (?, ?)
+        ORDER BY id DESC
+        LIMIT 1;
+        """
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+            throw DatabaseError.prepareFailed(sqliteErrorMessage(db), sql: sql)
+        }
+        defer { sqlite3_finalize(statement) }
+        try bindText(statement, index: 1, value: RawEventType.trackingPaused.rawValue, sql: sql, detail: "paused_type")
+        try bindText(statement, index: 2, value: RawEventType.trackingResumed.rawValue, sql: sql, detail: "resumed_type")
+        let stepResult = sqlite3_step(statement)
+        if stepResult == SQLITE_DONE { return nil }
+        guard stepResult == SQLITE_ROW else {
+            throw DatabaseError.stepFailed(sqliteErrorMessage(db), sql: sql)
+        }
+        let rawType = sqlite3_column_text(statement, 2).map { String(cString: $0) } ?? ""
+        guard let type = RawEventType(rawValue: rawType) else { return nil }
+        return RawEvent(
+            id: sqlite3_column_int64(statement, 0),
+            timestamp: sqlite3_column_int64(statement, 1),
+            type: type,
+            bundleId: sqlite3_column_text(statement, 3).map { String(cString: $0) },
+            appName: sqlite3_column_text(statement, 4).map { String(cString: $0) },
+            windowTitle: sqlite3_column_text(statement, 5).map { String(cString: $0) },
+            payload: sqlite3_column_text(statement, 6).map { String(cString: $0) }
+        )
+    }
+
+    func fetchTrackingPauseBoundariesInternal(start: Int64, end: Int64) throws -> [Int64] {
+        let sql = """
+        SELECT ts
+        FROM RawEvents
+        WHERE type = ? AND ts >= ? AND ts <= ?
+        ORDER BY ts ASC, id ASC;
+        """
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+            throw DatabaseError.prepareFailed(sqliteErrorMessage(db), sql: sql)
+        }
+        defer { sqlite3_finalize(statement) }
+        try bindText(statement, index: 1, value: RawEventType.trackingPaused.rawValue, sql: sql, detail: "type")
+        try bind(sql: sql, result: sqlite3_bind_int64(statement, 2, start), detail: "start")
+        try bind(sql: sql, result: sqlite3_bind_int64(statement, 3, end), detail: "end")
+        var timestamps: [Int64] = []
+        while true {
+            let stepResult = sqlite3_step(statement)
+            if stepResult == SQLITE_ROW {
+                timestamps.append(sqlite3_column_int64(statement, 0))
+            } else if stepResult == SQLITE_DONE {
+                return timestamps
+            } else {
+                throw DatabaseError.stepFailed(sqliteErrorMessage(db), sql: sql)
+            }
+        }
+    }
+
     func fetchRawEventCountInternal(start: Int64, end: Int64) throws -> Int {
         let sql = """
         SELECT COUNT(*)
@@ -285,23 +411,10 @@ extension DatabaseService {
     }
 
     func deleteActivitiesInRangeInternal(start: Int64, end: Int64) throws -> Int {
-        let sql = "DELETE FROM Activities WHERE start_time < ? AND end_time > ?;"
-        var statement: OpaquePointer?
-        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
-            let message = sqliteErrorMessage(db)
-            logSQLiteError(operation: "prepare", sql: sql, message: message)
-            throw DatabaseError.prepareFailed(message, sql: sql)
-        }
-        defer { sqlite3_finalize(statement) }
-        try bind(sql: sql, result: sqlite3_bind_int64(statement, 1, end), detail: "end")
-        try bind(sql: sql, result: sqlite3_bind_int64(statement, 2, start), detail: "start")
-        let stepResult = sqlite3_step(statement)
-        guard stepResult == SQLITE_DONE else {
-            let message = sqliteErrorMessage(db)
-            logSQLiteError(operation: "step", sql: sql, message: message)
-            throw DatabaseError.stepFailed(message, sql: sql)
-        }
-        return Int(sqlite3_changes(db))
+        try subtractActivitiesInRangePreservingOutsideInternal(
+            rangeStart: start,
+            rangeEnd: end
+        )
     }
 
     func resolveTagForActivityInternal(
@@ -381,7 +494,23 @@ extension DatabaseService {
     }
 
     func recomputeTagsInternal(rangeStart: Int64, rangeEnd: Int64) throws -> Int {
-        let activities = try fetchActivitiesOverlappingRangeInternal(start: rangeStart, end: rangeEnd, limit: nil, offset: nil)
+        guard let mutableRange = try unreviewedMutationRangeInternal(
+            rangeStart: rangeStart,
+            rangeEnd: rangeEnd,
+            operation: "recompute_tags"
+        ) else {
+            return 0
+        }
+        var activities = try fetchActivitiesOverlappingRangeInternal(
+            start: mutableRange.start,
+            end: mutableRange.end,
+            limit: nil,
+            offset: nil
+        )
+        if let checkpoint = mutableRange.checkpoint {
+            // A row crossing the checkpoint contributes to reviewed evidence; leave it untouched.
+            activities.removeAll { $0.startTime < checkpoint }
+        }
         let rules = try fetchRulesInternal(enabledOnly: true)
         let useExtended = hasRuleTagColumn && hasEffectiveTagColumn && hasUserTagOverrideColumn
         var updatedCount = 0
@@ -756,29 +885,60 @@ extension DatabaseService {
 
         try execute(sql: "BEGIN IMMEDIATE TRANSACTION;")
         do {
-            let previous = try fetchPreviousActivity(endBefore: startTime, excludingId: activityId)
+            let checkpoint = try latestReviewCheckpointForMutationInternal()
+            if let checkpoint {
+                let persistedStart = try fetchActivityBoundsInternal(id: activityId)?.start ?? startTime
+                if persistedStart < checkpoint {
+                    AppLogger.log(
+                        "Skipped protected mutation op=merge_short_activity activity_id=\(activityId) activity_start=\(persistedStart) checkpoint=\(checkpoint)",
+                        category: "db"
+                    )
+                    try execute(sql: "COMMIT;")
+                    return ShortSessionOutcome(mergedCount: 0, droppedCount: 0)
+                }
+            }
+
+            let previousCandidate = try fetchPreviousActivity(endBefore: startTime, excludingId: activityId)
+            let previous: ActivitySummary?
+            if let checkpoint {
+                previous = previousCandidate.flatMap { $0.startTime >= checkpoint ? $0 : nil }
+            } else {
+                previous = previousCandidate
+            }
             let next = try fetchNextActivity(startAfter: endTime, excludingId: activityId)
             var mergedCount = 0
             var droppedCount = 0
 
-            let matchesPrevious = previous.map {
-                activitySignatureMatches(
+            let matchesPrevious = try previous.map {
+                guard activitySignatureMatches(
                     summary: $0,
                     appName: appName,
                     bundleId: bundleId,
                     tagId: tagId,
                     isIdle: isIdle
-                ) && (startTime - $0.endTime) <= mergeGapSeconds
+                ), (startTime - $0.endTime) <= mergeGapSeconds else {
+                    return false
+                }
+                return try !hasTrackingPauseBoundaryInternal(
+                    between: $0.endTime,
+                    and: endTime
+                )
             } ?? false
 
-            let matchesNext = next.map {
-                activitySignatureMatches(
+            let matchesNext = try next.map {
+                guard activitySignatureMatches(
                     summary: $0,
                     appName: appName,
                     bundleId: bundleId,
                     tagId: tagId,
                     isIdle: isIdle
-                ) && ($0.startTime - endTime) <= mergeGapSeconds
+                ), ($0.startTime - endTime) <= mergeGapSeconds else {
+                    return false
+                }
+                return try !hasTrackingPauseBoundaryInternal(
+                    between: startTime,
+                    and: $0.startTime
+                )
             } ?? false
 
             if let previous, let next, matchesPrevious, matchesNext {
@@ -816,84 +976,107 @@ extension DatabaseService {
         minDurationSeconds: Int64,
         mergeGapSeconds: Int64
     ) throws -> CompactionSummary {
-        let clampedMinDuration = max(Int64(0), minDurationSeconds)
-        let clampedMergeGap = max(Int64(0), mergeGapSeconds)
-        let rows = try fetchActivitiesForCompactionInternal(startEpoch: startEpoch, endEpoch: endEpoch)
-        guard !rows.isEmpty else {
-            return CompactionSummary(mergedCount: 0, droppedCount: 0, updatedCount: 0)
-        }
-
-        var mergedSegments: [CompactionSegment] = []
-        var mergedCount = 0
-        var deleteIds = Set<Int64>()
-
-        for row in rows {
-            let segment = CompactionSegment(from: row)
-            if let last = mergedSegments.last,
-               segmentsMatch(last, segment),
-               gapBetween(last, segment) <= clampedMergeGap {
-                mergedSegments[mergedSegments.count - 1].end = max(last.end, segment.end)
-                mergedSegments[mergedSegments.count - 1].mergedIds.append(segment.id)
-                deleteIds.insert(segment.id)
-                mergedCount += 1
-            } else {
-                mergedSegments.append(segment)
+        try execute(sql: "BEGIN IMMEDIATE TRANSACTION;")
+        do {
+            guard let mutableRange = try unreviewedMutationRangeInternal(
+                rangeStart: startEpoch,
+                rangeEnd: endEpoch,
+                operation: "compact_activities"
+            ) else {
+                try execute(sql: "COMMIT;")
+                return CompactionSummary(mergedCount: 0, droppedCount: 0, updatedCount: 0)
             }
-        }
 
-        var finalSegments: [CompactionSegment] = []
-        var droppedCount = 0
-        var index = 0
-        var working = mergedSegments
+            let clampedMinDuration = max(Int64(0), minDurationSeconds)
+            let clampedMergeGap = max(Int64(0), mergeGapSeconds)
+            var rows = try fetchActivitiesForCompactionInternal(
+                startEpoch: mutableRange.start,
+                endEpoch: mutableRange.end
+            )
+            if let checkpoint = mutableRange.checkpoint {
+                // Never compact a source row that still carries reviewed history across the boundary.
+                rows.removeAll { $0.startTime < checkpoint }
+            }
+            guard !rows.isEmpty else {
+                try execute(sql: "COMMIT;")
+                return CompactionSummary(mergedCount: 0, droppedCount: 0, updatedCount: 0)
+            }
 
-        while index < working.count {
-            let segment = working[index]
-            let duration = max(Int64(0), segment.end - segment.start)
+            var mergedSegments: [CompactionSegment] = []
+            var mergedCount = 0
+            var deleteIds = Set<Int64>()
 
-            if clampedMinDuration > 0 && duration < clampedMinDuration {
-                var mergedIntoNext = false
-                if index + 1 < working.count {
-                    var next = working[index + 1]
-                    if segmentsMatch(segment, next), gapBetween(segment, next) <= clampedMergeGap {
-                        next.start = min(next.start, segment.start)
-                        working[index + 1] = next
+            for row in rows {
+                let segment = CompactionSegment(from: row)
+                if let last = mergedSegments.last,
+                   segmentsMatch(last, segment),
+                   gapBetween(last, segment) <= clampedMergeGap,
+                   try !hasTrackingPauseBoundaryInternal(between: last.end, and: segment.end) {
+                    mergedSegments[mergedSegments.count - 1].end = max(last.end, segment.end)
+                    mergedSegments[mergedSegments.count - 1].mergedIds.append(segment.id)
+                    deleteIds.insert(segment.id)
+                    mergedCount += 1
+                } else {
+                    mergedSegments.append(segment)
+                }
+            }
+
+            var finalSegments: [CompactionSegment] = []
+            var droppedCount = 0
+            var index = 0
+            var working = mergedSegments
+
+            while index < working.count {
+                let segment = working[index]
+                let duration = max(Int64(0), segment.end - segment.start)
+
+                if clampedMinDuration > 0 && duration < clampedMinDuration {
+                    var mergedIntoNext = false
+                    if index + 1 < working.count {
+                        var next = working[index + 1]
+                        if segmentsMatch(segment, next),
+                           gapBetween(segment, next) <= clampedMergeGap,
+                           try !hasTrackingPauseBoundaryInternal(between: segment.start, and: next.start) {
+                            next.start = min(next.start, segment.start)
+                            working[index + 1] = next
+                            deleteIds.insert(segment.id)
+                            droppedCount += 1
+                            mergedCount += 1
+                            mergedIntoNext = true
+                        }
+                    }
+                    if mergedIntoNext {
+                        index += 1
+                        continue
+                    }
+
+                    if var last = finalSegments.last,
+                       segmentsMatch(last, segment),
+                       gapBetween(last, segment) <= clampedMergeGap,
+                       try !hasTrackingPauseBoundaryInternal(between: last.end, and: segment.end) {
+                        last.end = max(last.end, segment.end)
+                        finalSegments[finalSegments.count - 1] = last
                         deleteIds.insert(segment.id)
                         droppedCount += 1
                         mergedCount += 1
-                        mergedIntoNext = true
+                        index += 1
+                        continue
                     }
-                }
-                if mergedIntoNext {
-                    index += 1
-                    continue
-                }
 
-                if var last = finalSegments.last, segmentsMatch(last, segment), gapBetween(last, segment) <= clampedMergeGap {
-                    last.end = max(last.end, segment.end)
-                    finalSegments[finalSegments.count - 1] = last
                     deleteIds.insert(segment.id)
                     droppedCount += 1
-                    mergedCount += 1
                     index += 1
                     continue
                 }
 
-                deleteIds.insert(segment.id)
-                droppedCount += 1
+                finalSegments.append(segment)
                 index += 1
-                continue
             }
 
-            finalSegments.append(segment)
-            index += 1
-        }
+            for segment in finalSegments {
+                deleteIds.remove(segment.id)
+            }
 
-        for segment in finalSegments {
-            deleteIds.remove(segment.id)
-        }
-
-        try execute(sql: "BEGIN IMMEDIATE TRANSACTION;")
-        do {
             var updatedCount = 0
             for segment in finalSegments {
                 let normalizedStart = min(segment.start, segment.end)
@@ -929,7 +1112,7 @@ extension DatabaseService {
         SELECT \(activitySelectColumns)
         FROM Activities
         WHERE end_time >= ? AND start_time <= ?
-        ORDER BY start_time ASC;
+        ORDER BY start_time ASC, id ASC;
         """
 
         var statement: OpaquePointer?
@@ -967,12 +1150,61 @@ extension DatabaseService {
         return max(Int64(0), rhs.start - lhs.end)
     }
 
+    /// Pause markers are timestamp-only privacy tombstones. They remain after reviewed raw
+    /// evidence is deleted so no later maintenance pass can coalesce activity across a pause.
+    func hasTrackingPauseBoundaryInternal(between firstTimestamp: Int64, and secondTimestamp: Int64) throws -> Bool {
+        let lowerBound = min(firstTimestamp, secondTimestamp)
+        let upperBound = max(firstTimestamp, secondTimestamp)
+        let sql = """
+        SELECT 1
+        FROM RawEvents
+        WHERE type = ? AND ts >= ? AND ts <= ?
+        LIMIT 1;
+        """
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "prepare", sql: sql, message: message)
+            throw DatabaseError.prepareFailed(message, sql: sql)
+        }
+        defer { sqlite3_finalize(statement) }
+
+        try bindText(
+            statement,
+            index: 1,
+            value: RawEventType.trackingPaused.rawValue,
+            sql: sql,
+            detail: "type"
+        )
+        try bind(
+            sql: sql,
+            result: sqlite3_bind_int64(statement, 2, lowerBound),
+            detail: "lower_bound"
+        )
+        try bind(
+            sql: sql,
+            result: sqlite3_bind_int64(statement, 3, upperBound),
+            detail: "upper_bound"
+        )
+
+        let stepResult = sqlite3_step(statement)
+        if stepResult == SQLITE_ROW {
+            return true
+        }
+        guard stepResult == SQLITE_DONE else {
+            let message = sqliteErrorMessage(db)
+            logSQLiteError(operation: "step", sql: sql, message: message)
+            throw DatabaseError.stepFailed(message, sql: sql)
+        }
+        return false
+    }
+
     func fetchPreviousActivity(endBefore: Int64, excludingId: Int64) throws -> ActivitySummary? {
         let sql = """
         SELECT \(activitySummaryColumns)
         FROM Activities
         WHERE end_time <= ? AND id != ?
-        ORDER BY end_time DESC
+        ORDER BY end_time DESC, id DESC
         LIMIT 1;
         """
 
@@ -999,7 +1231,7 @@ extension DatabaseService {
         SELECT \(activitySummaryColumns)
         FROM Activities
         WHERE start_time >= ? AND id != ?
-        ORDER BY start_time ASC
+        ORDER BY start_time ASC, id ASC
         LIMIT 1;
         """
 

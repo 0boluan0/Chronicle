@@ -12,7 +12,26 @@ private let reportsReadableContentWidth: CGFloat = 980
 
 enum ReportsWorkspaceMode: Equatable {
     case dashboard
-    case preferences
+    case formatsAndTemplates
+
+    var sections: [ReportsWorkspaceSection] {
+        switch self {
+        case .dashboard:
+            return [.closeout, .dashboardWeekly, .reviewReminder]
+        case .formatsAndTemplates:
+            return [.exportReadiness, .csv, .dailyTemplate, .weeklyTemplate]
+        }
+    }
+}
+
+enum ReportsWorkspaceSection: Hashable {
+    case closeout
+    case dashboardWeekly
+    case reviewReminder
+    case exportReadiness
+    case csv
+    case dailyTemplate
+    case weeklyTemplate
 }
 
 private enum ReportTemplateResetTarget {
@@ -97,7 +116,7 @@ private enum CSVFieldPreset: String, CaseIterable, Identifiable {
 struct ReportsWorkspaceView: View {
     var showTitle: Bool = true
     var useScrollView: Bool = true
-    var mode: ReportsWorkspaceMode = .preferences
+    var mode: ReportsWorkspaceMode = .formatsAndTemplates
 
     @EnvironmentObject private var appState: AppState
     @ObservedObject private var settings = ReportSettings.shared
@@ -189,28 +208,32 @@ struct ReportsWorkspaceView: View {
                 reportsWorkspaceHeader
             }
 
-            closeoutSection
-
-            if mode == .dashboard {
-                dashboardWeeklySection
-
-                reviewReminderSection
-            } else {
-                reviewPlanSection
-
-                exportReadinessSection
-
-                reviewReminderSection
-
-                csvSection
-
-                dailySection
-
-                weeklySection
+            ForEach(mode.sections, id: \.self) { section in
+                reportWorkspaceSection(section)
             }
         }
         .frame(maxWidth: reportsReadableContentWidth, alignment: .leading)
         .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+
+    @ViewBuilder
+    private func reportWorkspaceSection(_ section: ReportsWorkspaceSection) -> some View {
+        switch section {
+        case .closeout:
+            closeoutSection
+        case .dashboardWeekly:
+            dashboardWeeklySection
+        case .reviewReminder:
+            reviewReminderSection
+        case .exportReadiness:
+            exportReadinessSection
+        case .csv:
+            csvSection
+        case .dailyTemplate:
+            dailySection
+        case .weeklyTemplate:
+            weeklySection
+        }
     }
 
     private var reportsWorkspaceHeader: some View {
@@ -321,7 +344,7 @@ struct ReportsWorkspaceView: View {
                     canOpenFolder: dailyFolderReady,
                     accessibilityIdentifier: "reports.closeout.dailyStatus",
                     openExportSettings: {
-                        AppWindowRouter.shared.open(.settings(.export))
+                        AppWindowRouter.shared.openDashboard(destination: .integrations)
                     },
                     openFolder: {
                         dailyStatus = handleOpenFolder(result: ReportService.shared.openDailyFolder())
@@ -427,7 +450,7 @@ struct ReportsWorkspaceView: View {
                     canOpenFolder: weeklyFolderReady,
                     accessibilityIdentifier: "reports.dashboardWeekly.status",
                     openExportSettings: {
-                        AppWindowRouter.shared.open(.settings(.export))
+                        AppWindowRouter.shared.openDashboard(destination: .integrations)
                     },
                     openFolder: {
                         weeklyStatus = handleOpenFolder(result: ReportService.shared.openWeeklyFolder())
@@ -542,7 +565,7 @@ struct ReportsWorkspaceView: View {
             .accessibilityIdentifier("reports.closeout.previewToday")
 
             Button {
-                AppWindowRouter.shared.open(.settings(.export))
+                AppWindowRouter.shared.openDashboard(destination: .integrations)
             } label: {
                 reportActionButtonLabel(L("reports.feedback.open_export"), systemImage: "gearshape")
             }
@@ -1158,7 +1181,7 @@ struct ReportsWorkspaceView: View {
                         weeklyPlanActions
                     }
 
-                    if mode == .preferences {
+                    if mode == .formatsAndTemplates {
                         reportPlanBlock(
                             titleKey: "reports.plan.csv_title",
                             detail: String(format: L("reports.plan.csv_detail"), csvRangeSummary, selectedCSVColumns.count),
@@ -2241,6 +2264,7 @@ struct ReportsWorkspaceView: View {
     private func updateDailyReviewReminderEnabled(_ enabled: Bool) {
         appState.dailyReviewReminderEnabled = enabled
         if !enabled {
+            appState.dailyReviewReminderDue = false
             reviewReminderNotificationStatus = nil
         }
     }
@@ -2270,12 +2294,18 @@ struct ReportsWorkspaceView: View {
     }
 
     private var reviewReminderTone: DesignSystem.StatusTone {
-        appState.dailyReviewReminderEnabled ? .success : .neutral
+        if appState.dailyReviewReminderDue {
+            return .warning
+        }
+        return appState.dailyReviewReminderEnabled ? .success : .neutral
     }
 
     private var reviewReminderStatusText: String {
         if !appState.dailyReviewReminderEnabled {
             return L("reports.review_reminder.status.off")
+        }
+        if appState.dailyReviewReminderDue {
+            return L("reports.review_reminder.status.due")
         }
         if appState.dailyReviewSystemNotificationEnabled {
             return L("reports.review_reminder.status.notification")
@@ -2286,6 +2316,9 @@ struct ReportsWorkspaceView: View {
     private var reviewReminderStatusIconName: String {
         if !appState.dailyReviewReminderEnabled {
             return "bell.slash"
+        }
+        if appState.dailyReviewReminderDue {
+            return "bell.badge.fill"
         }
         if appState.dailyReviewSystemNotificationEnabled {
             return "bell.badge"
@@ -2464,17 +2497,18 @@ struct ReportsWorkspaceView: View {
             statusSystemImage: "calendar",
             tone: .info
         ) {
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 170), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.sm
-            ) {
-                dailyResetTemplateButton
-                dailyPreviewButton
-                dailyCopyButton
-                dailyGenerateSelectedButton
-                dailyGenerateTodayButton
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                    dailyResetTemplateButton
+                    dailyPreviewButton
+                    dailyCopyButton
+                }
+                HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                    dailyGenerateSelectedButton
+                    dailyGenerateTodayButton
+                }
             }
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("reports.daily.actions")
         }
     }
@@ -2553,17 +2587,18 @@ struct ReportsWorkspaceView: View {
             statusSystemImage: "calendar.badge.clock",
             tone: .info
         ) {
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 170), spacing: DesignSystem.Spacing.sm, alignment: .leading)],
-                alignment: .leading,
-                spacing: DesignSystem.Spacing.sm
-            ) {
-                weeklyResetTemplateButton
-                weeklyPreviewButton
-                weeklyCopyButton
-                weeklyGenerateSelectedButton
-                weeklyGenerateCurrentButton
+            VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                    weeklyResetTemplateButton
+                    weeklyPreviewButton
+                    weeklyCopyButton
+                }
+                HStack(alignment: .top, spacing: DesignSystem.Spacing.sm) {
+                    weeklyGenerateSelectedButton
+                    weeklyGenerateCurrentButton
+                }
             }
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("reports.weekly.actions")
         }
     }
@@ -3757,6 +3792,7 @@ struct ReportsWorkspaceView: View {
             get: { dateForMinutesOfDay(appState.dailyReviewReminderTimeMinutes) },
             set: { newValue in
                 appState.dailyReviewReminderTimeMinutes = minutesOfDay(from: newValue)
+                appState.dailyReviewReminderDue = false
             }
         )
     }

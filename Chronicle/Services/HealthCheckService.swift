@@ -55,6 +55,7 @@ final class HealthCheckService: ObservableObject {
         metrics["tracking_running"] = ActivityTracker.shared.isRunning ? "true" : "false"
         metrics["accessibility_authorized"] = appState.accessibilityAuthorized ? "true" : "false"
         metrics["window_title_capture_enabled"] = appState.windowTitleCaptureEnabled ? "true" : "false"
+        metrics["window_title_allowed_bundle_count"] = "\(appState.windowTitleAllowedBundleIDs.count)"
         metrics["auto_daily_export_enabled"] = reportSettings.enableAutoDailyExport ? "true" : "false"
         metrics["auto_weekly_export_enabled"] = reportSettings.enableAutoWeeklyExport ? "true" : "false"
         metrics["daily_export_folder_configured"] = reportSettings.dailyFolderBookmark == nil ? "false" : "true"
@@ -92,7 +93,7 @@ final class HealthCheckService: ObservableObject {
             )
         }
 
-        if appState.windowTitleCaptureEnabled && !appState.accessibilityAuthorized {
+        if appState.windowTitleCaptureRequiresAccessibility && !appState.accessibilityAuthorized {
             issues.append(
                 HealthCheckIssue(
                     severity: .warning,
@@ -107,7 +108,7 @@ final class HealthCheckService: ObservableObject {
                 HealthCheckIssue(
                     severity: .warning,
                     message: "Auto daily export is enabled but Daily folder is not configured.",
-                    details: "Open Preferences → Export and select a folder for Daily reports."
+                    details: "Open Export & Integrations and select a folder for Daily reports."
                 )
             )
         }
@@ -117,7 +118,7 @@ final class HealthCheckService: ObservableObject {
                 HealthCheckIssue(
                     severity: .warning,
                     message: "Auto weekly export is enabled but Weekly folder is not configured.",
-                    details: "Open Preferences → Export and select a folder for Weekly reports."
+                    details: "Open Export & Integrations and select a folder for Weekly reports."
                 )
             )
         }

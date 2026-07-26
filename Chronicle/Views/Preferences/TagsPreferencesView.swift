@@ -28,12 +28,16 @@ struct TagsPreferencesView: View {
 
     @State private var setupSummary = TagsSetupSummary()
     @State private var setupSummaryRefreshSequence = 0
+    @State private var setupSummaryLoadFailed = false
 
     private var selection: Subsection {
         Subsection(rawValue: selectedSubsectionRaw) ?? .tagsRules
     }
 
     private var setupStage: TagsSetupStage {
+        if setupSummaryLoadFailed {
+            return .unavailable
+        }
         if setupSummary.categoryCount == 0 {
             return .needsCategories
         }
@@ -97,33 +101,55 @@ struct TagsPreferencesView: View {
         var fetchedTags: [TagRow] = []
         var fetchedMappings: [AppMappingRow] = []
         var fetchedSuggestions: [RuleSuggestionRow] = []
+        var loadErrors: [Error] = []
 
         group.enter()
         DatabaseService.shared.fetchTags { result in
-            if case .success(let rows) = result {
+            switch result {
+            case .success(let rows):
                 fetchedTags = rows
+            case .failure(let error):
+                loadErrors.append(error)
             }
             group.leave()
         }
 
         group.enter()
         DatabaseService.shared.fetchAppMappings { result in
-            if case .success(let rows) = result {
+            switch result {
+            case .success(let rows):
                 fetchedMappings = rows
+            case .failure(let error):
+                loadErrors.append(error)
             }
             group.leave()
         }
 
         group.enter()
         DatabaseService.shared.fetchRuleSuggestions { result in
-            if case .success(let rows) = result {
+            switch result {
+            case .success(let rows):
                 fetchedSuggestions = rows
+            case .failure(let error):
+                loadErrors.append(error)
             }
             group.leave()
         }
 
         group.notify(queue: .main) {
             guard refreshSequence == self.setupSummaryRefreshSequence else { return }
+            guard loadErrors.isEmpty else {
+                self.setupSummaryLoadFailed = true
+                for error in loadErrors {
+                    UserFacingErrorMessage.loggedMessage(
+                        for: error,
+                        context: "Tags setup summary refresh",
+                        category: "db"
+                    )
+                }
+                return
+            }
+            self.setupSummaryLoadFailed = false
 
             let uncategorizedTagId = fetchedTags.first {
                 $0.name.caseInsensitiveCompare("Uncategorized") == .orderedSame
@@ -148,6 +174,7 @@ private struct TagsSetupSummary {
 }
 
 private enum TagsSetupStage {
+    case unavailable
     case needsCategories
     case needsAppReview
     case hasAutomationSuggestions
@@ -155,6 +182,8 @@ private enum TagsSetupStage {
 
     var statusKey: String {
         switch self {
+        case .unavailable:
+            return "tags.setup.status.unavailable"
         case .needsCategories:
             return "tags.setup.status.categories"
         case .needsAppReview:
@@ -168,6 +197,8 @@ private enum TagsSetupStage {
 
     var systemImage: String {
         switch self {
+        case .unavailable:
+            return "exclamationmark.triangle.fill"
         case .needsCategories:
             return "rectangle.split.3x1"
         case .needsAppReview:
@@ -181,6 +212,8 @@ private enum TagsSetupStage {
 
     var statusIcon: String {
         switch self {
+        case .unavailable:
+            return "exclamationmark.triangle.fill"
         case .needsCategories, .needsAppReview:
             return "exclamationmark.triangle.fill"
         case .hasAutomationSuggestions:
@@ -192,6 +225,8 @@ private enum TagsSetupStage {
 
     var tone: DesignSystem.StatusTone {
         switch self {
+        case .unavailable:
+            return .critical
         case .needsCategories, .needsAppReview:
             return .warning
         case .hasAutomationSuggestions:

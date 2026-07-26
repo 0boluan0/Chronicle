@@ -18,6 +18,7 @@ final class DashboardWindowController {
     private let languageManager = AppLanguageManager.shared
 
     func show() {
+        AppActivationCoordinator.shared.prepareForWindowPresentation()
         if window == nil {
             let rootView = LocalizedRootView {
                 DashboardView()
@@ -33,6 +34,7 @@ final class DashboardWindowController {
             window.isReleasedWhenClosed = false
             window.setFrameAutosaveName(Self.frameAutosaveName)
             prepareInitialFrame(for: window)
+            AppActivationCoordinator.shared.registerStandardWindow(window)
             self.window = window
         }
 
@@ -41,6 +43,7 @@ final class DashboardWindowController {
             window?.deminiaturize(nil)
         }
         window?.makeKeyAndOrderFront(nil)
+        AppActivationCoordinator.shared.refreshSoon()
         AppLogger.log("Dashboard opened", category: "ui")
     }
 

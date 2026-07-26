@@ -96,6 +96,7 @@ struct QuickMarkerEntryView: View {
             onDraftChange?(newValue)
         }
         .onChange(of: appState.quickMarkerMode) { _, _ in
+            loadSuggestions()
             loadOpenSpan()
         }
     }
@@ -211,7 +212,7 @@ struct QuickMarkerEntryView: View {
                     .foregroundColor(DesignSystem.Colors.secondaryText)
             }
 
-            Picker("", selection: $appState.quickMarkerMode) {
+            Picker("", selection: quickMarkerModeSelection) {
                 Text(L("quick_marker.mode.point")).tag(QuickMarkerMode.point)
                 Text(L("quick_marker.mode.interval")).tag(QuickMarkerMode.interval)
             }
@@ -233,6 +234,18 @@ struct QuickMarkerEntryView: View {
         )
     }
 
+    private var quickMarkerModeSelection: Binding<QuickMarkerMode> {
+        Binding(
+            get: { appState.quickMarkerMode },
+            set: { requestedMode in
+                deferStateUpdate {
+                    guard appState.quickMarkerMode != requestedMode else { return }
+                    appState.quickMarkerMode = requestedMode
+                }
+            }
+        )
+    }
+
     private var intervalActionSelector: some View {
         VStack(alignment: .leading, spacing: 6) {
             Label {
@@ -245,7 +258,7 @@ struct QuickMarkerEntryView: View {
                     .foregroundColor(DesignSystem.Colors.secondaryText)
             }
 
-            Picker("", selection: $appState.quickMarkerAction) {
+            Picker("", selection: quickMarkerActionSelection) {
                 ForEach(QuickMarkerAction.allCases) { action in
                     Text(L(actionTitleKey(for: action))).tag(action)
                 }
@@ -271,6 +284,18 @@ struct QuickMarkerEntryView: View {
         .overlay(
             RoundedRectangle(cornerRadius: DesignSystem.Radius.md)
                 .stroke(DesignSystem.Colors.separator.opacity(0.30), lineWidth: 1)
+        )
+    }
+
+    private var quickMarkerActionSelection: Binding<QuickMarkerAction> {
+        Binding(
+            get: { appState.quickMarkerAction },
+            set: { requestedAction in
+                deferStateUpdate {
+                    guard appState.quickMarkerAction != requestedAction else { return }
+                    appState.quickMarkerAction = requestedAction
+                }
+            }
         )
     }
 
@@ -553,7 +578,7 @@ struct QuickMarkerEntryView: View {
         Button {
             appState.selectedDate = Date()
             selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
-            AppWindowRouter.shared.open(.dashboard)
+            AppWindowRouter.shared.openDashboard(destination: .timeline)
             onCancel?()
         } label: {
             quickMarkerActionLabel(L("quick_marker.status.open_timeline"), systemImage: "clock")
@@ -578,11 +603,11 @@ struct QuickMarkerEntryView: View {
 
     private func performQuickMarkerDailyLogAction() {
         if reportSettings.dailyFolderBookmark == nil {
-            AppWindowRouter.shared.open(.settings(.export))
+            AppWindowRouter.shared.openDashboard(destination: .integrations)
         } else {
             appState.selectedDate = Date()
-            selectedDashboardSectionRaw = DashboardView.Section.reports.rawValue
-            AppWindowRouter.shared.open(.dashboard)
+            selectedDashboardSectionRaw = DashboardView.Section.integrations.rawValue
+            AppWindowRouter.shared.openDashboard(destination: .integrations)
         }
         onCancel?()
     }
@@ -1268,16 +1293,12 @@ struct QuickMarkerEntryView: View {
             return
         }
         lastSubmitAt = Date()
-        deferStateUpdate {
-            isSubmitting = true
-        }
+        isSubmitting = true
 
         let now = timestampProvider()
-        deferStateUpdate {
-            appState.quickMarkerLastText = trimmed
-            statusMessage = nil
-            statusIsError = false
-        }
+        appState.quickMarkerLastText = trimmed
+        statusMessage = nil
+        statusIsError = false
 
         QuickMarkerService.shared.submit(
             text: trimmed,
@@ -1412,11 +1433,9 @@ struct QuickMarkerEntryView: View {
 
     private func stopOpenSpan(_ span: MarkerSpanRow) {
         guard !isSubmitting else { return }
-        deferStateUpdate {
-            self.isSubmitting = true
-            self.statusMessage = nil
-            self.statusIsError = false
-        }
+        isSubmitting = true
+        statusMessage = nil
+        statusIsError = false
         QuickMarkerService.shared.submitInterval(
             text: span.text,
             at: timestampProvider(),
@@ -1427,8 +1446,7 @@ struct QuickMarkerEntryView: View {
     }
 
     private func deferStateUpdate(_ updates: @escaping () -> Void) {
-        Task { @MainActor in
-            await Task.yield()
+        DispatchQueue.main.async {
             updates()
         }
     }

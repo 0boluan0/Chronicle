@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import SQLCipher
 import XCTest
 
 final class ChronicleUITests: XCTestCase {
@@ -9,19 +10,40 @@ final class ChronicleUITests: XCTestCase {
         let appSupportRoot: URL
     }
 
+    private var launchedApps: [XCUIApplication] = []
+    private var workspaces: [Workspace] = []
+    private var workspaceRoots: [URL] = []
+    private var defaultsSuiteNames: Set<String> = []
+
     override func setUpWithError() throws {
         continueAfterFailure = false
+    }
+
+    override func tearDownWithError() throws {
+        for app in launchedApps.reversed() where app.state != .notRunning {
+            app.terminate()
+        }
+        for workspace in workspaces {
+            cleanupTargetDefaults(for: workspace)
+        }
+        for suiteName in defaultsSuiteNames {
+            UserDefaults(suiteName: suiteName)?.removePersistentDomain(forName: suiteName)
+        }
+        for root in workspaceRoots where FileManager.default.fileExists(atPath: root.path) {
+            try FileManager.default.removeItem(at: root)
+        }
+        launchedApps.removeAll()
+        workspaces.removeAll()
+        workspaceRoots.removeAll()
+        defaultsSuiteNames.removeAll()
+        try super.tearDownWithError()
     }
 
     func testEnglishPublicBetaSmoke() throws {
         try runPublicBetaSmoke(
             language: "en",
             appLanguageLabel: "App Language",
-            finishLabel: "Start Using Chronicle",
-            previewSaveLabel: "Save Daily Log",
-            previewReadyLabel: "Ready to save",
-            previewCheckLabel: "Daily log check",
-            previewCopiedLabel: "Copied to clipboard",
+            finishLabel: "Open Pending Review",
             verifyLanguageSwitch: true
         )
     }
@@ -30,26 +52,22 @@ final class ChronicleUITests: XCTestCase {
         try runPublicBetaSmoke(
             language: "zh-Hans",
             appLanguageLabel: "应用语言",
-            finishLabel: "开始使用",
-            previewSaveLabel: "保存今日日志",
-            previewReadyLabel: "可保存",
-            previewCheckLabel: "日志检查",
-            previewCopiedLabel: "已复制到剪贴板",
+            finishLabel: "打开待复盘",
             verifyLanguageSwitch: false
         )
     }
 
     func testTagsPreferencesClassificationSurfaceSmoke() throws {
-        let workspace = try makeWorkspace(language: "en")
+        let workspace = try makeWorkspace(language: surfaceLanguage)
         let app = makeApp(
             route: "settingsTags",
-            language: "en",
+            language: surfaceLanguage,
             workspace: workspace,
             resetState: true
         )
         app.launch()
 
-        XCTAssertTrue(app.staticTexts["Categories"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts[surfaceLabel(english: "Categories", simplifiedChinese: "分类")].waitForExistence(timeout: 10))
         XCTAssertFalse(app.staticTexts["1. Categories"].exists)
         XCTAssertFalse(app.staticTexts["2. Apps"].exists)
         XCTAssertFalse(app.staticTexts["3. Automation"].exists)
@@ -62,8 +80,8 @@ final class ChronicleUITests: XCTestCase {
         XCTAssertFalse(app.buttons["tags.setup.primaryAction"].exists)
         XCTAssertFalse(app.buttons["tags.setup.reviewApps"].exists)
         XCTAssertFalse(app.buttons["tags.setup.reviewAutomation"].exists)
-        XCTAssertTrue(app.staticTexts["Category brief"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Starter categories are ready for daily logs."].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts[surfaceLabel(english: "Category brief", simplifiedChinese: "分类简报")].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts[surfaceLabel(english: "Starter categories are ready for daily logs.", simplifiedChinese: "基础分类已可用于今日日志。")].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["tagsRules.sectionPicker"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.descendants(matching: .any)["tagsRules.headerPath"].exists)
         XCTAssertFalse(app.descendants(matching: .any)["tagsRules.headerPath.tags"].exists)
@@ -77,17 +95,17 @@ final class ChronicleUITests: XCTestCase {
     }
 
     func testTagWizardReviewSurfaceSmoke() throws {
-        let workspace = try makeWorkspace(language: "en")
+        let workspace = try makeWorkspace(language: surfaceLanguage)
         let app = makeApp(
             route: "tagWizard",
-            language: "en",
+            language: surfaceLanguage,
             workspace: workspace,
             resetState: true
         )
         app.launch()
 
-        XCTAssertTrue(app.staticTexts["First-pass review"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["No pending changes"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts[surfaceLabel(english: "First-pass review", simplifiedChinese: "首次整理")].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts[surfaceLabel(english: "No pending changes", simplifiedChinese: "暂无待应用变更")].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["wizard.controls"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.descendants(matching: .any)["wizard.outcomeStrip"].exists)
         XCTAssertFalse(app.descendants(matching: .any)["wizard.outcome.item.review"].exists)
@@ -106,18 +124,18 @@ final class ChronicleUITests: XCTestCase {
     }
 
     func testAppMappingsReviewWorkspaceSmoke() throws {
-        let workspace = try makeWorkspace(language: "en")
+        let workspace = try makeWorkspace(language: surfaceLanguage)
         let app = makeApp(
             route: "tagWizard",
-            language: "en",
+            language: surfaceLanguage,
             workspace: workspace,
             resetState: true
         )
         app.launch()
 
-        XCTAssertTrue(app.staticTexts["Review focus"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["Ready to classify future activity."].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Review apps"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts[surfaceLabel(english: "Review focus", simplifiedChinese: "整理重点")].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts[surfaceLabel(english: "Ready to classify future activity.", simplifiedChinese: "未来活动已经可以自动分类。")].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts[surfaceLabel(english: "Review apps", simplifiedChinese: "整理应用")].waitForExistence(timeout: 5))
         XCTAssertFalse(app.descendants(matching: .any)["appMappings.path"].exists)
         XCTAssertFalse(app.descendants(matching: .any)["appMappings.impactStrip"].exists)
         XCTAssertFalse(app.descendants(matching: .any)["appMappings.impact.future"].exists)
@@ -132,17 +150,21 @@ final class ChronicleUITests: XCTestCase {
         replaceText("Safari", in: mappingSearch, app: app)
         XCTAssertTrue(app.buttons["appMappings.clearSearchInput"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["appMappings.activeFilters"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Current review view"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Search: Safari"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts[surfaceLabel(english: "Current review view", simplifiedChinese: "当前整理视图")].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts[surfaceLabel(english: "Search: Safari", simplifiedChinese: "搜索：Safari")].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["appMappings.clearFilters"].waitForExistence(timeout: 5))
-        app.buttons["appMappings.clearFilters"].click()
+        XCTAssertTrue(app.staticTexts["Safari"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.descendants(matching: .any)["appMappings.emptyState"].exists)
+        clickElement(app.buttons["appMappings.clearFilters"], in: app)
         XCTAssertTrue(waitUntil(timeout: 5) { !app.buttons["appMappings.clearSearchInput"].exists })
-        XCTAssertTrue(app.descendants(matching: .any)["appMappings.emptyState"].waitForExistence(timeout: 5))
+        XCTAssertTrue(waitUntil(timeout: 5) { !app.descendants(matching: .any)["appMappings.activeFilters"].exists })
+        XCTAssertTrue(app.descendants(matching: .any)["appMappings.list.header"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["appMappings.row.header"].firstMatch.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.descendants(matching: .any)["appMappings.emptyState"].exists)
         XCTAssertFalse(app.descendants(matching: .any)["appMappings.emptyPath"].exists)
         XCTAssertFalse(app.descendants(matching: .any)["appMappings.emptyPath.capture"].exists)
         XCTAssertFalse(app.descendants(matching: .any)["appMappings.emptyPath.today"].exists)
         XCTAssertFalse(app.descendants(matching: .any)["appMappings.emptyPath.review"].exists)
-        XCTAssertTrue(app.buttons["appMappings.emptyOpenDashboard"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["appMappings.emptyCheckCapture"].exists)
         XCTAssertFalse(app.buttons["appMappings.emptyResumeCapture"].exists)
 
@@ -150,10 +172,10 @@ final class ChronicleUITests: XCTestCase {
     }
 
     func testQuickMarkerPanelGuidanceSmoke() throws {
-        let workspace = try makeWorkspace(language: "en")
+        let workspace = try makeWorkspace(language: surfaceLanguage)
         let app = makeApp(
             route: "quickMarker",
-            language: "en",
+            language: surfaceLanguage,
             workspace: workspace,
             resetState: true
         )
@@ -161,13 +183,13 @@ final class ChronicleUITests: XCTestCase {
 
         XCTAssertTrue(app.descendants(matching: .any)["quickMarker.workspace"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.radioGroups["quickMarker.mode"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Common starters"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["6 prompts"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts[surfaceLabel(english: "Common starters", simplifiedChinese: "常用开头")].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts[surfaceLabel(english: "6 prompts", simplifiedChinese: "6 个模板")].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["quickMarker.starter.decision"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["quickMarker.starter.takeaway"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["quickMarker.starter.question"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["quickMarker.starter.blocked"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["No reusable entries yet"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts[surfaceLabel(english: "No reusable entries yet", simplifiedChinese: "还没有可复用记录")].waitForExistence(timeout: 5))
         XCTAssertFalse(app.descendants(matching: .any)["quickMarker.recentEmpty.path"].exists)
         XCTAssertFalse(app.descendants(matching: .any)["quickMarker.headerProgress"].exists)
         XCTAssertFalse(app.descendants(matching: .any)["quickMarker.headerStatus"].exists)
@@ -178,32 +200,63 @@ final class ChronicleUITests: XCTestCase {
         XCTAssertFalse(app.staticTexts["Pick starter"].exists)
         XCTAssertFalse(app.staticTexts["Reuse next"].exists)
 
-        app.buttons["quickMarker.starter.decision"].click()
+        clickElement(app.buttons["quickMarker.starter.decision"], in: app)
         let quickMarkerTextField = app.textFields.firstMatch
         XCTAssertTrue(quickMarkerTextField.waitForExistence(timeout: 5))
-        XCTAssertTrue(String(describing: quickMarkerTextField.value ?? "").contains("Decision:"))
-        quickMarkerTextField.click()
-        quickMarkerTextField.typeText("ship fix")
-        app.buttons["quickMarker.starter.takeaway"].click()
+        XCTAssertTrue(
+            String(describing: quickMarkerTextField.value ?? "").contains(
+                surfaceLabel(english: "Decision:", simplifiedChinese: "决策：")
+            )
+        )
+        clickElement(quickMarkerTextField, in: app)
+        ensureForeground(app)
+        app.typeKey(.rightArrow, modifierFlags: .command)
+        pasteFocusedText("ship fix", app: app)
+        let expectedDecisionText = surfaceLabel(
+            english: "Decision: ship fix",
+            simplifiedChinese: "决策：ship fix"
+        )
+        XCTAssertTrue(
+            waitUntil(timeout: 5) {
+                String(describing: quickMarkerTextField.value ?? "") == expectedDecisionText
+            }
+        )
+        clickElement(app.buttons["quickMarker.starter.takeaway"], in: app)
+        XCTAssertTrue(
+            waitUntil(timeout: 5) {
+                String(describing: quickMarkerTextField.value ?? "").contains(
+                    surfaceLabel(english: "Takeaway: ship fix", simplifiedChinese: "要点：ship fix")
+                )
+            }
+        )
         let relabeledStarterText = String(describing: quickMarkerTextField.value ?? "")
-        XCTAssertTrue(relabeledStarterText.contains("Takeaway: ship fix"))
-        XCTAssertFalse(relabeledStarterText.contains("Decision: ship fix"))
+        XCTAssertTrue(relabeledStarterText.contains(surfaceLabel(english: "Takeaway: ship fix", simplifiedChinese: "要点：ship fix")))
+        XCTAssertFalse(relabeledStarterText.contains(surfaceLabel(english: "Decision: ship fix", simplifiedChinese: "决策：ship fix")))
 
         app.terminate()
     }
 
-    func testPopoverNextActionCardSmoke() throws {
-        let workspace = try makeWorkspace(language: "en")
+    func testPopoverControllerSmoke() throws {
+        let workspace = try makeWorkspace(language: surfaceLanguage)
         let app = makeApp(
             route: "popover",
-            language: "en",
+            language: surfaceLanguage,
             workspace: workspace,
             resetState: true
         )
         app.launch()
 
-        XCTAssertTrue(app.descendants(matching: .any)["popover.commandCenter"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.descendants(matching: .any)["popover.detailsScroll"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["popover.controller"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.descendants(matching: .any)["popover.tracking"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["popover.currentApp"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["popover.pendingReview"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["popover.pendingReview.count"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["popover.openPendingReview"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["popover.quickNote"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["popover.manualWork"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["popover.toggleTracking"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["popover.openSettings"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.descendants(matching: .any)["popover.commandCenter"].exists)
         XCTAssertFalse(app.descendants(matching: .any)["popover.positioning"].exists)
         XCTAssertFalse(app.descendants(matching: .any)["popover.commandCenter.flow"].exists)
         XCTAssertFalse(app.staticTexts["Next Step"].exists)
@@ -219,59 +272,121 @@ final class ChronicleUITests: XCTestCase {
         XCTAssertFalse(app.descendants(matching: .any)["popover.dailySnapshot.guidance.reviewTimeline"].exists)
         XCTAssertFalse(app.descendants(matching: .any)["popover.captureHealth"].exists)
         XCTAssertFalse(app.descendants(matching: .any)["popover.privacyGuardrail"].exists)
-        XCTAssertTrue(app.buttons["popover.openDashboard"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["popover.openPreferences"].waitForExistence(timeout: 5))
+        app.terminate()
+    }
+
+    func testArchiveStartupFailureRecoverySurfaceSmoke() throws {
+        let workspace = try makeWorkspace(language: surfaceLanguage)
+        let app = makeApp(
+            route: "popover",
+            language: surfaceLanguage,
+            workspace: workspace,
+            resetState: true,
+            archiveStartupFailure: true
+        )
+        app.launch()
+
+        XCTAssertTrue(app.descendants(matching: .any)["popover.archiveUnavailable"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["popover.retryArchive"].waitForExistence(timeout: 5))
+        XCTAssertEqual(
+            app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "UI_TEST_MIGRATION_SENTINEL")).count,
+            0
+        )
+        let quickNote = app.buttons["popover.quickNote"]
+        XCTAssertTrue(quickNote.waitForExistence(timeout: 5))
+        XCTAssertFalse(quickNote.isEnabled)
 
         app.terminate()
     }
 
-    func testDashboardOverviewReviewBriefSmoke() throws {
-        let workspace = try makeWorkspace(language: "en")
+    func testDashboardPendingReviewSmoke() throws {
+        let workspace = try makeWorkspace(language: surfaceLanguage)
         let app = makeApp(
             route: "dashboard",
-            language: "en",
+            language: surfaceLanguage,
             workspace: workspace,
             resetState: true
         )
         app.launch()
 
-        let overviewSection = app.descendants(matching: .any)["dashboard.section.overview"]
-        XCTAssertTrue(overviewSection.waitForExistence(timeout: 10))
+        let pendingReviewSection = app.descendants(matching: .any)["dashboard.section.pendingReview"]
+        XCTAssertTrue(pendingReviewSection.waitForExistence(timeout: 10))
         XCTAssertTrue(app.buttons["dashboard.toolbar.quickCapture"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["dashboard.toolbar.reviewToday"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["dashboard.toolbar.pendingReview"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["dashboard.openPreferences"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["dashboard.sidebar.pendingReview"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["dashboard.sidebar.quickActions"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["dashboard.sidebar.quickNote"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["dashboard.sidebar.manualWork"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.descendants(matching: .any)["dashboard.sidebar.todayControl"].exists)
+        XCTAssertFalse(app.buttons["dashboard.sidebar.quickLog"].exists)
 
-        XCTAssertTrue(app.staticTexts["Today workspace"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.descendants(matching: .any)["dashboard.overview.reviewBrief"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.descendants(matching: .any)["dashboard.sidebar.flowPath"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["dashboard.sidebar.nextStep"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["dashboard.overview.suggestedNext"].exists)
-        XCTAssertFalse(app.staticTexts["Suggested next"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["dashboard.overview.readiness"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["dashboard.overview.commandStrip"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["dashboard.overview.activityMap.emptyPath"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["dashboard.overview.selection.emptyPath"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["overview.dailyChart.emptyPath"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["overview.weeklyChart.emptyPath"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["pendingReview.page"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts[surfaceLabel(english: "Pending Review", simplifiedChinese: "待复盘")].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["pendingReview.refresh"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["pendingReview.addManualBlock"].waitForExistence(timeout: 5))
+
+        clickElement(app.buttons["pendingReview.addManualBlock"], in: app)
+        let manualBlockTitle = app.textFields["manualBlock.title"]
+        XCTAssertTrue(manualBlockTitle.waitForExistence(timeout: 5))
+        replaceText("Pending review draft smoke", in: manualBlockTitle, app: app)
+        let manualBlockSave = app.buttons["manualBlock.save"]
+        XCTAssertTrue(waitUntil(timeout: 5) { manualBlockSave.exists && manualBlockSave.isEnabled })
+        clickElement(manualBlockSave, in: app)
+
+        let workBlockTitle = app.textFields.matching(
+            NSPredicate(
+                format: "identifier BEGINSWITH %@ AND identifier ENDSWITH %@",
+                "workBlock.",
+                ".title"
+            )
+        ).firstMatch
+        XCTAssertTrue(workBlockTitle.waitForExistence(timeout: 10))
+
+        let completeReview = app.buttons["review.complete"]
+        XCTAssertTrue(completeReview.waitForExistence(timeout: 5))
+        XCTAssertTrue(waitUntil(timeout: 5) { completeReview.isEnabled })
+        let saveEditsPrompt = app.descendants(matching: .any)["pendingReview.complete.saveEdits"]
+        XCTAssertFalse(saveEditsPrompt.exists)
+
+        replaceText("Unsaved pending review draft", in: workBlockTitle, app: app)
+        XCTAssertTrue(waitUntil(timeout: 5) { !completeReview.isEnabled })
+        XCTAssertTrue(saveEditsPrompt.waitForExistence(timeout: 5))
+
+        let titleIdentifier = workBlockTitle.identifier
+        XCTAssertTrue(titleIdentifier.hasPrefix("workBlock."))
+        XCTAssertTrue(titleIdentifier.hasSuffix(".title"))
+        let workBlockIdentifier = String(titleIdentifier.dropLast(".title".count))
+        let saveWorkBlock = app.buttons["\(workBlockIdentifier).save"]
+        XCTAssertTrue(waitUntil(timeout: 5) { saveWorkBlock.exists && saveWorkBlock.isEnabled })
+        clickElement(saveWorkBlock, in: app)
+        XCTAssertTrue(
+            waitUntil(timeout: 10) {
+                completeReview.isEnabled && !saveEditsPrompt.exists
+            }
+        )
+
         let timelineNavSection = app.descendants(matching: .any)["dashboard.section.timeline"]
-        let markersNavSection = app.descendants(matching: .any)["dashboard.section.markers"]
-        let reportsNavSection = app.descendants(matching: .any)["dashboard.section.reports"]
-        let statsNavSection = app.descendants(matching: .any)["dashboard.section.stats"]
+        let notesNavSection = app.descendants(matching: .any)["dashboard.section.notes"]
+        let integrationsNavSection = app.descendants(matching: .any)["dashboard.section.integrations"]
+        let insightsNavSection = app.descendants(matching: .any)["dashboard.section.insights"]
         XCTAssertTrue(timelineNavSection.waitForExistence(timeout: 5))
-        XCTAssertTrue(markersNavSection.waitForExistence(timeout: 5))
-        XCTAssertTrue(reportsNavSection.waitForExistence(timeout: 5))
-        XCTAssertTrue(statsNavSection.waitForExistence(timeout: 5))
-        XCTAssertFalse(app.buttons["dashboard.overview.checkCapture"].exists)
-        XCTAssertFalse(app.buttons["dashboard.overview.resumeCapture"].exists)
+        XCTAssertTrue(notesNavSection.waitForExistence(timeout: 5))
+        XCTAssertTrue(integrationsNavSection.waitForExistence(timeout: 5))
+        XCTAssertTrue(insightsNavSection.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.descendants(matching: .any)["dashboard.section.overview"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["dashboard.section.markers"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["dashboard.section.stats"].exists)
+        XCTAssertFalse(app.descendants(matching: .any)["dashboard.section.reports"].exists)
 
         app.terminate()
     }
 
-    func testDashboardTimelineReviewFocusSmoke() throws {
-        let workspace = try makeWorkspace(language: "en")
+    func testDashboardWorkBlockTimelineSmoke() throws {
+        let workspace = try makeWorkspace(language: surfaceLanguage)
         let app = makeApp(
             route: "dashboard",
-            language: "en",
+            language: surfaceLanguage,
             workspace: workspace,
             resetState: true
         )
@@ -279,166 +394,60 @@ final class ChronicleUITests: XCTestCase {
 
         let timelineSection = app.descendants(matching: .any)["dashboard.section.timeline"]
         XCTAssertTrue(timelineSection.waitForExistence(timeout: 10))
-        timelineSection.click()
+        clickElement(timelineSection, in: app)
 
-        XCTAssertTrue(app.staticTexts["Review Focus"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.descendants(matching: .any)["dashboard.timeline.dateControls"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["dashboard.timeline.rangeContext"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["dashboard.timeline.rangeContext.status"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["This view includes today, so it is the best place to decide what needs attention now."].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["dashboard.timeline.previous"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["dashboard.timeline.date"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["dashboard.timeline.next"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["dashboard.timeline.today"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Reconstruct the range"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Classify activity"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Use your notes"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["dashboard.timeline.reviewFocusHeader"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.descendants(matching: .any)["dashboard.timeline.nextAction"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["timeline.nextAction"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["tag.picker.noTags.path"].exists)
-        XCTAssertFalse(app.staticTexts["Suggested next"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["dashboard.timeline.startHere"].exists)
-        XCTAssertFalse(app.staticTexts["Where to start"].exists)
-        XCTAssertFalse(app.staticTexts["Leave one anchor first."].exists)
-        XCTAssertFalse(app.buttons["dashboard.timeline.startHere.action"].exists)
-        XCTAssertTrue(app.buttons["dashboard.timeline.openMarkers"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["dashboard.timeline.addCue"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["dashboard.timeline.closeout"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["dashboard.timeline.batch"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.descendants(matching: .any)["dashboard.timeline.filterGuide"].exists)
-        let timelineSearch = app.textFields["dashboard.timeline.search"]
+        XCTAssertTrue(app.descendants(matching: .any)["timeline.workBlocks.page"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["timeline.workBlocks.refresh"].waitForExistence(timeout: 5))
+        let timelineSearch = app.textFields["timeline.workBlocks.search"]
         XCTAssertTrue(timelineSearch.waitForExistence(timeout: 5))
         replaceText("Focus", in: timelineSearch, app: app)
-        XCTAssertTrue(app.buttons["dashboard.timeline.clearSearchInput"].waitForExistence(timeout: 5))
-        app.buttons["dashboard.timeline.clearSearchInput"].click()
-        XCTAssertTrue(waitUntil(timeout: 5) { !app.buttons["dashboard.timeline.clearSearchInput"].exists })
-        XCTAssertTrue(app.descendants(matching: .any)["dashboard.timeline.sortOrder"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["dashboard.timeline.filterState"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["dashboard.timeline.summary"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Timeline is waiting for activity."].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.descendants(matching: .any)["dashboard.timeline.emptyPath"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["dashboard.timeline.emptyPath.capture"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["dashboard.timeline.emptyPath.context"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["dashboard.timeline.emptyPath.review"].exists)
-        XCTAssertTrue(app.buttons["dashboard.timeline.emptyQuickMarker"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["dashboard.timeline.emptyOpenToday"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.buttons["dashboard.timeline.emptyCheckCapture"].exists)
-        XCTAssertFalse(app.buttons["dashboard.timeline.emptyResumeCapture"].exists)
-
-        app.buttons["dashboard.timeline.batch"].click()
-        XCTAssertTrue(app.staticTexts["Cleanup Queue"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Categorize the selected activities."].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["dashboard.timeline.batchHeader"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["No rows selected"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["dashboard.timeline.batchEmpty"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.descendants(matching: .any)["dashboard.timeline.batchEmpty.filter"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["dashboard.timeline.batchEmpty.select"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["dashboard.timeline.batchEmpty.apply"].exists)
+        XCTAssertEqual(timelineSearch.value as? String, "Focus")
 
         app.terminate()
     }
 
-    func testDashboardMarkersReviewNotesSmoke() throws {
-        let workspace = try makeWorkspace(language: "en")
+    func testDashboardNotesLibrarySmoke() throws {
+        let workspace = try makeWorkspace(language: surfaceLanguage)
         let app = makeApp(
             route: "dashboard",
-            language: "en",
+            language: surfaceLanguage,
             workspace: workspace,
             resetState: true
         )
         app.launch()
 
-        let markersSection = app.descendants(matching: .any)["dashboard.section.markers"]
-        XCTAssertTrue(markersSection.waitForExistence(timeout: 10))
-        markersSection.click()
+        let notesSection = app.descendants(matching: .any)["dashboard.section.notes"]
+        XCTAssertTrue(notesSection.waitForExistence(timeout: 10))
+        clickElement(notesSection, in: app)
 
-        XCTAssertTrue(app.staticTexts["Context Capture"].waitForExistence(timeout: 10))
-        XCTAssertFalse(app.descendants(matching: .any)["dashboard.markers.nextAction"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["dashboard.markers.nextAction.status"].exists)
-        XCTAssertTrue(app.buttons["dashboard.markers.addCue"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["dashboard.markers.openTimeline"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["dashboard.markers.closeout"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.descendants(matching: .any)["dashboard.markers.progress"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["dashboard.markers.path"].exists)
-        XCTAssertTrue(app.descendants(matching: .any)["markers.review.compactStrip"].waitForExistence(timeout: 10))
-        XCTAssertFalse(app.descendants(matching: .any)["markers.review.path"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["markers.review.path.read"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["markers.review.path.blocks"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["markers.review.path.closeout"].exists)
-        XCTAssertTrue(app.staticTexts["No review notes in this range yet."].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["markers.review.addCue"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["markers.review.lensStrip"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["markers.timeline.controls"].waitForExistence(timeout: 5))
-        let markerSearch = app.textFields["markers.timeline.search"]
-        XCTAssertTrue(markerSearch.waitForExistence(timeout: 5))
-        replaceText("focus", in: markerSearch, app: app)
-        XCTAssertTrue(app.buttons["markers.timeline.clearSearchInput"].waitForExistence(timeout: 5))
-        app.buttons["markers.timeline.clearSearchInput"].click()
-        XCTAssertTrue(waitUntil(timeout: 5) { !app.buttons["markers.timeline.clearSearchInput"].exists })
-        XCTAssertTrue(app.descendants(matching: .any)["markers.timeline.grid"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["markers.timeline.emptyState"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.descendants(matching: .any)["markers.timeline.emptyPrompts"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["markers.timeline.emptyPrompt.note"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["markers.timeline.emptyPrompt.session"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["markers.timeline.emptyPrompt.closeout"].exists)
-        XCTAssertFalse(app.buttons["markers.timeline.emptyCheckCapture"].exists)
-        XCTAssertFalse(app.buttons["markers.timeline.emptyResumeCapture"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["notes.page"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.textFields["notes.search"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.textFields["notes.capture.text"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["notes.capture.save"].waitForExistence(timeout: 5))
 
         app.terminate()
     }
 
-    func testDashboardStatsInsightsSmoke() throws {
-        let workspace = try makeWorkspace(language: "en")
+    func testDashboardWorkBlockInsightsSmoke() throws {
+        let workspace = try makeWorkspace(language: surfaceLanguage)
         let app = makeApp(
             route: "dashboard",
-            language: "en",
+            language: surfaceLanguage,
             workspace: workspace,
             resetState: true
         )
         app.launch()
 
-        let statsSection = app.descendants(matching: .any)["dashboard.section.stats"]
-        XCTAssertTrue(statsSection.waitForExistence(timeout: 10))
-        statsSection.click()
+        let insightsSection = app.descendants(matching: .any)["dashboard.section.insights"]
+        XCTAssertTrue(insightsSection.waitForExistence(timeout: 10))
+        clickElement(insightsSection, in: app)
 
-        XCTAssertTrue(app.descendants(matching: .any)["dashboard.stats.scope"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Stats view"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Reading active work only."].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Active chart basis"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["dashboard.stats.range_control"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["dashboard.stats.includeIdle"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["dashboard.stats.idleSuppression.explain"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Where the Time Went"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.descendants(matching: .any)["dashboard.stats.reviewHeader"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Time captured"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Main focus"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Notes and focus blocks"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.descendants(matching: .any)["dashboard.stats.reviewProgress"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["dashboard.stats.path"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["dashboard.stats.nextStep"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["dashboard.stats.appFocus.emptyPath"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["dashboard.stats.tagFocus.emptyPath"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["dashboard.stats.dataQuality.evidenceChain"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["dashboard.stats.dataQuality.chain.capture"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["dashboard.stats.dataQuality.chain.cleanup"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["dashboard.stats.dataQuality.chain.context"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["stats.topApps.emptyPath"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["stats.topTags.emptyPath"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["stats.markers.emptyPath"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["stats.deepWork.emptyPath"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["stats.review.nextStep"].exists)
-        XCTAssertFalse(app.staticTexts["Recommended next step"].exists)
-        XCTAssertTrue(app.buttons["dashboard.stats.openToday"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["dashboard.stats.addCue"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.buttons["dashboard.stats.checkCapture"].exists)
-        XCTAssertFalse(app.buttons["dashboard.stats.resumeCapture"].exists)
-        XCTAssertFalse(app.buttons["dashboard.stats.openTimeline"].exists)
-        XCTAssertFalse(app.buttons["dashboard.stats.openMarkers"].exists)
-        XCTAssertFalse(app.buttons["dashboard.stats.prepareReport"].exists)
-        XCTAssertTrue(app.descendants(matching: .any)["dashboard.stats.rangeSummary"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Work blocks"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Waiting for capture"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["insights.workBlocks.page"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.descendants(matching: .any)["insights.workBlocks.dateControls"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["insights.workBlocks.range"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["insights.workBlocks.previous"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["insights.workBlocks.next"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["insights.workBlocks.today"].waitForExistence(timeout: 5))
 
         app.terminate()
     }
@@ -456,7 +465,7 @@ final class ChronicleUITests: XCTestCase {
 
         let debugSection = app.descendants(matching: .any)["dashboard.section.debug"]
         XCTAssertTrue(debugSection.waitForExistence(timeout: 10))
-        debugSection.click()
+        clickElement(debugSection, in: app)
 
         XCTAssertTrue(app.staticTexts["Diagnostics"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["dashboard.debug.header"].waitForExistence(timeout: 5))
@@ -475,92 +484,80 @@ final class ChronicleUITests: XCTestCase {
         app.terminate()
     }
 
-    func testDashboardReportsCloseoutSmoke() throws {
-        let workspace = try makeWorkspace(language: "en")
+    func testDashboardExportIntegrationsSmoke() throws {
+        let workspace = try makeWorkspace(language: surfaceLanguage)
         let app = makeApp(
             route: "dashboard",
-            language: "en",
+            language: surfaceLanguage,
             workspace: workspace,
             resetState: true,
             dailyReviewReminderEnabled: false
         )
         app.launch()
 
-        let reportsSection = app.descendants(matching: .any)["dashboard.section.reports"]
-        XCTAssertTrue(reportsSection.waitForExistence(timeout: 10))
-        reportsSection.click()
+        let integrationsSection = app.descendants(matching: .any)["dashboard.section.integrations"]
+        XCTAssertTrue(integrationsSection.waitForExistence(timeout: 10))
+        clickElement(integrationsSection, in: app)
 
-        XCTAssertTrue(app.staticTexts["Daily Log"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.descendants(matching: .any)["reports.closeout.header"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.descendants(matching: .any)["reports.closeout.steps"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["reports.closeout.steps.progress"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["reports.closeout.include"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["reports.closeout.include.timeline"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["reports.closeout.include.cues"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["reports.closeout.include.notes"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["reports.closeout.nextAction"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["reports.closeout.nextAction.status"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["reports.dashboardWeekly.nextAction"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["reports.readiness.nextAction"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["reports.csv.guidance"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["reports.csv.guidance.destination"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["reports.csv.guidance.range"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["reports.csv.guidance.fields"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["reports.csv.guidance.nextAction"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["reports.preview.loadingPath"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["reports.preview.emptyPath"].exists)
-        XCTAssertTrue(app.buttons["reports.closeout.previewToday"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["reports.closeout.openTimeline"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["reports.closeout.chooseDailyFolder"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.staticTexts["Data handoff"].exists)
-        XCTAssertFalse(app.buttons["reports.plan.chooseDailyFolder"].exists)
-        XCTAssertFalse(app.buttons["reports.plan.chooseCsvFolder"].exists)
-        XCTAssertFalse(app.staticTexts["Timesheet CSV"].exists)
-        XCTAssertFalse(app.buttons["reports.chooseCsvFolder"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["integrations.page"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.descendants(matching: .any)["integrations.mode"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["integrations.chooseFolder"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["integrations.plaintext.confirm"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.textFields["integrations.history.search"].waitForExistence(timeout: 5))
+
+        let modePicker = app.descendants(matching: .any)["integrations.mode"]
+        let identifiedFormatsSegment = app.descendants(matching: .any)["integrations.mode.formatsTemplates"]
+        if identifiedFormatsSegment.waitForExistence(timeout: 2) {
+            clickElement(identifiedFormatsSegment, in: app)
+        } else if modePicker.radioButtons.count > 1 {
+            clickElement(modePicker.radioButtons.element(boundBy: 1), in: app)
+        } else {
+            let secondSegment = modePicker.buttons.element(boundBy: 1)
+            XCTAssertTrue(secondSegment.waitForExistence(timeout: 2))
+            clickElement(secondSegment, in: app)
+        }
+
+        XCTAssertTrue(app.descendants(matching: .any)["reports.readiness"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["reports.csv.header"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["reports.daily.resetTemplate"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["reports.weekly.resetTemplate"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.descendants(matching: .any)["reports.closeout.workspace"].exists)
 
         app.terminate()
     }
 
-    func testReportsReviewPlanSmoke() throws {
-        let workspace = try makeWorkspace(language: "en")
+    func testLegacySettingsExportRouteRedirectsToIntegrations() throws {
+        let workspace = try makeWorkspace(language: surfaceLanguage)
         let app = makeApp(
             route: "settingsExport",
-            language: "en",
+            language: surfaceLanguage,
             workspace: workspace,
             resetState: true
         )
         app.launch()
 
-        XCTAssertTrue(app.staticTexts["Daily Log"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.staticTexts["Choose a daily log folder first."].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Destination"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Last daily log"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Reminder"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.descendants(matching: .any)["reports.reviewReminder.outcome"].exists)
-        XCTAssertTrue(app.buttons["reports.closeout.chooseDailyFolder"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Review Plan"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.descendants(matching: .any)["reports.workspace.header"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.descendants(matching: .any)["reports.workspace.nextAction"].exists)
-        XCTAssertFalse(app.staticTexts["Choose a Daily Log folder"].exists)
-        XCTAssertFalse(app.descendants(matching: .any)["reports.template.guide"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["integrations.page"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.descendants(matching: .any)["dashboard.section.integrations"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["integrations.mode"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.descendants(matching: .any)["preferences.section.export"].exists)
 
         app.terminate()
     }
 
     func testReportFolderPickerPresentsSystemSheet() throws {
-        let workspace = try makeWorkspace(language: "en")
+        let workspace = try makeWorkspace(language: surfaceLanguage)
         let app = makeApp(
             route: "settingsExport",
-            language: "en",
+            language: surfaceLanguage,
             workspace: workspace,
             resetState: true,
             useSystemPanels: true
         )
         app.launch()
 
-        let chooseFolder = app.buttons["reports.closeout.chooseDailyFolder"]
+        let chooseFolder = app.buttons["integrations.chooseFolder"]
         XCTAssertTrue(chooseFolder.waitForExistence(timeout: 10))
-        chooseFolder.click()
+        clickElement(chooseFolder, in: app)
 
         let folderPicker = app.sheets.firstMatch
         XCTAssertTrue(folderPicker.waitForExistence(timeout: 5), app.debugDescription)
@@ -569,11 +566,87 @@ final class ChronicleUITests: XCTestCase {
         app.terminate()
     }
 
+    func testExportBookmarksAndLastRunStatusRestoreAcrossRelaunch() throws {
+        let workspace = try makeWorkspace(language: surfaceLanguage)
+        let dailyFolder = workspace.exportRoot
+            .appendingPathComponent("daily-restore-" + UUID().uuidString, isDirectory: true)
+        let weeklyFolder = workspace.exportRoot
+            .appendingPathComponent("weekly-restore-" + UUID().uuidString, isDirectory: true)
+        let csvFolder = workspace.exportRoot
+            .appendingPathComponent("csv-restore-" + UUID().uuidString, isDirectory: true)
+        for folder in [dailyFolder, weeklyFolder, csvFolder] {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        }
+
+        let dailySentinel = "UI restore daily sentinel"
+        let weeklySentinel = "UI restore weekly sentinel"
+        let csvSentinel = "UI restore CSV sentinel"
+        let defaultsFixture: [String: Any] = [
+            "reports.dailyFolderBookmark": try v105CompatibleBookmark(for: dailyFolder),
+            "reports.weeklyFolderBookmark": try v105CompatibleBookmark(for: weeklyFolder),
+            "reports.csvFolderBookmark": try v105CompatibleBookmark(for: csvFolder),
+            "reports.lastDailyExportAt": 1_700_000_100.0,
+            "reports.lastWeeklyExportAt": 1_700_000_200.0,
+            "reports.lastCsvExportAt": 1_700_000_300.0,
+            "reports.lastDailyExportMessage": dailySentinel,
+            "reports.lastWeeklyExportMessage": weeklySentinel,
+            "reports.lastCsvExportMessage": csvSentinel,
+            "reports.lastDailyExportIsError": false,
+            "reports.lastWeeklyExportIsError": true,
+            "reports.lastCsvExportIsError": false
+        ]
+        let fixtureData = try PropertyListSerialization.data(
+            fromPropertyList: defaultsFixture,
+            format: .binary,
+            options: 0
+        )
+
+        for launchNumber in 1 ... 2 {
+            let app = makeApp(
+                route: "settingsExport",
+                language: surfaceLanguage,
+                workspace: workspace,
+                resetState: launchNumber == 1,
+                clearDefaultsOnTerminate: launchNumber == 2
+            )
+            if launchNumber == 1 {
+                app.launchEnvironment["CHRONICLE_UI_TEST_DEFAULTS_FIXTURE_BASE64"] = fixtureData.base64EncodedString()
+            }
+            app.launch()
+
+            XCTAssertTrue(
+                app.descendants(matching: .any)["integrations.page"].waitForExistence(timeout: 10),
+                "Integrations did not open on launch \(launchNumber)."
+            )
+            selectFormatsAndTemplates(in: app)
+            assertRestoredExportState(
+                in: app,
+                folderBasenames: [
+                    "daily": dailyFolder.lastPathComponent,
+                    "weekly": weeklyFolder.lastPathComponent,
+                    "csv": csvFolder.lastPathComponent
+                ],
+                lastRunSentinels: [
+                    "daily": dailySentinel,
+                    "weekly": weeklySentinel,
+                    "csv": csvSentinel
+                ],
+                launchNumber: launchNumber
+            )
+
+            app.terminate()
+            XCTAssertTrue(
+                waitUntil(timeout: 5) { app.state == .notRunning },
+                "Chronicle did not fully terminate after launch \(launchNumber)."
+            )
+        }
+    }
+
     func testPrivacyTrustSurfaceSmoke() throws {
-        let workspace = try makeWorkspace(language: "en")
+        let workspace = try makeWorkspace(language: surfaceLanguage)
         let app = makeApp(
             route: "settingsPrivacy",
-            language: "en",
+            language: surfaceLanguage,
             workspace: workspace,
             resetState: true
         )
@@ -581,7 +654,7 @@ final class ChronicleUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["preferences.section.privacy"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["preferences.pageHeader"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["At a glance"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts[surfaceLabel(english: "At a glance", simplifiedChinese: "一眼看清")].waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["Recommended next step"].exists)
         XCTAssertFalse(app.staticTexts["Privacy status"].exists)
         XCTAssertFalse(app.descendants(matching: .any)["privacy.next.header"].exists)
@@ -638,10 +711,10 @@ final class ChronicleUITests: XCTestCase {
     }
 
     func testSupportReadinessReportSmoke() throws {
-        let workspace = try makeWorkspace(language: "en")
+        let workspace = try makeWorkspace(language: surfaceLanguage)
         let app = makeApp(
             route: "settingsSupport",
-            language: "en",
+            language: surfaceLanguage,
             workspace: workspace,
             resetState: true
         )
@@ -649,7 +722,7 @@ final class ChronicleUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["preferences.section.support"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["preferences.pageHeader"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["App Health"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts[surfaceLabel(english: "App Health", simplifiedChinese: "应用健康")].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["support.readiness.header"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.descendants(matching: .any)["support.readiness.path"].exists)
         XCTAssertFalse(app.descendants(matching: .any)["support.readiness.path.health"].exists)
@@ -677,10 +750,10 @@ final class ChronicleUITests: XCTestCase {
     }
 
     func testSupportHealthRouteOpensReportSmoke() throws {
-        let workspace = try makeWorkspace(language: "en")
+        let workspace = try makeWorkspace(language: surfaceLanguage)
         let app = makeApp(
             route: "settingsSupportHealth",
-            language: "en",
+            language: surfaceLanguage,
             workspace: workspace,
             resetState: true
         )
@@ -688,7 +761,7 @@ final class ChronicleUITests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["preferences.section.support"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["preferences.pageHeader"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["App Health"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts[surfaceLabel(english: "App Health", simplifiedChinese: "应用健康")].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["support.readiness.header"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["support.openHealthReport"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.descendants(matching: .any)["selfCheck.readiness.impact"].exists)
@@ -706,10 +779,10 @@ final class ChronicleUITests: XCTestCase {
     }
 
     func testGeneralSetupSurfaceSmoke() throws {
-        let workspace = try makeWorkspace(language: "en")
+        let workspace = try makeWorkspace(language: surfaceLanguage)
         let app = makeApp(
             route: "settings",
-            language: "en",
+            language: surfaceLanguage,
             workspace: workspace,
             resetState: true
         )
@@ -735,100 +808,80 @@ final class ChronicleUITests: XCTestCase {
     }
 
     func testOnboardingGuidedSetupSurfaceSmoke() throws {
-        let workspace = try makeWorkspace(language: "en")
+        let workspace = try makeWorkspace(language: surfaceLanguage)
         let app = makeApp(
             route: "welcome",
-            language: "en",
+            language: surfaceLanguage,
             workspace: workspace,
             resetState: true
         )
         app.launch()
 
-        XCTAssertTrue(app.staticTexts["Set up Chronicle around a normal workday."].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.descendants(matching: .any)["onboarding.page.value"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.descendants(matching: .any)["onboarding.header"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["onboarding.workdayHero"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["onboarding.positioning"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Offline work journal"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Local timeline"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Markdown closeout"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["onboarding.value.truth"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["onboarding.value.flow"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["onboarding.value.local"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["onboarding.value.blocks"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["onboarding.value.review"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["onboarding.rail.focus"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Understand the daily loop."].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.descendants(matching: .any)["onboarding.header.progress"].exists)
-        XCTAssertFalse(app.staticTexts["Setup focus"].exists)
-        XCTAssertFalse(app.staticTexts["2 of 4 ready"].exists)
-        XCTAssertTrue(app.staticTexts["Today's rhythm"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Turn today into a reviewable story."].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["onboarding.firstDayStrip"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["onboarding.firstDay.capture"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["onboarding.firstDay.context"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["onboarding.firstDay.closeout"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Menu bar stays quiet."].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["No account, cloud sync, or permission rush."].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["onboarding.heroTimeline"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Quiet capture"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Decision note"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Daily log ready"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["onboarding.skipSetup"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["First day"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Log folder"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.staticTexts["Step 1 of 4"].exists)
-        XCTAssertFalse(app.staticTexts["In progress"].exists)
-        XCTAssertFalse(app.staticTexts["Final step"].exists)
-        XCTAssertTrue(app.descendants(matching: .any)["onboarding.rail.selfCheck"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Startup self-check"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Not checked"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["onboarding.step.exports"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["onboarding.step.value"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["onboarding.step.privacy"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["onboarding.step.finish"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["A simple day"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Review and save"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["What Chronicle keeps ready"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Optional permissions"].waitForExistence(timeout: 5))
-        XCTAssertEqual(app.buttons["onboarding.next.value"].label, "Set Up Daily Log")
+        XCTAssertTrue(app.buttons["onboarding.step.ready"].waitForExistence(timeout: 5))
+        XCTAssertEqual(
+            app.buttons["onboarding.step.value"].value as? String,
+            surfaceLabel(english: "Current step", simplifiedChinese: "当前步骤")
+        )
+        XCTAssertFalse(app.buttons["onboarding.step.exports"].exists)
+        XCTAssertEqual(
+            app.buttons["onboarding.next.value"].label,
+            surfaceLabel(english: "Choose Privacy", simplifiedChinese: "选择隐私范围")
+        )
 
-        app.buttons["onboarding.next.value"].click()
-        XCTAssertTrue(app.staticTexts["Daily Log Folder"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["onboarding.exports.statusRow"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["onboarding.exports.outcome"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["onboarding.exports.scope"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["What this folder makes easier"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Start with the daily log"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Choose or skip the log folder."].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Needs folder"].waitForExistence(timeout: 5))
-        XCTAssertEqual(app.buttons["onboarding.next.exports"].label, "Choose Daily Log Folder")
-        XCTAssertEqual(app.buttons["onboarding.skipExports"].label, "Skip Folder for Now")
-
-        app.buttons["onboarding.skipExports"].click()
-        XCTAssertTrue(app.staticTexts["Privacy and Permissions"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["onboarding.privacy.captureRow"].waitForExistence(timeout: 5))
+        clickElement(app.buttons["onboarding.next.value"], in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["onboarding.page.privacy"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["onboarding.privacy.appLevel"].waitForExistence(timeout: 5))
+        XCTAssertEqual(
+            app.buttons["onboarding.step.value"].value as? String,
+            surfaceLabel(english: "Completed", simplifiedChinese: "已完成")
+        )
+        XCTAssertEqual(
+            app.buttons["onboarding.step.privacy"].value as? String,
+            surfaceLabel(english: "Current step", simplifiedChinese: "当前步骤")
+        )
+        XCTAssertEqual(
+            app.buttons["onboarding.privacy.appLevel"].value as? String,
+            surfaceLabel(english: "Selected", simplifiedChinese: "已选择")
+        )
+        XCTAssertTrue(app.descendants(matching: .any)["onboarding.privacy.allowlist"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.descendants(matching: .any)["onboarding.privacy.safety"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["onboarding.privacy.outcome"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Choose the amount of context Chronicle keeps"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["onboarding.permissions.row"].waitForExistence(timeout: 5))
-        XCTAssertEqual(app.buttons["onboarding.next.privacy"].label, "Review Setup")
+        XCTAssertTrue(app.descendants(matching: .any)["onboarding.privacy.noScreenshots"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["onboarding.privacy.noIndexing"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["onboarding.privacy.noNetwork"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.descendants(matching: .any)["onboarding.permissions.row"].exists)
+        XCTAssertFalse(app.buttons["onboarding.openAccessibility"].exists)
+        XCTAssertEqual(
+            app.buttons["onboarding.next.privacy"].label,
+            surfaceLabel(english: "Review What’s Ready", simplifiedChinese: "查看就绪状态")
+        )
 
-        app.buttons["onboarding.next.privacy"].click()
-        XCTAssertTrue(app.staticTexts["Today's setup"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Only the log folder is missing."].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["3 of 4 ready"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Confirm local health"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["onboarding.finish.health"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["onboarding.finish.checkHealth"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Make the first daily log saveable."].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Choose a local folder now, or open Today and set it before closeout."].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Daily log"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.descendants(matching: .any)["onboarding.availabilitySettings"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.descendants(matching: .any)["onboarding.finishChecklist"].exists)
-        XCTAssertFalse(app.staticTexts["Let it run in the menu bar"].exists)
-        XCTAssertFalse(app.staticTexts["Add one note when context matters"].exists)
-        XCTAssertFalse(app.staticTexts["Review before you stop work"].exists)
-        XCTAssertTrue(app.descendants(matching: .any)["onboarding.finishPrimaryActions"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["onboarding.finishSetupExports"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Add a decision, interruption, or focus block while it is still fresh."].waitForExistence(timeout: 5))
-        let openDashboard = app.buttons["onboarding.openDashboard"]
-        XCTAssertTrue(openDashboard.waitForExistence(timeout: 5))
-        openDashboard.click()
-        XCTAssertTrue(app.descendants(matching: .any)["dashboard.section.overview"].waitForExistence(timeout: 5))
+        clickElement(app.buttons["onboarding.next.privacy"], in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["onboarding.page.ready"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["onboarding.ready.menuBar"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["onboarding.ready.pendingReview"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["onboarding.ready.capture"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["onboarding.ready.reminders"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["onboarding.ready.exportsLater"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["onboarding.launchAtLogin"].waitForExistence(timeout: 5))
+        XCTAssertEqual(
+            app.buttons["onboarding.finish"].label,
+            surfaceLabel(english: "Open Pending Review", simplifiedChinese: "打开待复盘")
+        )
+        XCTAssertFalse(app.buttons["onboarding.finishSetupExports"].exists)
+
+        clickElement(app.buttons["onboarding.finish"], in: app)
+        XCTAssertTrue(app.descendants(matching: .any)["dashboard.section.pendingReview"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["onboarding.next.value"].waitForExistence(timeout: 1.5))
 
         app.terminate()
@@ -838,10 +891,6 @@ final class ChronicleUITests: XCTestCase {
         language: String,
         appLanguageLabel: String,
         finishLabel: String,
-        previewSaveLabel: String,
-        previewReadyLabel: String,
-        previewCheckLabel: String,
-        previewCopiedLabel: String,
         verifyLanguageSwitch: Bool
     ) throws {
         let workspace = try makeWorkspace(language: language)
@@ -850,36 +899,31 @@ final class ChronicleUITests: XCTestCase {
             route: nil,
             language: language,
             workspace: workspace,
-            resetState: true
+            resetState: true,
+            clearDefaultsOnTerminate: false
         )
         onboardingApp.launch()
 
         let onboardingNext = onboardingApp.buttons["onboarding.next.value"]
         XCTAssertTrue(onboardingNext.waitForExistence(timeout: 10))
-        onboardingNext.click()
-
-        let chooseExportFolder = onboardingApp.buttons["onboarding.chooseExportFolder"]
-        XCTAssertTrue(chooseExportFolder.waitForExistence(timeout: 5))
-        chooseExportFolder.click()
-        XCTAssertTrue(onboardingApp.descendants(matching: .any)["onboarding.exportStatus"].waitForExistence(timeout: 5))
-        XCTAssertTrue(onboardingApp.buttons["onboarding.next.exports"].waitForExistence(timeout: 5))
-        onboardingApp.buttons["onboarding.next.exports"].click()
+        clickElement(onboardingNext, in: onboardingApp)
 
         XCTAssertTrue(onboardingApp.buttons["onboarding.next.privacy"].waitForExistence(timeout: 5))
-        onboardingApp.buttons["onboarding.next.privacy"].click()
+        clickElement(onboardingApp.buttons["onboarding.next.privacy"], in: onboardingApp)
 
         let finishButton = onboardingApp.buttons["onboarding.finish"]
         XCTAssertTrue(finishButton.waitForExistence(timeout: 5))
         XCTAssertEqual(finishButton.label, finishLabel)
-        finishButton.click()
-        XCTAssertTrue(onboardingApp.descendants(matching: .any)["dashboard.section.overview"].waitForExistence(timeout: 5))
+        clickElement(finishButton, in: onboardingApp)
+        XCTAssertTrue(onboardingApp.descendants(matching: .any)["dashboard.section.pendingReview"].waitForExistence(timeout: 5))
         onboardingApp.terminate()
 
         let relaunchApp = makeApp(
             route: nil,
             language: language,
             workspace: workspace,
-            resetState: false
+            resetState: false,
+            clearDefaultsOnTerminate: false
         )
         relaunchApp.launch()
         XCTAssertFalse(relaunchApp.buttons["onboarding.next.value"].waitForExistence(timeout: 1.5))
@@ -889,23 +933,25 @@ final class ChronicleUITests: XCTestCase {
             route: "settings",
             language: language,
             workspace: workspace,
-            resetState: false
+            resetState: false,
+            clearDefaultsOnTerminate: false
         )
         settingsApp.launch()
 
         XCTAssertTrue(settingsApp.staticTexts[appLanguageLabel].waitForExistence(timeout: 10))
+        XCTAssertFalse(settingsApp.descendants(matching: .any)["preferences.section.export"].exists)
         let languageControl = settingsApp.radioGroups["preferences.language"]
         XCTAssertTrue(languageControl.waitForExistence(timeout: 5))
 
         if verifyLanguageSwitch {
             let chineseButton = languageControl.radioButtons.element(boundBy: 1)
             XCTAssertTrue(chineseButton.waitForExistence(timeout: 5))
-            chineseButton.click()
+            clickElement(chineseButton, in: settingsApp)
             XCTAssertTrue(settingsApp.staticTexts["应用语言"].waitForExistence(timeout: 5))
 
             let englishButton = settingsApp.radioGroups["preferences.language"].radioButtons.element(boundBy: 0)
             XCTAssertTrue(englishButton.waitForExistence(timeout: 5))
-            englishButton.click()
+            clickElement(englishButton, in: settingsApp)
             XCTAssertTrue(settingsApp.staticTexts["App Language"].waitForExistence(timeout: 5))
         }
 
@@ -915,80 +961,23 @@ final class ChronicleUITests: XCTestCase {
             route: "settingsExport",
             language: language,
             workspace: workspace,
-            resetState: false
+            resetState: false,
+            clearDefaultsOnTerminate: false
         )
         exportApp.launch()
 
-        XCTAssertTrue(exportApp.descendants(matching: .any)["reports.workspace.header"].waitForExistence(timeout: 10))
-
-        var previewDaily = exportApp.buttons["reports.plan.previewDaily"]
-        if !previewDaily.waitForExistence(timeout: 5) {
-            let chooseDailyFolder = exportApp.buttons["reports.plan.chooseDailyFolder"]
-            XCTAssertTrue(chooseDailyFolder.waitForExistence(timeout: 5))
-            clickElement(chooseDailyFolder, in: exportApp)
-            previewDaily = exportApp.buttons["reports.plan.previewDaily"]
-        }
-        XCTAssertTrue(previewDaily.waitForExistence(timeout: 5))
-        if previewDaily.isHittable {
-            clickElement(previewDaily, in: exportApp)
-
-            let savePreview = exportApp.buttons["reports.preview.save"]
-            XCTAssertTrue(savePreview.waitForExistence(timeout: 5))
-            XCTAssertEqual(savePreview.label, previewSaveLabel)
-            XCTAssertTrue(waitUntil(timeout: 5) { savePreview.isEnabled })
-            XCTAssertTrue(exportApp.descendants(matching: .any)["reports.preview.header"].waitForExistence(timeout: 5))
-            XCTAssertTrue(exportApp.staticTexts[previewReadyLabel].waitForExistence(timeout: 5))
-            _ = exportApp.staticTexts[previewCheckLabel].waitForExistence(timeout: 5)
-            XCTAssertTrue(exportApp.descendants(matching: .any)["reports.preview.check.story"].waitForExistence(timeout: 5))
-            XCTAssertTrue(exportApp.descendants(matching: .any)["reports.preview.check.context"].waitForExistence(timeout: 5))
-            XCTAssertTrue(exportApp.descendants(matching: .any)["reports.preview.check.output"].waitForExistence(timeout: 5))
-            clickElement(exportApp.buttons["reports.preview.copy"], in: exportApp)
-            XCTAssertTrue(exportApp.staticTexts[previewCopiedLabel].waitForExistence(timeout: 5))
-            XCTAssertTrue(exportApp.descendants(matching: .any)["reports.preview.copyStatus"].waitForExistence(timeout: 5))
-            clickElement(exportApp.buttons["reports.preview.close"], in: exportApp)
-        }
-
-        var generateDaily = exportApp.buttons["reports.plan.generateDailyToday"]
-        if !generateDaily.waitForExistence(timeout: 5) {
-            generateDaily = exportApp.buttons["reports.generateDailyToday"]
-        }
-        XCTAssertTrue(generateDaily.waitForExistence(timeout: 5))
-        if generateDaily.isHittable {
-            clickElement(generateDaily, in: exportApp)
-            let dailyReport = waitForFile(in: workspace.exportRoot, extensions: ["md"], timeout: 10)
-            XCTAssertNotNil(
-                dailyReport,
-                "Daily log file was not created. Status: \(statusText(in: exportApp, identifier: "reports.dailyStatus"))"
-            )
-        }
-
-        var chooseCsvFolder = exportApp.buttons["reports.plan.chooseCsvFolder"]
-        if !chooseCsvFolder.waitForExistence(timeout: 1) {
-            chooseCsvFolder = exportApp.buttons["reports.chooseCsvFolder"]
-        }
-        XCTAssertTrue(chooseCsvFolder.waitForExistence(timeout: 5))
-        if chooseCsvFolder.isHittable {
-            chooseCsvFolder.click()
-
-            var exportCsv = exportApp.buttons["reports.plan.exportCsv"]
-            if !exportCsv.waitForExistence(timeout: 1) {
-                exportCsv = exportApp.buttons["reports.exportCsv"]
-            }
-            XCTAssertTrue(exportCsv.waitForExistence(timeout: 5))
-            exportCsv.click()
-            let csvExport = waitForFile(in: workspace.exportRoot, extensions: ["csv"], timeout: 10)
-            XCTAssertNotNil(
-                csvExport,
-                "CSV export file was not created. Status: \(statusText(in: exportApp, identifier: "reports.csvStatus"))"
-            )
-        }
+        XCTAssertTrue(exportApp.descendants(matching: .any)["integrations.page"].waitForExistence(timeout: 10))
+        XCTAssertTrue(exportApp.descendants(matching: .any)["dashboard.section.integrations"].waitForExistence(timeout: 5))
+        XCTAssertTrue(exportApp.buttons["integrations.chooseFolder"].waitForExistence(timeout: 5))
+        XCTAssertTrue(exportApp.descendants(matching: .any)["integrations.plaintext.confirm"].waitForExistence(timeout: 5))
         exportApp.terminate()
 
         let quickMarkerApp = makeApp(
             route: "quickMarker",
             language: language,
             workspace: workspace,
-            resetState: false
+            resetState: false,
+            clearDefaultsOnTerminate: false
         )
         quickMarkerApp.launch()
 
@@ -999,7 +988,7 @@ final class ChronicleUITests: XCTestCase {
         let submitButton = quickMarkerApp.buttons["quickMarker.submit"]
         XCTAssertTrue(submitButton.waitForExistence(timeout: 5))
         XCTAssertTrue(waitUntil(timeout: 5) { submitButton.isEnabled })
-        submitButton.click()
+        clickElement(submitButton, in: quickMarkerApp)
         XCTAssertTrue(
             waitForSQLiteCount(
                 database: workspace.appSupportRoot.appendingPathComponent("activity.sqlite"),
@@ -1015,7 +1004,8 @@ final class ChronicleUITests: XCTestCase {
             route: "quickMarker",
             language: language,
             workspace: workspace,
-            resetState: false
+            resetState: false,
+            clearDefaultsOnTerminate: false
         )
         intervalMarkerApp.launch()
 
@@ -1023,7 +1013,12 @@ final class ChronicleUITests: XCTestCase {
         XCTAssertTrue(modeControl.waitForExistence(timeout: 5))
         let intervalButton = modeControl.radioButtons.element(boundBy: 1)
         XCTAssertTrue(intervalButton.waitForExistence(timeout: 5))
-        intervalButton.click()
+        clickElement(intervalButton, in: intervalMarkerApp)
+        XCTAssertTrue(
+            intervalMarkerApp.radioGroups["quickMarker.intervalAction"]
+                .waitForExistence(timeout: 5),
+            "Quick marker interval mode did not finish applying."
+        )
 
         let intervalField = intervalMarkerApp.textFields["quickMarker.text"]
         XCTAssertTrue(intervalField.waitForExistence(timeout: 10))
@@ -1031,7 +1026,7 @@ final class ChronicleUITests: XCTestCase {
         let intervalSubmitButton = intervalMarkerApp.buttons["quickMarker.submit"]
         XCTAssertTrue(intervalSubmitButton.waitForExistence(timeout: 5))
         XCTAssertTrue(waitUntil(timeout: 5) { intervalSubmitButton.isEnabled })
-        intervalSubmitButton.click()
+        clickElement(intervalSubmitButton, in: intervalMarkerApp)
         XCTAssertTrue(
             waitForSQLiteCount(
                 database: workspace.appSupportRoot.appendingPathComponent("activity.sqlite"),
@@ -1045,7 +1040,7 @@ final class ChronicleUITests: XCTestCase {
         let stopSession = intervalMarkerApp.buttons["quickMarker.stopSession"]
         XCTAssertTrue(stopSession.waitForExistence(timeout: 5))
         XCTAssertTrue(waitUntil(timeout: 5) { stopSession.isEnabled })
-        stopSession.click()
+        clickElement(stopSession, in: intervalMarkerApp)
         XCTAssertTrue(
             waitForSQLiteCount(
                 database: workspace.appSupportRoot.appendingPathComponent("activity.sqlite"),
@@ -1058,28 +1053,29 @@ final class ChronicleUITests: XCTestCase {
 
         let closeQuickMarker = intervalMarkerApp.buttons["quickMarker.close"]
         XCTAssertTrue(closeQuickMarker.waitForExistence(timeout: 5))
-        closeQuickMarker.click()
+        clickElement(closeQuickMarker, in: intervalMarkerApp)
         intervalMarkerApp.terminate()
 
         let dashboardApp = makeApp(
             route: "dashboard",
             language: language,
             workspace: workspace,
-            resetState: false
+            resetState: false,
+            clearDefaultsOnTerminate: true
         )
         dashboardApp.launch()
 
         let timelineSection = dashboardApp.descendants(matching: .any)["dashboard.section.timeline"]
         XCTAssertTrue(timelineSection.waitForExistence(timeout: 10))
-        timelineSection.click()
-        XCTAssertTrue(dashboardApp.textFields["dashboard.timeline.search"].waitForExistence(timeout: 10))
+        clickElement(timelineSection, in: dashboardApp)
+        XCTAssertTrue(dashboardApp.textFields["timeline.workBlocks.search"].waitForExistence(timeout: 10))
         let openPreferences = dashboardApp.buttons["dashboard.openPreferences"]
         XCTAssertTrue(openPreferences.waitForExistence(timeout: 5))
-        openPreferences.click()
+        clickElement(openPreferences, in: dashboardApp)
         if !dashboardApp.radioGroups["preferences.language"].waitForExistence(timeout: 2) {
             let generalSection = dashboardApp.descendants(matching: .any)["preferences.section.general"]
             XCTAssertTrue(generalSection.waitForExistence(timeout: 5))
-            generalSection.click()
+            clickElement(generalSection, in: dashboardApp)
         }
         XCTAssertTrue(dashboardApp.radioGroups["preferences.language"].waitForExistence(timeout: 10))
         dashboardApp.terminate()
@@ -1095,8 +1091,160 @@ final class ChronicleUITests: XCTestCase {
 
         try FileManager.default.createDirectory(at: exportRoot, withIntermediateDirectories: true)
         try FileManager.default.createDirectory(at: appSupportRoot, withIntermediateDirectories: true)
+        workspaceRoots.append(base)
 
-        return Workspace(root: base, exportRoot: exportRoot, appSupportRoot: appSupportRoot)
+        let workspace = Workspace(
+            root: base,
+            exportRoot: exportRoot,
+            appSupportRoot: appSupportRoot
+        )
+        workspaces.append(workspace)
+        return workspace
+    }
+
+    private var surfaceLanguage: String {
+        if let requested = ProcessInfo.processInfo.environment["CHRONICLE_UI_SMOKE_LANGUAGE"] {
+            return requested == "zh-Hans" ? "zh-Hans" : "en"
+        }
+        if Locale.preferredLanguages.first?.hasPrefix("zh-Hans") == true {
+            return "zh-Hans"
+        }
+        return "en"
+    }
+
+    private func surfaceLabel(english: String, simplifiedChinese: String) -> String {
+        surfaceLanguage == "zh-Hans" ? simplifiedChinese : english
+    }
+
+    private func defaultsSuiteName(for workspace: Workspace) -> String {
+        "com.Chronicle.Chronicle.ui-tests.\(workspace.root.lastPathComponent)"
+    }
+
+    private func v105CompatibleBookmark(for folder: URL) throws -> Data {
+        do {
+            // v1.0.5 was sandboxed and persisted app-scoped security bookmarks.
+            return try folder.bookmarkData(
+                options: [.withSecurityScope],
+                includingResourceValuesForKeys: nil,
+                relativeTo: nil
+            )
+        } catch {
+            let cocoaError = error as NSError
+            let debugDescription = cocoaError.userInfo[NSDebugDescriptionErrorKey] as? String ?? ""
+            let isKnownXCUIRunnerLimitation = Bundle.main.bundleIdentifier?.hasSuffix(".xctrunner") == true
+                && cocoaError.domain == NSCocoaErrorDomain
+                && cocoaError.code == CocoaError.Code.fileReadUnknown.rawValue
+                && debugDescription.contains("ScopedBookmarksAgent")
+            guard isKnownXCUIRunnerLimitation else {
+                throw error
+            }
+
+            // Xcode's generated macOS XCUI runner is sandboxed without the app-scope
+            // bookmark entitlement. Fall back only for that identified harness error:
+            // this test proves cross-process defaults restoration, while focused unit
+            // coverage proves exact v1.0.5 security-scoped bookmark compatibility.
+            return try folder.bookmarkData(
+                options: [],
+                includingResourceValuesForKeys: nil,
+                relativeTo: nil
+            )
+        }
+    }
+
+    private func selectFormatsAndTemplates(in app: XCUIApplication) {
+        app.activate()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 5))
+
+        let modePicker = app.descendants(matching: .any)["integrations.mode"]
+        XCTAssertTrue(modePicker.waitForExistence(timeout: 5))
+
+        let identifiedSegment = app.descendants(matching: .any)["integrations.mode.formatsTemplates"]
+        if identifiedSegment.waitForExistence(timeout: 2) {
+            clickElement(identifiedSegment, in: app)
+        } else if modePicker.radioButtons.count > 1 {
+            clickElement(modePicker.radioButtons.element(boundBy: 1), in: app)
+        } else {
+            let secondSegment = modePicker.buttons.element(boundBy: 1)
+            XCTAssertTrue(secondSegment.waitForExistence(timeout: 2))
+            clickElement(secondSegment, in: app)
+        }
+
+        XCTAssertTrue(
+            app.descendants(matching: .any)["reports.readiness"].waitForExistence(timeout: 5)
+        )
+    }
+
+    private func assertRestoredExportState(
+        in app: XCUIApplication,
+        folderBasenames: [String: String],
+        lastRunSentinels: [String: String],
+        launchNumber: Int
+    ) {
+        for kind in ["daily", "weekly", "csv"] {
+            let tileIdentifier = "reports.readiness.\(kind)"
+            let readinessTile = app.descendants(matching: .any)[tileIdentifier]
+            XCTAssertTrue(
+                readinessTile.waitForExistence(timeout: 5),
+                "\(tileIdentifier) was missing on launch \(launchNumber)."
+            )
+
+            let folderBasename = folderBasenames[kind] ?? ""
+            let restoredFolderText = app.staticTexts
+                .matching(
+                    NSPredicate(
+                        format: "identifier == %@ AND (label CONTAINS %@ OR value CONTAINS %@)",
+                        tileIdentifier,
+                        folderBasename,
+                        folderBasename
+                    )
+                )
+                .firstMatch
+            XCTAssertTrue(
+                restoredFolderText.waitForExistence(timeout: 5),
+                "\(kind) folder bookmark did not restore \(folderBasename) on launch \(launchNumber). \(readinessTile.debugDescription)"
+            )
+
+            let lastRunIdentifier = "reports.\(kind)LastRun"
+            let sentinel = lastRunSentinels[kind] ?? ""
+            let restoredLastRun = app.descendants(matching: .any)
+                .matching(
+                    NSPredicate(
+                        format: "identifier == %@ AND (label CONTAINS %@ OR value CONTAINS %@)",
+                        lastRunIdentifier,
+                        sentinel,
+                        sentinel
+                    )
+                )
+                .firstMatch
+            XCTAssertTrue(
+                restoredLastRun.waitForExistence(timeout: 5),
+                "\(lastRunIdentifier) did not restore its sentinel on launch \(launchNumber)."
+            )
+        }
+    }
+
+    private func cleanupTargetDefaults(for workspace: Workspace) {
+        let cleanupApp = XCUIApplication()
+        cleanupApp.launchEnvironment["CHRONICLE_UI_TEST_MODE"] = "1"
+        cleanupApp.launchEnvironment["CHRONICLE_UI_TEST_RESET_STATE"] = "0"
+        cleanupApp.launchEnvironment["CHRONICLE_UI_TEST_LANGUAGE"] = surfaceLanguage
+        cleanupApp.launchEnvironment["CHRONICLE_UI_TEST_EXPORT_ROOT"] = workspace.exportRoot.path
+        cleanupApp.launchEnvironment["CHRONICLE_UI_TEST_APP_SUPPORT_DIR"] = workspace.appSupportRoot.path
+        cleanupApp.launchEnvironment["CHRONICLE_UI_TEST_DEFAULTS_SUITE"] = defaultsSuiteName(for: workspace)
+        cleanupApp.launchEnvironment["CHRONICLE_UI_TEST_CLEAR_DEFAULTS_ON_TERMINATE"] = "1"
+        cleanupApp.launchEnvironment["CHRONICLE_UI_TEST_ROUTE"] = "popover"
+        cleanupApp.launch()
+        cleanupApp.activate()
+
+        XCTAssertTrue(
+            cleanupApp.wait(for: .runningForeground, timeout: 10),
+            "Cleanup app did not reach the foreground for \(workspace.root.lastPathComponent)."
+        )
+        cleanupApp.terminate()
+        XCTAssertTrue(
+            waitUntil(timeout: 5) { cleanupApp.state == .notRunning },
+            "Cleanup app did not terminate for \(workspace.root.lastPathComponent)."
+        )
     }
 
     private func makeApp(
@@ -1106,20 +1254,27 @@ final class ChronicleUITests: XCTestCase {
         resetState: Bool,
         dailyReviewReminderEnabled: Bool? = nil,
         showDebug: Bool = false,
-        useSystemPanels: Bool = false
+        useSystemPanels: Bool = false,
+        archiveStartupFailure: Bool = false,
+        clearDefaultsOnTerminate: Bool = true
     ) -> XCUIApplication {
         let app = XCUIApplication()
+        let defaultsSuiteName = defaultsSuiteName(for: workspace)
         app.launchEnvironment["CHRONICLE_UI_TEST_MODE"] = "1"
         app.launchEnvironment["CHRONICLE_UI_TEST_RESET_STATE"] = resetState ? "1" : "0"
         app.launchEnvironment["CHRONICLE_UI_TEST_LANGUAGE"] = language
         app.launchEnvironment["CHRONICLE_UI_TEST_EXPORT_ROOT"] = workspace.exportRoot.path
         app.launchEnvironment["CHRONICLE_UI_TEST_APP_SUPPORT_DIR"] = workspace.appSupportRoot.path
-        app.launchEnvironment["CHRONICLE_UI_TEST_DEFAULTS_SUITE"] = "com.Chronicle.Chronicle.ui-tests.\(workspace.root.lastPathComponent)"
+        app.launchEnvironment["CHRONICLE_UI_TEST_DEFAULTS_SUITE"] = defaultsSuiteName
+        app.launchEnvironment["CHRONICLE_UI_TEST_CLEAR_DEFAULTS_ON_TERMINATE"] = clearDefaultsOnTerminate ? "1" : "0"
         if showDebug {
             app.launchEnvironment["CHRONICLE_SHOW_DEBUG"] = "1"
         }
         if useSystemPanels {
             app.launchEnvironment["CHRONICLE_UI_TEST_USE_SYSTEM_PANELS"] = "1"
+        }
+        if archiveStartupFailure {
+            app.launchEnvironment["CHRONICLE_UI_TEST_ARCHIVE_STARTUP_FAILURE"] = "1"
         }
         if let dailyReviewReminderEnabled {
             app.launchEnvironment["CHRONICLE_UI_TEST_DAILY_REVIEW_REMINDER_ENABLED"] = dailyReviewReminderEnabled ? "1" : "0"
@@ -1127,48 +1282,89 @@ final class ChronicleUITests: XCTestCase {
         if let route {
             app.launchEnvironment["CHRONICLE_UI_TEST_ROUTE"] = route
         }
+        launchedApps.append(app)
+        defaultsSuiteNames.insert(defaultsSuiteName)
         return app
     }
 
-    private func waitForFile(
-        in directory: URL,
-        extensions: Set<String>,
-        timeout: TimeInterval
-    ) -> URL? {
-        let deadline = Date().addingTimeInterval(timeout)
-        let fileManager = FileManager.default
+    private func replaceText(_ text: String, in element: XCUIElement, app: XCUIApplication) {
+        clickElement(element, in: app)
+        ensureForeground(app)
+        app.typeKey("a", modifierFlags: .command)
+        // A real paste delivers the same native edit event as a user action,
+        // while avoiding both XCUI bulk-injection binding gaps and active input
+        // methods interpreting ASCII key sequences as candidate text.
+        pasteFocusedText(text, app: app)
+        let settled = waitUntil(timeout: 5) {
+            String(describing: element.value ?? "") == text
+        }
+        let actualValue = String(describing: element.value ?? "")
+        XCTAssertTrue(
+            settled,
+            "Text entry did not settle to the expected value. Expected \(text.debugDescription), got \(actualValue.debugDescription)."
+        )
+    }
 
-        while Date() < deadline {
-            if let enumerator = fileManager.enumerator(at: directory, includingPropertiesForKeys: nil) {
-                for case let url as URL in enumerator {
-                    let pathExtension = url.pathExtension.lowercased()
-                    if extensions.contains(pathExtension) {
-                        return url
-                    }
+    private func pasteFocusedText(_ text: String, app: XCUIApplication) {
+        let pasteboard = NSPasteboard.general
+        let snapshotChangeCount = pasteboard.changeCount
+        guard let previousItems = copyPasteboardItems(pasteboard.pasteboardItems ?? []) else {
+            XCTFail("Could not snapshot the general pasteboard before text entry.")
+            return
+        }
+        guard pasteboard.changeCount == snapshotChangeCount else {
+            XCTFail("The general pasteboard changed while it was being snapshotted; refusing to overwrite it.")
+            return
+        }
+        let stagedItem = NSPasteboardItem()
+        guard stagedItem.setString(text, forType: .string) else {
+            XCTFail("Could not stage text for native text entry.")
+            return
+        }
+
+        let ownedChangeCount = pasteboard.clearContents()
+        defer {
+            // Do not overwrite clipboard content published by another process
+            // while the paste was in flight. Otherwise restore the deep copy.
+            if pasteboard.changeCount == ownedChangeCount {
+                _ = pasteboard.clearContents()
+                if !previousItems.isEmpty {
+                    XCTAssertTrue(
+                        pasteboard.writeObjects(previousItems.map { $0 as NSPasteboardWriting }),
+                        "Could not restore the general pasteboard after text entry."
+                    )
                 }
             }
-
-            RunLoop.current.run(until: Date().addingTimeInterval(0.25))
         }
 
-        return nil
+        guard pasteboard.writeObjects([stagedItem]),
+              pasteboard.changeCount == ownedChangeCount else {
+            XCTFail("The general pasteboard changed while staging text for native text entry.")
+            return
+        }
+
+        ensureForeground(app)
+        app.typeKey("v", modifierFlags: .command)
+        ensureForeground(app)
+        app.typeKey(.tab, modifierFlags: [])
     }
 
-    private func statusText(in app: XCUIApplication, identifier: String) -> String {
-        let element = app.staticTexts[identifier]
-        if element.exists {
-            if let value = element.value as? String, !value.isEmpty {
-                return value
+    private func copyPasteboardItems(_ sourceItems: [NSPasteboardItem]) -> [NSPasteboardItem]? {
+        var copies: [NSPasteboardItem] = []
+        copies.reserveCapacity(sourceItems.count)
+
+        for sourceItem in sourceItems {
+            let copy = NSPasteboardItem()
+            for type in sourceItem.types {
+                guard let data = sourceItem.data(forType: type),
+                      copy.setData(data, forType: type) else {
+                    return nil
+                }
             }
-            return element.label
+            copies.append(copy)
         }
-        return element.debugDescription
-    }
 
-    private func replaceText(_ text: String, in element: XCUIElement, app: XCUIApplication) {
-        element.click()
-        app.typeKey("a", modifierFlags: .command)
-        element.typeText(text)
+        return copies
     }
 
     private func waitForSQLiteCount(
@@ -1187,28 +1383,50 @@ final class ChronicleUITests: XCTestCase {
             return nil
         }
 
-        let process = Process()
-        let output = Pipe()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/sqlite3")
-        process.arguments = [database.path, query]
-        process.standardOutput = output
-        process.standardError = Pipe()
+        var connection: OpaquePointer?
+        let openResult = sqlite3_open_v2(
+            database.path,
+            &connection,
+            SQLITE_OPEN_READONLY | SQLITE_OPEN_FULLMUTEX,
+            nil
+        )
+        guard openResult == SQLITE_OK, let connection else {
+            sqlite3_close(connection)
+            return nil
+        }
+        defer { sqlite3_close(connection) }
 
-        do {
-            try process.run()
-            process.waitUntilExit()
-        } catch {
+        // UI-test databases use AppRuntime's DEBUG-only deterministic 256-bit key.
+        // Pass the same SQLCipher raw-key literal that the app uses so these
+        // persistence assertions exercise the encrypted archive rather than a
+        // parallel plaintext fixture.
+        let keyLiteral = Array(("x'" + String(repeating: "a5", count: 32) + "'").utf8)
+        let keyResult = keyLiteral.withUnsafeBytes { buffer in
+            sqlite3_key(connection, buffer.baseAddress, Int32(buffer.count))
+        }
+        guard keyResult == SQLITE_OK else {
+            return nil
+        }
+        sqlite3_busy_timeout(connection, 1_000)
+
+        guard sqlite3_exec(connection, "PRAGMA query_only=ON;", nil, nil, nil) == SQLITE_OK else {
             return nil
         }
 
-        guard process.terminationStatus == 0 else {
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(connection, query, -1, &statement, nil) == SQLITE_OK else {
+            return nil
+        }
+        defer { sqlite3_finalize(statement) }
+        guard sqlite3_step(statement) == SQLITE_ROW else {
             return nil
         }
 
-        let data = output.fileHandleForReading.readDataToEndOfFile()
-        let text = String(data: data, encoding: .utf8)?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        return text.flatMap(Int.init)
+        let value = sqlite3_column_int64(statement, 0)
+        guard value >= Int64(Int.min), value <= Int64(Int.max) else {
+            return nil
+        }
+        return Int(value)
     }
 
     private func waitUntil(timeout: TimeInterval, condition: () -> Bool) -> Bool {
@@ -1222,9 +1440,23 @@ final class ChronicleUITests: XCTestCase {
         return condition()
     }
 
+    private func ensureForeground(_ app: XCUIApplication) {
+        if app.state != .runningForeground {
+            app.activate()
+        }
+        XCTAssertTrue(
+            app.wait(for: .runningForeground, timeout: 5),
+            "Chronicle did not become the foreground application before interaction."
+        )
+    }
+
     private func clickElement(_ element: XCUIElement, in app: XCUIApplication) {
-        app.activate()
-        XCTAssertTrue(waitUntil(timeout: 5) { element.isHittable })
+        ensureForeground(app)
+        XCTAssertTrue(
+            element.waitForExistence(timeout: 5),
+            "The requested Chronicle control did not exist before interaction."
+        )
+        ensureForeground(app)
         element.click()
     }
 }

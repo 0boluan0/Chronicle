@@ -1,16 +1,504 @@
 import Combine
-import SQLite3
+import AppKit
+import SQLCipher
 import XCTest
 @testable import Chronicle
+
+final class AppRuntimeUnitTestIsolationTests: XCTestCase {
+    func testLocalStateWipeDomainIgnoresUITestOverrideOutsideUITestMode() {
+        XCTAssertEqual(
+            AppRuntime.localStatePersistentDomainName(
+                isUITestMode: false,
+                uiTestDefaultsSuiteName: "attacker.controlled.domain",
+                bundleIdentifier: "com.Chronicle.Chronicle"
+            ),
+            "com.Chronicle.Chronicle"
+        )
+        XCTAssertEqual(
+            AppRuntime.localStatePersistentDomainName(
+                isUITestMode: true,
+                uiTestDefaultsSuiteName: "com.Chronicle.Chronicle.ui-tests.fixture",
+                bundleIdentifier: "com.Chronicle.Chronicle"
+            ),
+            "com.Chronicle.Chronicle.ui-tests.fixture"
+        )
+        XCTAssertEqual(
+            AppRuntime.localStatePersistentDomainName(
+                isUITestMode: true,
+                uiTestDefaultsSuiteName: "",
+                bundleIdentifier: "com.Chronicle.Chronicle"
+            ),
+            "com.Chronicle.Chronicle"
+        )
+        XCTAssertNil(
+            AppRuntime.localStatePersistentDomainName(
+                isUITestMode: false,
+                uiTestDefaultsSuiteName: nil,
+                bundleIdentifier: nil
+            )
+        )
+    }
+
+    func testSharedDatabaseUsesTemporaryUnitTestStorageWithoutKeychain() throws {
+        let fixtureRoot = URL(fileURLWithPath: "/tmp/chronicle-runtime-isolation-fixture", isDirectory: true)
+        let fixture = try XCTUnwrap(AppRuntime.makeUnitTestHostStorage(
+            environment: ["CHRONICLE_UNIT_TEST_MODE": "1"],
+            temporaryDirectory: fixtureRoot,
+            uniqueIdentifier: "host-42"
+        ))
+
+        XCTAssertEqual(
+            fixture.appSupportDirectory,
+            fixtureRoot
+                .appendingPathComponent("ChronicleUnitTests", isDirectory: true)
+                .appendingPathComponent("host-42", isDirectory: true)
+        )
+        XCTAssertEqual(fixture.databaseKey, Data(repeating: 0xA5, count: 32))
+        XCTAssertEqual(fixture.defaultsSuiteName, "com.Chronicle.Chronicle.unit-tests.host-42")
+        XCTAssertNil(AppRuntime.makeUnitTestHostStorage(
+            environment: [:],
+            temporaryDirectory: fixtureRoot,
+            uniqueIdentifier: "ordinary-launch"
+        ))
+        XCTAssertNil(AppRuntime.makeUnitTestHostStorage(
+            environment: [
+                "CHRONICLE_UNIT_TEST_MODE": "1",
+                "CHRONICLE_UI_TEST_MODE": "1"
+            ],
+            temporaryDirectory: fixtureRoot,
+            uniqueIdentifier: "ui-test"
+        ))
+
+        let activeStorage = try XCTUnwrap(AppRuntime.unitTestHostStorage)
+        XCTAssertEqual(DatabaseService.shared.appSupportURL, activeStorage.appSupportDirectory)
+        XCTAssertEqual(
+            DatabaseService.shared.databaseURL,
+            activeStorage.appSupportDirectory.appendingPathComponent("activity.sqlite")
+        )
+        XCTAssertEqual(
+            try DatabaseService.shared.databaseKeyProvider(false),
+            activeStorage.databaseKey
+        )
+        XCTAssertEqual(DatabaseService.shared.wipeDatabaseURLs, [DatabaseService.shared.databaseURL])
+
+        let isolatedDefaults = AppRuntime.configuredDefaults()
+        let sentinelKey = "unit-test-isolation.\(UUID().uuidString)"
+        isolatedDefaults.set("isolated", forKey: sentinelKey)
+        defer { isolatedDefaults.removeObject(forKey: sentinelKey) }
+        XCTAssertNil(UserDefaults.standard.object(forKey: sentinelKey))
+    }
+
+    func testUnsandboxedDefaultsMigrationPreservesV105ScopedBookmarksAndUsesNewerLegacyValues() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("chronicle-defaults-migration-\(UUID().uuidString)", isDirectory: true)
+        let legacyURL = root.appendingPathComponent("legacy.plist")
+        let currentURL = root.appendingPathComponent("current.plist")
+        let exportFolder = root.appendingPathComponent("exports", isDirectory: true)
+        let suiteName = "chronicle-tests-defaults-newer-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer {
+            defaults.removePersistentDomain(forName: suiteName)
+            try? FileManager.default.removeItem(at: root)
+        }
+        try FileManager.default.createDirectory(at: exportFolder, withIntermediateDirectories: true)
+
+        let scopedBookmark = try exportFolder.bookmarkData(
+            options: [.withSecurityScope],
+            includingResourceValuesForKeys: nil,
+            relativeTo: nil
+        )
+        let legacyValues: [String: Any] = [
+            "reports.dailyFolderBookmark": scopedBookmark,
+            "reports.weeklyFolderBookmark": scopedBookmark,
+            "reports.csvFolderBookmark": scopedBookmark,
+            "settings.windowTitleAllowedBundleIDs": ["example.legacy.editor"],
+            "shared": "legacy-newer",
+            AppRuntime.unsandboxedMigrationKey: false
+        ]
+        let legacyData = try PropertyListSerialization.data(
+            fromPropertyList: legacyValues,
+            format: .binary,
+            options: 0
+        )
+        try legacyData.write(to: legacyURL)
+        try Data("current".utf8).write(to: currentURL)
+        defaults.set("current-older", forKey: "shared")
+
+        let older = Date(timeIntervalSince1970: 1_700_000_000)
+        let newer = older.addingTimeInterval(60)
+        try FileManager.default.setAttributes([.modificationDate: older], ofItemAtPath: currentURL.path)
+        try FileManager.default.setAttributes([.modificationDate: newer], ofItemAtPath: legacyURL.path)
+
+        XCTAssertEqual(
+            AppRuntime.migrateUnsandboxedDefaults(
+                legacyPreferencesURL: legacyURL,
+                currentPreferencesURL: currentURL,
+                defaults: defaults,
+                trustedRoots: [FileManager.default.temporaryDirectory]
+            ),
+            .migrated
+        )
+        XCTAssertEqual(defaults.string(forKey: "shared"), "legacy-newer")
+        XCTAssertEqual(defaults.data(forKey: "reports.dailyFolderBookmark"), scopedBookmark)
+        XCTAssertEqual(
+            defaults.stringArray(forKey: "settings.windowTitleAllowedBundleIDs"),
+            ["example.legacy.editor"]
+        )
+        XCTAssertTrue(defaults.bool(forKey: AppRuntime.unsandboxedMigrationKey))
+
+        let reportSettings = ReportSettings.makeTestInstance(defaults: defaults)
+        let expectedPath = exportFolder.resolvingSymlinksInPath().path
+        XCTAssertEqual(
+            try reportSettings.resolveDailyFolderURL()?.resolvingSymlinksInPath().path,
+            expectedPath
+        )
+        XCTAssertEqual(
+            try reportSettings.resolveWeeklyFolderURL()?.resolvingSymlinksInPath().path,
+            expectedPath
+        )
+        XCTAssertEqual(
+            try reportSettings.resolveCsvFolderURL()?.resolvingSymlinksInPath().path,
+            expectedPath
+        )
+        XCTAssertEqual(
+            AppRuntime.migrateUnsandboxedDefaults(
+                legacyPreferencesURL: legacyURL,
+                currentPreferencesURL: currentURL,
+                defaults: defaults,
+                trustedRoots: [FileManager.default.temporaryDirectory]
+            ),
+            .alreadyCompleted
+        )
+    }
+
+    func testUnsandboxedDefaultsMigrationKeepsNewerCurrentValuesAndFillsMissingKeys() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("chronicle-defaults-current-newer-\(UUID().uuidString)", isDirectory: true)
+        let legacyURL = root.appendingPathComponent("legacy.plist")
+        let currentURL = root.appendingPathComponent("current.plist")
+        let suiteName = "chronicle-tests-defaults-current-newer-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer {
+            defaults.removePersistentDomain(forName: suiteName)
+            try? FileManager.default.removeItem(at: root)
+        }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let legacyData = try PropertyListSerialization.data(
+            fromPropertyList: ["shared": "legacy-older", "legacyOnly": 42],
+            format: .binary,
+            options: 0
+        )
+        try legacyData.write(to: legacyURL)
+        try Data("current".utf8).write(to: currentURL)
+        defaults.set("current-newer", forKey: "shared")
+        let older = Date(timeIntervalSince1970: 1_700_000_000)
+        try FileManager.default.setAttributes([.modificationDate: older], ofItemAtPath: legacyURL.path)
+        try FileManager.default.setAttributes(
+            [.modificationDate: older.addingTimeInterval(60)],
+            ofItemAtPath: currentURL.path
+        )
+
+        XCTAssertEqual(
+            AppRuntime.migrateUnsandboxedDefaults(
+                legacyPreferencesURL: legacyURL,
+                currentPreferencesURL: currentURL,
+                defaults: defaults,
+                trustedRoots: [FileManager.default.temporaryDirectory]
+            ),
+            .migrated
+        )
+        XCTAssertEqual(defaults.string(forKey: "shared"), "current-newer")
+        XCTAssertEqual(defaults.integer(forKey: "legacyOnly"), 42)
+        XCTAssertTrue(defaults.bool(forKey: AppRuntime.unsandboxedMigrationKey))
+    }
+
+    func testUnsandboxedDefaultsMigrationRetriesMalformedLegacyPreferences() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("chronicle-defaults-retry-\(UUID().uuidString)", isDirectory: true)
+        let legacyURL = root.appendingPathComponent("legacy.plist")
+        let currentURL = root.appendingPathComponent("current.plist")
+        let suiteName = "chronicle-tests-defaults-retry-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer {
+            defaults.removePersistentDomain(forName: suiteName)
+            try? FileManager.default.removeItem(at: root)
+        }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        try Data("not a property list".utf8).write(to: legacyURL)
+
+        XCTAssertEqual(
+            AppRuntime.migrateUnsandboxedDefaults(
+                legacyPreferencesURL: legacyURL,
+                currentPreferencesURL: currentURL,
+                defaults: defaults,
+                trustedRoots: [FileManager.default.temporaryDirectory]
+            ),
+            .retryRequired
+        )
+        XCTAssertFalse(defaults.bool(forKey: AppRuntime.unsandboxedMigrationKey))
+
+        let validData = try PropertyListSerialization.data(
+            fromPropertyList: ["recovered": true],
+            format: .binary,
+            options: 0
+        )
+        try validData.write(to: legacyURL, options: .atomic)
+        XCTAssertEqual(
+            AppRuntime.migrateUnsandboxedDefaults(
+                legacyPreferencesURL: legacyURL,
+                currentPreferencesURL: currentURL,
+                defaults: defaults,
+                trustedRoots: [FileManager.default.temporaryDirectory]
+            ),
+            .migrated
+        )
+        XCTAssertTrue(defaults.bool(forKey: "recovered"))
+        XCTAssertTrue(defaults.bool(forKey: AppRuntime.unsandboxedMigrationKey))
+    }
+
+    func testUnsandboxedDefaultsMigrationRejectsFinalSymlinksAndRetriesAfterRegularReplacement() throws {
+        let fixtureRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent("chronicle-defaults-symlink-retry-\(UUID().uuidString)", isDirectory: true)
+        let trustedRoot = fixtureRoot.appendingPathComponent("trusted", isDirectory: true)
+        let outsideRoot = fixtureRoot.appendingPathComponent("outside", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: fixtureRoot) }
+        try FileManager.default.createDirectory(at: trustedRoot, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: outsideRoot, withIntermediateDirectories: true)
+
+        for fixtureName in ["live", "broken"] {
+            let caseRoot = trustedRoot.appendingPathComponent(fixtureName, isDirectory: true)
+            let legacyURL = caseRoot.appendingPathComponent("legacy.plist")
+            let currentURL = caseRoot.appendingPathComponent("current.plist")
+            let outsideURL = outsideRoot.appendingPathComponent("\(fixtureName).plist")
+            let suiteName = "chronicle-tests-defaults-symlink-retry-\(UUID().uuidString)"
+            let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+            defer { defaults.removePersistentDomain(forName: suiteName) }
+            try FileManager.default.createDirectory(at: caseRoot, withIntermediateDirectories: true)
+
+            if fixtureName == "live" {
+                let outsideData = try PropertyListSerialization.data(
+                    fromPropertyList: ["externalOnly": "must not be imported"],
+                    format: .binary,
+                    options: 0
+                )
+                try outsideData.write(to: outsideURL)
+            }
+            try FileManager.default.createSymbolicLink(
+                at: legacyURL,
+                withDestinationURL: outsideURL
+            )
+
+            XCTAssertEqual(
+                AppRuntime.migrateUnsandboxedDefaults(
+                    legacyPreferencesURL: legacyURL,
+                    currentPreferencesURL: currentURL,
+                    defaults: defaults,
+                    trustedRoots: [trustedRoot]
+                ),
+                .retryRequired,
+                "A \(fixtureName) final-component symlink must remain retryable."
+            )
+            XCTAssertNil(defaults.object(forKey: "externalOnly"))
+            XCTAssertFalse(defaults.bool(forKey: AppRuntime.unsandboxedMigrationKey))
+
+            try FileManager.default.removeItem(at: legacyURL)
+            let replacementData = try PropertyListSerialization.data(
+                fromPropertyList: ["recovered": fixtureName],
+                format: .binary,
+                options: 0
+            )
+            try replacementData.write(to: legacyURL)
+
+            XCTAssertEqual(
+                AppRuntime.migrateUnsandboxedDefaults(
+                    legacyPreferencesURL: legacyURL,
+                    currentPreferencesURL: currentURL,
+                    defaults: defaults,
+                    trustedRoots: [trustedRoot]
+                ),
+                .migrated
+            )
+            XCTAssertEqual(defaults.string(forKey: "recovered"), fixtureName)
+            XCTAssertTrue(defaults.bool(forKey: AppRuntime.unsandboxedMigrationKey))
+        }
+    }
+
+    func testUnsandboxedDefaultsMigrationCompletesWhenLegacyPreferencesAreAbsent() throws {
+        let suiteName = "chronicle-tests-defaults-missing-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("chronicle-defaults-missing-\(UUID().uuidString)", isDirectory: true)
+
+        XCTAssertEqual(
+            AppRuntime.migrateUnsandboxedDefaults(
+                legacyPreferencesURL: root.appendingPathComponent("legacy.plist"),
+                currentPreferencesURL: root.appendingPathComponent("current.plist"),
+                defaults: defaults,
+                trustedRoots: [FileManager.default.temporaryDirectory]
+            ),
+            .noLegacyPreferences
+        )
+        XCTAssertTrue(defaults.bool(forKey: AppRuntime.unsandboxedMigrationKey))
+    }
+}
+
+private final class ControlledRawEventInserter {
+    enum StubError: Error {
+        case markerPersistenceFailed
+    }
+
+    private let lock = NSLock()
+    private let onInsert: (RawEvent, Int) -> Void
+    private var pending: [(RawEvent, (Result<Int64, Error>) -> Void)] = []
+    private var observed: [RawEvent] = []
+    private var persisted: [RawEvent] = []
+
+    init(onInsert: @escaping (RawEvent, Int) -> Void) {
+        self.onInsert = onInsert
+    }
+
+    func insert(
+        _ event: RawEvent,
+        completion: @escaping (Result<Int64, Error>) -> Void
+    ) {
+        lock.lock()
+        observed.append(event)
+        pending.append((event, completion))
+        let observedCount = observed.count
+        lock.unlock()
+        onInsert(event, observedCount)
+    }
+
+    var observedEvents: [RawEvent] {
+        lock.lock()
+        defer { lock.unlock() }
+        return observed
+    }
+
+    var persistedEvents: [RawEvent] {
+        lock.lock()
+        defer { lock.unlock() }
+        return persisted
+    }
+
+    @discardableResult
+    func completeNext(with result: Result<Int64, Error>) -> Bool {
+        lock.lock()
+        guard !pending.isEmpty else {
+            lock.unlock()
+            return false
+        }
+        let pendingInsert = pending.removeFirst()
+        if case .success = result {
+            persisted.append(pendingInsert.0)
+        }
+        lock.unlock()
+        pendingInsert.1(result)
+        return true
+    }
+}
+
+private final class TestPauseBoundaryCheckpointStore: PauseBoundaryCheckpointStoring {
+    enum StubError: Error {
+        case saveFailed
+        case clearFailed
+    }
+
+    private let lock = NSLock()
+    private var timestamp: Int64?
+    var failNextSave = false
+    var failNextClear = false
+
+    init(timestamp: Int64? = nil) {
+        self.timestamp = timestamp
+    }
+
+    func loadBoundaryTimestamp() -> Result<Int64?, Error> {
+        lock.lock()
+        defer { lock.unlock() }
+        return .success(timestamp)
+    }
+
+    func saveBoundaryTimestamp(_ timestamp: Int64) -> Result<Void, Error> {
+        lock.lock()
+        defer { lock.unlock() }
+        if failNextSave {
+            failNextSave = false
+            return .failure(StubError.saveFailed)
+        }
+        self.timestamp = timestamp
+        return .success(())
+    }
+
+    func clearBoundaryTimestamp() -> Result<Void, Error> {
+        lock.lock()
+        defer { lock.unlock() }
+        if failNextClear {
+            failNextClear = false
+            return .failure(StubError.clearFailed)
+        }
+        timestamp = nil
+        return .success(())
+    }
+
+    var savedTimestamp: Int64? {
+        lock.lock()
+        defer { lock.unlock() }
+        return timestamp
+    }
+}
+
+private final class ControlledActivityEndUpdater {
+    private let lock = NSLock()
+    private let onUpdate: (Int64, Int64) -> Void
+    private var pending: [(Int64, Int64, (Result<Void, Error>) -> Void)] = []
+
+    init(onUpdate: @escaping (Int64, Int64) -> Void) {
+        self.onUpdate = onUpdate
+    }
+
+    func update(
+        id: Int64,
+        endTime: Int64,
+        completion: @escaping (Result<Void, Error>) -> Void
+    ) {
+        lock.lock()
+        pending.append((id, endTime, completion))
+        lock.unlock()
+        onUpdate(id, endTime)
+    }
+
+    @discardableResult
+    func completeNext(using database: DatabaseService) -> Bool {
+        lock.lock()
+        guard !pending.isEmpty else {
+            lock.unlock()
+            return false
+        }
+        let update = pending.removeFirst()
+        lock.unlock()
+        database.updateActivityEndTime(
+            id: update.0,
+            endTime: update.1,
+            completion: update.2
+        )
+        return true
+    }
+}
 
 final class ChronicleTests: XCTestCase {
     private var previousDebugLoggingEnabled: Bool?
     private var previousTelemetryEnabled: Bool?
+    private var previousTrackingPaused: Bool?
+    private var previousLastDbErrorMessage: String?
 
     override func setUp() {
         super.setUp()
         previousDebugLoggingEnabled = AppState.shared.debugLoggingEnabled
         previousTelemetryEnabled = AppState.shared.telemetryEnabled
+        previousTrackingPaused = AppState.shared.trackingPaused
+        previousLastDbErrorMessage = AppState.shared.lastDbErrorMessage
         AppState.shared.debugLoggingEnabled = false
     }
 
@@ -21,6 +509,10 @@ final class ChronicleTests: XCTestCase {
         if let previousTelemetryEnabled {
             AppState.shared.telemetryEnabled = previousTelemetryEnabled
         }
+        if let previousTrackingPaused {
+            AppState.shared.trackingPaused = previousTrackingPaused
+        }
+        AppState.shared.lastDbErrorMessage = previousLastDbErrorMessage
         super.tearDown()
     }
 
@@ -79,7 +571,7 @@ final class ChronicleTests: XCTestCase {
     }
 
     private func clearTelemetryCounters() {
-        let defaults = UserDefaults.standard
+        let defaults = AppRuntime.configuredDefaults()
         for key in telemetryCounterKeys {
             defaults.removeObject(forKey: "telemetry.counter.\(key)")
         }
@@ -140,6 +632,53 @@ final class ChronicleTests: XCTestCase {
         XCTAssertEqual(calendar.dateComponents([.day], from: baseDate, to: nextDay).day, 1)
         XCTAssertEqual(calendar.dateComponents([.day], from: baseDate, to: nextWeek).day, 7)
         XCTAssertEqual(calendar.component(.month, from: nextMonth), 6)
+    }
+
+    func testDateAndCSVRangeBoundariesRespectExplicitTimeZoneDSTAndISOWeeks() throws {
+        let losAngeles = try XCTUnwrap(TimeZone(identifier: "America/Los_Angeles"))
+        var localCalendar = Calendar(identifier: .gregorian)
+        localCalendar.locale = Locale(identifier: "en_US")
+        localCalendar.timeZone = losAngeles
+
+        let springForward = try XCTUnwrap(localCalendar.date(from: DateComponents(
+            year: 2025,
+            month: 3,
+            day: 9,
+            hour: 12
+        )))
+        let springBounds = DateRangeMode.day.bounds(for: springForward, calendar: localCalendar)
+        XCTAssertEqual(springBounds.end - springBounds.start, 23 * 60 * 60)
+
+        let fallBack = try XCTUnwrap(localCalendar.date(from: DateComponents(
+            year: 2025,
+            month: 11,
+            day: 2,
+            hour: 12
+        )))
+        let fallBounds = CSVExportRange.day(fallBack).bounds(calendar: localCalendar)
+        XCTAssertEqual(fallBounds.end - fallBounds.start, 25 * 60 * 60)
+
+        let weekDate = try XCTUnwrap(localCalendar.date(from: DateComponents(
+            year: 2025,
+            month: 1,
+            day: 8,
+            hour: 12
+        )))
+        let weekBounds = CSVExportRange.week(weekDate).bounds(calendar: localCalendar)
+        let weekStart = Date(timeIntervalSince1970: TimeInterval(weekBounds.start))
+        let weekEnd = Date(timeIntervalSince1970: TimeInterval(weekBounds.end))
+        XCTAssertEqual(localCalendar.component(.weekday, from: weekStart), 2)
+        XCTAssertEqual(localCalendar.component(.hour, from: weekStart), 0)
+        XCTAssertEqual(localCalendar.dateComponents([.day], from: weekStart, to: weekEnd).day, 7)
+        XCTAssertEqual(
+            CSVExportRange.week(weekDate).fileName(timeZone: losAngeles),
+            "2025-W02.csv"
+        )
+
+        let instant = try XCTUnwrap(ISO8601DateFormatter().date(from: "2025-01-01T00:30:00Z"))
+        let shanghai = try XCTUnwrap(TimeZone(identifier: "Asia/Shanghai"))
+        XCTAssertEqual(ReportService.dayKey(for: instant, timeZone: losAngeles), "2024-12-31")
+        XCTAssertEqual(ReportService.dayKey(for: instant, timeZone: shanghai), "2025-01-01")
     }
 
     private func insertRawEvents(_ events: [RawEvent], into db: DatabaseService) {
@@ -300,6 +839,97 @@ final class ChronicleTests: XCTestCase {
         return rows
     }
 
+    private enum AsyncTestError: Error {
+        case missingResult
+    }
+
+    private func awaitResult<Value>(
+        _ description: String,
+        operation: (@escaping (Result<Value, Error>) -> Void) -> Void
+    ) -> Result<Value, Error> {
+        let expectation = XCTestExpectation(description: description)
+        var received: Result<Value, Error>?
+        operation { result in
+            received = result
+            expectation.fulfill()
+        }
+        wait(for: [expectation], timeout: 5)
+        return received ?? .failure(AsyncTestError.missingResult)
+    }
+
+    private func insertTestActivity(
+        db: DatabaseService,
+        start: Int64,
+        end: Int64,
+        appName: String,
+        bundleId: String? = nil,
+        tagId: Int64? = nil
+    ) throws -> Int64 {
+        try awaitResult("insert test activity") { completion in
+            db.insertActivity(
+                start: start,
+                end: end,
+                appName: appName,
+                windowTitle: nil,
+                isIdle: false,
+                tagId: tagId,
+                bundleId: bundleId,
+                completion: completion
+            )
+        }.get()
+    }
+
+    private func makeReviewRevisionFixture(
+        db: DatabaseService,
+        rangeStart: Int64,
+        tagId: Int64? = nil
+    ) throws -> ReviewSnapshotDetail {
+        var drafts: [InferredWorkBlockDraft] = []
+        for index in 0..<3 {
+            let start = rangeStart + Int64(index * 60)
+            let end = start + 60
+            let activityID = try insertTestActivity(
+                db: db,
+                start: start,
+                end: end,
+                appName: "Revision source \(index + 1)"
+            )
+            drafts.append(InferredWorkBlockDraft(
+                startTime: start,
+                endTime: end,
+                algorithmVersion: "revision-source-v1",
+                inferredTitle: "Source \(index + 1)",
+                inferredTagId: tagId,
+                evidence: [
+                    WorkBlockEvidenceInput(
+                        activityId: activityID,
+                        contributionStart: start,
+                        contributionEnd: end,
+                        ordinal: 0
+                    )
+                ]
+            ))
+        }
+
+        _ = try awaitResult("insert review revision fixture") { completion in
+            db.replaceDraftWorkBlocks(
+                rangeStart: rangeStart,
+                rangeEnd: rangeStart + 180,
+                drafts: drafts,
+                completion: completion
+            )
+        }.get()
+        return try awaitResult("complete review revision fixture") { completion in
+            db.completeReview(
+                rangeStart: rangeStart,
+                rangeEnd: rangeStart + 180,
+                overallNote: "Original note",
+                completedAt: Date(timeIntervalSince1970: 1_000),
+                completion: completion
+            )
+        }.get()
+    }
+
     private func deleteMarker(
         db: DatabaseService,
         id: Int64
@@ -411,6 +1041,123 @@ final class ChronicleTests: XCTestCase {
         XCTAssertTrue(rows.allSatisfy { $0.endTime >= $0.startTime })
     }
 
+    func testReplayTrackingPauseBoundarySplitsSameAppSession() {
+        let db = makeTestDatabase("replay-tracking-pause-boundary")
+        insertRawEvents([
+            RawEvent(
+                id: nil,
+                timestamp: 32_400,
+                type: .appActivated,
+                bundleId: "com.apple.Safari",
+                appName: "Safari",
+                windowTitle: nil,
+                payload: nil
+            ),
+            RawEvent(
+                id: nil,
+                timestamp: 34_200,
+                type: .trackingPaused,
+                bundleId: nil,
+                appName: nil,
+                windowTitle: nil,
+                payload: nil
+            ),
+            RawEvent(
+                id: nil,
+                timestamp: 36_000,
+                type: .appActivated,
+                bundleId: "com.apple.Safari",
+                appName: "Safari",
+                windowTitle: nil,
+                payload: nil
+            )
+        ], into: db)
+
+        let summary = rebuild(db: db, rangeStart: 32_400, rangeEnd: 36_600)
+        let rows = fetchActivities(db: db, rangeStart: 32_400, rangeEnd: 36_600)
+            .sorted { $0.startTime < $1.startTime }
+
+        XCTAssertEqual(summary.insertedCount, 2)
+        XCTAssertEqual(rows.map(\.appName), ["Safari", "Safari"])
+        XCTAssertEqual(rows.map(\.startTime), [32_400, 36_000])
+        XCTAssertEqual(rows.map(\.endTime), [34_200, 36_600])
+    }
+
+    func testPauseBoundaryCheckpointStoreRejectsBooleanAndNonPositiveValues() throws {
+        let suiteName = "chronicle-tests-pause-checkpoint-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let store = UserDefaultsPauseBoundaryCheckpointStore(defaults: defaults)
+
+        defaults.set(true, forKey: UserDefaultsPauseBoundaryCheckpointStore.storageKey)
+        guard case .failure = store.loadBoundaryTimestamp() else {
+            XCTFail("A boolean must not be interpreted as epoch second 1.")
+            return
+        }
+
+        defaults.set(0, forKey: UserDefaultsPauseBoundaryCheckpointStore.storageKey)
+        guard case .failure = store.loadBoundaryTimestamp() else {
+            XCTFail("Epoch zero must fail closed.")
+            return
+        }
+        guard case .failure = store.saveBoundaryTimestamp(-1) else {
+            XCTFail("A negative checkpoint must not be persisted.")
+            return
+        }
+
+        XCTAssertNoThrow(try store.saveBoundaryTimestamp(9_060).get())
+        XCTAssertEqual(try store.loadBoundaryTimestamp().get(), 9_060)
+    }
+
+    func testReplayEqualTimestampMixedIDsPreservesWholeGroupInputOrder() {
+        let events = [
+            RawEvent(
+                id: 1,
+                timestamp: 100,
+                type: .appActivated,
+                bundleId: "com.apple.Safari",
+                appName: "Safari",
+                windowTitle: nil,
+                payload: nil
+            ),
+            RawEvent(
+                id: 30,
+                timestamp: 200,
+                type: .trackingPaused,
+                bundleId: nil,
+                appName: nil,
+                windowTitle: nil,
+                payload: nil
+            ),
+            RawEvent(
+                id: nil,
+                timestamp: 200,
+                type: .markerAdded,
+                bundleId: nil,
+                appName: nil,
+                windowTitle: nil,
+                payload: nil
+            ),
+            RawEvent(
+                id: 10,
+                timestamp: 200,
+                type: .appActivated,
+                bundleId: "com.apple.Safari",
+                appName: "Safari",
+                windowTitle: nil,
+                payload: nil
+            )
+        ]
+
+        let ordered = SessionNormalizer.orderedReplayEvents(events)
+
+        XCTAssertEqual(ordered.map(\.id), [1, 30, nil, 10])
+        XCTAssertEqual(
+            ordered.map(\.type),
+            [.appActivated, .trackingPaused, .markerAdded, .appActivated]
+        )
+    }
+
     func testLiveActivationPreservesWindowTitleAndMatchesRule() {
         let db = makeTestDatabase("live-window-title")
         let tagExpectation = expectation(description: "insert title tag")
@@ -466,7 +1213,10 @@ final class ChronicleTests: XCTestCase {
         let db = makeTestDatabase("tracker-stop")
         let normalizer = SessionNormalizer.makeTestInstance(database: db)
         normalizer.updateAggregationConfig(minDuration: 1, mergeGap: 0, debounce: 0)
-        let tracker = ActivityTracker.makeTestInstance(normalizer: normalizer)
+        let tracker = ActivityTracker.makeTestInstance(
+            normalizer: normalizer,
+            pauseBoundaryCheckpointStore: TestPauseBoundaryCheckpointStore()
+        )
         let recorded = expectation(
             forNotification: ActivityTracker.didRecordSessionNotification,
             object: nil
@@ -491,6 +1241,1188 @@ final class ChronicleTests: XCTestCase {
         let row = fetchActivities(db: db, rangeStart: 7_999, rangeEnd: 8_061).first
         XCTAssertEqual(row?.startTime, 8_000)
         XCTAssertEqual(row?.endTime, 8_060)
+    }
+
+    func testPauseSerializesAcceptedRawEventBeforeFlushAndRejectsNewEvents() {
+        let db = makeTestDatabase("pause-raw-event-barrier")
+        let normalizer = SessionNormalizer.makeTestInstance(database: db)
+        normalizer.updateAggregationConfig(minDuration: 1, mergeGap: 0, debounce: 0)
+        let activationInsertStarted = expectation(description: "accepted activation insert started")
+        let firstPauseMarkerInsertStarted = expectation(description: "first pause marker insert started")
+        let retryPauseMarkerInsertStarted = expectation(description: "retry pause marker insert started")
+        let resumeInsertStarted = expectation(description: "resume activation insert started")
+        let controlledInserter = ControlledRawEventInserter { event, observedCount in
+            switch (observedCount, event.type) {
+            case (1, .appActivated):
+                activationInsertStarted.fulfill()
+            case (2, .trackingPaused):
+                firstPauseMarkerInsertStarted.fulfill()
+            case (3, .trackingPaused):
+                retryPauseMarkerInsertStarted.fulfill()
+            case (4, .appActivated):
+                resumeInsertStarted.fulfill()
+            default:
+                XCTFail(
+                    "Unexpected raw event #\(observedCount): \(event.type.rawValue) @ \(event.timestamp)"
+                )
+            }
+        }
+        let tracker = ActivityTracker.makeTestInstance(
+            normalizer: normalizer,
+            rawEventInserter: controlledInserter.insert(_:completion:),
+            pauseBoundaryCheckpointStore: TestPauseBoundaryCheckpointStore()
+        )
+        let acceptedEvent = RawEvent(
+            id: nil,
+            timestamp: 9_000,
+            type: .appActivated,
+            bundleId: "com.apple.Safari",
+            appName: "Safari",
+            windowTitle: nil,
+            payload: nil
+        )
+        let rejectedDuringPause = RawEvent(
+            id: nil,
+            timestamp: 9_070,
+            type: .appActivated,
+            bundleId: "com.apple.Safari",
+            appName: "Safari",
+            windowTitle: nil,
+            payload: nil
+        )
+
+        XCTAssertTrue(tracker.enqueueRawEventForTesting(acceptedEvent, immediate: true))
+        wait(for: [activationInsertStarted], timeout: 5)
+
+        let firstPauseCompleted = expectation(description: "failed-marker pause flush completed")
+        tracker.pauseTrackingForTesting(at: Date(timeIntervalSince1970: 9_060)) { result in
+            guard case .failure(.boundaryPersistenceFailed(_)) = result else {
+                XCTFail("Expected durable-boundary failure, got \(result)")
+                firstPauseCompleted.fulfill()
+                return
+            }
+            firstPauseCompleted.fulfill()
+        }
+        XCTAssertFalse(tracker.enqueueRawEventForTesting(rejectedDuringPause, immediate: true))
+        XCTAssertEqual(controlledInserter.observedEvents.map(\.type), [.appActivated])
+
+        XCTAssertTrue(controlledInserter.completeNext(with: .success(1)))
+        wait(for: [firstPauseMarkerInsertStarted], timeout: 5)
+        XCTAssertEqual(
+            controlledInserter.observedEvents.map(\.type),
+            [.appActivated, .trackingPaused]
+        )
+        XCTAssertFalse(tracker.resumeRawEventAcceptanceForTesting())
+
+        // Marker failure still closes live state, but it cannot acknowledge pause or reopen
+        // acceptance. A retry must persist the original boundary first.
+        XCTAssertTrue(controlledInserter.completeNext(
+            with: .failure(ControlledRawEventInserter.StubError.markerPersistenceFailed)
+        ))
+        wait(for: [firstPauseCompleted], timeout: 5)
+        XCTAssertFalse(tracker.resumeRawEventAcceptanceForTesting())
+        XCTAssertFalse(tracker.enqueueRawEventForTesting(rejectedDuringPause, immediate: true))
+
+        XCTAssertEqual(
+            controlledInserter.observedEvents.map(\.type),
+            [.appActivated, .trackingPaused]
+        )
+        var rows = fetchActivities(db: db, rangeStart: 8_999, rangeEnd: 9_071)
+        XCTAssertEqual(rows.count, 1)
+        XCTAssertEqual(rows.first?.appName, "Safari")
+        XCTAssertEqual(rows.first?.startTime, 9_000)
+        XCTAssertEqual(rows.first?.endTime, 9_060)
+
+        let retryPauseCompleted = expectation(description: "durable pause retry completed")
+        tracker.pauseTrackingForTesting(at: Date(timeIntervalSince1970: 9_060)) { result in
+            guard case .success = result else {
+                XCTFail("Durable pause retry failed: \(result)")
+                retryPauseCompleted.fulfill()
+                return
+            }
+            retryPauseCompleted.fulfill()
+        }
+        wait(for: [retryPauseMarkerInsertStarted], timeout: 5)
+        XCTAssertTrue(controlledInserter.completeNext(with: .success(2)))
+        wait(for: [retryPauseCompleted], timeout: 5)
+
+        XCTAssertTrue(tracker.resumeRawEventAcceptanceForTesting())
+        XCTAssertTrue(tracker.enqueueRawEventForTesting(rejectedDuringPause, immediate: true))
+        wait(for: [resumeInsertStarted], timeout: 5)
+
+        let resumedSessionRecorded = expectation(
+            forNotification: ActivityTracker.didRecordSessionNotification,
+            object: nil
+        )
+        XCTAssertTrue(controlledInserter.completeNext(with: .success(2)))
+        wait(for: [resumedSessionRecorded], timeout: 5)
+
+        let resumedSessionCheckpointed = expectation(description: "resumed session checkpointed")
+        normalizer.checkpointCurrentSession(at: Date(timeIntervalSince1970: 9_120)) { result in
+            switch result {
+            case .success(let activityID):
+                XCTAssertNotNil(activityID)
+            case .failure(let error):
+                XCTFail("Resume checkpoint failed: \(error)")
+            }
+            resumedSessionCheckpointed.fulfill()
+        }
+        wait(for: [resumedSessionCheckpointed], timeout: 5)
+        rows = fetchActivities(db: db, rangeStart: 8_999, rangeEnd: 9_121)
+            .sorted { $0.startTime < $1.startTime }
+        XCTAssertEqual(rows.map(\.appName), ["Safari", "Safari"])
+        XCTAssertEqual(rows.map(\.startTime), [9_000, 9_070])
+        XCTAssertEqual(rows.map(\.endTime), [9_060, 9_120])
+
+        let persistedEvents = controlledInserter.persistedEvents
+        XCTAssertEqual(
+            persistedEvents.map(\.type),
+            [.appActivated, .trackingPaused, .appActivated]
+        )
+        XCTAssertEqual(persistedEvents.map(\.timestamp), [9_000, 9_060, 9_070])
+
+        let rebuildDB = makeTestDatabase("pause-marker-retry-rebuild")
+        insertRawEvents(persistedEvents, into: rebuildDB)
+        _ = rebuild(db: rebuildDB, rangeStart: 9_000, rangeEnd: 9_120)
+        let rebuiltRows = fetchActivities(db: rebuildDB, rangeStart: 9_000, rangeEnd: 9_120)
+            .sorted { $0.startTime < $1.startTime }
+        XCTAssertEqual(rebuiltRows.map(\.appName), ["Safari", "Safari"])
+        XCTAssertEqual(rebuiltRows.map(\.startTime), [9_000, 9_070])
+        XCTAssertEqual(rebuiltRows.map(\.endTime), [9_060, 9_120])
+    }
+
+    func testPauseBoundaryCheckpointSurvivesTrackerRecreationAndReplaysOriginalBoundary() throws {
+        let liveDB = makeTestDatabase("pause-checkpoint-restart-live")
+        let suiteName = "chronicle-tests-pause-checkpoint-\(UUID().uuidString)"
+        let firstDefaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        firstDefaults.removePersistentDomain(forName: suiteName)
+        defer { firstDefaults.removePersistentDomain(forName: suiteName) }
+        let firstCheckpointStore = UserDefaultsPauseBoundaryCheckpointStore(defaults: firstDefaults)
+        let firstNormalizer = SessionNormalizer.makeTestInstance(database: liveDB)
+        firstNormalizer.updateAggregationConfig(minDuration: 1, mergeGap: 0, debounce: 0)
+
+        let firstInsertStarted = expectation(description: "pre-crash activation insert started")
+        let failedMarkerStarted = expectation(description: "pre-crash marker insert started")
+        let firstInserter = ControlledRawEventInserter { event, count in
+            if count == 1 {
+                XCTAssertEqual(event.type, .appActivated)
+                firstInsertStarted.fulfill()
+            } else {
+                XCTAssertEqual(event.type, .trackingPaused)
+                XCTAssertEqual(
+                    try? firstCheckpointStore.loadBoundaryTimestamp().get(),
+                    9_860
+                )
+                failedMarkerStarted.fulfill()
+            }
+        }
+        let firstTracker = ActivityTracker.makeTestInstance(
+            normalizer: firstNormalizer,
+            rawEventInserter: firstInserter.insert(_:completion:),
+            pauseBoundaryCheckpointStore: firstCheckpointStore
+        )
+        let activation = RawEvent(
+            id: nil,
+            timestamp: 9_800,
+            type: .appActivated,
+            bundleId: "com.apple.Safari",
+            appName: "Safari",
+            windowTitle: nil,
+            payload: nil
+        )
+        XCTAssertTrue(firstTracker.enqueueRawEventForTesting(activation, immediate: true))
+        wait(for: [firstInsertStarted], timeout: 5)
+        XCTAssertTrue(firstInserter.completeNext(with: .success(1)))
+
+        let firstPauseFinished = expectation(description: "pre-crash pause failed")
+        firstTracker.pauseTrackingForTesting(at: Date(timeIntervalSince1970: 9_860)) { result in
+            guard case .failure(.boundaryPersistenceFailed) = result else {
+                XCTFail("Expected marker persistence failure, got \(result)")
+                firstPauseFinished.fulfill()
+                return
+            }
+            firstPauseFinished.fulfill()
+        }
+        wait(for: [failedMarkerStarted], timeout: 5)
+        XCTAssertTrue(firstInserter.completeNext(
+            with: .failure(ControlledRawEventInserter.StubError.markerPersistenceFailed)
+        ))
+        wait(for: [firstPauseFinished], timeout: 5)
+        XCTAssertEqual(try firstCheckpointStore.loadBoundaryTimestamp().get(), 9_860)
+
+        // Simulate a process restart: both the tracker/normalizer and checkpoint-store objects
+        // are recreated. Their only shared state is the suite's persisted timestamp.
+        let secondDefaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        let secondCheckpointStore = UserDefaultsPauseBoundaryCheckpointStore(defaults: secondDefaults)
+        XCTAssertEqual(try secondCheckpointStore.loadBoundaryTimestamp().get(), 9_860)
+        let secondNormalizer = SessionNormalizer.makeTestInstance(database: liveDB)
+        let recoveredMarkerStarted = expectation(description: "recovered marker insert started")
+        let secondInserter = ControlledRawEventInserter { event, _ in
+            XCTAssertEqual(event.type, .trackingPaused)
+            XCTAssertEqual(event.timestamp, 9_860)
+            XCTAssertEqual(
+                try? secondCheckpointStore.loadBoundaryTimestamp().get(),
+                9_860
+            )
+            recoveredMarkerStarted.fulfill()
+        }
+        let secondTracker = ActivityTracker.makeTestInstance(
+            normalizer: secondNormalizer,
+            rawEventInserter: secondInserter.insert(_:completion:),
+            pauseBoundaryCheckpointStore: secondCheckpointStore,
+            initiallyPaused: true
+        )
+        let recoveredPauseFinished = expectation(description: "recovered pause finished")
+        secondTracker.pauseTrackingForTesting(at: Date(timeIntervalSince1970: 12_000)) { result in
+            if case .failure(let error) = result {
+                XCTFail("Recovered pause failed: \(error)")
+            }
+            recoveredPauseFinished.fulfill()
+        }
+        wait(for: [recoveredMarkerStarted], timeout: 5)
+        XCTAssertTrue(secondInserter.completeNext(with: .success(2)))
+        wait(for: [recoveredPauseFinished], timeout: 5)
+        XCTAssertNil(try secondCheckpointStore.loadBoundaryTimestamp().get())
+
+        let replayDB = makeTestDatabase("pause-checkpoint-restart-replay")
+        insertRawEvents(
+            firstInserter.persistedEvents + secondInserter.persistedEvents + [
+                RawEvent(
+                    id: nil,
+                    timestamp: 9_900,
+                    type: .appActivated,
+                    bundleId: "com.apple.Safari",
+                    appName: "Safari",
+                    windowTitle: nil,
+                    payload: nil
+                )
+            ],
+            into: replayDB
+        )
+        _ = rebuild(db: replayDB, rangeStart: 9_800, rangeEnd: 9_960)
+        let rows = fetchActivities(db: replayDB, rangeStart: 9_800, rangeEnd: 9_960)
+            .sorted { $0.startTime < $1.startTime }
+        XCTAssertEqual(rows.map(\.startTime), [9_800, 9_900])
+        XCTAssertEqual(rows.map(\.endTime), [9_860, 9_960])
+    }
+
+    func testPauseCheckpointSaveFailureKeepsAcceptanceFailClosedUntilRetry() {
+        let db = makeTestDatabase("pause-checkpoint-save-failure")
+        let normalizer = SessionNormalizer.makeTestInstance(database: db)
+        let checkpointStore = TestPauseBoundaryCheckpointStore()
+        checkpointStore.failNextSave = true
+        let tracker = ActivityTracker.makeTestInstance(
+            normalizer: normalizer,
+            rawEventInserter: { _, completion in completion(.success(1)) },
+            pauseBoundaryCheckpointStore: checkpointStore
+        )
+
+        let failed = expectation(description: "checkpoint save failed closed")
+        tracker.pauseTrackingForTesting(at: Date(timeIntervalSince1970: 10_000)) { result in
+            guard case .failure(.boundaryCheckpointFailed) = result else {
+                XCTFail("Expected checkpoint failure, got \(result)")
+                failed.fulfill()
+                return
+            }
+            failed.fulfill()
+        }
+        wait(for: [failed], timeout: 5)
+        XCTAssertFalse(tracker.resumeRawEventAcceptanceForTesting())
+
+        checkpointStore.failNextClear = true
+        let clearFailed = expectation(description: "checkpoint clear failed closed")
+        tracker.pauseTrackingForTesting(at: Date(timeIntervalSince1970: 10_500)) { result in
+            guard case .failure(.boundaryCheckpointFailed) = result else {
+                XCTFail("Expected checkpoint clear failure, got \(result)")
+                clearFailed.fulfill()
+                return
+            }
+            clearFailed.fulfill()
+        }
+        wait(for: [clearFailed], timeout: 5)
+        XCTAssertFalse(tracker.resumeRawEventAcceptanceForTesting())
+        XCTAssertEqual(checkpointStore.savedTimestamp, 10_000)
+
+        let retried = expectation(description: "checkpoint retry succeeded")
+        tracker.pauseTrackingForTesting(at: Date(timeIntervalSince1970: 11_000)) { result in
+            if case .failure(let error) = result {
+                XCTFail("Checkpoint retry failed: \(error)")
+            }
+            retried.fulfill()
+        }
+        wait(for: [retried], timeout: 5)
+        XCTAssertTrue(tracker.resumeRawEventAcceptanceForTesting())
+        XCTAssertNil(checkpointStore.savedTimestamp)
+    }
+
+    func testDurablePauseControlRecoversFailClosedAndExplicitResumeReopens() throws {
+        let db = makeTestDatabase("durable-pause-control-recovery")
+        insertRawEvents([
+            RawEvent(
+                id: nil,
+                timestamp: 10_100,
+                type: .trackingPaused,
+                bundleId: nil,
+                appName: nil,
+                windowTitle: nil,
+                payload: nil
+            )
+        ], into: db)
+        AppState.shared.trackingPaused = false
+        let recoveryApplied = expectation(description: "durable pause recovery applied")
+        let normalizer = SessionNormalizer.makeTestInstance(database: db)
+        let tracker = ActivityTracker.makeTestInstance(
+            normalizer: normalizer,
+            rawEventInserter: { event, completion in
+                db.insertRawEvent(event, completion: completion)
+            },
+            captureControlLoader: { completion in
+                db.fetchLatestCaptureControlEvent { result in
+                    completion(result)
+                    DispatchQueue.main.async { recoveryApplied.fulfill() }
+                }
+            },
+            pauseBoundaryCheckpointStore: TestPauseBoundaryCheckpointStore(),
+            initiallyPaused: false,
+            startsRuntimeProducers: false
+        )
+
+        tracker.start()
+        wait(for: [recoveryApplied], timeout: 5)
+        XCTAssertTrue(AppState.shared.trackingPaused)
+        XCTAssertFalse(tracker.enqueueRawEventForTesting(
+            RawEvent(
+                id: nil,
+                timestamp: 10_110,
+                type: .appActivated,
+                bundleId: "com.apple.Safari",
+                appName: "Safari",
+                windowTitle: nil,
+                payload: nil
+            ),
+            immediate: true
+        ))
+
+        let resumed = expectation(description: "durable resume persisted")
+        tracker.resumeTrackingForTesting(at: Date(timeIntervalSince1970: 10_120)) { result in
+            if case .failure(let error) = result { XCTFail("Resume failed: \(error)") }
+            resumed.fulfill()
+        }
+        wait(for: [resumed], timeout: 5)
+        let latest = try awaitResult("fetch latest resumed control") { completion in
+            db.fetchLatestCaptureControlEvent(completion: completion)
+        }.get()
+        XCTAssertEqual(latest?.type, .trackingResumed)
+        XCTAssertEqual(latest?.timestamp, 10_120)
+        let resumedSessionRecorded = expectation(
+            forNotification: ActivityTracker.didRecordSessionNotification,
+            object: nil
+        )
+        XCTAssertTrue(tracker.enqueueRawEventForTesting(
+            RawEvent(
+                id: nil,
+                timestamp: 10_121,
+                type: .appActivated,
+                bundleId: "com.apple.Safari",
+                appName: "Safari",
+                windowTitle: nil,
+                payload: nil
+            ),
+            immediate: true
+        ))
+        wait(for: [resumedSessionRecorded], timeout: 5)
+        tracker.stop(at: Date(timeIntervalSince1970: 10_130))
+    }
+
+    func testResumePersistenceFailureRemainsFailClosed() {
+        let db = makeTestDatabase("durable-resume-failure")
+        let normalizer = SessionNormalizer.makeTestInstance(database: db)
+        let tracker = ActivityTracker.makeTestInstance(
+            normalizer: normalizer,
+            rawEventInserter: { event, completion in
+                XCTAssertEqual(event.type, .trackingResumed)
+                completion(.failure(NSError(domain: "ResumeTest", code: 1)))
+            },
+            pauseBoundaryCheckpointStore: TestPauseBoundaryCheckpointStore(),
+            initiallyPaused: true,
+            startsRuntimeProducers: false
+        )
+        AppState.shared.trackingPaused = false
+
+        let failed = expectation(description: "resume persistence rejected")
+        tracker.resumeTrackingForTesting(at: Date(timeIntervalSince1970: 10_200)) { result in
+            guard case .failure(.resumePersistenceFailed) = result else {
+                XCTFail("Expected durable resume failure, got \(result)")
+                failed.fulfill()
+                return
+            }
+            failed.fulfill()
+        }
+        wait(for: [failed], timeout: 5)
+        let pausedPublicationBarrier = expectation(description: "failed resume republished pause on main")
+        DispatchQueue.main.async { pausedPublicationBarrier.fulfill() }
+        wait(for: [pausedPublicationBarrier], timeout: 5)
+        XCTAssertTrue(AppState.shared.trackingPaused)
+        XCTAssertFalse(tracker.enqueueRawEventForTesting(
+            RawEvent(
+                id: nil,
+                timestamp: 10_210,
+                type: .appActivated,
+                bundleId: "com.apple.Safari",
+                appName: "Safari",
+                windowTitle: nil,
+                payload: nil
+            ),
+            immediate: true
+        ))
+    }
+
+    func testStartupControlQueryFailureIsVisibleAndRetryReestablishesPause() {
+        let db = makeTestDatabase("capture-control-query-retry")
+        let normalizer = SessionNormalizer.makeTestInstance(database: db)
+        let markerPersisted = expectation(description: "retry persisted pause marker")
+        var loadCount = 0
+        let tracker = ActivityTracker.makeTestInstance(
+            normalizer: normalizer,
+            rawEventInserter: { event, completion in
+                db.insertRawEvent(event) { result in
+                    completion(result)
+                    if event.type == .trackingPaused { markerPersisted.fulfill() }
+                }
+            },
+            captureControlLoader: { completion in
+                loadCount += 1
+                if loadCount == 1 {
+                    completion(.failure(NSError(domain: "ControlQueryTest", code: 1)))
+                } else {
+                    completion(.success(nil))
+                }
+            },
+            pauseBoundaryCheckpointStore: TestPauseBoundaryCheckpointStore(),
+            initiallyPaused: false,
+            startsRuntimeProducers: false
+        )
+        AppState.shared.trackingPaused = false
+        let failedVisible = expectation(description: "query failure published")
+
+        tracker.start()
+        DispatchQueue.main.async {
+            DispatchQueue.main.async { failedVisible.fulfill() }
+        }
+        wait(for: [failedVisible], timeout: 5)
+        XCTAssertTrue(AppState.shared.trackingPaused)
+        XCTAssertTrue(AppState.shared.lastDbErrorMessage?.contains("durable capture state") == true)
+        XCTAssertFalse(tracker.enqueueRawEventForTesting(
+            RawEvent(
+                id: nil,
+                timestamp: 10_300,
+                type: .appActivated,
+                bundleId: "com.apple.Safari",
+                appName: "Safari",
+                windowTitle: nil,
+                payload: nil
+            ),
+            immediate: true
+        ))
+
+        tracker.start()
+        wait(for: [markerPersisted], timeout: 5)
+        let normalizerBarrier = expectation(description: "pause recovery normalized")
+        normalizer.checkpointCurrentSession(at: Date()) { _ in normalizerBarrier.fulfill() }
+        wait(for: [normalizerBarrier], timeout: 5)
+        let errorPublicationBarrier = expectation(description: "recovery error cleared on main")
+        DispatchQueue.main.async { errorPublicationBarrier.fulfill() }
+        wait(for: [errorPublicationBarrier], timeout: 5)
+        XCTAssertNil(AppState.shared.lastDbErrorMessage)
+        tracker.stop()
+    }
+
+    func testLegacyPausedPreferenceEstablishesExactlyOneDurablePauseMarker() {
+        let db = makeTestDatabase("legacy-paused-control-establishment")
+        let normalizer = SessionNormalizer.makeTestInstance(database: db)
+        let markerPersisted = expectation(description: "legacy pause marker persisted")
+        var pauseMarkerCount = 0
+        AppState.shared.trackingPaused = true
+        let tracker = ActivityTracker.makeTestInstance(
+            normalizer: normalizer,
+            rawEventInserter: { event, completion in
+                if event.type == .trackingPaused {
+                    pauseMarkerCount += 1
+                    markerPersisted.fulfill()
+                }
+                db.insertRawEvent(event, completion: completion)
+            },
+            captureControlLoader: { completion in completion(.success(nil)) },
+            pauseBoundaryCheckpointStore: TestPauseBoundaryCheckpointStore(),
+            initiallyPaused: true,
+            startsRuntimeProducers: false
+        )
+
+        tracker.start()
+        wait(for: [markerPersisted], timeout: 5)
+        let normalizerBarrier = expectation(description: "legacy pause normalized")
+        normalizer.checkpointCurrentSession(at: Date()) { _ in normalizerBarrier.fulfill() }
+        wait(for: [normalizerBarrier], timeout: 5)
+        XCTAssertEqual(pauseMarkerCount, 1)
+        tracker.stop()
+    }
+
+    func testStoppedStartupIgnoresLateControlQueryCallback() {
+        let db = makeTestDatabase("capture-control-late-callback")
+        let normalizer = SessionNormalizer.makeTestInstance(database: db)
+        var pendingLoad: ((Result<RawEvent?, Error>) -> Void)?
+        let tracker = ActivityTracker.makeTestInstance(
+            normalizer: normalizer,
+            captureControlLoader: { completion in pendingLoad = completion },
+            pauseBoundaryCheckpointStore: TestPauseBoundaryCheckpointStore(),
+            initiallyPaused: false,
+            startsRuntimeProducers: false
+        )
+
+        tracker.start()
+        XCTAssertNotNil(pendingLoad)
+        tracker.stop(at: Date(timeIntervalSince1970: 10_400))
+        pendingLoad?(.success(RawEvent(
+            id: 1,
+            timestamp: 10_390,
+            type: .trackingResumed,
+            bundleId: nil,
+            appName: nil,
+            windowTitle: nil,
+            payload: nil
+        )))
+        let callbackDrained = expectation(description: "late recovery callback drained")
+        DispatchQueue.main.async { callbackDrained.fulfill() }
+        wait(for: [callbackDrained], timeout: 5)
+        XCTAssertFalse(tracker.isRunning)
+        XCTAssertFalse(tracker.enqueueRawEventForTesting(
+            RawEvent(
+                id: nil,
+                timestamp: 10_410,
+                type: .appActivated,
+                bundleId: "com.apple.Safari",
+                appName: "Safari",
+                windowTitle: nil,
+                payload: nil
+            ),
+            immediate: true
+        ))
+    }
+
+    func testStoppedTrackerRejectsLateMainResumeFinalization() {
+        let db = makeTestDatabase("late-resume-finalization")
+        let normalizer = SessionNormalizer.makeTestInstance(database: db)
+        var scheduledResumeFinalization: (() -> Void)?
+        let producerRestarted = expectation(description: "resume producer restart rejected")
+        producerRestarted.isInverted = true
+        let recovered = expectation(description: "paused lifecycle recovered")
+        let tracker = ActivityTracker.makeTestInstance(
+            normalizer: normalizer,
+            rawEventInserter: { event, completion in
+                XCTAssertEqual(event.type, .trackingResumed)
+                completion(.success(1))
+            },
+            captureControlLoader: { completion in
+                completion(.success(RawEvent(
+                    id: 1,
+                    timestamp: 10_500,
+                    type: .trackingPaused,
+                    bundleId: nil,
+                    appName: nil,
+                    windowTitle: nil,
+                    payload: nil
+                )))
+                DispatchQueue.main.async { recovered.fulfill() }
+            },
+            resumeProducerScheduler: { work in scheduledResumeFinalization = work },
+            resumeProducerRestartObserver: { producerRestarted.fulfill() },
+            pauseBoundaryCheckpointStore: TestPauseBoundaryCheckpointStore(),
+            initiallyPaused: false,
+            startsRuntimeProducers: false
+        )
+
+        tracker.start()
+        wait(for: [recovered], timeout: 5)
+        let resumed = expectation(description: "resume marker completed")
+        tracker.resumeTrackingForTesting(at: Date(timeIntervalSince1970: 10_510)) { result in
+            if case .failure(let error) = result { XCTFail("Resume failed: \(error)") }
+            resumed.fulfill()
+        }
+        wait(for: [resumed], timeout: 5)
+        XCTAssertNotNil(scheduledResumeFinalization)
+
+        tracker.stop(at: Date(timeIntervalSince1970: 10_520))
+        scheduledResumeFinalization?()
+        wait(for: [producerRestarted], timeout: 0.1)
+    }
+
+    func testPausePromotesAcceptedDebouncedActivationBeforeBoundary() {
+        let db = makeTestDatabase("pause-promotes-debounced-activation")
+        let normalizer = SessionNormalizer.makeTestInstance(database: db)
+        normalizer.updateAggregationConfig(minDuration: 1, mergeGap: 0, debounce: 5)
+        normalizer.onRawEvent(
+            RawEvent(
+                id: nil,
+                timestamp: 9_200,
+                type: .appActivated,
+                bundleId: "com.apple.Safari",
+                appName: "Safari",
+                windowTitle: nil,
+                payload: nil
+            ),
+            immediate: false
+        )
+
+        let paused = expectation(description: "debounced activation promoted before pause")
+        normalizer.pauseTracking(at: Date(timeIntervalSince1970: 9_260)) { result in
+            if case .failure(let error) = result {
+                XCTFail("Pause transition failed: \(error)")
+            }
+            paused.fulfill()
+        }
+        wait(for: [paused], timeout: 5)
+
+        let rows = fetchActivities(db: db, rangeStart: 9_199, rangeEnd: 9_261)
+        XCTAssertEqual(rows.map(\.appName), ["Safari"])
+        XCTAssertEqual(rows.map(\.startTime), [9_200])
+        XCTAssertEqual(rows.map(\.endTime), [9_260])
+    }
+
+    func testIdleBoundaryPromotesEarlierDebouncedActivationAheadOfRunningTransition() {
+        let db = makeTestDatabase("idle-promotes-debounce-fifo")
+        let pauseUpdateStarted = expectation(description: "blocking transition started")
+        let controlledUpdater = ControlledActivityEndUpdater { _, endTime in
+            XCTAssertEqual(endTime, 9_060)
+            pauseUpdateStarted.fulfill()
+        }
+        let normalizer = SessionNormalizer.makeTestInstance(
+            database: db,
+            pauseActivityEndUpdater: controlledUpdater.update(id:endTime:completion:)
+        )
+        normalizer.updateAggregationConfig(minDuration: 1, mergeGap: 0, debounce: 1)
+
+        let initialRecorded = expectation(
+            forNotification: ActivityTracker.didRecordSessionNotification,
+            object: nil
+        )
+        normalizer.onRawEvent(
+            RawEvent(
+                id: nil,
+                timestamp: 9_000,
+                type: .appActivated,
+                bundleId: "com.apple.TextEdit",
+                appName: "TextEdit",
+                windowTitle: nil,
+                payload: nil
+            ),
+            immediate: true
+        )
+        wait(for: [initialRecorded], timeout: 5)
+
+        let blockingTransitionFinished = expectation(description: "blocking transition finished")
+        normalizer.pauseTracking(at: Date(timeIntervalSince1970: 9_060)) { result in
+            if case .failure(let error) = result {
+                XCTFail("Blocking transition failed: \(error)")
+            }
+            blockingTransitionFinished.fulfill()
+        }
+        wait(for: [pauseUpdateStarted], timeout: 5)
+
+        normalizer.onRawEvent(
+            RawEvent(
+                id: nil,
+                timestamp: 9_070,
+                type: .appActivated,
+                bundleId: "com.apple.Safari",
+                appName: "Safari",
+                windowTitle: nil,
+                payload: nil
+            ),
+            immediate: false
+        )
+        normalizer.onRawEvent(
+            RawEvent(
+                id: nil,
+                timestamp: 9_090,
+                type: .idleEnter,
+                bundleId: nil,
+                appName: nil,
+                windowTitle: nil,
+                payload: RawEventPayload.idle(idleSeconds: 310).toJSONString()
+            ),
+            immediate: true
+        )
+
+        // Keep the preceding transition outstanding beyond debounce. The pending activation
+        // must already be ordered before idle instead of being appended behind it by the timer.
+        let debounceElapsed = expectation(description: "debounce elapsed while transition blocked")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            debounceElapsed.fulfill()
+        }
+        wait(for: [debounceElapsed], timeout: 3)
+
+        let activationAndIdleRecorded = expectation(
+            forNotification: ActivityTracker.didRecordSessionNotification,
+            object: nil
+        )
+        activationAndIdleRecorded.expectedFulfillmentCount = 2
+        XCTAssertTrue(controlledUpdater.completeNext(using: db))
+        wait(for: [blockingTransitionFinished, activationAndIdleRecorded], timeout: 5)
+
+        let exitRecorded = expectation(
+            forNotification: ActivityTracker.didRecordSessionNotification,
+            object: nil
+        )
+        normalizer.onRawEvent(
+            RawEvent(
+                id: nil,
+                timestamp: 9_110,
+                type: .idleExit,
+                bundleId: "com.apple.Safari",
+                appName: "Safari",
+                windowTitle: nil,
+                payload: nil
+            ),
+            immediate: true
+        )
+        wait(for: [exitRecorded], timeout: 5)
+        _ = awaitResult("checkpoint post-idle foreground") { completion in
+            normalizer.checkpointCurrentSession(
+                at: Date(timeIntervalSince1970: 9_120),
+                completion: completion
+            )
+        }
+
+        let rows = fetchActivities(db: db, rangeStart: 8_999, rangeEnd: 9_121)
+            .sorted { $0.startTime < $1.startTime }
+        XCTAssertTrue(rows.allSatisfy { $0.endTime >= $0.startTime })
+        XCTAssertEqual(rows.map(\.appName), ["TextEdit", "Safari", "Idle", "Safari"])
+        XCTAssertEqual(rows.map(\.startTime), [9_000, 9_070, 9_080, 9_110])
+        XCTAssertEqual(rows.map(\.endTime), [9_060, 9_080, 9_110, 9_120])
+    }
+
+    func testPauseResetsIdleStateSoActiveResumeStartsNewSession() {
+        let db = makeTestDatabase("pause-resets-idle-state")
+        let normalizer = SessionNormalizer.makeTestInstance(database: db)
+        normalizer.updateAggregationConfig(minDuration: 1, mergeGap: 0, debounce: 0)
+        let idleRecorded = expectation(
+            forNotification: ActivityTracker.didRecordSessionNotification,
+            object: nil
+        )
+        normalizer.onRawEvent(
+            RawEvent(
+                id: nil,
+                timestamp: 9_300,
+                type: .idleEnter,
+                bundleId: nil,
+                appName: nil,
+                windowTitle: nil,
+                payload: RawEventPayload.idle(idleSeconds: 300).toJSONString()
+            ),
+            immediate: true
+        )
+        wait(for: [idleRecorded], timeout: 5)
+
+        let paused = expectation(description: "idle session paused")
+        normalizer.pauseTracking(at: Date(timeIntervalSince1970: 9_360)) { result in
+            if case .failure(let error) = result {
+                XCTFail("Idle pause transition failed: \(error)")
+            }
+            paused.fulfill()
+        }
+        wait(for: [paused], timeout: 5)
+
+        let resumedRecorded = expectation(
+            forNotification: ActivityTracker.didRecordSessionNotification,
+            object: nil
+        )
+        normalizer.onRawEvent(
+            RawEvent(
+                id: nil,
+                timestamp: 9_370,
+                type: .appActivated,
+                bundleId: "com.apple.Safari",
+                appName: "Safari",
+                windowTitle: nil,
+                payload: nil
+            ),
+            immediate: true
+        )
+        wait(for: [resumedRecorded], timeout: 5)
+
+        let checkpointed = expectation(description: "active resume checkpointed")
+        normalizer.checkpointCurrentSession(at: Date(timeIntervalSince1970: 9_420)) { result in
+            if case .failure(let error) = result {
+                XCTFail("Active resume checkpoint failed: \(error)")
+            }
+            checkpointed.fulfill()
+        }
+        wait(for: [checkpointed], timeout: 5)
+
+        let rows = fetchActivities(db: db, rangeStart: 9_299, rangeEnd: 9_421)
+            .sorted { $0.startTime < $1.startTime }
+        XCTAssertEqual(rows.map(\.appName), ["Idle", "Safari"])
+        XCTAssertEqual(rows.map(\.startTime), [9_300, 9_370])
+        XCTAssertEqual(rows.map(\.endTime), [9_360, 9_420])
+    }
+
+    func testStopClosesAcceptanceBeforeDrainingLateRawEventCallback() {
+        let db = makeTestDatabase("stop-raw-event-barrier")
+        let normalizer = SessionNormalizer.makeTestInstance(database: db)
+        normalizer.updateAggregationConfig(minDuration: 1, mergeGap: 0, debounce: 0)
+        let insertStarted = expectation(description: "pre-stop raw event insert started")
+        let controlledInserter = ControlledRawEventInserter { event, observedCount in
+            XCTAssertEqual(observedCount, 1)
+            XCTAssertEqual(event.timestamp, 9_500)
+            insertStarted.fulfill()
+        }
+        let tracker = ActivityTracker.makeTestInstance(
+            normalizer: normalizer,
+            rawEventInserter: controlledInserter.insert(_:completion:),
+            pauseBoundaryCheckpointStore: TestPauseBoundaryCheckpointStore()
+        )
+        let accepted = RawEvent(
+            id: nil,
+            timestamp: 9_500,
+            type: .appActivated,
+            bundleId: "com.apple.Safari",
+            appName: "Safari",
+            windowTitle: nil,
+            payload: nil
+        )
+        let late = RawEvent(
+            id: nil,
+            timestamp: 9_570,
+            type: .appActivated,
+            bundleId: "com.apple.Safari",
+            appName: "Safari",
+            windowTitle: nil,
+            payload: nil
+        )
+        XCTAssertTrue(tracker.enqueueRawEventForTesting(accepted, immediate: true))
+        wait(for: [insertStarted], timeout: 5)
+
+        let acceptanceClosed = expectation(description: "stop acceptance closed")
+        let stopCompleted = expectation(description: "stop completed")
+        DispatchQueue.global(qos: .userInitiated).async {
+            tracker.stopForTesting(at: Date(timeIntervalSince1970: 9_560)) {
+                acceptanceClosed.fulfill()
+            }
+            stopCompleted.fulfill()
+        }
+        wait(for: [acceptanceClosed], timeout: 5)
+        XCTAssertFalse(tracker.enqueueRawEventForTesting(late, immediate: true))
+        XCTAssertTrue(controlledInserter.completeNext(with: .success(1)))
+        wait(for: [stopCompleted], timeout: 5)
+
+        XCTAssertEqual(controlledInserter.observedEvents.map(\.timestamp), [9_500])
+        let rows = fetchActivities(db: db, rangeStart: 9_499, rangeEnd: 9_571)
+        XCTAssertEqual(rows.map(\.appName), ["Safari"])
+        XCTAssertEqual(rows.map(\.startTime), [9_500])
+        XCTAssertEqual(rows.map(\.endTime), [9_560])
+    }
+
+    func testStopWaitsForDelayedDatabaseTransitionAndRejectsPostStopWork() {
+        let db = makeTestDatabase("stop-delayed-database-transition")
+        let pauseUpdateStarted = expectation(description: "stop end-time update started")
+        let controlledUpdater = ControlledActivityEndUpdater { _, endTime in
+            XCTAssertEqual(endTime, 9_660)
+            pauseUpdateStarted.fulfill()
+        }
+        let normalizer = SessionNormalizer.makeTestInstance(
+            database: db,
+            pauseActivityEndUpdater: controlledUpdater.update(
+                id:endTime:completion:
+            )
+        )
+        normalizer.updateAggregationConfig(minDuration: 1, mergeGap: 0, debounce: 0)
+        let tracker = ActivityTracker.makeTestInstance(
+            normalizer: normalizer,
+            pauseBoundaryCheckpointStore: TestPauseBoundaryCheckpointStore()
+        )
+        let recorded = expectation(
+            forNotification: ActivityTracker.didRecordSessionNotification,
+            object: nil
+        )
+
+        normalizer.onRawEvent(
+            RawEvent(
+                id: nil,
+                timestamp: 9_600,
+                type: .appActivated,
+                bundleId: "com.apple.Safari",
+                appName: "Safari",
+                windowTitle: nil,
+                payload: nil
+            ),
+            immediate: true
+        )
+        wait(for: [recorded], timeout: 5)
+
+        let stopReturned = DispatchSemaphore(value: 0)
+        DispatchQueue.global(qos: .userInitiated).async {
+            tracker.stopForTesting(at: Date(timeIntervalSince1970: 9_660)) {}
+            stopReturned.signal()
+        }
+        wait(for: [pauseUpdateStarted], timeout: 5)
+
+        XCTAssertFalse(tracker.resumeRawEventAcceptanceForTesting())
+        XCTAssertFalse(tracker.enqueueRawEventForTesting(
+            RawEvent(
+                id: nil,
+                timestamp: 9_670,
+                type: .appActivated,
+                bundleId: "com.apple.Safari",
+                appName: "Safari",
+                windowTitle: nil,
+                payload: nil
+            ),
+            immediate: true
+        ))
+        XCTAssertEqual(
+            stopReturned.wait(timeout: .now() + 0.1),
+            .timedOut,
+            "stop must not return while its database transition is outstanding"
+        )
+
+        XCTAssertTrue(controlledUpdater.completeNext(using: db))
+        XCTAssertEqual(stopReturned.wait(timeout: .now() + 5), .success)
+
+        // Direct late work is also rejected by the stopped normalizer. The checkpoint is a
+        // queue barrier behind both this event and the canceled compaction scheduling request.
+        normalizer.onRawEvent(
+            RawEvent(
+                id: nil,
+                timestamp: 9_680,
+                type: .appActivated,
+                bundleId: "com.apple.TextEdit",
+                appName: "TextEdit",
+                windowTitle: nil,
+                payload: nil
+            ),
+            immediate: true
+        )
+        normalizer.scheduleCompactionIfNeeded()
+        let postStopBarrier = expectation(description: "post-stop work rejected")
+        normalizer.checkpointCurrentSession(at: Date(timeIntervalSince1970: 9_690)) { result in
+            guard case .failure(let error as SessionNormalizerLifecycleError) = result else {
+                XCTFail("Expected stopped normalizer failure, got \(result)")
+                postStopBarrier.fulfill()
+                return
+            }
+            XCTAssertEqual(error, .stopped)
+            postStopBarrier.fulfill()
+        }
+        wait(for: [postStopBarrier], timeout: 5)
+
+        let rows = fetchActivities(db: db, rangeStart: 9_599, rangeEnd: 9_691)
+        XCTAssertEqual(rows.map(\.appName), ["Safari"])
+        XCTAssertEqual(rows.map(\.startTime), [9_600])
+        XCTAssertEqual(rows.map(\.endTime), [9_660])
+    }
+
+    func testSessionNormalizerRestartsAfterStrictStopWithoutRevivingStoppedWork() throws {
+        let db = makeTestDatabase("normalizer-start-after-stop")
+        let normalizer = SessionNormalizer.makeTestInstance(database: db)
+        normalizer.updateAggregationConfig(minDuration: 1, mergeGap: 0, debounce: 0)
+        normalizer.startTracking()
+        normalizer.onAppActivated(
+            appName: "Safari",
+            bundleId: "com.apple.Safari",
+            windowTitle: nil,
+            isIgnored: false,
+            date: Date(timeIntervalSince1970: 9_700),
+            immediate: true
+        )
+        let firstID = try XCTUnwrap(try awaitResult("checkpoint first lifecycle") { completion in
+            normalizer.checkpointCurrentSession(
+                at: Date(timeIntervalSince1970: 9_750),
+                completion: completion
+            )
+        }.get())
+        _ = try awaitResult("strictly stop first lifecycle") { completion in
+            normalizer.stopTracking(
+                at: Date(timeIntervalSince1970: 9_760),
+                completion: completion
+            )
+        }.get()
+
+        normalizer.onAppActivated(
+            appName: "Discarded while stopped",
+            bundleId: "com.example.discarded",
+            windowTitle: nil,
+            isIgnored: false,
+            date: Date(timeIntervalSince1970: 9_770),
+            immediate: true
+        )
+        let stoppedCheckpoint = awaitResult("reject stopped lifecycle checkpoint") { completion in
+            normalizer.checkpointCurrentSession(
+                at: Date(timeIntervalSince1970: 9_780),
+                completion: completion
+            )
+        }
+        guard case .failure(let stoppedError as SessionNormalizerLifecycleError) = stoppedCheckpoint else {
+            XCTFail("Expected a stopped lifecycle error, got \(stoppedCheckpoint)")
+            return
+        }
+        XCTAssertEqual(stoppedError, .stopped)
+
+        normalizer.startTracking()
+        normalizer.onAppActivated(
+            appName: "TextEdit",
+            bundleId: "com.apple.TextEdit",
+            windowTitle: nil,
+            isIgnored: false,
+            date: Date(timeIntervalSince1970: 9_790),
+            immediate: true
+        )
+        let secondID = try XCTUnwrap(try awaitResult("checkpoint restarted lifecycle") { completion in
+            normalizer.checkpointCurrentSession(
+                at: Date(timeIntervalSince1970: 9_810),
+                completion: completion
+            )
+        }.get())
+        XCTAssertNotEqual(secondID, firstID)
+        _ = try awaitResult("strictly stop restarted lifecycle") { completion in
+            normalizer.stopTracking(
+                at: Date(timeIntervalSince1970: 9_820),
+                completion: completion
+            )
+        }.get()
+
+        let rows = fetchActivities(db: db, rangeStart: 9_699, rangeEnd: 9_821)
+            .sorted { $0.startTime < $1.startTime }
+        XCTAssertEqual(rows.map(\.appName), ["Safari", "TextEdit"])
+        XCTAssertEqual(rows.map(\.startTime), [9_700, 9_790])
+        XCTAssertEqual(rows.map(\.endTime), [9_760, 9_820])
+    }
+
+    func testWorkBlockProjectionStopInvalidatesDelayedPipeline() {
+        let openStarted = expectation(description: "projection database open started")
+        let releaseOpen = DispatchSemaphore(value: 0)
+        let db = DatabaseService.makeTestInstance(
+            databaseURL: makeTempDatabaseURL("projection-stop-generation"),
+            preOpenPreparation: {
+                openStarted.fulfill()
+                releaseOpen.wait()
+            }
+        )
+        let projection = WorkBlockProjectionService.makeTestInstance(database: db)
+        let cancelled = expectation(description: "projection completion cancelled")
+        projection.refreshNow(through: 9_900) { result in
+            guard case .failure(let error as WorkBlockProjectionError) = result else {
+                XCTFail("Expected stopped projection, got \(result)")
+                cancelled.fulfill()
+                return
+            }
+            XCTAssertEqual(error, .stopped)
+            cancelled.fulfill()
+        }
+        wait(for: [openStarted], timeout: 5)
+
+        projection.stop()
+        wait(for: [cancelled], timeout: 5)
+        releaseOpen.signal()
+
+        let drained = expectation(description: "delayed projection database drained")
+        db.drainPendingOperations { drained.fulfill() }
+        wait(for: [drained], timeout: 5)
+        let rejected = awaitResult("post-stop projection rejected") { completion in
+            projection.refreshNow(through: 9_901, completion: completion)
+        }
+        guard case .failure(let error as WorkBlockProjectionError) = rejected else {
+            XCTFail("Expected post-stop projection rejection, got \(rejected)")
+            return
+        }
+        XCTAssertEqual(error, .stopped)
+    }
+
+    func testProjectionAndReviewSplitSameAppAcrossPauseBoundary() throws {
+        let db = makeTestDatabase("projection-review-pause-boundary")
+        _ = try insertTestActivity(
+            db: db,
+            start: 20_000,
+            end: 20_060,
+            appName: "Tie App",
+            bundleId: "com.example.tie-break"
+        )
+        _ = try insertTestActivity(
+            db: db,
+            start: 20_070,
+            end: 20_130,
+            appName: "Tie App",
+            bundleId: "com.example.tie-break"
+        )
+        insertRawEvents([
+            RawEvent(
+                id: nil,
+                timestamp: 20_060,
+                type: .trackingPaused,
+                bundleId: nil,
+                appName: nil,
+                windowTitle: nil,
+                payload: nil
+            )
+        ], into: db)
+
+        let projection = WorkBlockProjectionService.makeTestInstance(database: db)
+        let blocks = try awaitResult("project pause-split work blocks") { completion in
+            projection.refreshNow(through: 20_140, completion: completion)
+        }.get()
+        XCTAssertEqual(blocks.count, 2)
+        XCTAssertEqual(blocks.map(\.startTime), [20_000, 20_070])
+        XCTAssertEqual(blocks.map(\.endTime), [20_060, 20_130])
+
+        let inbox = try awaitResult("preview pause-split review") { completion in
+            db.fetchReviewInbox(through: 20_140, completion: completion)
+        }.get()
+        let snapshot = try awaitResult("complete pause-split review") { completion in
+            db.completeReview(
+                reviewedInbox: inbox,
+                completedAt: Date(timeIntervalSince1970: 20_150),
+                completion: completion
+            )
+        }.get()
+        XCTAssertEqual(snapshot.blocks.count, 2)
+        XCTAssertEqual(snapshot.blocks.map(\.startTime), [20_000, 20_070])
+        XCTAssertEqual(snapshot.blocks.map(\.endTime), [20_060, 20_130])
+    }
+
+    func testMarkerShutdownInvalidatesDelayedToggleBeforeFinalCloseBarrier() {
+        let openStarted = expectation(description: "marker database open started")
+        let releaseOpen = DispatchSemaphore(value: 0)
+        let db = DatabaseService.makeTestInstance(
+            databaseURL: makeTempDatabaseURL("marker-stop-generation"),
+            preOpenPreparation: {
+                openStarted.fulfill()
+                releaseOpen.wait()
+            }
+        )
+        let markers = MarkerSpanService.makeTestInstance(database: db)
+        let toggleCancelled = expectation(description: "delayed toggle cancelled")
+        markers.toggle(text: "Private work", at: Date(timeIntervalSince1970: 10_000)) { result in
+            guard case .failure(let error as MarkerSpanLifecycleError) = result else {
+                XCTFail("Expected stopped marker toggle, got \(result)")
+                toggleCancelled.fulfill()
+                return
+            }
+            XCTAssertEqual(error, .stopped)
+            toggleCancelled.fulfill()
+        }
+        wait(for: [openStarted], timeout: 5)
+
+        let finalCloseFinished = expectation(description: "marker final close finished")
+        markers.stopAcceptingRequestsAndEndAllOpenSpans(
+            at: Date(timeIntervalSince1970: 10_010)
+        ) { result in
+            if case .failure(let error) = result {
+                XCTFail("Final marker close failed: \(error)")
+            }
+            finalCloseFinished.fulfill()
+        }
+        releaseOpen.signal()
+        wait(for: [toggleCancelled, finalCloseFinished], timeout: 5)
+        XCTAssertTrue(fetchOpenMarkerSpans(db: db).isEmpty)
     }
 
     func testFlushingSessionAllowsSameAppToResume() {
@@ -541,6 +2473,548 @@ final class ChronicleTests: XCTestCase {
 
         let rows = fetchActivities(db: db, rangeStart: 8_999, rangeEnd: 9_071)
         XCTAssertEqual(rows.map(\.startTime).sorted(), [9_000, 9_070])
+    }
+
+    func testSessionCheckpointPersistsProgressWithoutClosingSession() {
+        let db = makeTestDatabase("session-checkpoint")
+        let normalizer = SessionNormalizer.makeTestInstance(database: db)
+        normalizer.updateAggregationConfig(minDuration: 1, mergeGap: 0, debounce: 0)
+        let recorded = expectation(
+            forNotification: ActivityTracker.didRecordSessionNotification,
+            object: nil
+        )
+
+        normalizer.onRawEvent(
+            RawEvent(
+                id: nil,
+                timestamp: 9_000,
+                type: .appActivated,
+                bundleId: "com.apple.Safari",
+                appName: "Safari",
+                windowTitle: nil,
+                payload: nil
+            ),
+            immediate: true
+        )
+        wait(for: [recorded], timeout: 5)
+
+        let checkpointed = expectation(description: "checkpoint current session")
+        normalizer.checkpointCurrentSession(at: Date(timeIntervalSince1970: 9_060)) { result in
+            if case .failure(let error) = result {
+                XCTFail("Session checkpoint failed: \(error)")
+            }
+            checkpointed.fulfill()
+        }
+        wait(for: [checkpointed], timeout: 5)
+
+        var rows = fetchActivities(db: db, rangeStart: 8_999, rangeEnd: 9_061)
+        XCTAssertEqual(rows.count, 1)
+        XCTAssertEqual(rows.first?.startTime, 9_000)
+        XCTAssertEqual(rows.first?.endTime, 9_060)
+
+        let flushed = expectation(description: "flush checkpointed session")
+        normalizer.flushCurrentSession(timestamp: Date(timeIntervalSince1970: 9_120)) {
+            flushed.fulfill()
+        }
+        wait(for: [flushed], timeout: 5)
+
+        rows = fetchActivities(db: db, rangeStart: 8_999, rangeEnd: 9_121)
+        XCTAssertEqual(rows.count, 1)
+        XCTAssertEqual(rows.first?.endTime, 9_120)
+    }
+
+    func testReviewCompletionRollsOpenSessionThroughFixedCutoffAndContinuesTracking() throws {
+        let db = makeTestDatabase("review-completion-cutoff")
+        let normalizer = SessionNormalizer.makeTestInstance(database: db)
+        normalizer.updateAggregationConfig(minDuration: 1, mergeGap: 0, debounce: 0)
+        let tracker = ActivityTracker.makeTestInstance(
+            normalizer: normalizer,
+            pauseBoundaryCheckpointStore: TestPauseBoundaryCheckpointStore()
+        )
+        let projection = WorkBlockProjectionService.makeTestInstance(database: db)
+        let service = ReviewCompletionService.makeTestInstance(
+            activityTracker: tracker,
+            projection: projection,
+            database: db
+        )
+        let recorded = expectation(
+            forNotification: ActivityTracker.didRecordSessionNotification,
+            object: nil
+        )
+        normalizer.onRawEvent(
+            RawEvent(
+                id: nil,
+                timestamp: 9_000,
+                type: .appActivated,
+                bundleId: "com.apple.Safari",
+                appName: "Safari",
+                windowTitle: "Cutoff context",
+                payload: nil
+            ),
+            immediate: true
+        )
+        wait(for: [recorded], timeout: 5)
+
+        let completed = try awaitResult("complete review through fixed cutoff") { completion in
+            service.completeReview(
+                through: Date(timeIntervalSince1970: 9_060),
+                overallNote: "Cutoff review",
+                completion: completion
+            )
+        }.get()
+        let rollover = try XCTUnwrap(completed.rollover)
+        XCTAssertEqual(completed.cutoff, 9_060)
+        XCTAssertEqual(rollover.cutoff, 9_060)
+        XCTAssertEqual(completed.inbox.rangeEnd, 9_060)
+        XCTAssertEqual(completed.snapshot.snapshot.rangeEnd, 9_060)
+        XCTAssertEqual(completed.snapshot.snapshot.checkpointAfter, 9_060)
+        XCTAssertEqual(completed.snapshot.blocks.count, 1)
+        XCTAssertEqual(completed.snapshot.blocks.first?.startTime, 9_000)
+        XCTAssertEqual(completed.snapshot.blocks.first?.endTime, 9_060)
+        let snapshotEvidence = try JSONDecoder().decode(
+            [ReviewSnapshotEvidence].self,
+            from: Data(try XCTUnwrap(completed.snapshot.blocks.first?.evidenceSummaryJSON).utf8)
+        )
+        XCTAssertEqual(snapshotEvidence.map(\.activityId), [rollover.closedActivityId])
+        XCTAssertEqual(snapshotEvidence.map(\.contributionEnd), [9_060])
+
+        var rows = fetchActivities(db: db, rangeStart: 8_999, rangeEnd: 9_061)
+        let closed = try XCTUnwrap(rows.first { $0.id == rollover.closedActivityId })
+        let resumed = try XCTUnwrap(rows.first { $0.id == rollover.resumedActivityId })
+        XCTAssertEqual(closed.startTime, 9_000)
+        XCTAssertEqual(closed.endTime, 9_060)
+        XCTAssertEqual(resumed.startTime, 9_060)
+        XCTAssertEqual(resumed.endTime, 9_060)
+        XCTAssertEqual(resumed.appName, closed.appName)
+        XCTAssertEqual(resumed.bundleId, closed.bundleId)
+        XCTAssertEqual(resumed.windowTitle, closed.windowTitle)
+
+        let flushed = expectation(description: "flush resumed cutoff session")
+        normalizer.flushCurrentSession(timestamp: Date(timeIntervalSince1970: 9_120)) {
+            flushed.fulfill()
+        }
+        wait(for: [flushed], timeout: 5)
+        rows = fetchActivities(db: db, rangeStart: 9_059, rangeEnd: 9_121)
+        XCTAssertEqual(rows.first { $0.id == rollover.resumedActivityId }?.endTime, 9_120)
+    }
+
+    func testPreparedReviewCompletesAfterNoOpBarrierWithoutChangingWorkBlockIdentity() throws {
+        let db = makeTestDatabase("review-completion-prepared-inbox")
+        let normalizer = SessionNormalizer.makeTestInstance(database: db)
+        normalizer.updateAggregationConfig(minDuration: 1, mergeGap: 0, debounce: 0)
+        let tracker = ActivityTracker.makeTestInstance(
+            normalizer: normalizer,
+            pauseBoundaryCheckpointStore: TestPauseBoundaryCheckpointStore()
+        )
+        let projection = WorkBlockProjectionService.makeTestInstance(database: db)
+        let service = ReviewCompletionService.makeTestInstance(
+            activityTracker: tracker,
+            projection: projection,
+            database: db
+        )
+        _ = try insertTestActivity(
+            db: db,
+            start: 9_500,
+            end: 9_560,
+            appName: "Xcode",
+            bundleId: "com.apple.dt.Xcode"
+        )
+
+        let cutoff = Date(timeIntervalSince1970: 9_560)
+        let preview = try awaitResult("prepare review behind runtime barrier") { completion in
+            service.prepareReviewInbox(through: cutoff, completion: completion)
+        }.get()
+        let previewBlock = try XCTUnwrap(preview.blocks.first)
+        XCTAssertEqual(preview.blocks.count, 1)
+        XCTAssertEqual(previewBlock.startTime, 9_500)
+        XCTAssertEqual(previewBlock.endTime, 9_560)
+
+        let completed = try awaitResult("complete prepared review") { completion in
+            service.completeReview(
+                reviewedInbox: preview,
+                overallNote: "Prepared",
+                completion: completion
+            )
+        }.get()
+        XCTAssertEqual(completed.inbox, preview)
+        XCTAssertNil(completed.rollover)
+        XCTAssertEqual(completed.snapshot.snapshot.checkpointAfter, 9_560)
+        XCTAssertEqual(completed.snapshot.blocks.first?.sourceWorkBlockId, previewBlock.id)
+
+        let activities = fetchActivities(db: db, rangeStart: 9_499, rangeEnd: 9_561)
+        XCTAssertEqual(activities.map(\.startTime), [9_500])
+    }
+
+    func testFixedCutoffReviewInboxRemainsStableAfterLaterProjectionExtendsSession() throws {
+        let db = makeTestDatabase("review-fixed-cutoff-stable-extension")
+        let projection = WorkBlockProjectionService.makeTestInstance(database: db)
+        let prefixActivityID = try insertTestActivity(
+            db: db,
+            start: 9_600,
+            end: 9_660,
+            appName: "Xcode",
+            bundleId: "com.apple.dt.Xcode"
+        )
+
+        _ = try awaitResult("project initial fixed-cutoff review") { completion in
+            projection.refreshNow(through: 9_660, completion: completion)
+        }.get()
+        let preview = try awaitResult("fetch initial fixed-cutoff review") { completion in
+            db.fetchReviewInbox(through: 9_660, completion: completion)
+        }.get()
+        let previewBlock = try XCTUnwrap(preview.blocks.first)
+        XCTAssertEqual(preview.blocks.count, 1)
+        XCTAssertEqual(previewBlock.startTime, 9_600)
+        XCTAssertEqual(previewBlock.endTime, 9_660)
+        XCTAssertEqual(previewBlock.evidenceCount, 1)
+
+        let resumedActivityID = try insertTestActivity(
+            db: db,
+            start: 9_660,
+            end: 9_720,
+            appName: "Xcode",
+            bundleId: "com.apple.dt.Xcode"
+        )
+        _ = try awaitResult("project continued session beyond fixed cutoff") { completion in
+            projection.refreshNow(through: 9_720, completion: completion)
+        }.get()
+
+        let afterLaterProjection = try awaitResult("refetch original fixed cutoff") { completion in
+            db.fetchReviewInbox(through: 9_660, completion: completion)
+        }.get()
+        XCTAssertEqual(afterLaterProjection, preview)
+        let visibleEvidence = try awaitResult("fetch evidence within original fixed cutoff") { completion in
+            db.fetchActivityEvidence(
+                workBlockId: previewBlock.id,
+                rangeStart: previewBlock.startTime,
+                rangeEnd: previewBlock.endTime,
+                completion: completion
+            )
+        }.get()
+        XCTAssertEqual(visibleEvidence.map(\.id), [prefixActivityID])
+        XCTAssertFalse(visibleEvidence.contains { $0.id == resumedActivityID })
+        XCTAssertEqual(visibleEvidence.map { "\($0.startTime)-\($0.endTime)" }, ["9600-9660"])
+
+        _ = try awaitResult("repeat completion projection at fixed cutoff") { completion in
+            projection.refreshNow(through: 9_660, completion: completion)
+        }.get()
+        let afterCutoffProjection = try awaitResult("refetch fixed cutoff after completion projection") { completion in
+            db.fetchReviewInbox(through: 9_660, completion: completion)
+        }.get()
+        XCTAssertEqual(afterCutoffProjection, preview)
+
+        let completed = try awaitResult("complete stable fixed-cutoff review") { completion in
+            db.completeReview(reviewedInbox: preview, completion: completion)
+        }.get()
+        XCTAssertEqual(completed.snapshot.checkpointAfter, 9_660)
+        XCTAssertEqual(completed.blocks.first?.sourceWorkBlockId, previewBlock.id)
+    }
+
+    func testReviewInboxEvidenceUsesEffectiveClippedBlockRange() throws {
+        let db = makeTestDatabase("review-evidence-effective-window")
+        let leadingID = try insertTestActivity(
+            db: db,
+            start: 9_800,
+            end: 9_820,
+            appName: "Leading evidence"
+        )
+        let visibleID = try insertTestActivity(
+            db: db,
+            start: 9_840,
+            end: 9_860,
+            appName: "Visible evidence"
+        )
+        let trailingID = try insertTestActivity(
+            db: db,
+            start: 9_880,
+            end: 9_900,
+            appName: "Trailing evidence"
+        )
+        let rows = try awaitResult("insert evidence window block") { completion in
+            db.replaceDraftWorkBlocks(
+                rangeStart: 9_800,
+                rangeEnd: 9_900,
+                drafts: [
+                    InferredWorkBlockDraft(
+                        startTime: 9_800,
+                        endTime: 9_900,
+                        algorithmVersion: "evidence-window-v1",
+                        inferredTitle: "Windowed evidence",
+                        evidence: [
+                            WorkBlockEvidenceInput(
+                                activityId: leadingID,
+                                contributionStart: 9_800,
+                                contributionEnd: 9_820,
+                                ordinal: 0
+                            ),
+                            WorkBlockEvidenceInput(
+                                activityId: visibleID,
+                                contributionStart: 9_840,
+                                contributionEnd: 9_860,
+                                ordinal: 1
+                            ),
+                            WorkBlockEvidenceInput(
+                                activityId: trailingID,
+                                contributionStart: 9_880,
+                                contributionEnd: 9_900,
+                                ordinal: 2
+                            )
+                        ]
+                    )
+                ],
+                completion: completion
+            )
+        }.get()
+        let blockID = try XCTUnwrap(rows.first?.id)
+        _ = try awaitResult("set effective evidence window") { completion in
+            db.setWorkBlockOverride(
+                workBlockId: blockID,
+                override: WorkBlockOverrideInput(
+                    userStartTime: 9_830,
+                    userEndTime: 9_870
+                ),
+                completion: completion
+            )
+        }.get()
+
+        let inbox = try awaitResult("fetch effective evidence window") { completion in
+            db.fetchReviewInbox(through: 9_900, completion: completion)
+        }.get()
+        let block = try XCTUnwrap(inbox.blocks.first)
+        XCTAssertEqual(block.evidenceCount, 1)
+        let evidence = try awaitResult("fetch effective-window evidence rows") { completion in
+            db.fetchActivityEvidence(
+                workBlockId: block.id,
+                rangeStart: block.startTime,
+                rangeEnd: block.endTime,
+                completion: completion
+            )
+        }.get()
+        XCTAssertEqual(evidence.map(\.id), [visibleID])
+        XCTAssertEqual(evidence.map { "\($0.startTime)-\($0.endTime)" }, ["9840-9860"])
+    }
+
+    func testReviewCompletionDrainsDebouncedInFlightSwitchBeforeAdvancingCheckpoint() throws {
+        let db = makeTestDatabase("review-completion-debounced-switch")
+        let normalizer = SessionNormalizer.makeTestInstance(database: db)
+        normalizer.updateAggregationConfig(minDuration: 1, mergeGap: 0, debounce: 5)
+        let tracker = ActivityTracker.makeTestInstance(
+            normalizer: normalizer,
+            pauseBoundaryCheckpointStore: TestPauseBoundaryCheckpointStore()
+        )
+        let projection = WorkBlockProjectionService.makeTestInstance(database: db)
+        let service = ReviewCompletionService.makeTestInstance(
+            activityTracker: tracker,
+            projection: projection,
+            database: db
+        )
+
+        let initialSessionRecorded = expectation(
+            forNotification: ActivityTracker.didRecordSessionNotification,
+            object: nil
+        )
+        normalizer.onRawEvent(
+            RawEvent(
+                id: nil,
+                timestamp: 9_700,
+                type: .appActivated,
+                bundleId: "com.apple.Safari",
+                appName: "Safari",
+                windowTitle: nil,
+                payload: nil
+            ),
+            immediate: true
+        )
+        wait(for: [initialSessionRecorded], timeout: 5)
+
+        // Do not wait for didRecordSessionNotification. Completion starts while
+        // this switch is still delayed/in flight inside the normalizer.
+        normalizer.onRawEvent(
+            RawEvent(
+                id: nil,
+                timestamp: 9_730,
+                type: .appActivated,
+                bundleId: "com.apple.mail",
+                appName: "Mail",
+                windowTitle: nil,
+                payload: nil
+            ),
+            immediate: false
+        )
+
+        let completed = try awaitResult("complete review with in-flight switch") { completion in
+            service.completeReview(
+                through: Date(timeIntervalSince1970: 9_760),
+                completion: completion
+            )
+        }.get()
+
+        XCTAssertEqual(completed.snapshot.snapshot.checkpointAfter, 9_760)
+        XCTAssertEqual(completed.snapshot.blocks.count, 2)
+        XCTAssertEqual(completed.snapshot.blocks.last?.title, "Mail")
+        XCTAssertEqual(completed.snapshot.blocks.map(\.startTime), [9_700, 9_730])
+        XCTAssertEqual(completed.snapshot.blocks.map(\.endTime), [9_730, 9_760])
+
+        let rows = fetchActivities(db: db, rangeStart: 9_699, rangeEnd: 9_761)
+        let mail = try XCTUnwrap(rows.first {
+            $0.appName == "Mail" && $0.startTime == 9_730 && $0.endTime == 9_760
+        })
+        let mailSnapshot = try XCTUnwrap(
+            completed.snapshot.blocks.first { $0.title == "Mail" }
+        )
+        let frozenEvidence = try JSONDecoder().decode(
+            [ReviewSnapshotEvidence].self,
+            from: Data(mailSnapshot.evidenceSummaryJSON.utf8)
+        )
+        XCTAssertEqual(frozenEvidence.map(\.activityId), [mail.id])
+    }
+
+    func testReviewCompletionFailureDoesNotAdvanceCheckpoint() throws {
+        let db = makeTestDatabase("review-completion-failure")
+        let normalizer = SessionNormalizer.makeTestInstance(database: db)
+        let tracker = ActivityTracker.makeTestInstance(
+            normalizer: normalizer,
+            pauseBoundaryCheckpointStore: TestPauseBoundaryCheckpointStore()
+        )
+        let projection = WorkBlockProjectionService.makeTestInstance(database: db)
+        let service = ReviewCompletionService.makeTestInstance(
+            activityTracker: tracker,
+            projection: projection,
+            database: db
+        )
+
+        let result = awaitResult("reject empty cutoff review") { completion in
+            service.completeReview(
+                through: Date(timeIntervalSince1970: 10_000),
+                completion: completion
+            )
+        }
+        XCTAssertThrowsError(try result.get()) { error in
+            XCTAssertEqual(error as? ReviewCompletionError, .noPendingWorkAtCutoff)
+        }
+        let checkpoint = try awaitResult("fetch checkpoint after failed cutoff review") { completion in
+            db.latestReviewCheckpoint(completion: completion)
+        }.get()
+        XCTAssertNil(checkpoint)
+        let snapshots = try awaitResult("fetch snapshots after failed cutoff review") { completion in
+            db.fetchReviewSnapshots(completion: completion)
+        }.get()
+        XCTAssertTrue(snapshots.isEmpty)
+    }
+
+    func testReviewCompletionRejectsActivityPersistedAfterPreviewWithoutAdvancingCheckpoint() throws {
+        let db = makeTestDatabase("review-completion-late-activity")
+        _ = try insertTestActivity(
+            db: db,
+            start: 10_100,
+            end: 10_130,
+            appName: "Safari",
+            bundleId: "com.apple.Safari"
+        )
+        let normalizer = SessionNormalizer.makeTestInstance(database: db)
+        let tracker = ActivityTracker.makeTestInstance(
+            normalizer: normalizer,
+            pauseBoundaryCheckpointStore: TestPauseBoundaryCheckpointStore()
+        )
+        let projection = WorkBlockProjectionService.makeTestInstance(database: db)
+        let service = ReviewCompletionService.makeTestInstance(
+            activityTracker: tracker,
+            projection: projection,
+            database: db
+        )
+        let cutoff: Int64 = 10_200
+
+        _ = try awaitResult("project initial review preview") { completion in
+            projection.refreshNow(through: cutoff, completion: completion)
+        }.get()
+        let reviewedInbox = try awaitResult("fetch initial review preview") { completion in
+            db.fetchReviewInbox(through: cutoff, completion: completion)
+        }.get()
+        XCTAssertEqual(reviewedInbox.blocks.count, 1)
+
+        _ = try insertTestActivity(
+            db: db,
+            start: 10_150,
+            end: 10_180,
+            appName: "Mail",
+            bundleId: "com.apple.mail"
+        )
+
+        let result = awaitResult("reject review after late activity") { completion in
+            service.completeReview(reviewedInbox: reviewedInbox, completion: completion)
+        }
+        XCTAssertThrowsError(try result.get()) { error in
+            XCTAssertEqual(error as? ReviewDomainError, .reviewInboxChanged)
+        }
+
+        let checkpoint = try awaitResult("fetch checkpoint after changed review") { completion in
+            db.latestReviewCheckpoint(completion: completion)
+        }.get()
+        XCTAssertNil(checkpoint)
+        let snapshots = try awaitResult("fetch snapshots after changed review") { completion in
+            db.fetchReviewSnapshots(completion: completion)
+        }.get()
+        XCTAssertTrue(snapshots.isEmpty)
+
+        let refreshedInbox = try awaitResult("fetch refreshed review with late activity") { completion in
+            db.fetchReviewInbox(through: cutoff, completion: completion)
+        }.get()
+        XCTAssertNotEqual(refreshedInbox, reviewedInbox)
+        XCTAssertGreaterThan(refreshedInbox.blocks.count, reviewedInbox.blocks.count)
+        XCTAssertTrue(refreshedInbox.blocks.contains { $0.primaryAppName == "Mail" })
+    }
+
+    func testReviewCompletionRejectsConcurrentDuplicateRequest() {
+        let db = makeTestDatabase("review-completion-concurrent")
+        let normalizer = SessionNormalizer.makeTestInstance(database: db)
+        normalizer.updateAggregationConfig(minDuration: 1, mergeGap: 0, debounce: 0)
+        let tracker = ActivityTracker.makeTestInstance(
+            normalizer: normalizer,
+            pauseBoundaryCheckpointStore: TestPauseBoundaryCheckpointStore()
+        )
+        let projection = WorkBlockProjectionService.makeTestInstance(database: db)
+        let service = ReviewCompletionService.makeTestInstance(
+            activityTracker: tracker,
+            projection: projection,
+            database: db
+        )
+        let recorded = expectation(
+            forNotification: ActivityTracker.didRecordSessionNotification,
+            object: nil
+        )
+        normalizer.onRawEvent(
+            RawEvent(
+                id: nil,
+                timestamp: 11_000,
+                type: .appActivated,
+                bundleId: "com.apple.Safari",
+                appName: "Safari",
+                windowTitle: nil,
+                payload: nil
+            ),
+            immediate: true
+        )
+        wait(for: [recorded], timeout: 5)
+
+        let firstFinished = expectation(description: "first cutoff review finishes")
+        let duplicateFinished = expectation(description: "duplicate cutoff review is rejected")
+        var firstResult: Result<ReviewCompletionResult, Error>?
+        var duplicateResult: Result<ReviewCompletionResult, Error>?
+        let cutoff = Date(timeIntervalSince1970: 11_060)
+        service.completeReview(through: cutoff) { result in
+            firstResult = result
+            firstFinished.fulfill()
+        }
+        service.completeReview(through: cutoff) { result in
+            duplicateResult = result
+            duplicateFinished.fulfill()
+        }
+        wait(for: [firstFinished, duplicateFinished], timeout: 5)
+
+        XCTAssertNoThrow(try XCTUnwrap(firstResult).get())
+        XCTAssertThrowsError(try XCTUnwrap(duplicateResult).get()) { error in
+            XCTAssertEqual(error as? ReviewCompletionError, .completionAlreadyInProgress)
+        }
     }
 
     func testReplayIdleEnterExit() throws {
@@ -1256,6 +3730,2938 @@ final class ChronicleTests: XCTestCase {
         XCTAssertEqual(Set(secondTags.map(\.name)), Set(DatabaseService.defaultTags.map(\.name)))
     }
 
+    func testReviewDomainMigrationIsAdditiveAndIdempotent() throws {
+        let url = makeTempDatabaseURL("review-domain-migration")
+        let first = DatabaseService.makeTestInstance(databaseURL: url)
+        try first.openDatabaseIfNeeded()
+
+        for table in [
+            "Activities",
+            "ReviewSnapshots",
+            "WorkBlocks",
+            "WorkBlockOverrides",
+            "WorkBlockStructuralEdits",
+            "WorkBlockEvidence",
+            "ReviewSnapshotBlocks",
+            "ActivitySplitAliases"
+        ] {
+            XCTAssertTrue(try first.tableExists(table), "Missing migrated table: \(table)")
+        }
+        XCTAssertTrue(try first.fetchAppliedMigrationIds().contains("2026_06_review_domain"))
+        XCTAssertTrue(try first.fetchAppliedMigrationIds().contains("2026_07_review_revision_leaf"))
+        XCTAssertTrue(try first.fetchAppliedMigrationIds().contains("2026_09_review_snapshot_tag_name"))
+        XCTAssertTrue(try first.fetchAppliedMigrationIds().contains("2026_10_activity_split_aliases"))
+        XCTAssertTrue(try first.fetchAppliedMigrationIds().contains("2026_11_work_block_structural_edits"))
+        XCTAssertTrue(try first.reviewSnapshotBlocksColumnExists("tag_name"))
+        XCTAssertTrue(try first.fetchIndexNames(table: "WorkBlocks").isSuperset(of: [
+            "idx_work_blocks_range",
+            "idx_work_blocks_review_range",
+            "idx_work_blocks_source"
+        ]))
+        XCTAssertTrue(try first.fetchIndexNames(table: "WorkBlockEvidence").isSuperset(of: [
+            "idx_work_block_evidence_activity_id",
+            "idx_work_block_evidence_block_ordinal"
+        ]))
+        XCTAssertTrue(try first.fetchIndexNames(table: "ReviewSnapshots").isSuperset(of: [
+            "idx_review_snapshots_checkpoint",
+            "idx_review_snapshots_range",
+            "idx_review_snapshots_revision_parent"
+        ]))
+        XCTAssertTrue(try first.fetchIndexNames(table: "ActivitySplitAliases").contains(
+            "idx_activity_split_aliases_source"
+        ))
+
+        try first.createActivitySplitAliasesTableIfNeeded()
+        try first.createActivitySplitAliasesTableIfNeeded()
+        try first.createWorkBlockStructuralEditsTableIfNeeded()
+        try first.createWorkBlockStructuralEditsTableIfNeeded()
+
+        // Model an archive that already recorded the review-domain migration
+        // before structural-edit protection existed.
+        try first.execute(sql: "DROP TABLE WorkBlockStructuralEdits;")
+        try first.execute(sql: """
+        DELETE FROM SchemaMigrations
+        WHERE name = '2026_11_work_block_structural_edits';
+        """)
+        XCTAssertFalse(try first.tableExists("WorkBlockStructuralEdits"))
+        let missingTableHealth = try first.runHealthChecksInternal()
+        XCTAssertTrue(missingTableHealth.issues.contains {
+            $0.severity == .error && $0.message == "Missing table: WorkBlockStructuralEdits"
+        })
+
+        let second = DatabaseService.makeTestInstance(databaseURL: url)
+        try second.openDatabaseIfNeeded()
+        XCTAssertTrue(try second.tableExists("ReviewSnapshotBlocks"))
+        XCTAssertTrue(try second.tableExists("ActivitySplitAliases"))
+        XCTAssertTrue(try second.tableExists("WorkBlockStructuralEdits"))
+        XCTAssertEqual(
+            try second.fetchAppliedMigrationIds().filter { $0 == "2026_06_review_domain" }.count,
+            1
+        )
+        XCTAssertEqual(
+            try second.fetchAppliedMigrationIds().filter { $0 == "2026_09_review_snapshot_tag_name" }.count,
+            1
+        )
+        XCTAssertEqual(
+            try second.fetchAppliedMigrationIds().filter { $0 == "2026_10_activity_split_aliases" }.count,
+            1
+        )
+        XCTAssertEqual(
+            try second.fetchAppliedMigrationIds().filter {
+                $0 == "2026_11_work_block_structural_edits"
+            }.count,
+            1
+        )
+    }
+
+    func testReviewSnapshotTagNameMigrationBackfillsExistingRowsIdempotently() throws {
+        let db = makeTestDatabase("review-snapshot-tag-name-backfill")
+        try db.openDatabaseIfNeeded()
+        let tagID = try awaitResult("insert legacy snapshot tag") { completion in
+            db.insertTag(name: "Legacy Frozen Tag", color: nil, completion: completion)
+        }.get()
+
+        try db.execute(sql: """
+        INSERT INTO ReviewSnapshots (
+            range_start, range_end, completed_at, overall_note, checkpoint_after,
+            revision_of_id, evidence_deleted_at
+        ) VALUES (100, 200, 201, NULL, 200, NULL, NULL);
+        """)
+        let snapshotID = sqlite3_last_insert_rowid(db.db)
+        try db.execute(sql: """
+        INSERT INTO ReviewSnapshotBlocks (
+            snapshot_id, ordinal, source_work_block_id, start_time, end_time,
+            title, tag_id, source, algorithm_version, evidence_summary_json
+        ) VALUES (
+            \(snapshotID), 0, NULL, 100, 200,
+            'Legacy block', \(tagID), 'inferred', 'legacy-v1', '[]'
+        );
+        """)
+
+        let before = try XCTUnwrap(try awaitResult("fetch pre-backfill snapshot") { completion in
+            db.fetchReviewSnapshot(id: snapshotID, completion: completion)
+        }.get())
+        XCTAssertNil(before.blocks.first?.tagName)
+
+        try db.migrateReviewSnapshotTagNameIfNeeded()
+        try db.migrateReviewSnapshotTagNameIfNeeded()
+
+        let after = try XCTUnwrap(try awaitResult("fetch backfilled snapshot") { completion in
+            db.fetchReviewSnapshot(id: snapshotID, completion: completion)
+        }.get())
+        XCTAssertEqual(after.blocks.first?.tagName, "Legacy Frozen Tag")
+    }
+
+    func testDraftReplacementPreservesOverriddenBlocksAndEvidence() throws {
+        let db = makeTestDatabase("review-domain-drafts")
+        let initialDrafts = [
+            InferredWorkBlockDraft(
+                startTime: 1_000,
+                endTime: 1_100,
+                algorithmVersion: "v1",
+                inferredTitle: "Initial focus",
+                primaryAppName: "Xcode",
+                evidence: [
+                    WorkBlockEvidenceInput(
+                        activityId: nil,
+                        contributionStart: 1_000,
+                        contributionEnd: 1_100,
+                        ordinal: 0
+                    )
+                ]
+            ),
+            InferredWorkBlockDraft(
+                startTime: 1_200,
+                endTime: 1_300,
+                algorithmVersion: "v1",
+                inferredTitle: "Replace me"
+            )
+        ]
+        let initialRows = try awaitResult("insert work block drafts") { completion in
+            db.replaceDraftWorkBlocks(
+                rangeStart: 1_000,
+                rangeEnd: 1_400,
+                drafts: initialDrafts,
+                completion: completion
+            )
+        }.get()
+        XCTAssertEqual(initialRows.count, 2)
+        let protected = try XCTUnwrap(initialRows.first)
+        let replaceable = try XCTUnwrap(initialRows.last)
+
+        let storedOverride = try awaitResult("set work block override") { completion in
+            db.setWorkBlockOverride(
+                workBlockId: protected.id,
+                override: WorkBlockOverrideInput(
+                    userTitle: "  User title  ",
+                    userStartTime: 1_005,
+                    userEndTime: 1_110,
+                    tagMode: .cleared
+                ),
+                completion: completion
+            )
+        }.get()
+        XCTAssertEqual(storedOverride?.userTitle, "User title")
+
+        let replacementRows = try awaitResult("replace work block drafts") { completion in
+            db.replaceDraftWorkBlocks(
+                rangeStart: 1_000,
+                rangeEnd: 1_400,
+                drafts: [
+                    InferredWorkBlockDraft(
+                        startTime: 1_000,
+                        endTime: 1_100,
+                        algorithmVersion: "v2",
+                        inferredTitle: "Conflicts with protected override",
+                        evidence: [
+                            WorkBlockEvidenceInput(
+                                activityId: nil,
+                                contributionStart: 1_000,
+                                contributionEnd: 1_100,
+                                ordinal: 0
+                            )
+                        ]
+                    ),
+                    InferredWorkBlockDraft(
+                        startTime: 1_210,
+                        endTime: 1_320,
+                        algorithmVersion: "v2",
+                        inferredTitle: "Fresh inference",
+                        evidence: [
+                            WorkBlockEvidenceInput(
+                                activityId: nil,
+                                contributionStart: 1_220,
+                                contributionEnd: 1_300,
+                                ordinal: 0
+                            )
+                        ]
+                    )
+                ],
+                completion: completion
+            )
+        }.get()
+
+        XCTAssertEqual(replacementRows.count, 2)
+        XCTAssertTrue(replacementRows.contains(where: { $0.id == protected.id }))
+        XCTAssertFalse(replacementRows.contains(where: { $0.id == replaceable.id }))
+        XCTAssertEqual(replacementRows.first(where: { $0.id != protected.id })?.inferredTitle, "Fresh inference")
+
+        let protectedEvidence = try awaitResult("fetch protected evidence") { completion in
+            db.fetchWorkBlockEvidence(workBlockId: protected.id, completion: completion)
+        }.get()
+        XCTAssertEqual(protectedEvidence.count, 1)
+        XCTAssertEqual(protectedEvidence.first?.contributionStart, 1_000)
+        XCTAssertEqual(protectedEvidence.first?.contributionEnd, 1_100)
+
+        let persistedOverride = try awaitResult("fetch persisted override") { completion in
+            db.fetchWorkBlockOverride(workBlockId: protected.id, completion: completion)
+        }.get()
+        XCTAssertEqual(persistedOverride?.userTitle, "User title")
+        XCTAssertEqual(persistedOverride?.tagMode, .cleared)
+    }
+
+    func testProjectionPreservesOverrideAndMaterializesNewSameContextTail() throws {
+        let db = makeTestDatabase("review-domain-override-tail")
+        let initial = try awaitResult("insert initial override projection") { completion in
+            db.replaceDraftWorkBlocks(
+                rangeStart: 2_000,
+                rangeEnd: 2_100,
+                drafts: [
+                    InferredWorkBlockDraft(
+                        startTime: 2_000,
+                        endTime: 2_100,
+                        algorithmVersion: "tail-v1",
+                        inferredTitle: "Xcode",
+                        primaryAppName: "Xcode",
+                        evidence: [
+                            WorkBlockEvidenceInput(
+                                activityId: nil,
+                                contributionStart: 2_000,
+                                contributionEnd: 2_100,
+                                ordinal: 0
+                            )
+                        ]
+                    )
+                ],
+                completion: completion
+            )
+        }.get()
+        let protected = try XCTUnwrap(initial.first)
+        _ = try awaitResult("title override projected block") { completion in
+            db.setWorkBlockOverride(
+                workBlockId: protected.id,
+                override: WorkBlockOverrideInput(userTitle: "Edited Xcode"),
+                completion: completion
+            )
+        }.get()
+
+        func projectExtendedDraft() throws -> [WorkBlockRow] {
+            try awaitResult("project same-context continuation") { completion in
+                db.replaceDraftWorkBlocks(
+                    rangeStart: 2_000,
+                    rangeEnd: 2_200,
+                    drafts: [
+                        InferredWorkBlockDraft(
+                            startTime: 2_000,
+                            endTime: 2_200,
+                            algorithmVersion: "tail-v1",
+                            inferredTitle: "Xcode",
+                            primaryAppName: "Xcode",
+                            evidence: [
+                                WorkBlockEvidenceInput(
+                                    activityId: nil,
+                                    contributionStart: 2_000,
+                                    contributionEnd: 2_100,
+                                    ordinal: 0
+                                ),
+                                WorkBlockEvidenceInput(
+                                    activityId: nil,
+                                    contributionStart: 2_100,
+                                    contributionEnd: 2_200,
+                                    ordinal: 1
+                                )
+                            ]
+                        )
+                    ],
+                    completion: completion
+                )
+            }.get()
+        }
+
+        let firstProjection = try projectExtendedDraft()
+        XCTAssertEqual(firstProjection.count, 2)
+        let tail = try XCTUnwrap(firstProjection.first { $0.id != protected.id })
+        XCTAssertEqual(tail.startTime, 2_100)
+        XCTAssertEqual(tail.endTime, 2_200)
+        let tailEvidence = try awaitResult("fetch projected override tail evidence") { completion in
+            db.fetchWorkBlockEvidence(workBlockId: tail.id, completion: completion)
+        }.get()
+        XCTAssertEqual(tailEvidence.map(\.contributionStart), [2_100])
+        XCTAssertEqual(tailEvidence.map(\.contributionEnd), [2_200])
+        XCTAssertEqual(tailEvidence.map(\.ordinal), [0])
+
+        let repeatedProjection = try projectExtendedDraft()
+        XCTAssertEqual(Set(repeatedProjection.map(\.id)), Set(firstProjection.map(\.id)))
+
+        let inbox = try awaitResult("fetch override and continuation review") { completion in
+            db.fetchReviewInbox(through: 2_200, completion: completion)
+        }.get()
+        XCTAssertEqual(inbox.blocks.map(\.id), [protected.id, tail.id])
+        XCTAssertEqual(inbox.blocks.map { "\($0.startTime)-\($0.endTime)" }, ["2000-2100", "2100-2200"])
+        let completed = try awaitResult("complete override and continuation review") { completion in
+            db.completeReview(reviewedInbox: inbox, completion: completion)
+        }.get()
+        XCTAssertEqual(completed.snapshot.checkpointAfter, 2_200)
+        XCTAssertEqual(completed.blocks.count, 2)
+    }
+
+    func testProjectionReconcilesNewActivityIntoProtectedOverrideEvidence() throws {
+        let db = makeTestDatabase("review-domain-protected-evidence-refresh")
+        let originalActivityID = try insertTestActivity(
+            db: db,
+            start: 2_400,
+            end: 2_500,
+            appName: "Xcode",
+            bundleId: "com.apple.dt.Xcode"
+        )
+        let projection = WorkBlockProjectionService.makeTestInstance(database: db)
+        _ = try awaitResult("project initial protected evidence") { completion in
+            projection.refreshNow(through: 2_500, completion: completion)
+        }.get()
+        let projected = try awaitResult("fetch initial protected evidence block") { completion in
+            db.fetchDraftWorkBlocks(
+                rangeStart: 2_400,
+                rangeEnd: 2_500,
+                completion: completion
+            )
+        }.get()
+        let protected = try XCTUnwrap(projected.first)
+        _ = try awaitResult("override protected evidence block") { completion in
+            db.setWorkBlockOverride(
+                workBlockId: protected.id,
+                override: WorkBlockOverrideInput(userTitle: "Edited Xcode"),
+                completion: completion
+            )
+        }.get()
+
+        let before = try awaitResult("preview protected evidence before late activity") { completion in
+            db.fetchReviewInbox(through: 2_500, completion: completion)
+        }.get()
+        XCTAssertEqual(before.blocks.map(\.evidenceCount), [1])
+
+        let lateActivityID = try insertTestActivity(
+            db: db,
+            start: 2_450,
+            end: 2_475,
+            appName: "Xcode",
+            bundleId: "com.apple.dt.Xcode"
+        )
+        _ = try awaitResult("reproject late protected evidence") { completion in
+            projection.refreshNow(through: 2_500, completion: completion)
+        }.get()
+
+        let refreshed = try awaitResult("fetch reconciled protected evidence") { completion in
+            db.fetchReviewInbox(through: 2_500, completion: completion)
+        }.get()
+        XCTAssertEqual(refreshed.blocks.map(\.id), [protected.id])
+        XCTAssertEqual(refreshed.blocks.map(\.title), ["Edited Xcode"])
+        XCTAssertEqual(refreshed.blocks.map { "\($0.startTime)-\($0.endTime)" }, ["2400-2500"])
+        XCTAssertEqual(refreshed.blocks.map(\.evidenceCount), [2])
+        XCTAssertNotEqual(refreshed.activityDigest, before.activityDigest)
+
+        let evidence = try awaitResult("fetch reconciled protected evidence rows") { completion in
+            db.fetchWorkBlockEvidence(workBlockId: protected.id, completion: completion)
+        }.get()
+        XCTAssertEqual(evidence.map(\.activityId), [originalActivityID, lateActivityID])
+        XCTAssertEqual(
+            evidence.map { "\($0.contributionStart)-\($0.contributionEnd)" },
+            ["2400-2500", "2450-2475"]
+        )
+        XCTAssertEqual(evidence.map(\.ordinal), [0, 1])
+
+        _ = try awaitResult("repeat protected evidence projection") { completion in
+            projection.refreshNow(through: 2_500, completion: completion)
+        }.get()
+        let repeatedEvidence = try awaitResult("fetch idempotent protected evidence rows") { completion in
+            db.fetchWorkBlockEvidence(workBlockId: protected.id, completion: completion)
+        }.get()
+        XCTAssertEqual(repeatedEvidence, evidence)
+
+        let completed = try awaitResult("complete reconciled protected evidence") { completion in
+            db.completeReview(reviewedInbox: refreshed, completion: completion)
+        }.get()
+        let frozenEvidence = try JSONDecoder().decode(
+            [ReviewSnapshotEvidence].self,
+            from: Data(try XCTUnwrap(completed.blocks.first?.evidenceSummaryJSON).utf8)
+        )
+        XCTAssertEqual(Set(frozenEvidence.compactMap(\.activityId)), [originalActivityID, lateActivityID])
+        XCTAssertEqual(completed.snapshot.checkpointAfter, 2_500)
+    }
+
+    func testProtectedBoundaryRefreshKeepsOverrideAndSeparatesNewTailEvidence() throws {
+        let db = makeTestDatabase("review-domain-protected-boundary-evidence-tail")
+        let protectedActivityID = try insertTestActivity(
+            db: db,
+            start: 3_000,
+            end: 3_100,
+            appName: "Protected context"
+        )
+        let initial = try awaitResult("insert boundary-protected projection") { completion in
+            db.replaceDraftWorkBlocks(
+                rangeStart: 3_000,
+                rangeEnd: 3_100,
+                drafts: [
+                    InferredWorkBlockDraft(
+                        startTime: 3_000,
+                        endTime: 3_100,
+                        algorithmVersion: "boundary-tail-v1",
+                        inferredTitle: "Protected context",
+                        primaryAppName: "Protected context",
+                        evidence: [
+                            WorkBlockEvidenceInput(
+                                activityId: protectedActivityID,
+                                contributionStart: 3_000,
+                                contributionEnd: 3_100,
+                                ordinal: 0
+                            )
+                        ]
+                    )
+                ],
+                completion: completion
+            )
+        }.get()
+        let protected = try XCTUnwrap(initial.first)
+        _ = try awaitResult("set protected title and boundary") { completion in
+            db.setWorkBlockOverride(
+                workBlockId: protected.id,
+                override: WorkBlockOverrideInput(
+                    userTitle: "Edited protected context",
+                    userStartTime: 3_020,
+                    userEndTime: 3_080
+                ),
+                completion: completion
+            )
+        }.get()
+
+        let tailActivityID = try insertTestActivity(
+            db: db,
+            start: 3_100,
+            end: 3_150,
+            appName: "Protected context"
+        )
+        let refreshed = try awaitResult("extend boundary-protected projection") { completion in
+            db.replaceDraftWorkBlocks(
+                rangeStart: 3_000,
+                rangeEnd: 3_150,
+                drafts: [
+                    InferredWorkBlockDraft(
+                        startTime: 3_000,
+                        endTime: 3_150,
+                        algorithmVersion: "boundary-tail-v1",
+                        inferredTitle: "Protected context",
+                        primaryAppName: "Protected context",
+                        evidence: [
+                            WorkBlockEvidenceInput(
+                                activityId: protectedActivityID,
+                                contributionStart: 3_000,
+                                contributionEnd: 3_100,
+                                ordinal: 0
+                            ),
+                            WorkBlockEvidenceInput(
+                                activityId: tailActivityID,
+                                contributionStart: 3_100,
+                                contributionEnd: 3_150,
+                                ordinal: 1
+                            )
+                        ]
+                    )
+                ],
+                completion: completion
+            )
+        }.get()
+        XCTAssertEqual(refreshed.count, 2)
+        XCTAssertTrue(refreshed.contains { $0.id == protected.id })
+        let tail = try XCTUnwrap(refreshed.first { $0.id != protected.id })
+        XCTAssertEqual("\(tail.startTime)-\(tail.endTime)", "3100-3150")
+
+        let persistedOverride = try awaitResult("fetch protected boundary after refresh") { completion in
+            db.fetchWorkBlockOverride(workBlockId: protected.id, completion: completion)
+        }.get()
+        XCTAssertEqual(persistedOverride?.userTitle, "Edited protected context")
+        XCTAssertEqual(persistedOverride?.userStartTime, 3_020)
+        XCTAssertEqual(persistedOverride?.userEndTime, 3_080)
+
+        let protectedEvidence = try awaitResult("fetch refreshed boundary evidence") { completion in
+            db.fetchWorkBlockEvidence(workBlockId: protected.id, completion: completion)
+        }.get()
+        XCTAssertEqual(protectedEvidence.map(\.activityId), [protectedActivityID])
+        XCTAssertEqual(
+            protectedEvidence.map { "\($0.contributionStart)-\($0.contributionEnd)" },
+            ["3000-3100"]
+        )
+        let tailEvidence = try awaitResult("fetch separated tail evidence") { completion in
+            db.fetchWorkBlockEvidence(workBlockId: tail.id, completion: completion)
+        }.get()
+        XCTAssertEqual(tailEvidence.map(\.activityId), [tailActivityID])
+        XCTAssertEqual(
+            tailEvidence.map { "\($0.contributionStart)-\($0.contributionEnd)" },
+            ["3100-3150"]
+        )
+
+        let inbox = try awaitResult("fetch protected boundary and tail review") { completion in
+            db.fetchReviewInbox(through: 3_150, completion: completion)
+        }.get()
+        XCTAssertEqual(inbox.blocks.map(\.id), [protected.id, tail.id])
+        XCTAssertEqual(
+            inbox.blocks.map { "\($0.startTime)-\($0.endTime)" },
+            ["3020-3080", "3100-3150"]
+        )
+        let completed = try awaitResult("complete protected boundary and tail review") { completion in
+            db.completeReview(reviewedInbox: inbox, completion: completion)
+        }.get()
+        XCTAssertEqual(completed.snapshot.checkpointAfter, 3_150)
+        let frozenEvidence = try completed.blocks.flatMap { block in
+            try JSONDecoder().decode(
+                [ReviewSnapshotEvidence].self,
+                from: Data(block.evidenceSummaryJSON.utf8)
+            )
+        }
+        XCTAssertEqual(Set(frozenEvidence.compactMap(\.activityId)), [protectedActivityID, tailActivityID])
+    }
+
+    func testPendingReviewCompletionRequiresPersistedDrafts() {
+        XCTAssertTrue(PendingReviewCompletionGate.canComplete(
+            hasPendingWork: true,
+            isLoading: false,
+            isCompleting: false,
+            isApplyingStructuralEdit: false,
+            dirtyBlockCount: 0,
+            savingBlockCount: 0
+        ))
+        XCTAssertFalse(PendingReviewCompletionGate.canComplete(
+            hasPendingWork: true,
+            isLoading: false,
+            isCompleting: false,
+            isApplyingStructuralEdit: false,
+            dirtyBlockCount: 1,
+            savingBlockCount: 0
+        ))
+        XCTAssertFalse(PendingReviewCompletionGate.canComplete(
+            hasPendingWork: true,
+            isLoading: false,
+            isCompleting: false,
+            isApplyingStructuralEdit: false,
+            dirtyBlockCount: 0,
+            savingBlockCount: 1
+        ))
+
+        let persisted = ReviewInboxBlock(
+            id: 1,
+            originalStartTime: 100,
+            originalEndTime: 200,
+            startTime: 100,
+            endTime: 200,
+            title: "Persisted title",
+            tagId: nil,
+            tagName: nil,
+            source: .manual,
+            algorithmVersion: "manual-v1",
+            inferredTitle: "Persisted title",
+            inferredTagId: nil,
+            primaryAppName: nil,
+            evidenceCount: 0,
+            hasUserOverride: false,
+            hasBoundaryOverride: false
+        )
+        XCTAssertFalse(
+            PendingReviewBlockDraft(title: "Persisted title", tagID: nil)
+                .isDirty(comparedTo: persisted)
+        )
+        XCTAssertTrue(
+            PendingReviewBlockDraft(title: "Visible unsaved title", tagID: nil)
+                .isDirty(comparedTo: persisted)
+        )
+
+        let externallyUpdated = ReviewInboxBlock(
+            id: persisted.id,
+            originalStartTime: persisted.originalStartTime,
+            originalEndTime: persisted.originalEndTime,
+            startTime: persisted.startTime,
+            endTime: persisted.endTime,
+            title: "Externally updated title",
+            tagId: 42,
+            tagName: "Updated tag",
+            source: persisted.source,
+            algorithmVersion: persisted.algorithmVersion,
+            inferredTitle: persisted.inferredTitle,
+            inferredTagId: persisted.inferredTagId,
+            primaryAppName: persisted.primaryAppName,
+            evidenceCount: persisted.evidenceCount,
+            hasUserOverride: true,
+            hasBoundaryOverride: persisted.hasBoundaryOverride
+        )
+        XCTAssertEqual(
+            PendingReviewBlockDraft(title: persisted.title, tagID: persisted.tagId)
+                .reconciling(previous: persisted, updated: externallyUpdated),
+            PendingReviewBlockDraft(
+                title: externallyUpdated.title,
+                tagID: externallyUpdated.tagId
+            )
+        )
+        let unsavedDraft = PendingReviewBlockDraft(title: "Keep my draft", tagID: nil)
+        XCTAssertEqual(
+            unsavedDraft.reconciling(previous: persisted, updated: externallyUpdated),
+            unsavedDraft
+        )
+
+        XCTAssertFalse(
+            PendingReviewRecoveryState.ready.requiresConfirmationAfterRefresh(
+                explicitRecovery: false
+            )
+        )
+        XCTAssertTrue(
+            PendingReviewRecoveryState.ready.requiresConfirmationAfterRefresh(
+                explicitRecovery: true
+            )
+        )
+        for state in [
+            PendingReviewRecoveryState.refreshingChangedReview,
+            .updatedNeedsConfirmation,
+            .refreshFailed
+        ] {
+            XCTAssertTrue(state.requiresConfirmationAfterRefresh(explicitRecovery: false))
+        }
+    }
+
+    func testCompleteReviewFreezesEffectiveSnapshotAndAdvancesCheckpointAtomically() throws {
+        let db = makeTestDatabase("review-domain-complete")
+        let draftRows = try awaitResult("insert review draft") { completion in
+            db.replaceDraftWorkBlocks(
+                rangeStart: 2_000,
+                rangeEnd: 2_200,
+                drafts: [
+                    InferredWorkBlockDraft(
+                        startTime: 2_000,
+                        endTime: 2_100,
+                        algorithmVersion: "review-v1",
+                        inferredTitle: "Inferred title",
+                        inferredTagId: nil,
+                        primaryAppName: "Safari",
+                        evidence: [
+                            WorkBlockEvidenceInput(
+                                activityId: nil,
+                                contributionStart: 2_000,
+                                contributionEnd: 2_100,
+                                ordinal: 0
+                            )
+                        ]
+                    )
+                ],
+                completion: completion
+            )
+        }.get()
+        let workBlock = try XCTUnwrap(draftRows.first)
+
+        _ = try awaitResult("override review draft") { completion in
+            db.setWorkBlockOverride(
+                workBlockId: workBlock.id,
+                override: WorkBlockOverrideInput(
+                    userTitle: "  Final title  ",
+                    userStartTime: 2_010,
+                    userEndTime: 2_090,
+                    tagMode: .cleared
+                ),
+                completion: completion
+            )
+        }.get()
+
+        let reviewedInbox = try awaitResult("preview exact review inbox") { completion in
+            db.fetchReviewInbox(through: 2_200, completion: completion)
+        }.get()
+
+        let detail = try awaitResult("complete review") { completion in
+            db.completeReview(
+                reviewedInbox: reviewedInbox,
+                overallNote: "  Weekly note  ",
+                completedAt: Date(timeIntervalSince1970: 9_999),
+                completion: completion
+            )
+        }.get()
+        XCTAssertEqual(detail.snapshot.rangeStart, 2_010)
+        XCTAssertEqual(detail.snapshot.rangeEnd, 2_200)
+        XCTAssertEqual(detail.snapshot.completedAt, 9_999)
+        XCTAssertEqual(detail.snapshot.overallNote, "Weekly note")
+        XCTAssertEqual(detail.snapshot.checkpointAfter, 2_200)
+        XCTAssertEqual(detail.blocks.count, 1)
+
+        let frozenBlock = try XCTUnwrap(detail.blocks.first)
+        XCTAssertEqual(frozenBlock.sourceWorkBlockId, workBlock.id)
+        XCTAssertEqual(frozenBlock.startTime, 2_010)
+        XCTAssertEqual(frozenBlock.endTime, 2_090)
+        XCTAssertEqual(frozenBlock.title, "Final title")
+        XCTAssertNil(frozenBlock.tagId)
+        XCTAssertEqual(frozenBlock.algorithmVersion, "review-v1")
+        let evidence = try JSONDecoder().decode(
+            [ReviewSnapshotEvidence].self,
+            from: Data(frozenBlock.evidenceSummaryJSON.utf8)
+        )
+        XCTAssertEqual(evidence, [
+            ReviewSnapshotEvidence(
+                activityId: nil,
+                contributionStart: 2_010,
+                contributionEnd: 2_100,
+                ordinal: 0
+            )
+        ])
+
+        let checkpoint = try awaitResult("fetch checkpoint") { completion in
+            db.latestReviewCheckpoint(completion: completion)
+        }.get()
+        XCTAssertEqual(checkpoint, 2_200)
+        let remainingDrafts = try awaitResult("fetch remaining drafts") { completion in
+            db.fetchDraftWorkBlocks(rangeStart: 2_000, rangeEnd: 2_200, completion: completion)
+        }.get()
+        XCTAssertTrue(remainingDrafts.isEmpty)
+
+        let overrideResult = awaitResult("reject frozen override") { completion in
+            db.setWorkBlockOverride(
+                workBlockId: workBlock.id,
+                override: WorkBlockOverrideInput(userTitle: "Too late"),
+                completion: completion
+            )
+        }
+        XCTAssertThrowsError(try overrideResult.get()) { error in
+            XCTAssertEqual(error as? ReviewDomainError, .reviewedWorkBlockIsFrozen)
+        }
+
+        let replacementResult = awaitResult("reject reviewed replacement") { completion in
+            db.replaceDraftWorkBlocks(
+                rangeStart: 2_000,
+                rangeEnd: 2_200,
+                drafts: [],
+                completion: completion
+            )
+        }
+        XCTAssertThrowsError(try replacementResult.get()) { error in
+            XCTAssertEqual(error as? ReviewDomainError, .reviewedRangeIsFrozen(checkpoint: 2_200))
+        }
+
+        let nonContiguousResult = awaitResult("reject non-contiguous review") { completion in
+            db.completeReview(
+                rangeStart: 2_250,
+                rangeEnd: 2_300,
+                completion: completion
+            )
+        }
+        XCTAssertThrowsError(try nonContiguousResult.get()) { error in
+            XCTAssertEqual(error as? ReviewDomainError, .nonContiguousReview(expectedStart: 2_200))
+        }
+        let snapshots = try awaitResult("fetch snapshots after rollback") { completion in
+            db.fetchReviewSnapshots(completion: completion)
+        }.get()
+        XCTAssertEqual(snapshots.count, 1)
+
+        let fetchedDetail = try awaitResult("fetch frozen snapshot") { completion in
+            db.fetchReviewSnapshot(id: detail.snapshot.id, completion: completion)
+        }.get()
+        XCTAssertEqual(fetchedDetail, detail)
+    }
+
+    func testCompleteReviewRejectsInboxChangedAfterPreviewWithoutAdvancingCheckpoint() throws {
+        let db = makeTestDatabase("review-domain-stale-preview")
+        let blockID = try awaitResult("create previewed manual block") { completion in
+            db.createManualWorkBlock(
+                startTime: 100,
+                endTime: 200,
+                title: "Previewed title",
+                completion: completion
+            )
+        }.get()
+        let preview = try awaitResult("fetch preview before concurrent edit") { completion in
+            db.fetchReviewInbox(through: 250, completion: completion)
+        }.get()
+        XCTAssertEqual(preview.blocks.map(\.title), ["Previewed title"])
+
+        _ = try awaitResult("change block after preview") { completion in
+            db.setWorkBlockOverride(
+                workBlockId: blockID,
+                override: WorkBlockOverrideInput(userTitle: "Changed after preview"),
+                completion: completion
+            )
+        }.get()
+
+        let result = awaitResult("reject stale review preview") { completion in
+            db.completeReview(
+                reviewedInbox: preview,
+                completion: completion
+            )
+        }
+        XCTAssertThrowsError(try result.get()) { error in
+            XCTAssertEqual(error as? ReviewDomainError, .reviewInboxChanged)
+        }
+        let checkpoint = try awaitResult("checkpoint remains unchanged") { completion in
+            db.latestReviewCheckpoint(completion: completion)
+        }.get()
+        XCTAssertNil(checkpoint)
+        let snapshots = try awaitResult("no stale snapshot was committed") { completion in
+            db.fetchReviewSnapshots(completion: completion)
+        }.get()
+        XCTAssertTrue(snapshots.isEmpty)
+    }
+
+    func testCompleteReviewRejectsActivityChangeHiddenByProtectedProjection() throws {
+        let db = makeTestDatabase("review-domain-hidden-activity-digest")
+        let originalActivityID = try insertTestActivity(
+            db: db,
+            start: 2_400,
+            end: 2_500,
+            appName: "Xcode",
+            bundleId: "com.apple.dt.Xcode"
+        )
+        let projection = WorkBlockProjectionService.makeTestInstance(database: db)
+        _ = try awaitResult("project initial protected review") { completion in
+            projection.refreshNow(through: 2_500, completion: completion)
+        }.get()
+        let projected = try awaitResult("fetch projected block") { completion in
+            db.fetchDraftWorkBlocks(
+                rangeStart: 2_400,
+                rangeEnd: 2_500,
+                completion: completion
+            )
+        }.get()
+        let protectedBlock = try XCTUnwrap(projected.first)
+        _ = try awaitResult("protect projected block with user title") { completion in
+            db.setWorkBlockOverride(
+                workBlockId: protectedBlock.id,
+                override: WorkBlockOverrideInput(userTitle: "Edited Xcode"),
+                completion: completion
+            )
+        }.get()
+
+        let preview = try awaitResult("fetch protected review preview") { completion in
+            db.fetchReviewInbox(through: 2_500, completion: completion)
+        }.get()
+        XCTAssertEqual(preview.blocks.map(\.id), [protectedBlock.id])
+
+        try db.execute(sql: """
+        UPDATE Activities
+        SET window_title = 'Changed after preview'
+        WHERE id = \(originalActivityID);
+        """)
+        _ = try awaitResult("reproject hidden activity metadata change") { completion in
+            projection.refreshNow(through: 2_500, completion: completion)
+        }.get()
+        let refreshed = try awaitResult("fetch review after hidden activity") { completion in
+            db.fetchReviewInbox(through: 2_500, completion: completion)
+        }.get()
+        XCTAssertEqual(refreshed.blocks, preview.blocks)
+        XCTAssertNotEqual(refreshed.activityDigest, preview.activityDigest)
+
+        let result = awaitResult("reject digest-mismatched review") { completion in
+            db.completeReview(reviewedInbox: preview, completion: completion)
+        }
+        XCTAssertThrowsError(try result.get()) { error in
+            XCTAssertEqual(error as? ReviewDomainError, .reviewInboxChanged)
+        }
+        XCTAssertNil(try awaitResult("hidden change leaves checkpoint unchanged") { completion in
+            db.latestReviewCheckpoint(completion: completion)
+        }.get())
+
+        let completed = try awaitResult("complete refreshed activity digest") { completion in
+            db.completeReview(reviewedInbox: refreshed, completion: completion)
+        }.get()
+        XCTAssertEqual(completed.snapshot.checkpointAfter, 2_500)
+        XCTAssertEqual(try awaitResult("refreshed digest advances checkpoint") { completion in
+            db.latestReviewCheckpoint(completion: completion)
+        }.get(), 2_500)
+    }
+
+    func testFirstReviewRejectsEarlierBlockInsertedAfterPreview() throws {
+        let db = makeTestDatabase("review-domain-earlier-after-preview")
+        _ = try awaitResult("create initially earliest manual block") { completion in
+            db.createManualWorkBlock(
+                startTime: 200,
+                endTime: 300,
+                title: "Initially earliest",
+                completion: completion
+            )
+        }.get()
+        let preview = try awaitResult("fetch first review preview") { completion in
+            db.fetchReviewInbox(through: 350, completion: completion)
+        }.get()
+        XCTAssertEqual(preview.rangeStart, 200)
+
+        _ = try awaitResult("insert newly earlier manual block") { completion in
+            db.createManualWorkBlock(
+                startTime: 100,
+                endTime: 150,
+                title: "New unseen earlier block",
+                completion: completion
+            )
+        }.get()
+
+        let result = awaitResult("reject preview missing earlier block") { completion in
+            db.completeReview(reviewedInbox: preview, completion: completion)
+        }
+        XCTAssertThrowsError(try result.get()) { error in
+            XCTAssertEqual(error as? ReviewDomainError, .reviewInboxChanged)
+        }
+        XCTAssertNil(try awaitResult("checkpoint remains nil") { completion in
+            db.latestReviewCheckpoint(completion: completion)
+        }.get())
+        XCTAssertTrue(try awaitResult("no snapshot skips earlier block") { completion in
+            db.fetchReviewSnapshots(completion: completion)
+        }.get().isEmpty)
+    }
+
+    func testCompleteReviewPreservesManualBlockTailBeyondCutoff() throws {
+        let db = makeTestDatabase("review-domain-manual-cutoff-tail")
+        let originalID = try awaitResult("create spanning manual block") { completion in
+            db.createManualWorkBlock(
+                startTime: 100,
+                endTime: 300,
+                title: "Long manual focus",
+                completion: completion
+            )
+        }.get()
+
+        let first = try awaitResult("review manual prefix") { completion in
+            db.completeReview(
+                rangeStart: 100,
+                rangeEnd: 200,
+                completedAt: Date(timeIntervalSince1970: 500),
+                completion: completion
+            )
+        }.get()
+        XCTAssertEqual(first.blocks.count, 1)
+        XCTAssertEqual(first.blocks.first?.sourceWorkBlockId, originalID)
+        XCTAssertEqual(first.blocks.first?.startTime, 100)
+        XCTAssertEqual(first.blocks.first?.endTime, 200)
+        XCTAssertEqual(first.blocks.first?.title, "Long manual focus")
+
+        let pendingTail = try awaitResult("fetch pending manual tail") { completion in
+            db.fetchDraftWorkBlocks(rangeStart: 200, rangeEnd: 301, completion: completion)
+        }.get()
+        XCTAssertEqual(pendingTail.count, 1)
+        let tail = try XCTUnwrap(pendingTail.first)
+        XCTAssertNotEqual(tail.id, originalID)
+        XCTAssertEqual(tail.startTime, 200)
+        XCTAssertEqual(tail.endTime, 300)
+        XCTAssertEqual(tail.source, .manual)
+        XCTAssertEqual(tail.inferredTitle, "Long manual focus")
+
+        let second = try awaitResult("review preserved manual tail") { completion in
+            db.completeReview(
+                rangeStart: 200,
+                rangeEnd: 300,
+                completedAt: Date(timeIntervalSince1970: 600),
+                completion: completion
+            )
+        }.get()
+        XCTAssertEqual(second.blocks.count, 1)
+        XCTAssertEqual(second.blocks.first?.sourceWorkBlockId, tail.id)
+        XCTAssertEqual(second.blocks.first?.startTime, 200)
+        XCTAssertEqual(second.blocks.first?.endTime, 300)
+        XCTAssertEqual(second.blocks.first?.title, "Long manual focus")
+    }
+
+    func testCompleteReviewClipsSnapshotAndResidualEvidenceAtCutoff() throws {
+        let db = makeTestDatabase("review-domain-cutoff-evidence")
+        _ = try awaitResult("insert spanning inferred block") { completion in
+            db.replaceDraftWorkBlocks(
+                rangeStart: 100,
+                rangeEnd: 300,
+                drafts: [
+                    InferredWorkBlockDraft(
+                        startTime: 100,
+                        endTime: 300,
+                        algorithmVersion: "cutoff-v1",
+                        inferredTitle: "Spanning evidence",
+                        evidence: [
+                            WorkBlockEvidenceInput(
+                                activityId: nil,
+                                contributionStart: 100,
+                                contributionEnd: 300,
+                                ordinal: 0
+                            )
+                        ]
+                    )
+                ],
+                completion: completion
+            )
+        }.get()
+
+        let first = try awaitResult("review inferred prefix") { completion in
+            db.completeReview(rangeStart: 100, rangeEnd: 200, completion: completion)
+        }.get()
+        let frozenEvidence = try JSONDecoder().decode(
+            [ReviewSnapshotEvidence].self,
+            from: Data(try XCTUnwrap(first.blocks.first?.evidenceSummaryJSON).utf8)
+        )
+        XCTAssertEqual(frozenEvidence.map(\.contributionStart), [100])
+        XCTAssertEqual(frozenEvidence.map(\.contributionEnd), [200])
+
+        let pendingTail = try awaitResult("fetch inferred evidence tail") { completion in
+            db.fetchDraftWorkBlocks(rangeStart: 200, rangeEnd: 301, completion: completion)
+        }.get()
+        let tail = try XCTUnwrap(pendingTail.first)
+        let tailEvidence = try awaitResult("fetch clipped tail evidence") { completion in
+            db.fetchWorkBlockEvidence(workBlockId: tail.id, completion: completion)
+        }.get()
+        XCTAssertEqual(tailEvidence.map(\.contributionStart), [200])
+        XCTAssertEqual(tailEvidence.map(\.contributionEnd), [300])
+    }
+
+    func testSplitWorkBlockUsesEffectiveBoundsAndPartitionsEvidence() throws {
+        let db = makeTestDatabase("review-domain-split")
+        let firstActivityID = try insertTestActivity(
+            db: db,
+            start: 100,
+            end: 160,
+            appName: "First evidence"
+        )
+        let secondActivityID = try insertTestActivity(
+            db: db,
+            start: 160,
+            end: 200,
+            appName: "Second evidence"
+        )
+        let rows = try awaitResult("insert splittable block") { completion in
+            db.replaceDraftWorkBlocks(
+                rangeStart: 100,
+                rangeEnd: 200,
+                drafts: [
+                    InferredWorkBlockDraft(
+                        startTime: 100,
+                        endTime: 200,
+                        algorithmVersion: "split-v1",
+                        inferredTitle: "Inferred focus",
+                        evidence: [
+                            WorkBlockEvidenceInput(
+                                activityId: firstActivityID,
+                                contributionStart: 100,
+                                contributionEnd: 160,
+                                ordinal: 0
+                            ),
+                            WorkBlockEvidenceInput(
+                                activityId: secondActivityID,
+                                contributionStart: 160,
+                                contributionEnd: 200,
+                                ordinal: 1
+                            )
+                        ]
+                    )
+                ],
+                completion: completion
+            )
+        }.get()
+        let original = try XCTUnwrap(rows.first)
+        _ = try awaitResult("set split source override") { completion in
+            db.setWorkBlockOverride(
+                workBlockId: original.id,
+                override: WorkBlockOverrideInput(
+                    userTitle: "User focus",
+                    userStartTime: 110,
+                    userEndTime: 190,
+                    tagMode: .cleared
+                ),
+                completion: completion
+            )
+        }.get()
+
+        let invalidBoundary = awaitResult("reject effective split boundary") { completion in
+            db.splitWorkBlock(workBlockID: original.id, at: 110, completion: completion)
+        }
+        XCTAssertThrowsError(try invalidBoundary.get()) { error in
+            XCTAssertEqual(error as? ReviewDomainError, .splitPointOutsideEffectiveRange)
+        }
+        let unchanged = try awaitResult("fetch block after rejected split") { completion in
+            db.fetchDraftWorkBlocks(rangeStart: 100, rangeEnd: 200, completion: completion)
+        }.get()
+        XCTAssertEqual(unchanged.map(\.id), [original.id])
+
+        let split = try awaitResult("split effective work block") { completion in
+            db.splitWorkBlock(workBlockID: original.id, at: 150, completion: completion)
+        }.get()
+        XCTAssertEqual(split.count, 2)
+        XCTAssertEqual(split[0].id, original.id)
+        XCTAssertEqual(split[0].startTime, 110)
+        XCTAssertEqual(split[0].endTime, 150)
+        XCTAssertEqual(split[1].startTime, 150)
+        XCTAssertEqual(split[1].endTime, 190)
+
+        for block in split {
+            let override = try awaitResult("fetch split override") { completion in
+                db.fetchWorkBlockOverride(workBlockId: block.id, completion: completion)
+            }.get()
+            XCTAssertEqual(override?.userTitle, "User focus")
+            XCTAssertNil(override?.userStartTime)
+            XCTAssertNil(override?.userEndTime)
+            XCTAssertEqual(override?.tagMode, .cleared)
+        }
+
+        let leftEvidence = try awaitResult("fetch left split evidence") { completion in
+            db.fetchWorkBlockEvidence(workBlockId: split[0].id, completion: completion)
+        }.get()
+        XCTAssertEqual(leftEvidence.map(\.activityId), [firstActivityID])
+        XCTAssertEqual(leftEvidence.map(\.contributionStart), [110])
+        XCTAssertEqual(leftEvidence.map(\.contributionEnd), [150])
+        XCTAssertEqual(leftEvidence.map(\.ordinal), [0])
+
+        let rightEvidence = try awaitResult("fetch right split evidence") { completion in
+            db.fetchWorkBlockEvidence(workBlockId: split[1].id, completion: completion)
+        }.get()
+        XCTAssertEqual(rightEvidence.map(\.activityId), [firstActivityID, secondActivityID])
+        XCTAssertEqual(rightEvidence.map(\.contributionStart), [150, 160])
+        XCTAssertEqual(rightEvidence.map(\.contributionEnd), [160, 190])
+        XCTAssertEqual(rightEvidence.map(\.ordinal), [0, 1])
+
+        _ = try awaitResult("freeze split blocks") { completion in
+            db.completeReview(rangeStart: 100, rangeEnd: 200, completion: completion)
+        }.get()
+        let frozenSplit = awaitResult("reject frozen split") { completion in
+            db.splitWorkBlock(workBlockID: split[0].id, at: 130, completion: completion)
+        }
+        XCTAssertThrowsError(try frozenSplit.get()) { error in
+            XCTAssertEqual(error as? ReviewDomainError, .reviewedWorkBlockIsFrozen)
+        }
+        let frozenMerge = awaitResult("reject frozen merge") { completion in
+            db.mergeWorkBlocks(
+                workBlockIDs: split.map(\.id),
+                input: WorkBlockMergeInput(userTitle: "Too late"),
+                completion: completion
+            )
+        }
+        XCTAssertThrowsError(try frozenMerge.get()) { error in
+            XCTAssertEqual(error as? ReviewDomainError, .reviewedWorkBlockIsFrozen)
+        }
+    }
+
+    func testSplitWithoutSemanticOverrideSurvivesProjectionRefresh() throws {
+        let db = makeTestDatabase("review-domain-split-projection-protection")
+        _ = try insertTestActivity(
+            db: db,
+            start: 30_000,
+            end: 30_120,
+            appName: "Single inferred session",
+            bundleId: "com.example.structural-split"
+        )
+        let projection = WorkBlockProjectionService.makeTestInstance(database: db)
+        let projected = try awaitResult("project source before structural split") { completion in
+            projection.refreshNow(through: 30_120, completion: completion)
+        }.get()
+        let source = try XCTUnwrap(projected.first)
+        XCTAssertEqual(projected.count, 1)
+        XCTAssertNil(try awaitResult("verify source has no semantic override") { completion in
+            db.fetchWorkBlockOverride(workBlockId: source.id, completion: completion)
+        }.get())
+
+        let split = try awaitResult("split inferred source without override") { completion in
+            db.splitWorkBlock(workBlockID: source.id, at: 30_060, completion: completion)
+        }.get()
+        XCTAssertEqual(split.map(\.id).first, source.id)
+        XCTAssertEqual(split.map(\.startTime), [30_000, 30_060])
+        XCTAssertEqual(split.map(\.endTime), [30_060, 30_120])
+        XCTAssertEqual(
+            try db.fetchCount(sql: "SELECT COUNT(*) FROM WorkBlockStructuralEdits;"),
+            2
+        )
+        for block in split {
+            XCTAssertNil(try awaitResult("split half keeps empty semantic override") { completion in
+                db.fetchWorkBlockOverride(workBlockId: block.id, completion: completion)
+            }.get())
+            XCTAssertNil(try awaitResult("all-inherit reset leaves structural intent") { completion in
+                db.setWorkBlockOverride(
+                    workBlockId: block.id,
+                    override: WorkBlockOverrideInput(),
+                    completion: completion
+                )
+            }.get())
+        }
+
+        let refreshed = try awaitResult("refresh projection after structural split") { completion in
+            projection.refreshNow(through: 30_120, completion: completion)
+        }.get()
+        XCTAssertEqual(refreshed.map(\.id), split.map(\.id))
+        XCTAssertEqual(refreshed.map(\.startTime), [30_000, 30_060])
+        XCTAssertEqual(refreshed.map(\.endTime), [30_060, 30_120])
+        XCTAssertEqual(
+            try db.fetchCount(sql: "SELECT COUNT(*) FROM WorkBlockStructuralEdits;"),
+            2
+        )
+    }
+
+    func testCompleteReviewRefreshPreservesSplitWithoutSemanticOverride() throws {
+        let db = makeTestDatabase("review-completion-structural-split")
+        let normalizer = SessionNormalizer.makeTestInstance(database: db)
+        let tracker = ActivityTracker.makeTestInstance(
+            normalizer: normalizer,
+            pauseBoundaryCheckpointStore: TestPauseBoundaryCheckpointStore()
+        )
+        let projection = WorkBlockProjectionService.makeTestInstance(database: db)
+        let service = ReviewCompletionService.makeTestInstance(
+            activityTracker: tracker,
+            projection: projection,
+            database: db
+        )
+        _ = try insertTestActivity(
+            db: db,
+            start: 31_000,
+            end: 31_120,
+            appName: "Completion split session",
+            bundleId: "com.example.completion-structural-split"
+        )
+
+        let projected = try awaitResult("project completion split source") { completion in
+            projection.refreshNow(through: 31_120, completion: completion)
+        }.get()
+        let source = try XCTUnwrap(projected.first)
+        let split = try awaitResult("split before completion barrier") { completion in
+            db.splitWorkBlock(workBlockID: source.id, at: 31_060, completion: completion)
+        }.get()
+        let reviewedInbox = try awaitResult("fetch split review inbox") { completion in
+            db.fetchReviewInbox(through: 31_120, completion: completion)
+        }.get()
+        XCTAssertEqual(reviewedInbox.blocks.map(\.id), split.map(\.id))
+
+        let completed = try awaitResult("complete split review through refresh barrier") { completion in
+            service.completeReview(reviewedInbox: reviewedInbox, completion: completion)
+        }.get()
+        XCTAssertEqual(completed.inbox, reviewedInbox)
+        XCTAssertEqual(completed.snapshot.blocks.map(\.sourceWorkBlockId), split.map { Optional($0.id) })
+        XCTAssertEqual(completed.snapshot.blocks.map(\.startTime), [31_000, 31_060])
+        XCTAssertEqual(completed.snapshot.blocks.map(\.endTime), [31_060, 31_120])
+    }
+
+    func testMergedStructuralIntentSurvivesAllInheritResetAndProjectionReplacement() throws {
+        let db = makeTestDatabase("review-domain-merge-projection-protection")
+        let sourceDraft = InferredWorkBlockDraft(
+            startTime: 32_000,
+            endTime: 32_120,
+            algorithmVersion: "projection-source-v1",
+            inferredTitle: "Merged structure"
+        )
+        let projected = try awaitResult("insert source for structural merge") { completion in
+            db.replaceDraftWorkBlocks(
+                rangeStart: 32_000,
+                rangeEnd: 32_120,
+                drafts: [sourceDraft],
+                completion: completion
+            )
+        }.get()
+        let source = try XCTUnwrap(projected.first)
+        let split = try awaitResult("split source before structural merge") { completion in
+            db.splitWorkBlock(workBlockID: source.id, at: 32_060, completion: completion)
+        }.get()
+        XCTAssertEqual(
+            try db.fetchCount(sql: "SELECT COUNT(*) FROM WorkBlockStructuralEdits;"),
+            2
+        )
+
+        let merged = try awaitResult("merge without semantic override") { completion in
+            db.mergeWorkBlocks(workBlockIDs: split.map(\.id), completion: completion)
+        }.get()
+        XCTAssertEqual(merged.id, source.id)
+        XCTAssertEqual(merged.algorithmVersion, "merge-v1")
+        XCTAssertNil(try awaitResult("reset merged semantic override to inherit") { completion in
+            db.setWorkBlockOverride(
+                workBlockId: merged.id,
+                override: WorkBlockOverrideInput(),
+                completion: completion
+            )
+        }.get())
+        XCTAssertEqual(
+            try db.fetchCount(sql: "SELECT COUNT(*) FROM WorkBlockStructuralEdits;"),
+            1,
+            "Deleting the merged-away half must cascade its structural marker"
+        )
+        XCTAssertEqual(
+            try db.fetchCount(sql: "SELECT COUNT(*) FROM pragma_foreign_key_check;"),
+            0
+        )
+
+        let refreshed = try awaitResult("replace projection after structural merge") { completion in
+            db.replaceDraftWorkBlocks(
+                rangeStart: 32_000,
+                rangeEnd: 32_120,
+                drafts: [sourceDraft],
+                completion: completion
+            )
+        }.get()
+        XCTAssertEqual(refreshed.map(\.id), [merged.id])
+        XCTAssertEqual(refreshed.first?.algorithmVersion, "merge-v1")
+        XCTAssertEqual(
+            try db.fetchCount(sql: "SELECT COUNT(*) FROM WorkBlockStructuralEdits;"),
+            1
+        )
+    }
+
+    func testMergeWorkBlocksDeduplicatesEvidenceAndAppliesEffectiveValues() throws {
+        let db = makeTestDatabase("review-domain-merge-values")
+        let firstActivityID = try insertTestActivity(
+            db: db,
+            start: 300,
+            end: 340,
+            appName: "First"
+        )
+        let sharedActivityID = try insertTestActivity(
+            db: db,
+            start: 350,
+            end: 370,
+            appName: "Shared"
+        )
+        let lastActivityID = try insertTestActivity(
+            db: db,
+            start: 390,
+            end: 420,
+            appName: "Last"
+        )
+        let rows = try awaitResult("insert merge candidates") { completion in
+            db.replaceDraftWorkBlocks(
+                rangeStart: 300,
+                rangeEnd: 430,
+                drafts: [
+                    InferredWorkBlockDraft(
+                        startTime: 300,
+                        endTime: 380,
+                        algorithmVersion: "merge-source-v1",
+                        inferredTitle: "First",
+                        evidence: [
+                            WorkBlockEvidenceInput(
+                                activityId: firstActivityID,
+                                contributionStart: 300,
+                                contributionEnd: 340,
+                                ordinal: 0
+                            ),
+                            WorkBlockEvidenceInput(
+                                activityId: sharedActivityID,
+                                contributionStart: 350,
+                                contributionEnd: 370,
+                                ordinal: 1
+                            )
+                        ]
+                    ),
+                    InferredWorkBlockDraft(
+                        startTime: 350,
+                        endTime: 420,
+                        algorithmVersion: "merge-source-v2",
+                        inferredTitle: "Second",
+                        evidence: [
+                            WorkBlockEvidenceInput(
+                                activityId: sharedActivityID,
+                                contributionStart: 350,
+                                contributionEnd: 370,
+                                ordinal: 0
+                            ),
+                            WorkBlockEvidenceInput(
+                                activityId: lastActivityID,
+                                contributionStart: 390,
+                                contributionEnd: 420,
+                                ordinal: 1
+                            )
+                        ]
+                    )
+                ],
+                completion: completion
+            )
+        }.get()
+        XCTAssertEqual(rows.count, 2)
+        _ = try awaitResult("override first merge candidate") { completion in
+            db.setWorkBlockOverride(
+                workBlockId: rows[0].id,
+                override: WorkBlockOverrideInput(
+                    userTitle: "First refined",
+                    userStartTime: 305,
+                    userEndTime: 375,
+                    tagMode: .cleared
+                ),
+                completion: completion
+            )
+        }.get()
+        let tagID = try awaitResult("insert merged tag") { completion in
+            db.insertTag(name: "Merged Tag", color: "#ABCDEF", completion: completion)
+        }.get()
+
+        let merged = try awaitResult("merge effective work blocks") { completion in
+            db.mergeWorkBlocks(
+                workBlockIDs: rows.map(\.id),
+                input: WorkBlockMergeInput(
+                    userTitle: "  Merged focus  ",
+                    tagMode: .set,
+                    userTagId: tagID
+                ),
+                completion: completion
+            )
+        }.get()
+        XCTAssertEqual(merged.id, rows[0].id)
+        XCTAssertEqual(merged.startTime, 305)
+        XCTAssertEqual(merged.endTime, 420)
+        XCTAssertEqual(merged.source, .inferred)
+        XCTAssertEqual(merged.algorithmVersion, "merge-v1")
+        XCTAssertEqual(merged.inferredTitle, "First refined + Second")
+
+        let mergedOverride = try awaitResult("fetch merged override") { completion in
+            db.fetchWorkBlockOverride(workBlockId: merged.id, completion: completion)
+        }.get()
+        XCTAssertEqual(mergedOverride?.userTitle, "Merged focus")
+        XCTAssertEqual(mergedOverride?.tagMode, .set)
+        XCTAssertEqual(mergedOverride?.userTagId, tagID)
+        XCTAssertNil(mergedOverride?.userStartTime)
+        XCTAssertNil(mergedOverride?.userEndTime)
+
+        let evidence = try awaitResult("fetch merged evidence") { completion in
+            db.fetchWorkBlockEvidence(workBlockId: merged.id, completion: completion)
+        }.get()
+        XCTAssertEqual(evidence.map(\.activityId), [firstActivityID, sharedActivityID, lastActivityID])
+        XCTAssertEqual(evidence.map(\.contributionStart), [305, 350, 390])
+        XCTAssertEqual(evidence.map(\.contributionEnd), [340, 370, 420])
+        XCTAssertEqual(evidence.map(\.ordinal), [0, 1, 2])
+
+        let remaining = try awaitResult("fetch only merged draft") { completion in
+            db.fetchDraftWorkBlocks(rangeStart: 300, rangeEnd: 430, completion: completion)
+        }.get()
+        XCTAssertEqual(remaining.map(\.id), [merged.id])
+
+        let snapshot = try awaitResult("complete merged review") { completion in
+            db.completeReview(rangeStart: 300, rangeEnd: 430, completion: completion)
+        }.get()
+        XCTAssertEqual(snapshot.blocks.count, 1)
+        XCTAssertEqual(snapshot.blocks.first?.title, "Merged focus")
+        XCTAssertEqual(snapshot.blocks.first?.tagId, tagID)
+        XCTAssertEqual(snapshot.blocks.first?.startTime, 305)
+        XCTAssertEqual(snapshot.blocks.first?.endTime, 420)
+        let snapshotEvidence = try JSONDecoder().decode(
+            [ReviewSnapshotEvidence].self,
+            from: Data(try XCTUnwrap(snapshot.blocks.first?.evidenceSummaryJSON).utf8)
+        )
+        XCTAssertEqual(snapshotEvidence.count, 3)
+    }
+
+    func testMergeWorkBlocksRejectsInterveningDraftWithoutPartialChanges() throws {
+        let db = makeTestDatabase("review-domain-merge-atomic")
+        let rows = try awaitResult("insert nonconsecutive merge candidates") { completion in
+            db.replaceDraftWorkBlocks(
+                rangeStart: 700,
+                rangeEnd: 800,
+                drafts: [
+                    InferredWorkBlockDraft(
+                        startTime: 700,
+                        endTime: 720,
+                        algorithmVersion: "v1",
+                        inferredTitle: "First",
+                        evidence: [
+                            WorkBlockEvidenceInput(
+                                activityId: nil,
+                                contributionStart: 700,
+                                contributionEnd: 720,
+                                ordinal: 0
+                            )
+                        ]
+                    ),
+                    InferredWorkBlockDraft(
+                        startTime: 730,
+                        endTime: 750,
+                        algorithmVersion: "v1",
+                        inferredTitle: "Intervening"
+                    ),
+                    InferredWorkBlockDraft(
+                        startTime: 760,
+                        endTime: 780,
+                        algorithmVersion: "v1",
+                        inferredTitle: "Last"
+                    )
+                ],
+                completion: completion
+            )
+        }.get()
+        XCTAssertEqual(rows.count, 3)
+        let originalEvidence = try awaitResult("fetch evidence before rejected merge") { completion in
+            db.fetchWorkBlockEvidence(workBlockId: rows[0].id, completion: completion)
+        }.get()
+
+        let rejected = awaitResult("reject nonconsecutive merge") { completion in
+            db.mergeWorkBlocks(
+                workBlockIDs: [rows[0].id, rows[2].id],
+                input: WorkBlockMergeInput(userTitle: "Invalid merge"),
+                completion: completion
+            )
+        }
+        XCTAssertThrowsError(try rejected.get()) { error in
+            XCTAssertEqual(error as? ReviewDomainError, .workBlocksNotMergeable)
+        }
+
+        let unchanged = try awaitResult("fetch drafts after rejected merge") { completion in
+            db.fetchDraftWorkBlocks(rangeStart: 700, rangeEnd: 800, completion: completion)
+        }.get()
+        XCTAssertEqual(unchanged, rows)
+        let unchangedEvidence = try awaitResult("fetch evidence after rejected merge") { completion in
+            db.fetchWorkBlockEvidence(workBlockId: rows[0].id, completion: completion)
+        }.get()
+        XCTAssertEqual(unchangedEvidence, originalEvidence)
+
+        let duplicate = awaitResult("reject duplicate merge selection") { completion in
+            db.mergeWorkBlocks(
+                workBlockIDs: [rows[0].id, rows[0].id],
+                completion: completion
+            )
+        }
+        XCTAssertThrowsError(try duplicate.get()) { error in
+            XCTAssertEqual(error as? ReviewDomainError, .duplicateWorkBlockSelection)
+        }
+    }
+
+    func testMergeWorkBlocksKeepsManualSourceOnlyWhenAllInputsAreManual() throws {
+        let db = makeTestDatabase("review-domain-merge-manual")
+        let firstID = try awaitResult("insert first manual block") { completion in
+            db.createManualWorkBlock(
+                startTime: 500,
+                endTime: 550,
+                title: "Manual one",
+                completion: completion
+            )
+        }.get()
+        let secondID = try awaitResult("insert second manual block") { completion in
+            db.createManualWorkBlock(
+                startTime: 550,
+                endTime: 600,
+                title: "Manual two",
+                completion: completion
+            )
+        }.get()
+
+        let merged = try awaitResult("merge manual blocks") { completion in
+            db.mergeWorkBlocks(workBlockIDs: [firstID, secondID], completion: completion)
+        }.get()
+        XCTAssertEqual(merged.source, .manual)
+        XCTAssertEqual(merged.startTime, 500)
+        XCTAssertEqual(merged.endTime, 600)
+        XCTAssertEqual(merged.inferredTitle, "Manual one + Manual two")
+    }
+
+    func testReviewRevisionPreviewCommitPreservesAncestorAndSupportsSplitMerge() throws {
+        let db = makeTestDatabase("review-revision-split-merge")
+        let rangeStart: Int64 = 10_000
+        let base = try makeReviewRevisionFixture(db: db, rangeStart: rangeStart)
+        XCTAssertEqual(base.blocks.count, 3)
+        guard base.blocks.count == 3 else { return }
+
+        let preview = try awaitResult("fetch review revision preview") { completion in
+            db.fetchReviewRevisionPreview(snapshotID: base.snapshot.id, completion: completion)
+        }.get()
+        XCTAssertEqual(preview.baseSnapshot, base.snapshot)
+        XCTAssertEqual(preview.sourceBlocks, base.blocks)
+        XCTAssertEqual(
+            preview.proposedRevision.blocks.map(\.sourceSnapshotBlockIds),
+            base.blocks.map { [$0.id] }
+        )
+
+        let revisedTagID = try awaitResult("insert revision tag") { completion in
+            db.insertTag(name: "Revised", color: "#123456", completion: completion)
+        }.get()
+        let checkpointBefore = try awaitResult("fetch checkpoint before revision") { completion in
+            db.latestReviewCheckpoint(completion: completion)
+        }.get()
+        let first = base.blocks[0]
+        let second = base.blocks[1]
+        let third = base.blocks[2]
+        let revisionInput = ReviewRevisionInput(
+            overallNote: "  Revised note  ",
+            blocks: [
+                ReviewRevisionBlockInput(
+                    sourceSnapshotBlockIds: [first.id],
+                    startTime: rangeStart,
+                    endTime: rangeStart + 30,
+                    title: "First half",
+                    tagId: revisedTagID
+                ),
+                ReviewRevisionBlockInput(
+                    sourceSnapshotBlockIds: [first.id],
+                    startTime: rangeStart + 30,
+                    endTime: rangeStart + 60,
+                    title: "Second half"
+                ),
+                ReviewRevisionBlockInput(
+                    sourceSnapshotBlockIds: [second.id, third.id],
+                    startTime: rangeStart + 60,
+                    endTime: rangeStart + 180,
+                    title: "Merged remainder",
+                    tagId: revisedTagID
+                )
+            ]
+        )
+        let revision = try awaitResult("commit split and merged review revision") { completion in
+            db.commitReviewRevision(
+                revisingSnapshotID: base.snapshot.id,
+                input: revisionInput,
+                completedAt: Date(timeIntervalSince1970: 2_000),
+                completion: completion
+            )
+        }.get()
+
+        XCTAssertEqual(revision.snapshot.revisionOfId, base.snapshot.id)
+        XCTAssertEqual(revision.snapshot.rangeStart, base.snapshot.rangeStart)
+        XCTAssertEqual(revision.snapshot.rangeEnd, base.snapshot.rangeEnd)
+        XCTAssertEqual(revision.snapshot.checkpointAfter, base.snapshot.checkpointAfter)
+        XCTAssertEqual(revision.snapshot.overallNote, "Revised note")
+        XCTAssertEqual(revision.blocks.count, 3)
+        XCTAssertEqual(revision.blocks.map(\.title), ["First half", "Second half", "Merged remainder"])
+        XCTAssertEqual(revision.blocks.map(\.startTime), [rangeStart, rangeStart + 30, rangeStart + 60])
+        XCTAssertEqual(revision.blocks.map(\.endTime), [rangeStart + 30, rangeStart + 60, rangeStart + 180])
+        XCTAssertEqual(revision.blocks.map(\.tagName), ["Revised", nil, "Revised"])
+
+        XCTAssertEqual(revision.blocks[0].source, first.source)
+        XCTAssertEqual(revision.blocks[0].algorithmVersion, first.algorithmVersion)
+        XCTAssertEqual(revision.blocks[0].sourceWorkBlockId, first.sourceWorkBlockId)
+        XCTAssertEqual(revision.blocks[1].source, first.source)
+        XCTAssertEqual(revision.blocks[1].algorithmVersion, first.algorithmVersion)
+        XCTAssertEqual(revision.blocks[1].sourceWorkBlockId, first.sourceWorkBlockId)
+        XCTAssertEqual(revision.blocks[2].source, .inferred)
+        XCTAssertEqual(revision.blocks[2].algorithmVersion, "revision-source-v1")
+        XCTAssertNil(revision.blocks[2].sourceWorkBlockId)
+
+        let firstHalfEvidence = try JSONDecoder().decode(
+            [ReviewSnapshotEvidence].self,
+            from: Data(revision.blocks[0].evidenceSummaryJSON.utf8)
+        )
+        let secondHalfEvidence = try JSONDecoder().decode(
+            [ReviewSnapshotEvidence].self,
+            from: Data(revision.blocks[1].evidenceSummaryJSON.utf8)
+        )
+        let mergedEvidence = try JSONDecoder().decode(
+            [ReviewSnapshotEvidence].self,
+            from: Data(revision.blocks[2].evidenceSummaryJSON.utf8)
+        )
+        XCTAssertEqual(firstHalfEvidence.map(\.contributionStart), [rangeStart])
+        XCTAssertEqual(firstHalfEvidence.map(\.contributionEnd), [rangeStart + 30])
+        XCTAssertEqual(secondHalfEvidence.map(\.activityId), firstHalfEvidence.map(\.activityId))
+        XCTAssertEqual(secondHalfEvidence.map(\.contributionStart), [rangeStart + 30])
+        XCTAssertEqual(secondHalfEvidence.map(\.contributionEnd), [rangeStart + 60])
+        XCTAssertEqual(mergedEvidence.map(\.contributionStart), [rangeStart + 60, rangeStart + 120])
+        XCTAssertEqual(mergedEvidence.map(\.contributionEnd), [rangeStart + 120, rangeStart + 180])
+        XCTAssertEqual(mergedEvidence.map(\.ordinal), [0, 1])
+
+        let ancestorAfter = try XCTUnwrap(try awaitResult("fetch immutable revision ancestor") { completion in
+            db.fetchReviewSnapshot(id: base.snapshot.id, completion: completion)
+        }.get())
+        XCTAssertEqual(ancestorAfter, base)
+        let checkpointAfter = try awaitResult("fetch checkpoint after revision") { completion in
+            db.latestReviewCheckpoint(completion: completion)
+        }.get()
+        XCTAssertEqual(checkpointAfter, checkpointBefore)
+
+        let currentSnapshots = try awaitResult("fetch current revision snapshots") { completion in
+            db.fetchReviewSnapshots(completion: completion)
+        }.get()
+        XCTAssertEqual(currentSnapshots.map(\.id), [revision.snapshot.id])
+        let history = try awaitResult("fetch leaf-only revision history") { completion in
+            db.fetchWorkBlockHistory(
+                rangeStart: base.snapshot.rangeStart,
+                rangeEnd: base.snapshot.rangeEnd,
+                completion: completion
+            )
+        }.get()
+        XCTAssertEqual(history.count, revision.blocks.count)
+        XCTAssertTrue(history.allSatisfy { $0.reviewSnapshotId == revision.snapshot.id })
+        XCTAssertEqual(history.compactMap(\.reviewSnapshotBlockId), revision.blocks.map(\.id))
+
+        let firstHalfHistory = try XCTUnwrap(history.first { $0.title == "First half" })
+        let secondHalfHistory = try XCTUnwrap(history.first { $0.title == "Second half" })
+        let mergedHistory = try XCTUnwrap(history.first { $0.title == "Merged remainder" })
+        XCTAssertEqual(firstHalfHistory.sourceWorkBlockId, secondHalfHistory.sourceWorkBlockId)
+        XCTAssertNil(mergedHistory.sourceWorkBlockId)
+        let firstHalfSnapshotBlockID = try XCTUnwrap(firstHalfHistory.reviewSnapshotBlockId)
+        let secondHalfSnapshotBlockID = try XCTUnwrap(secondHalfHistory.reviewSnapshotBlockId)
+        let mergedSnapshotBlockID = try XCTUnwrap(mergedHistory.reviewSnapshotBlockId)
+
+        let firstHalfRows = try awaitResult("fetch first split snapshot evidence") { completion in
+            db.fetchReviewSnapshotActivityEvidence(
+                snapshotBlockId: firstHalfSnapshotBlockID,
+                completion: completion
+            )
+        }.get()
+        XCTAssertEqual(firstHalfRows.map(\.activityId), firstHalfEvidence.compactMap(\.activityId))
+        XCTAssertEqual(firstHalfRows.map(\.startTime), [rangeStart])
+        XCTAssertEqual(firstHalfRows.map(\.endTime), [rangeStart + 30])
+
+        let secondHalfRows = try awaitResult("fetch second split snapshot evidence") { completion in
+            db.fetchReviewSnapshotActivityEvidence(
+                snapshotBlockId: secondHalfSnapshotBlockID,
+                completion: completion
+            )
+        }.get()
+        XCTAssertEqual(secondHalfRows.map(\.activityId), secondHalfEvidence.compactMap(\.activityId))
+        XCTAssertEqual(secondHalfRows.map(\.startTime), [rangeStart + 30])
+        XCTAssertEqual(secondHalfRows.map(\.endTime), [rangeStart + 60])
+
+        let mergedRows = try awaitResult("fetch merged snapshot evidence without source work block") { completion in
+            db.fetchReviewSnapshotActivityEvidence(
+                snapshotBlockId: mergedSnapshotBlockID,
+                completion: completion
+            )
+        }.get()
+        XCTAssertEqual(mergedRows.map(\.activityId), mergedEvidence.compactMap(\.activityId))
+        XCTAssertEqual(mergedRows.map(\.startTime), [rangeStart + 60, rangeStart + 120])
+        XCTAssertEqual(mergedRows.map(\.endTime), [rangeStart + 120, rangeStart + 180])
+    }
+
+    func testTitleOnlyReviewRevisionPreservesFrozenTagAcrossRenameAndDeletion() throws {
+        let db = makeTestDatabase("review-revision-frozen-tag")
+        let originalTagName = "Original reviewed meaning"
+        let renamedTagName = "Current renamed meaning"
+        let tagID = try awaitResult("insert frozen revision tag") { completion in
+            db.insertTag(name: originalTagName, color: "#123456", completion: completion)
+        }.get()
+        let base = try makeReviewRevisionFixture(
+            db: db,
+            rangeStart: 15_000,
+            tagId: tagID
+        )
+        XCTAssertTrue(base.blocks.allSatisfy { $0.tagName == originalTagName })
+
+        _ = try awaitResult("rename frozen revision tag") { completion in
+            db.updateTag(
+                tag: TagRow(id: tagID, name: renamedTagName, color: "#654321"),
+                completion: completion
+            )
+        }.get()
+        let renamedPreview = try awaitResult("preview title-only revision after rename") { completion in
+            db.fetchReviewRevisionPreview(snapshotID: base.snapshot.id, completion: completion)
+        }.get()
+        XCTAssertTrue(renamedPreview.proposedRevision.blocks.allSatisfy {
+            $0.tagIntent == .preserveSource(tagId: tagID, tagName: originalTagName)
+        })
+        let afterRenameInput = ReviewRevisionInput(
+            overallNote: renamedPreview.proposedRevision.overallNote,
+            blocks: renamedPreview.proposedRevision.blocks.enumerated().map { index, block in
+                ReviewRevisionBlockInput(
+                    sourceSnapshotBlockIds: block.sourceSnapshotBlockIds,
+                    startTime: block.startTime,
+                    endTime: block.endTime,
+                    title: index == 0 ? "Title-only edit after rename" : block.title,
+                    tagIntent: block.tagIntent
+                )
+            }
+        )
+        let renamedRevision = try awaitResult("commit title-only revision after rename") { completion in
+            db.commitReviewRevision(
+                revisingSnapshotID: base.snapshot.id,
+                input: afterRenameInput,
+                completion: completion
+            )
+        }.get()
+        XCTAssertTrue(renamedRevision.blocks.allSatisfy { $0.tagId == tagID })
+        XCTAssertTrue(renamedRevision.blocks.allSatisfy { $0.tagName == originalTagName })
+
+        _ = try awaitResult("delete frozen revision tag") { completion in
+            db.deleteTag(id: tagID, completion: completion)
+        }.get()
+        let deletedPreview = try awaitResult("preview title-only revision after deletion") { completion in
+            db.fetchReviewRevisionPreview(
+                snapshotID: renamedRevision.snapshot.id,
+                completion: completion
+            )
+        }.get()
+        XCTAssertTrue(deletedPreview.proposedRevision.blocks.allSatisfy {
+            $0.tagIntent == .preserveSource(tagId: nil, tagName: originalTagName)
+        })
+        let afterDeletionInput = ReviewRevisionInput(
+            blocks: deletedPreview.proposedRevision.blocks.enumerated().map { index, block in
+                ReviewRevisionBlockInput(
+                    sourceSnapshotBlockIds: block.sourceSnapshotBlockIds,
+                    startTime: block.startTime,
+                    endTime: block.endTime,
+                    title: index == 0 ? "Title-only edit after deletion" : block.title,
+                    tagIntent: block.tagIntent
+                )
+            }
+        )
+        let deletedRevision = try awaitResult("commit title-only revision after deletion") { completion in
+            db.commitReviewRevision(
+                revisingSnapshotID: renamedRevision.snapshot.id,
+                input: afterDeletionInput,
+                completion: completion
+            )
+        }.get()
+        XCTAssertTrue(deletedRevision.blocks.allSatisfy { $0.tagId == nil })
+        XCTAssertTrue(deletedRevision.blocks.allSatisfy { $0.tagName == originalTagName })
+
+        let clearPreview = try awaitResult("preview explicit frozen tag clear") { completion in
+            db.fetchReviewRevisionPreview(
+                snapshotID: deletedRevision.snapshot.id,
+                completion: completion
+            )
+        }.get()
+        let clearInput = ReviewRevisionInput(
+            blocks: clearPreview.proposedRevision.blocks.map { block in
+                ReviewRevisionBlockInput(
+                    sourceSnapshotBlockIds: block.sourceSnapshotBlockIds,
+                    startTime: block.startTime,
+                    endTime: block.endTime,
+                    title: block.title,
+                    tagIntent: .clear
+                )
+            }
+        )
+        let clearedRevision = try awaitResult("commit explicit frozen tag clear") { completion in
+            db.commitReviewRevision(
+                revisingSnapshotID: deletedRevision.snapshot.id,
+                input: clearInput,
+                completion: completion
+            )
+        }.get()
+        XCTAssertTrue(clearedRevision.blocks.allSatisfy { $0.tagId == nil && $0.tagName == nil })
+    }
+
+    func testReviewRevisionRejectsStaleAncestorAndKeepsOnlyLatestLeafCurrent() throws {
+        let db = makeTestDatabase("review-revision-leaf-only")
+        let base = try makeReviewRevisionFixture(db: db, rangeStart: 20_000)
+        let basePreview = try awaitResult("fetch base revision preview") { completion in
+            db.fetchReviewRevisionPreview(snapshotID: base.snapshot.id, completion: completion)
+        }.get()
+        let firstRevision = try awaitResult("commit first revision") { completion in
+            db.commitReviewRevision(
+                revisingSnapshotID: base.snapshot.id,
+                input: basePreview.proposedRevision,
+                completedAt: Date(timeIntervalSince1970: 2_100),
+                completion: completion
+            )
+        }.get()
+
+        let stalePreview = awaitResult("reject stale ancestor preview") { completion in
+            db.fetchReviewRevisionPreview(snapshotID: base.snapshot.id, completion: completion)
+        }
+        XCTAssertThrowsError(try stalePreview.get()) { error in
+            XCTAssertEqual(
+                error as? ReviewDomainError,
+                .reviewRevisionMustTargetCurrentLeaf(currentLeafId: firstRevision.snapshot.id)
+            )
+        }
+        let staleCommit = awaitResult("reject stale ancestor revision") { completion in
+            db.commitReviewRevision(
+                revisingSnapshotID: base.snapshot.id,
+                input: basePreview.proposedRevision,
+                completion: completion
+            )
+        }
+        XCTAssertThrowsError(try staleCommit.get()) { error in
+            XCTAssertEqual(
+                error as? ReviewDomainError,
+                .reviewRevisionMustTargetCurrentLeaf(currentLeafId: firstRevision.snapshot.id)
+            )
+        }
+
+        let firstPreview = try awaitResult("fetch current leaf revision preview") { completion in
+            db.fetchReviewRevisionPreview(snapshotID: firstRevision.snapshot.id, completion: completion)
+        }.get()
+        let secondRevision = try awaitResult("commit second revision") { completion in
+            db.commitReviewRevision(
+                revisingSnapshotID: firstRevision.snapshot.id,
+                input: firstPreview.proposedRevision,
+                completedAt: Date(timeIntervalSince1970: 2_200),
+                completion: completion
+            )
+        }.get()
+        XCTAssertEqual(secondRevision.snapshot.revisionOfId, firstRevision.snapshot.id)
+
+        let current = try awaitResult("fetch only latest revision leaf") { completion in
+            db.fetchReviewSnapshots(completion: completion)
+        }.get()
+        XCTAssertEqual(current.map(\.id), [secondRevision.snapshot.id])
+        XCTAssertNotNil(try awaitResult("fetch explicit base ancestor") { completion in
+            db.fetchReviewSnapshot(id: base.snapshot.id, completion: completion)
+        }.get())
+        XCTAssertNotNil(try awaitResult("fetch explicit intermediate ancestor") { completion in
+            db.fetchReviewSnapshot(id: firstRevision.snapshot.id, completion: completion)
+        }.get())
+    }
+
+    func testReviewRevisionValidationRejectsInvalidBoundariesOverlapAndOrderAtomically() throws {
+        let db = makeTestDatabase("review-revision-validation")
+        let base = try makeReviewRevisionFixture(db: db, rangeStart: 30_000)
+        let firstID = try XCTUnwrap(base.blocks.first?.id)
+        let secondID = base.blocks[1].id
+
+        func commit(_ input: ReviewRevisionInput) -> Result<ReviewSnapshotDetail, Error> {
+            awaitResult("commit invalid review revision") { completion in
+                db.commitReviewRevision(
+                    revisingSnapshotID: base.snapshot.id,
+                    input: input,
+                    completion: completion
+                )
+            }
+        }
+
+        XCTAssertThrowsError(try commit(ReviewRevisionInput(blocks: [])).get()) { error in
+            XCTAssertEqual(error as? ReviewDomainError, .reviewRevisionRequiresAtLeastOneBlock)
+        }
+        let invalidDuration = ReviewRevisionInput(blocks: [
+            ReviewRevisionBlockInput(
+                sourceSnapshotBlockIds: [firstID],
+                startTime: 30_010,
+                endTime: 30_010,
+                title: "Invalid"
+            )
+        ])
+        XCTAssertThrowsError(try commit(invalidDuration).get()) { error in
+            XCTAssertEqual(error as? ReviewDomainError, .invalidReviewRevisionBlock)
+        }
+        let outsideRange = ReviewRevisionInput(blocks: [
+            ReviewRevisionBlockInput(
+                sourceSnapshotBlockIds: [firstID],
+                startTime: 29_999,
+                endTime: 30_010,
+                title: "Outside"
+            )
+        ])
+        XCTAssertThrowsError(try commit(outsideRange).get()) { error in
+            XCTAssertEqual(error as? ReviewDomainError, .reviewRevisionBlockOutsideSnapshotRange)
+        }
+        let overlapping = ReviewRevisionInput(blocks: [
+            ReviewRevisionBlockInput(
+                sourceSnapshotBlockIds: [firstID],
+                startTime: 30_000,
+                endTime: 30_070,
+                title: "First"
+            ),
+            ReviewRevisionBlockInput(
+                sourceSnapshotBlockIds: [secondID],
+                startTime: 30_060,
+                endTime: 30_120,
+                title: "Overlap"
+            )
+        ])
+        XCTAssertThrowsError(try commit(overlapping).get()) { error in
+            XCTAssertEqual(error as? ReviewDomainError, .reviewRevisionBlocksOverlap)
+        }
+        let unordered = ReviewRevisionInput(blocks: [
+            ReviewRevisionBlockInput(
+                sourceSnapshotBlockIds: [secondID],
+                startTime: 30_060,
+                endTime: 30_120,
+                title: "Later"
+            ),
+            ReviewRevisionBlockInput(
+                sourceSnapshotBlockIds: [firstID],
+                startTime: 30_000,
+                endTime: 30_060,
+                title: "Earlier"
+            )
+        ])
+        XCTAssertThrowsError(try commit(unordered).get()) { error in
+            XCTAssertEqual(error as? ReviewDomainError, .reviewRevisionBlocksNotChronological)
+        }
+        let missingSource = ReviewRevisionInput(blocks: [
+            ReviewRevisionBlockInput(
+                sourceSnapshotBlockIds: [Int64.max],
+                startTime: 30_000,
+                endTime: 30_060,
+                title: "Missing source"
+            )
+        ])
+        XCTAssertThrowsError(try commit(missingSource).get()) { error in
+            XCTAssertEqual(
+                error as? ReviewDomainError,
+                .reviewRevisionSourceBlockNotFound(id: Int64.max)
+            )
+        }
+
+        let current = try awaitResult("fetch snapshot after invalid revisions") { completion in
+            db.fetchReviewSnapshots(completion: completion)
+        }.get()
+        XCTAssertEqual(current.map(\.id), [base.snapshot.id])
+        let ancestorAfter = try XCTUnwrap(try awaitResult("fetch unchanged review snapshot") { completion in
+            db.fetchReviewSnapshot(id: base.snapshot.id, completion: completion)
+        }.get())
+        XCTAssertEqual(ancestorAfter, base)
+    }
+
+    func testReviewRevisionInheritsEvidenceDeletionWithoutAdvancingCheckpoint() throws {
+        let db = makeTestDatabase("review-revision-deleted-evidence")
+        let base = try makeReviewRevisionFixture(db: db, rangeStart: 40_000)
+        let deleted = try awaitResult("delete evidence before revision") { completion in
+            db.deleteReviewedEvidence(
+                snapshotID: base.snapshot.id,
+                deletedAt: Date(timeIntervalSince1970: 5_555),
+                completion: completion
+            )
+        }.get()
+        XCTAssertEqual(deleted.evidenceDeletedAt, 5_555)
+        let markedAncestor = try XCTUnwrap(try awaitResult("fetch evidence-deleted ancestor") { completion in
+            db.fetchReviewSnapshot(id: base.snapshot.id, completion: completion)
+        }.get())
+        let checkpointBefore = try awaitResult("fetch deleted-evidence checkpoint") { completion in
+            db.latestReviewCheckpoint(completion: completion)
+        }.get()
+        let preview = try awaitResult("preview evidence-deleted revision") { completion in
+            db.fetchReviewRevisionPreview(snapshotID: base.snapshot.id, completion: completion)
+        }.get()
+        let revision = try awaitResult("commit evidence-deleted revision") { completion in
+            db.commitReviewRevision(
+                revisingSnapshotID: base.snapshot.id,
+                input: preview.proposedRevision,
+                completedAt: Date(timeIntervalSince1970: 5_600),
+                completion: completion
+            )
+        }.get()
+        XCTAssertEqual(revision.snapshot.evidenceDeletedAt, 5_555)
+        XCTAssertEqual(revision.snapshot.checkpointAfter, base.snapshot.checkpointAfter)
+
+        let ancestorAfter = try XCTUnwrap(try awaitResult("refetch evidence-deleted ancestor") { completion in
+            db.fetchReviewSnapshot(id: base.snapshot.id, completion: completion)
+        }.get())
+        XCTAssertEqual(ancestorAfter, markedAncestor)
+        let checkpointAfter = try awaitResult("fetch checkpoint after evidence-deleted revision") { completion in
+            db.latestReviewCheckpoint(completion: completion)
+        }.get()
+        XCTAssertEqual(checkpointAfter, checkpointBefore)
+
+        let history = try awaitResult("fetch evidence-deleted revision history") { completion in
+            db.fetchWorkBlockHistory(
+                rangeStart: base.snapshot.rangeStart,
+                rangeEnd: base.snapshot.rangeEnd,
+                completion: completion
+            )
+        }.get()
+        XCTAssertEqual(history.count, revision.blocks.count)
+        XCTAssertTrue(history.allSatisfy { $0.reviewSnapshotId == revision.snapshot.id })
+        XCTAssertTrue(history.allSatisfy { $0.evidenceDeleted })
+        XCTAssertTrue(revision.blocks.allSatisfy { block in
+            ((try? JSONDecoder().decode(
+                [ReviewSnapshotEvidence].self,
+                from: Data(block.evidenceSummaryJSON.utf8)
+            ))?.isEmpty == false)
+        })
+    }
+
+    func testDeletingEvidenceThroughStaleAncestorMarksEntireRevisionFamilyWithoutMutation() throws {
+        let db = makeTestDatabase("review-revision-family-evidence-deletion")
+        let base = try makeReviewRevisionFixture(db: db, rangeStart: 50_000)
+        let preview = try awaitResult("preview revision before family evidence deletion") { completion in
+            db.fetchReviewRevisionPreview(snapshotID: base.snapshot.id, completion: completion)
+        }.get()
+        let leaf = try awaitResult("commit child before family evidence deletion") { completion in
+            db.commitReviewRevision(
+                revisingSnapshotID: base.snapshot.id,
+                input: preview.proposedRevision,
+                completedAt: Date(timeIntervalSince1970: 7_000),
+                completion: completion
+            )
+        }.get()
+        let checkpointBefore = try awaitResult("fetch checkpoint before family evidence deletion") { completion in
+            db.latestReviewCheckpoint(completion: completion)
+        }.get()
+
+        let deleted = try awaitResult("delete evidence through stale ancestor") { completion in
+            db.deleteReviewedEvidence(
+                snapshotID: base.snapshot.id,
+                deletedAt: Date(timeIntervalSince1970: 7_777),
+                completion: completion
+            )
+        }.get()
+        XCTAssertEqual(deleted.id, base.snapshot.id)
+        XCTAssertEqual(deleted.evidenceDeletedAt, 7_777)
+
+        let ancestorAfter = try XCTUnwrap(try awaitResult("fetch marked stale ancestor") { completion in
+            db.fetchReviewSnapshot(id: base.snapshot.id, completion: completion)
+        }.get())
+        let leafAfter = try XCTUnwrap(try awaitResult("fetch marked current leaf") { completion in
+            db.fetchReviewSnapshot(id: leaf.snapshot.id, completion: completion)
+        }.get())
+        XCTAssertEqual(ancestorAfter.snapshot.evidenceDeletedAt, 7_777)
+        XCTAssertEqual(leafAfter.snapshot.evidenceDeletedAt, 7_777)
+
+        XCTAssertEqual(ancestorAfter.snapshot.checkpointAfter, base.snapshot.checkpointAfter)
+        XCTAssertEqual(leafAfter.snapshot.checkpointAfter, leaf.snapshot.checkpointAfter)
+        XCTAssertEqual(ancestorAfter.blocks, base.blocks)
+        XCTAssertEqual(leafAfter.blocks, leaf.blocks)
+
+        let checkpointAfter = try awaitResult("fetch checkpoint after family evidence deletion") { completion in
+            db.latestReviewCheckpoint(completion: completion)
+        }.get()
+        XCTAssertEqual(checkpointAfter, checkpointBefore)
+
+        let currentSnapshots = try awaitResult("fetch leaf after family evidence deletion") { completion in
+            db.fetchReviewSnapshots(completion: completion)
+        }.get()
+        XCTAssertEqual(currentSnapshots.map(\.id), [leaf.snapshot.id])
+    }
+
+    func testReviewRevisionHistoryRemainsReadableFromAncestorOrCurrentLeaf() throws {
+        let db = makeTestDatabase("review-revision-readable-history")
+        let base = try makeReviewRevisionFixture(db: db, rangeStart: 60_000)
+        let preview = try awaitResult("preview readable revision history") { completion in
+            db.fetchReviewRevisionPreview(snapshotID: base.snapshot.id, completion: completion)
+        }.get()
+        let revision = try awaitResult("commit readable revision history") { completion in
+            db.commitReviewRevision(
+                revisingSnapshotID: base.snapshot.id,
+                input: ReviewRevisionInput(
+                    overallNote: "Visible revised note",
+                    blocks: preview.proposedRevision.blocks
+                ),
+                completedAt: Date(timeIntervalSince1970: 8_000),
+                completion: completion
+            )
+        }.get()
+
+        let fromAncestor = try awaitResult("fetch history from ancestor") { completion in
+            db.fetchReviewRevisionHistory(
+                snapshotID: base.snapshot.id,
+                completion: completion
+            )
+        }.get()
+        let fromLeaf = try awaitResult("fetch history from current leaf") { completion in
+            db.fetchReviewRevisionHistory(
+                snapshotID: revision.snapshot.id,
+                completion: completion
+            )
+        }.get()
+
+        XCTAssertEqual(fromAncestor, [base, revision])
+        XCTAssertEqual(fromLeaf, fromAncestor)
+        XCTAssertEqual(fromAncestor.first?.snapshot.revisionOfId, nil)
+        XCTAssertEqual(fromAncestor.last?.snapshot.revisionOfId, base.snapshot.id)
+        XCTAssertEqual(fromAncestor.last?.snapshot.overallNote, "Visible revised note")
+    }
+
+    func testDeleteReviewedEvidencePreservesOutsideActivitySegmentsAndIsIdempotent() throws {
+        let db = makeTestDatabase("review-evidence-deletion")
+        insertRawEvents(
+            [Int64(99), 100, 150, 199, 200].map { timestamp in
+                RawEvent(
+                    id: nil,
+                    timestamp: timestamp,
+                    type: .markerAdded,
+                    bundleId: nil,
+                    appName: nil,
+                    windowTitle: nil,
+                    payload: nil
+                )
+            },
+            into: db
+        )
+
+        _ = try insertTestActivity(db: db, start: 10, end: 90, appName: "outside-left")
+        let containedID = try insertTestActivity(db: db, start: 110, end: 190, appName: "contained")
+        _ = try insertTestActivity(db: db, start: 50, end: 150, appName: "left-overlap")
+        _ = try insertTestActivity(db: db, start: 150, end: 250, appName: "right-overlap")
+        _ = try insertTestActivity(db: db, start: 50, end: 250, appName: "spanning")
+        _ = try insertTestActivity(db: db, start: 210, end: 260, appName: "outside-right")
+
+        _ = try awaitResult("insert evidence-backed review draft") { completion in
+            db.replaceDraftWorkBlocks(
+                rangeStart: 100,
+                rangeEnd: 200,
+                drafts: [
+                    InferredWorkBlockDraft(
+                        // The reviewed range starts at the first pending work block. Keep the
+                        // block aligned with the deletion boundary this fixture exercises;
+                        // its evidence can still begin later inside the block.
+                        startTime: 100,
+                        endTime: 190,
+                        algorithmVersion: "evidence-v1",
+                        inferredTitle: "Evidence-backed block",
+                        evidence: [
+                            WorkBlockEvidenceInput(
+                                activityId: containedID,
+                                contributionStart: 110,
+                                contributionEnd: 190,
+                                ordinal: 0
+                            )
+                        ]
+                    )
+                ],
+                completion: completion
+            )
+        }.get()
+
+        let completed = try awaitResult("complete evidence review") { completion in
+            db.completeReview(
+                rangeStart: 100,
+                rangeEnd: 200,
+                completedAt: Date(timeIntervalSince1970: 1_000),
+                completion: completion
+            )
+        }.get()
+        XCTAssertNil(completed.snapshot.evidenceDeletedAt)
+        XCTAssertEqual(completed.blocks.count, 1)
+
+        let deleted = try awaitResult("delete reviewed evidence") { completion in
+            db.deleteReviewedEvidence(
+                snapshotID: completed.snapshot.id,
+                deletedAt: Date(timeIntervalSince1970: 2_000),
+                completion: completion
+            )
+        }.get()
+        XCTAssertEqual(deleted.evidenceDeletedAt, 2_000)
+
+        let rawEvents = try awaitResult("fetch raw events after evidence deletion") { completion in
+            db.fetchRawEvents(start: 0, end: 300, completion: completion)
+        }.get()
+        XCTAssertEqual(rawEvents.map(\.timestamp), [99, 200])
+
+        let activities = fetchActivities(db: db, rangeStart: 0, rangeEnd: 300)
+        XCTAssertEqual(activities.first(where: { $0.appName == "outside-left" })?.startTime, 10)
+        XCTAssertEqual(activities.first(where: { $0.appName == "outside-left" })?.endTime, 90)
+        XCTAssertFalse(activities.contains(where: { $0.appName == "contained" }))
+        XCTAssertEqual(activities.first(where: { $0.appName == "left-overlap" })?.startTime, 50)
+        XCTAssertEqual(activities.first(where: { $0.appName == "left-overlap" })?.endTime, 100)
+        XCTAssertEqual(activities.first(where: { $0.appName == "right-overlap" })?.startTime, 200)
+        XCTAssertEqual(activities.first(where: { $0.appName == "right-overlap" })?.endTime, 250)
+        XCTAssertEqual(
+            activities
+                .filter { $0.appName == "spanning" }
+                .map { "\($0.startTime)-\($0.endTime)" }
+                .sorted(),
+            ["200-250", "50-100"]
+        )
+        XCTAssertEqual(activities.first(where: { $0.appName == "outside-right" })?.startTime, 210)
+        XCTAssertEqual(activities.first(where: { $0.appName == "outside-right" })?.endTime, 260)
+
+        let firstSignature = activities
+            .map { "\($0.appName):\($0.startTime)-\($0.endTime)" }
+            .sorted()
+        let repeated = try awaitResult("repeat reviewed evidence deletion") { completion in
+            db.deleteReviewedEvidence(
+                snapshotID: completed.snapshot.id,
+                deletedAt: Date(timeIntervalSince1970: 3_000),
+                completion: completion
+            )
+        }.get()
+        XCTAssertEqual(repeated.evidenceDeletedAt, 2_000)
+        XCTAssertEqual(
+            fetchActivities(db: db, rangeStart: 0, rangeEnd: 300)
+                .map { "\($0.appName):\($0.startTime)-\($0.endTime)" }
+                .sorted(),
+            firstSignature
+        )
+
+        let snapshot = try XCTUnwrap(try awaitResult("fetch snapshot after evidence deletion") { completion in
+            db.fetchReviewSnapshot(id: completed.snapshot.id, completion: completion)
+        }.get())
+        XCTAssertEqual(snapshot.snapshot.evidenceDeletedAt, 2_000)
+        XCTAssertEqual(snapshot.blocks, completed.blocks)
+
+        let missingResult = awaitResult("reject missing evidence snapshot") { completion in
+            db.deleteReviewedEvidence(snapshotID: 9_999, completion: completion)
+        }
+        XCTAssertThrowsError(try missingResult.get()) { error in
+            XCTAssertEqual(error as? ReviewDomainError, .completedReviewSnapshotNotFound)
+        }
+    }
+
+    func testDeleteReviewedEvidenceRelinksSpanningActivityToPendingReviewTail() throws {
+        let db = makeTestDatabase("review-evidence-spanning-tail")
+        let originalActivityID = try insertTestActivity(
+            db: db,
+            start: 50,
+            end: 250,
+            appName: "Spanning focus",
+            bundleId: "com.example.spanning"
+        )
+
+        let draft = try awaitResult("create spanning evidence draft") { completion in
+            db.replaceDraftWorkBlocks(
+                rangeStart: 50,
+                rangeEnd: 250,
+                drafts: [
+                    InferredWorkBlockDraft(
+                        startTime: 50,
+                        endTime: 250,
+                        algorithmVersion: "spanning-evidence-v1",
+                        inferredTitle: "Spanning focus",
+                        evidence: [
+                            WorkBlockEvidenceInput(
+                                activityId: originalActivityID,
+                                contributionStart: 50,
+                                contributionEnd: 250,
+                                ordinal: 0
+                            )
+                        ]
+                    )
+                ],
+                completion: completion
+            )
+        }.get()
+        let sourceBlock = try XCTUnwrap(draft.first)
+        _ = try awaitResult("move effective review boundary inside spanning activity") { completion in
+            db.setWorkBlockOverride(
+                workBlockId: sourceBlock.id,
+                override: WorkBlockOverrideInput(
+                    userStartTime: 100,
+                    userEndTime: 250
+                ),
+                completion: completion
+            )
+        }.get()
+
+        let preview = try awaitResult("preview spanning review prefix") { completion in
+            db.fetchReviewInbox(through: 200, completion: completion)
+        }.get()
+        XCTAssertEqual(preview.rangeStart, 100)
+        XCTAssertEqual(preview.blocks.map { "\($0.startTime)-\($0.endTime)" }, ["100-200"])
+
+        let completed = try awaitResult("complete spanning review prefix") { completion in
+            db.completeReview(reviewedInbox: preview, completion: completion)
+        }.get()
+        let pending = try awaitResult("fetch pending tail before evidence deletion") { completion in
+            db.fetchReviewInbox(through: 300, completion: completion)
+        }.get()
+        let tail = try XCTUnwrap(pending.blocks.first)
+        XCTAssertEqual(tail.startTime, 200)
+        XCTAssertEqual(tail.endTime, 250)
+        XCTAssertEqual(
+            try awaitResult("fetch tail evidence links before deletion") { completion in
+                db.fetchWorkBlockEvidence(workBlockId: tail.id, completion: completion)
+            }.get().map(\.activityId),
+            [originalActivityID]
+        )
+
+        _ = try awaitResult("delete reviewed prefix evidence") { completion in
+            db.deleteReviewedEvidence(
+                snapshotID: completed.snapshot.id,
+                deletedAt: Date(timeIntervalSince1970: 2_000),
+                completion: completion
+            )
+        }.get()
+
+        let activities = fetchActivities(db: db, rangeStart: 0, rangeEnd: 300)
+            .filter { $0.appName == "Spanning focus" }
+            .sorted { $0.startTime < $1.startTime }
+        XCTAssertEqual(activities.map { "\($0.startTime)-\($0.endTime)" }, ["50-100", "200-250"])
+        let rightActivity = try XCTUnwrap(activities.last)
+        XCTAssertNotEqual(rightActivity.id, originalActivityID)
+
+        let tailEvidence = try awaitResult("fetch relinked tail evidence") { completion in
+            db.fetchWorkBlockEvidence(workBlockId: tail.id, completion: completion)
+        }.get()
+        XCTAssertEqual(tailEvidence.map(\.activityId), [rightActivity.id])
+        XCTAssertEqual(tailEvidence.map(\.contributionStart), [200])
+        XCTAssertEqual(tailEvidence.map(\.contributionEnd), [250])
+
+        let visibleTailEvidence = try awaitResult("fetch relinked tail activity") { completion in
+            db.fetchActivityEvidence(workBlockId: tail.id, completion: completion)
+        }.get()
+        XCTAssertEqual(visibleTailEvidence.map(\.id), [rightActivity.id])
+        XCTAssertEqual(visibleTailEvidence.map { "\($0.startTime)-\($0.endTime)" }, ["200-250"])
+        XCTAssertEqual(
+            try db.fetchCount(sql: "SELECT COUNT(*) FROM pragma_foreign_key_check;"),
+            0
+        )
+    }
+
+    func testDeletingMiddleReviewEvidenceKeepsAdjacentSnapshotEvidenceResolvableThroughSplitLineage() throws {
+        let db = makeTestDatabase("review-evidence-adjacent-snapshot-lineage")
+        let originalActivityID = try insertTestActivity(
+            db: db,
+            start: 100,
+            end: 400,
+            appName: "Long lived context",
+            bundleId: "com.example.long-lived"
+        )
+
+        func completeSegment(
+            start: Int64,
+            end: Int64,
+            title: String
+        ) throws -> ReviewSnapshotDetail {
+            _ = try awaitResult("project \(title)") { completion in
+                db.replaceDraftWorkBlocks(
+                    rangeStart: start,
+                    rangeEnd: end,
+                    drafts: [
+                        InferredWorkBlockDraft(
+                            startTime: start,
+                            endTime: end,
+                            algorithmVersion: "adjacent-lineage-v1",
+                            inferredTitle: title,
+                            primaryAppName: "Long lived context",
+                            evidence: [
+                                WorkBlockEvidenceInput(
+                                    activityId: originalActivityID,
+                                    contributionStart: start,
+                                    contributionEnd: end,
+                                    ordinal: 0
+                                )
+                            ]
+                        )
+                    ],
+                    completion: completion
+                )
+            }.get()
+            return try awaitResult("complete \(title)") { completion in
+                db.completeReview(
+                    rangeStart: start,
+                    rangeEnd: end,
+                    completedAt: Date(timeIntervalSince1970: TimeInterval(end + 1_000)),
+                    completion: completion
+                )
+            }.get()
+        }
+
+        let first = try completeSegment(start: 100, end: 200, title: "First review")
+        let middle = try completeSegment(start: 200, end: 300, title: "Middle review")
+        let last = try completeSegment(start: 300, end: 400, title: "Last review")
+        let firstBlock = try XCTUnwrap(first.blocks.first)
+        let middleBlock = try XCTUnwrap(middle.blocks.first)
+        let lastBlock = try XCTUnwrap(last.blocks.first)
+
+        for block in [firstBlock, middleBlock, lastBlock] {
+            let frozen = try JSONDecoder().decode(
+                [ReviewSnapshotEvidence].self,
+                from: Data(block.evidenceSummaryJSON.utf8)
+            )
+            XCTAssertEqual(frozen.map(\.activityId), [originalActivityID])
+        }
+
+        _ = try awaitResult("delete middle review evidence") { completion in
+            db.deleteReviewedEvidence(
+                snapshotID: middle.snapshot.id,
+                deletedAt: Date(timeIntervalSince1970: 5_000),
+                completion: completion
+            )
+        }.get()
+
+        let history = try awaitResult("fetch adjacent review history") { completion in
+            db.fetchWorkBlockHistory(
+                rangeStart: 100,
+                rangeEnd: 400,
+                completion: completion
+            )
+        }.get()
+        let historyBySnapshot = Dictionary(
+            uniqueKeysWithValues: history.compactMap { item in
+                item.reviewSnapshotId.map { ($0, item) }
+            }
+        )
+        XCTAssertEqual(historyBySnapshot[first.snapshot.id]?.evidenceDeleted, false)
+        XCTAssertEqual(historyBySnapshot[middle.snapshot.id]?.evidenceDeleted, true)
+        XCTAssertEqual(historyBySnapshot[last.snapshot.id]?.evidenceDeleted, false)
+
+        let firstEvidence = try awaitResult("expand first adjacent snapshot") { completion in
+            db.fetchReviewSnapshotActivityEvidence(
+                snapshotBlockId: firstBlock.id,
+                completion: completion
+            )
+        }.get()
+        let middleEvidence = try awaitResult("resolve deleted middle snapshot") { completion in
+            db.fetchReviewSnapshotActivityEvidence(
+                snapshotBlockId: middleBlock.id,
+                completion: completion
+            )
+        }.get()
+        let lastEvidence = try awaitResult("expand last adjacent snapshot") { completion in
+            db.fetchReviewSnapshotActivityEvidence(
+                snapshotBlockId: lastBlock.id,
+                completion: completion
+            )
+        }.get()
+        XCTAssertEqual(firstEvidence.map { "\($0.startTime)-\($0.endTime)" }, ["100-200"])
+        XCTAssertTrue(middleEvidence.isEmpty)
+        XCTAssertEqual(lastEvidence.map { "\($0.startTime)-\($0.endTime)" }, ["300-400"])
+        XCTAssertEqual(firstEvidence.map(\.activityId), [originalActivityID])
+        XCTAssertNotEqual(lastEvidence.first?.activityId, originalActivityID)
+        XCTAssertEqual(
+            try db.fetchCount(sql: "SELECT COUNT(*) FROM ActivitySplitAliases;"),
+            1
+        )
+
+        for detail in [first, middle, last] {
+            let reloaded = try XCTUnwrap(try awaitResult("reload immutable adjacent snapshot") { completion in
+                db.fetchReviewSnapshot(id: detail.snapshot.id, completion: completion)
+            }.get())
+            XCTAssertEqual(reloaded.blocks, detail.blocks)
+        }
+
+        // Deleting the source row later must not erase the historical edge that
+        // lets the last snapshot resolve its surviving right-hand segment.
+        _ = try awaitResult("delete first review evidence and original activity") { completion in
+            db.deleteReviewedEvidence(
+                snapshotID: first.snapshot.id,
+                deletedAt: Date(timeIntervalSince1970: 6_000),
+                completion: completion
+            )
+        }.get()
+        XCTAssertFalse(
+            fetchActivities(db: db, rangeStart: 0, rangeEnd: 500)
+                .contains { $0.id == originalActivityID }
+        )
+        let lastEvidenceAfterSourceDeletion = try awaitResult(
+            "expand last snapshot after source activity deletion"
+        ) { completion in
+            db.fetchReviewSnapshotActivityEvidence(
+                snapshotBlockId: lastBlock.id,
+                completion: completion
+            )
+        }.get()
+        XCTAssertEqual(
+            lastEvidenceAfterSourceDeletion.map { "\($0.startTime)-\($0.endTime)" },
+            ["300-400"]
+        )
+        XCTAssertEqual(
+            try db.fetchCount(sql: "SELECT COUNT(*) FROM ActivitySplitAliases;"),
+            1
+        )
+        XCTAssertEqual(
+            try db.fetchCount(sql: "SELECT COUNT(*) FROM pragma_foreign_key_check;"),
+            0
+        )
+    }
+
+    func testReviewedCheckpointClampsRawReplayRebuild() throws {
+        let db = makeTestDatabase("review-boundary-rebuild")
+        let protectedID = try insertTestActivity(
+            db: db,
+            start: 110,
+            end: 150,
+            appName: "Protected"
+        )
+        let replaceableID = try insertTestActivity(
+            db: db,
+            start: 220,
+            end: 260,
+            appName: "Replaceable"
+        )
+        let crossingID = try insertTestActivity(
+            db: db,
+            start: 170,
+            end: 230,
+            appName: "Crossing"
+        )
+        _ = try awaitResult("create rebuild boundary work block") { completion in
+            db.createManualWorkBlock(
+                startTime: 100,
+                endTime: 200,
+                title: "Rebuild boundary",
+                completion: completion
+            )
+        }.get()
+        _ = try awaitResult("complete rebuild boundary review") { completion in
+            db.completeReview(rangeStart: 100, rangeEnd: 200, completion: completion)
+        }.get()
+        insertRawEvents([
+            RawEvent(
+                id: nil,
+                timestamp: 190,
+                type: .appActivated,
+                bundleId: "test.new",
+                appName: "New",
+                windowTitle: nil,
+                payload: nil
+            ),
+            RawEvent(
+                id: nil,
+                timestamp: 280,
+                type: .appActivated,
+                bundleId: "test.end",
+                appName: "End",
+                windowTitle: nil,
+                payload: nil
+            )
+        ], into: db)
+
+        let summary = try awaitResult("clamped raw replay rebuild") { completion in
+            db.rebuildSessionsFromRawEvents(
+                rangeStart: 100,
+                rangeEnd: 300,
+                lookbackSeconds: 20,
+                completion: completion
+            )
+        }.get()
+        XCTAssertGreaterThan(summary.insertedCount, 0)
+
+        let rows = fetchActivities(db: db, rangeStart: 0, rangeEnd: 300)
+        let protected = try XCTUnwrap(rows.first(where: { $0.id == protectedID }))
+        XCTAssertEqual(protected.startTime, 110)
+        XCTAssertEqual(protected.endTime, 150)
+        XCTAssertEqual(protected.appName, "Protected")
+        XCTAssertFalse(rows.contains(where: { $0.id == replaceableID }))
+        XCTAssertEqual(rows.first(where: { $0.id == crossingID })?.startTime, 170)
+        XCTAssertEqual(rows.first(where: { $0.id == crossingID })?.endTime, 200)
+        XCTAssertTrue(rows.contains(where: { $0.appName == "New" && $0.startTime == 200 }))
+    }
+
+    func testReviewedCheckpointClampsTagRecompute() throws {
+        let db = makeTestDatabase("review-boundary-tags")
+        let protectedID = try insertTestActivity(
+            db: db,
+            start: 110,
+            end: 150,
+            appName: "Boundary App"
+        )
+        let mutableID = try insertTestActivity(
+            db: db,
+            start: 220,
+            end: 260,
+            appName: "Boundary App"
+        )
+        _ = try awaitResult("create tag boundary work block") { completion in
+            db.createManualWorkBlock(
+                startTime: 100,
+                endTime: 200,
+                title: "Tag boundary",
+                completion: completion
+            )
+        }.get()
+        _ = try awaitResult("complete tag boundary review") { completion in
+            db.completeReview(rangeStart: 100, rangeEnd: 200, completion: completion)
+        }.get()
+
+        let tagID = try awaitResult("insert boundary tag") { completion in
+            db.insertTag(name: "Boundary Tag", color: "#123456", completion: completion)
+        }.get()
+        _ = try awaitResult("insert boundary rule") { completion in
+            db.insertRule(
+                name: "Boundary rule",
+                enabled: true,
+                matchAppName: "Boundary App",
+                matchWindowTitle: nil,
+                matchMode: .equals,
+                tagId: tagID,
+                priority: 100,
+                completion: completion
+            )
+        }.get()
+
+        let updated = try awaitResult("clamped tag recompute") { completion in
+            db.recomputeTags(rangeStart: 0, rangeEnd: 300, completion: completion)
+        }.get()
+        XCTAssertEqual(updated, 1)
+        let rows = fetchActivities(db: db, rangeStart: 0, rangeEnd: 300)
+        XCTAssertNil(rows.first(where: { $0.id == protectedID })?.effectiveTagId)
+        XCTAssertEqual(rows.first(where: { $0.id == mutableID })?.effectiveTagId, tagID)
+    }
+
+    func testReviewedCheckpointProtectsAutomaticCompaction() throws {
+        let db = makeTestDatabase("review-boundary-compaction")
+        let base = Int64(Date().timeIntervalSince1970) - 3_600
+        let checkpoint = base + 1_000
+        let protectedID = try insertTestActivity(
+            db: db,
+            start: base + 100,
+            end: base + 105,
+            appName: "Short"
+        )
+        let mutableID = try insertTestActivity(
+            db: db,
+            start: checkpoint + 100,
+            end: checkpoint + 105,
+            appName: "Short"
+        )
+        _ = try awaitResult("create compaction boundary work block") { completion in
+            db.createManualWorkBlock(
+                startTime: base,
+                endTime: checkpoint,
+                title: "Compaction boundary",
+                completion: completion
+            )
+        }.get()
+        _ = try awaitResult("complete compaction boundary review") { completion in
+            db.completeReview(rangeStart: base, rangeEnd: checkpoint, completion: completion)
+        }.get()
+
+        let shortOutcome = try awaitResult("protect reviewed short session") { completion in
+            db.mergeShortActivityIfNeeded(
+                activityId: protectedID,
+                startTime: base + 100,
+                endTime: base + 105,
+                appName: "Short",
+                bundleId: nil,
+                tagId: nil,
+                isIdle: false,
+                minDurationSeconds: 10,
+                mergeGapSeconds: 0,
+                completion: completion
+            )
+        }.get()
+        XCTAssertEqual(shortOutcome.mergedCount, 0)
+        XCTAssertEqual(shortOutcome.droppedCount, 0)
+
+        let compaction = try awaitResult("compact only unreviewed sessions") { completion in
+            db.compactRecentActivities(
+                days: 1,
+                minDurationSeconds: 10,
+                mergeGapSeconds: 0,
+                completion: completion
+            )
+        }.get()
+        XCTAssertEqual(compaction.droppedCount, 1)
+        let rows = fetchActivities(
+            db: db,
+            rangeStart: base,
+            rangeEnd: Int64(Date().timeIntervalSince1970) + 1
+        )
+        XCTAssertTrue(rows.contains(where: { $0.id == protectedID }))
+        XCTAssertFalse(rows.contains(where: { $0.id == mutableID }))
+    }
+
+    func testShortSessionCleanupDoesNotMergeAcrossPauseBoundary() throws {
+        let db = makeTestDatabase("short-merge-pause-boundary")
+        let base = Int64(Date().timeIntervalSince1970) - 600
+        let previousID = try insertTestActivity(
+            db: db,
+            start: base,
+            end: base + 100,
+            appName: "Tie App",
+            bundleId: "com.example.tie-break"
+        )
+        let shortID = try insertTestActivity(
+            db: db,
+            start: base + 101,
+            end: base + 103,
+            appName: "Tie App",
+            bundleId: "com.example.tie-break"
+        )
+        insertRawEvents([
+            RawEvent(
+                id: nil,
+                // Exercise the full extension span, not only the one-second gap. A short
+                // activity that already straddles a restored pause tombstone must be dropped,
+                // never absorbed into its matching predecessor.
+                timestamp: base + 102,
+                type: .trackingPaused,
+                bundleId: nil,
+                appName: nil,
+                windowTitle: nil,
+                payload: nil
+            )
+        ], into: db)
+
+        let outcome = try awaitResult("short cleanup respects pause") { completion in
+            db.mergeShortActivityIfNeeded(
+                activityId: shortID,
+                startTime: base + 101,
+                endTime: base + 103,
+                appName: "Tie App",
+                bundleId: "com.example.tie-break",
+                tagId: nil,
+                isIdle: false,
+                minDurationSeconds: 5,
+                mergeGapSeconds: 3,
+                completion: completion
+            )
+        }.get()
+
+        XCTAssertEqual(outcome.mergedCount, 0)
+        XCTAssertEqual(outcome.droppedCount, 1)
+        let rows = fetchActivities(db: db, rangeStart: base - 1, rangeEnd: base + 110)
+        XCTAssertEqual(rows.map(\.id), [previousID])
+        XCTAssertEqual(rows.first?.endTime, base + 100)
+    }
+
+    func testCompactionDoesNotMergeSameAppAcrossPauseBoundary() throws {
+        let db = makeTestDatabase("compaction-pause-boundary")
+        let base = Int64(Date().timeIntervalSince1970) - 600
+        _ = try insertTestActivity(
+            db: db,
+            start: base,
+            end: base + 100,
+            appName: "Tie App",
+            bundleId: "com.example.tie-break"
+        )
+        _ = try insertTestActivity(
+            db: db,
+            start: base + 101,
+            end: base + 200,
+            appName: "Tie App",
+            bundleId: "com.example.tie-break"
+        )
+        insertRawEvents([
+            RawEvent(
+                id: nil,
+                timestamp: base + 100,
+                type: .trackingPaused,
+                bundleId: nil,
+                appName: nil,
+                windowTitle: nil,
+                payload: nil
+            )
+        ], into: db)
+
+        let summary = try awaitResult("compaction respects pause") { completion in
+            db.compactRecentActivities(
+                days: 1,
+                minDurationSeconds: 1,
+                mergeGapSeconds: 3,
+                completion: completion
+            )
+        }.get()
+
+        XCTAssertEqual(summary.mergedCount, 0)
+        let rows = fetchActivities(db: db, rangeStart: base - 1, rangeEnd: base + 210)
+            .sorted { $0.startTime < $1.startTime }
+        XCTAssertEqual(rows.count, 2)
+        XCTAssertEqual(rows.map(\.startTime), [base, base + 101])
+        XCTAssertEqual(rows.map(\.endTime), [base + 100, base + 200])
+    }
+
+    func testShortCleanupUsesStableIDTieBreakForEqualTimeCandidates() throws {
+        let db = makeTestDatabase("short-merge-equal-time-order")
+        let base = Int64(Date().timeIntervalSince1970) - 600
+        let olderID = try insertTestActivity(
+            db: db,
+            start: base,
+            end: base + 100,
+            appName: "Tie App",
+            bundleId: "com.example.tie-break"
+        )
+        let newerID = try insertTestActivity(
+            db: db,
+            start: base + 50,
+            end: base + 100,
+            appName: "Tie App",
+            bundleId: "com.example.tie-break"
+        )
+        let shortID = try insertTestActivity(
+            db: db,
+            start: base + 101,
+            end: base + 102,
+            appName: "Tie App",
+            bundleId: "com.example.tie-break"
+        )
+
+        let selectedPrevious = try db.fetchPreviousActivity(
+            endBefore: base + 101,
+            excludingId: shortID
+        )
+        XCTAssertEqual(selectedPrevious?.id, newerID)
+        XCTAssertNotEqual(selectedPrevious?.id, olderID)
+        XCTAssertTrue(db.activitySignatureMatches(
+            summary: try XCTUnwrap(selectedPrevious),
+            appName: "Tie App",
+            bundleId: "com.example.tie-break",
+            tagId: nil,
+            isIdle: false
+        ))
+        XCTAssertFalse(try db.hasTrackingPauseBoundaryInternal(
+            between: base + 100,
+            and: base + 102
+        ))
+
+        let outcome = try awaitResult("merge against deterministic previous candidate") { completion in
+            db.mergeShortActivityIfNeeded(
+                activityId: shortID,
+                startTime: base + 101,
+                endTime: base + 102,
+                appName: "Tie App",
+                bundleId: "com.example.tie-break",
+                tagId: nil,
+                isIdle: false,
+                minDurationSeconds: 5,
+                mergeGapSeconds: 3,
+                completion: completion
+            )
+        }.get()
+        XCTAssertEqual(outcome.mergedCount, 1)
+        XCTAssertEqual(outcome.droppedCount, 1)
+
+        let rows = fetchActivities(db: db, rangeStart: base - 1, rangeEnd: base + 110)
+        XCTAssertEqual(rows.first(where: { $0.id == olderID })?.endTime, base + 100)
+        XCTAssertEqual(rows.first(where: { $0.id == newerID })?.endTime, base + 102)
+        XCTAssertFalse(rows.contains(where: { $0.id == shortID }))
+    }
+
+    func testReviewedRawEvidenceDeletionRetainsPauseBoundaryTombstone() throws {
+        let db = makeTestDatabase("review-delete-retains-pause-tombstone")
+        let completed = try makeReviewRevisionFixture(db: db, rangeStart: 11_000)
+        insertRawEvents([
+            RawEvent(
+                id: nil,
+                timestamp: 11_000,
+                type: .appActivated,
+                bundleId: "com.apple.Safari",
+                appName: "Safari",
+                windowTitle: "Sensitive title",
+                payload: nil
+            ),
+            RawEvent(
+                id: nil,
+                timestamp: 11_010,
+                type: .trackingPaused,
+                bundleId: nil,
+                appName: nil,
+                windowTitle: nil,
+                payload: nil
+            ),
+            RawEvent(
+                id: nil,
+                timestamp: 11_015,
+                type: .trackingResumed,
+                bundleId: nil,
+                appName: nil,
+                windowTitle: nil,
+                payload: nil
+            ),
+            RawEvent(
+                id: nil,
+                timestamp: 11_020,
+                type: .idleEnter,
+                bundleId: nil,
+                appName: nil,
+                windowTitle: nil,
+                payload: RawEventPayload.idle(idleSeconds: 300).toJSONString()
+            )
+        ], into: db)
+
+        _ = try awaitResult("delete reviewed evidence while retaining pause tombstone") { completion in
+            db.deleteReviewedEvidence(
+                snapshotID: completed.snapshot.id,
+                deletedAt: Date(timeIntervalSince1970: 12_000),
+                completion: completion
+            )
+        }.get()
+
+        let remaining = try awaitResult("fetch retained pause tombstone") { completion in
+            db.fetchRawEvents(start: 11_000, end: 11_180, completion: completion)
+        }.get()
+        XCTAssertEqual(remaining.map(\.type), [.trackingPaused, .trackingResumed])
+        XCTAssertEqual(remaining.map(\.timestamp), [11_010, 11_015])
+        XCTAssertTrue(remaining.allSatisfy { $0.bundleId == nil })
+        XCTAssertTrue(remaining.allSatisfy { $0.appName == nil })
+        XCTAssertTrue(remaining.allSatisfy { $0.windowTitle == nil })
+        XCTAssertNil(remaining.first?.payload)
+    }
+
     func testDatabaseInitializationFailureClosesConnection() throws {
         let url = makeTempDatabaseURL("corrupt-initialization")
         try Data("not a sqlite database".utf8).write(to: url, options: .atomic)
@@ -1264,6 +6670,474 @@ final class ChronicleTests: XCTestCase {
         XCTAssertThrowsError(try db.openDatabaseIfNeeded())
         XCTAssertFalse(db.isInitialized)
         XCTAssertNil(db.db)
+    }
+
+    func testV105PublicArchiveUpgradePreservesDataAndRestorablePlaintextBackup() throws {
+        let archiveURL = makeTempDatabaseURL("v1-0-5-upgrade")
+        let rollbackURL = makeTempDatabaseURL("v1-0-5-rollback")
+        let exportFolder = FileManager.default.temporaryDirectory
+            .appendingPathComponent("chronicle-v1-0-5-upgrade-exports-\(UUID().uuidString)", isDirectory: true)
+        let reportDefaultsName = "chronicle-tests-v1-0-5-reports-\(UUID().uuidString)"
+        let reportDefaults = try XCTUnwrap(UserDefaults(suiteName: reportDefaultsName))
+        let dailyExportFolder = exportFolder.appendingPathComponent("v105-daily", isDirectory: true)
+        let weeklyExportFolder = exportFolder.appendingPathComponent("v105-weekly", isDirectory: true)
+        let csvExportFolder = exportFolder.appendingPathComponent("v105-csv", isDirectory: true)
+        for folder in [dailyExportFolder, weeklyExportFolder, csvExportFolder] {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        }
+        defer {
+            for url in [archiveURL, rollbackURL] {
+                try? FileManager.default.removeItem(at: url)
+                try? FileManager.default.removeItem(atPath: url.path + "-wal")
+                try? FileManager.default.removeItem(atPath: url.path + "-shm")
+            }
+            reportDefaults.removePersistentDomain(forName: reportDefaultsName)
+            try? FileManager.default.removeItem(at: exportFolder)
+        }
+
+        // v1.0.5 stored export preferences in UserDefaults rather than its SQLite archive. Seed
+        // the exact public-tag keys and security-scoped bookmark format directly, instead of
+        // routing through the candidate's bookmark-writing implementation.
+        let legacyActivityDate = Date(timeIntervalSince1970: 1_700_001_800)
+        let legacyDailyBookmark = try dailyExportFolder.bookmarkData(
+            options: [.withSecurityScope],
+            includingResourceValuesForKeys: nil,
+            relativeTo: nil
+        )
+        let legacyWeeklyBookmark = try weeklyExportFolder.bookmarkData(
+            options: [.withSecurityScope],
+            includingResourceValuesForKeys: nil,
+            relativeTo: nil
+        )
+        let legacyCsvBookmark = try csvExportFolder.bookmarkData(
+            options: [.withSecurityScope],
+            includingResourceValuesForKeys: nil,
+            relativeTo: nil
+        )
+        let legacyDailyStatusDate = Date(timeIntervalSince1970: 1_700_001_801)
+        let legacyWeeklyStatusDate = Date(timeIntervalSince1970: 1_700_001_802)
+        let legacyCsvStatusDate = Date(timeIntervalSince1970: 1_700_001_803)
+        reportDefaults.set(legacyDailyBookmark, forKey: "reports.dailyFolderBookmark")
+        reportDefaults.set(legacyWeeklyBookmark, forKey: "reports.weeklyFolderBookmark")
+        reportDefaults.set(legacyCsvBookmark, forKey: "reports.csvFolderBookmark")
+        reportDefaults.set(true, forKey: "reports.enableAutoDailyExport")
+        reportDefaults.set(true, forKey: "reports.enableAutoWeeklyExport")
+        reportDefaults.set(false, forKey: "reports.overwriteDailyExports")
+        reportDefaults.set(false, forKey: "reports.overwriteWeeklyExports")
+        reportDefaults.set(false, forKey: "reports.overwriteCsvExports")
+        reportDefaults.set(
+            ReportService.dayKey(for: legacyActivityDate),
+            forKey: "reports.lastExportedDay"
+        )
+        reportDefaults.set(
+            ReportService.weekKey(for: legacyActivityDate),
+            forKey: "reports.lastExportedWeek"
+        )
+        reportDefaults.set(
+            legacyDailyStatusDate.timeIntervalSince1970,
+            forKey: "reports.lastDailyExportAt"
+        )
+        reportDefaults.set(
+            legacyWeeklyStatusDate.timeIntervalSince1970,
+            forKey: "reports.lastWeeklyExportAt"
+        )
+        reportDefaults.set(
+            legacyCsvStatusDate.timeIntervalSince1970,
+            forKey: "reports.lastCsvExportAt"
+        )
+        reportDefaults.set("V105_DAILY_STATUS", forKey: "reports.lastDailyExportMessage")
+        reportDefaults.set("V105_WEEKLY_STATUS", forKey: "reports.lastWeeklyExportMessage")
+        reportDefaults.set("V105_CSV_STATUS", forKey: "reports.lastCsvExportMessage")
+        reportDefaults.set(true, forKey: "reports.lastDailyExportIsError")
+        reportDefaults.set(false, forKey: "reports.lastWeeklyExportIsError")
+        reportDefaults.set(true, forKey: "reports.lastCsvExportIsError")
+        XCTAssertTrue(reportDefaults.synchronize())
+
+        // Schema copied from the public v1.0.5 tag (build 6), including every
+        // table and migration marker that existed before the review domain.
+        var legacy: OpaquePointer?
+        XCTAssertEqual(sqlite3_open(archiveURL.path, &legacy), SQLITE_OK)
+        let legacySQL = """
+        PRAGMA journal_mode=DELETE;
+        CREATE TABLE Activities (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            start_time INTEGER NOT NULL,
+            end_time INTEGER NOT NULL,
+            app_name TEXT NOT NULL,
+            bundle_id TEXT,
+            window_title TEXT,
+            is_idle INTEGER NOT NULL DEFAULT 0,
+            tag_id INTEGER,
+            rule_tag_id INTEGER,
+            user_tag_override_id INTEGER,
+            effective_tag_id INTEGER
+        );
+        CREATE TABLE Markers (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp INTEGER NOT NULL,
+            text TEXT NOT NULL
+        );
+        CREATE TABLE MarkerSpans (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            start_time INTEGER NOT NULL,
+            end_time INTEGER,
+            text TEXT NOT NULL
+        );
+        CREATE TABLE Tags (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            color TEXT
+        );
+        CREATE TABLE Rules (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            enabled INTEGER NOT NULL DEFAULT 1,
+            match_bundle_id TEXT,
+            match_app_name TEXT,
+            match_window_title TEXT,
+            match_mode TEXT NOT NULL DEFAULT 'contains',
+            tag_id INTEGER,
+            priority INTEGER NOT NULL DEFAULT 0
+        );
+        CREATE TABLE AppMappings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            bundle_id TEXT NOT NULL UNIQUE,
+            app_name TEXT NOT NULL,
+            tag_id INTEGER,
+            updated_at INTEGER NOT NULL,
+            tagging_mode TEXT NOT NULL DEFAULT 'auto'
+        );
+        CREATE TABLE RawEvents (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            ts INTEGER NOT NULL,
+            type TEXT NOT NULL,
+            bundle_id TEXT,
+            app_name TEXT,
+            window_title TEXT,
+            payload TEXT
+        );
+        CREATE TABLE SchemaMigrations (
+            name TEXT PRIMARY KEY,
+            applied_at INTEGER NOT NULL
+        );
+
+        INSERT INTO Tags (id, name, color) VALUES (42, 'Legacy Focus', '#123456');
+        INSERT INTO Activities (
+            id, start_time, end_time, app_name, bundle_id, window_title, is_idle,
+            tag_id, rule_tag_id, user_tag_override_id, effective_tag_id
+        ) VALUES (
+            7, 1700000000, 1700003600, 'Legacy Editor', 'example.legacy.editor',
+            'Release Notes', 0, 42, 42, NULL, 42
+        );
+        INSERT INTO Markers (id, timestamp, text)
+        VALUES (8, 1700000100, 'Legacy point note');
+        INSERT INTO MarkerSpans (id, start_time, end_time, text)
+        VALUES (9, 1700000200, 1700000300, 'Legacy interval note');
+        INSERT INTO Rules (
+            id, name, enabled, match_bundle_id, match_app_name, match_window_title,
+            match_mode, tag_id, priority
+        ) VALUES (
+            10, 'Legacy editor rule', 1, 'example.legacy.editor', 'Legacy Editor',
+            'Release', 'contains', 42, 50
+        );
+        INSERT INTO AppMappings (
+            id, bundle_id, app_name, tag_id, updated_at, tagging_mode
+        ) VALUES (
+            11, 'example.legacy.editor', 'Legacy Editor', 42, 1700000000, 'mapping_only'
+        );
+        INSERT INTO RawEvents (
+            id, ts, type, bundle_id, app_name, window_title, payload
+        ) VALUES (
+            12, 1700000000, 'app_activated', 'example.legacy.editor',
+            'Legacy Editor', 'Release Notes', NULL
+        );
+        INSERT INTO SchemaMigrations (name, applied_at) VALUES
+            ('2026_01_add_bundle_id', 1700000000),
+            ('2026_02_raw_events', 1700000000),
+            ('2026_03_effective_tag_columns', 1700000000),
+            ('2026_04_rules_match_bundle_id', 1700000000),
+            ('2026_05_app_mappings_tagging_mode', 1700000000);
+        """
+        XCTAssertEqual(sqlite3_exec(legacy, legacySQL, nil, nil, nil), SQLITE_OK)
+        XCTAssertEqual(sqlite3_close(legacy), SQLITE_OK)
+        legacy = nil
+
+        try FileManager.default.copyItem(at: archiveURL, to: rollbackURL)
+        XCTAssertEqual(try SQLCipherDatabase.fileFormat(at: rollbackURL), .plaintextSQLite)
+
+        let database = DatabaseService.makeTestInstance(databaseURL: archiveURL)
+        try database.openDatabaseIfNeeded()
+
+        XCTAssertEqual(try SQLCipherDatabase.fileFormat(at: archiveURL), .encryptedOrUnknown)
+        let activity = try XCTUnwrap(
+            fetchActivities(db: database, rangeStart: 1_699_999_999, rangeEnd: 1_700_003_601).first
+        )
+        XCTAssertEqual(activity.id, 7)
+        XCTAssertEqual(activity.appName, "Legacy Editor")
+        XCTAssertEqual(activity.windowTitle, "Release Notes")
+        XCTAssertEqual(activity.effectiveTagId, 42)
+
+        XCTAssertEqual(
+            fetchMarkers(db: database, rangeStart: 1_700_000_000, rangeEnd: 1_700_000_200).map(\.text),
+            ["Legacy point note"]
+        )
+        XCTAssertEqual(
+            fetchMarkerSpans(db: database, rangeStart: 1_700_000_000, rangeEnd: 1_700_000_400).map(\.text),
+            ["Legacy interval note"]
+        )
+        XCTAssertTrue(fetchTags(db: database).contains { $0.id == 42 && $0.name == "Legacy Focus" })
+
+        let rules = try awaitResult("fetch upgraded legacy rules") { database.fetchRules(completion: $0) }.get()
+        XCTAssertTrue(rules.contains {
+            $0.id == 10 && $0.matchBundleId == "example.legacy.editor" && $0.tagId == 42
+        })
+        let mappings = try awaitResult("fetch upgraded legacy mappings") {
+            database.fetchAppMappings(completion: $0)
+        }.get()
+        XCTAssertTrue(mappings.contains {
+            $0.id == 11 && $0.bundleId == "example.legacy.editor" && $0.taggingMode == .mappingOnly
+        })
+        let rawEventCount = try awaitResult("count upgraded legacy raw events") {
+            database.fetchRawEventCount(start: 1_699_999_999, end: 1_700_000_001, completion: $0)
+        }.get()
+        XCTAssertEqual(rawEventCount, 1)
+
+        let expectedMigrations: Set<String> = [
+            "2026_01_add_bundle_id",
+            "2026_02_raw_events",
+            "2026_03_effective_tag_columns",
+            "2026_04_rules_match_bundle_id",
+            "2026_05_app_mappings_tagging_mode",
+            "2026_06_review_domain",
+            "2026_07_review_revision_leaf",
+            "2026_08_export_history",
+            "2026_09_review_snapshot_tag_name",
+            "2026_10_activity_split_aliases",
+            "2026_11_work_block_structural_edits"
+        ]
+        let appliedMigrations = try database.queue.sync { try database.fetchAppliedMigrationIds() }
+        XCTAssertEqual(appliedMigrations, expectedMigrations)
+        let requiredNewTables = [
+            "ReviewSnapshots",
+            "WorkBlocks",
+            "WorkBlockOverrides",
+            "WorkBlockEvidence",
+            "ReviewSnapshotBlocks",
+            "ExportRecords",
+            "ActivitySplitAliases",
+            "WorkBlockStructuralEdits"
+        ]
+        for table in requiredNewTables {
+            XCTAssertTrue(try database.queue.sync { try database.tableExists(table) }, table)
+        }
+
+        let projection = WorkBlockProjectionService.makeTestInstance(database: database)
+        let projected = try awaitResult("project upgraded legacy activity") {
+            projection.refreshNow(through: 1_700_003_601, completion: $0)
+        }.get()
+        XCTAssertEqual(projected.count, 1)
+        XCTAssertEqual(projected.first?.inferredTitle, "Release Notes")
+
+        let upgradedReportSettings = ReportSettings.makeTestInstance(defaults: reportDefaults)
+        XCTAssertEqual(upgradedReportSettings.dailyFolderBookmark, legacyDailyBookmark)
+        XCTAssertEqual(upgradedReportSettings.weeklyFolderBookmark, legacyWeeklyBookmark)
+        XCTAssertEqual(upgradedReportSettings.csvFolderBookmark, legacyCsvBookmark)
+        XCTAssertTrue(upgradedReportSettings.enableAutoDailyExport)
+        XCTAssertTrue(upgradedReportSettings.enableAutoWeeklyExport)
+        XCTAssertEqual(
+            upgradedReportSettings.lastExportedDay,
+            ReportService.dayKey(for: legacyActivityDate)
+        )
+        XCTAssertEqual(
+            upgradedReportSettings.lastExportedWeek,
+            ReportService.weekKey(for: legacyActivityDate)
+        )
+        XCTAssertEqual(
+            upgradedReportSettings.lastDailyExportAt,
+            legacyDailyStatusDate.timeIntervalSince1970
+        )
+        XCTAssertEqual(
+            upgradedReportSettings.lastWeeklyExportAt,
+            legacyWeeklyStatusDate.timeIntervalSince1970
+        )
+        XCTAssertEqual(
+            upgradedReportSettings.lastCsvExportAt,
+            legacyCsvStatusDate.timeIntervalSince1970
+        )
+        XCTAssertEqual(upgradedReportSettings.lastDailyExportMessage, "V105_DAILY_STATUS")
+        XCTAssertEqual(upgradedReportSettings.lastWeeklyExportMessage, "V105_WEEKLY_STATUS")
+        XCTAssertEqual(upgradedReportSettings.lastCsvExportMessage, "V105_CSV_STATUS")
+        XCTAssertTrue(upgradedReportSettings.lastDailyExportIsError)
+        XCTAssertFalse(upgradedReportSettings.lastWeeklyExportIsError)
+        XCTAssertTrue(upgradedReportSettings.lastCsvExportIsError)
+        XCTAssertFalse(upgradedReportSettings.dailyExportSucceeded(for: legacyActivityDate))
+        XCTAssertTrue(upgradedReportSettings.dailyExportFailed(for: legacyActivityDate))
+        XCTAssertTrue(upgradedReportSettings.weeklyExportSucceeded(for: legacyActivityDate))
+        XCTAssertEqual(
+            try upgradedReportSettings.resolveDailyFolderURL()?.resolvingSymlinksInPath().path,
+            dailyExportFolder.resolvingSymlinksInPath().path
+        )
+        XCTAssertEqual(
+            try upgradedReportSettings.resolveWeeklyFolderURL()?.resolvingSymlinksInPath().path,
+            weeklyExportFolder.resolvingSymlinksInPath().path
+        )
+        XCTAssertEqual(
+            try upgradedReportSettings.resolveCsvFolderURL()?.resolvingSymlinksInPath().path,
+            csvExportFolder.resolvingSymlinksInPath().path
+        )
+
+        let reports = ReportService.makeTestInstance(
+            database: database,
+            settings: upgradedReportSettings,
+            allowedBundleIds: ["example.legacy.editor"]
+        )
+        let dailyExport = try awaitResult("export daily report from upgraded v1.0.5 archive") {
+            reports.generateDailyReport(
+                date: legacyActivityDate,
+                notes: "Upgraded daily export",
+                completion: $0
+            )
+        }.get()
+        let dailyContent = try String(contentsOf: dailyExport.fileURL, encoding: .utf8)
+        XCTAssertTrue(dailyContent.contains("Legacy Editor"))
+        XCTAssertTrue(dailyContent.contains("Release Notes"))
+        XCTAssertTrue(dailyContent.contains("Legacy point note"))
+        XCTAssertTrue(dailyContent.contains("Upgraded daily export"))
+
+        let weeklyExport = try awaitResult("export weekly report from upgraded v1.0.5 archive") {
+            reports.generateWeeklyReport(
+                for: legacyActivityDate,
+                notes: "Upgraded weekly export",
+                completion: $0
+            )
+        }.get()
+        let weeklyContent = try String(contentsOf: weeklyExport.fileURL, encoding: .utf8)
+        XCTAssertTrue(weeklyContent.contains("Legacy Editor"))
+        XCTAssertTrue(weeklyContent.contains("Legacy point note"))
+        XCTAssertTrue(weeklyContent.contains("Legacy Focus"))
+        XCTAssertTrue(weeklyContent.contains("Upgraded weekly export"))
+
+        let defaultCSVExport = try awaitResult("export default CSV from upgraded v1.0.5 archive") {
+            reports.exportCSV(range: .day(legacyActivityDate), completion: $0)
+        }.get()
+        let defaultCSVContent = try String(contentsOf: defaultCSVExport.fileURL, encoding: .utf8)
+        XCTAssertEqual(
+            defaultCSVContent.components(separatedBy: .newlines).first,
+            CSVExportColumn.defaultColumns.map(\.rawValue).joined(separator: ",")
+        )
+        XCTAssertTrue(defaultCSVContent.contains("Legacy Editor"))
+        XCTAssertTrue(defaultCSVContent.contains("example.legacy.editor"))
+        XCTAssertTrue(defaultCSVContent.contains("Release Notes"))
+        XCTAssertTrue(defaultCSVContent.contains("Legacy Focus"))
+
+        let customCSVExport = try awaitResult("export custom CSV from upgraded v1.0.5 archive") {
+            reports.exportCSV(
+                range: .day(legacyActivityDate),
+                columns: [.appName, .windowTitle, .effectiveTagName],
+                completion: $0
+            )
+        }.get()
+        let customCSVContent = try String(contentsOf: customCSVExport.fileURL, encoding: .utf8)
+        XCTAssertEqual(
+            customCSVContent.components(separatedBy: .newlines).first,
+            "app_name,window_title,effective_tag_name"
+        )
+        XCTAssertTrue(customCSVContent.contains("Legacy Editor,Release Notes,Legacy Focus"))
+
+        // Persist deterministic post-upgrade status through a new settings instance, mirroring
+        // an app relaunch after all three export paths have run successfully.
+        let restoredDailyStatusDate = Date(timeIntervalSince1970: 1_700_004_101)
+        let restoredWeeklyStatusDate = Date(timeIntervalSince1970: 1_700_004_102)
+        let restoredCsvStatusDate = Date(timeIntervalSince1970: 1_700_004_103)
+        upgradedReportSettings.lastExportedDay = ReportService.dayKey(for: legacyActivityDate)
+        upgradedReportSettings.lastExportedWeek = ReportService.weekKey(for: legacyActivityDate)
+        upgradedReportSettings.recordExportResult(
+            kind: .daily,
+            message: "RESTORED_DAILY_SUCCESS",
+            isError: false,
+            date: restoredDailyStatusDate
+        )
+        upgradedReportSettings.recordExportResult(
+            kind: .weekly,
+            message: "RESTORED_WEEKLY_SUCCESS",
+            isError: false,
+            date: restoredWeeklyStatusDate
+        )
+        upgradedReportSettings.recordExportResult(
+            kind: .csv,
+            message: "RESTORED_CSV_SUCCESS",
+            isError: false,
+            date: restoredCsvStatusDate
+        )
+        XCTAssertTrue(reportDefaults.synchronize())
+
+        let restoredReportSettings = ReportSettings.makeTestInstance(defaults: reportDefaults)
+        XCTAssertEqual(
+            restoredReportSettings.lastExportedDay,
+            ReportService.dayKey(for: legacyActivityDate)
+        )
+        XCTAssertEqual(
+            restoredReportSettings.lastExportedWeek,
+            ReportService.weekKey(for: legacyActivityDate)
+        )
+        XCTAssertEqual(
+            restoredReportSettings.lastDailyExportAt,
+            restoredDailyStatusDate.timeIntervalSince1970
+        )
+        XCTAssertEqual(
+            restoredReportSettings.lastWeeklyExportAt,
+            restoredWeeklyStatusDate.timeIntervalSince1970
+        )
+        XCTAssertEqual(
+            restoredReportSettings.lastCsvExportAt,
+            restoredCsvStatusDate.timeIntervalSince1970
+        )
+        XCTAssertEqual(restoredReportSettings.lastDailyExportMessage, "RESTORED_DAILY_SUCCESS")
+        XCTAssertEqual(restoredReportSettings.lastWeeklyExportMessage, "RESTORED_WEEKLY_SUCCESS")
+        XCTAssertEqual(restoredReportSettings.lastCsvExportMessage, "RESTORED_CSV_SUCCESS")
+        XCTAssertFalse(restoredReportSettings.lastDailyExportIsError)
+        XCTAssertFalse(restoredReportSettings.lastWeeklyExportIsError)
+        XCTAssertFalse(restoredReportSettings.lastCsvExportIsError)
+        XCTAssertTrue(restoredReportSettings.dailyExportSucceeded(for: legacyActivityDate))
+        XCTAssertFalse(restoredReportSettings.dailyExportFailed(for: legacyActivityDate))
+        XCTAssertTrue(restoredReportSettings.weeklyExportSucceeded(for: legacyActivityDate))
+        XCTAssertEqual(
+            try restoredReportSettings.resolveDailyFolderURL()?.resolvingSymlinksInPath().path,
+            dailyExportFolder.resolvingSymlinksInPath().path
+        )
+        XCTAssertEqual(
+            try restoredReportSettings.resolveWeeklyFolderURL()?.resolvingSymlinksInPath().path,
+            weeklyExportFolder.resolvingSymlinksInPath().path
+        )
+        XCTAssertEqual(
+            try restoredReportSettings.resolveCsvFolderURL()?.resolvingSymlinksInPath().path,
+            csvExportFolder.resolvingSymlinksInPath().path
+        )
+
+        // The candidate migrates only the working copy. A user-created pre-upgrade
+        // backup remains a byte-for-byte v1.0.5 SQLite archive that the old build can read.
+        XCTAssertEqual(try SQLCipherDatabase.fileFormat(at: rollbackURL), .plaintextSQLite)
+        var rollback: OpaquePointer?
+        XCTAssertEqual(
+            sqlite3_open_v2(rollbackURL.path, &rollback, SQLITE_OPEN_READONLY, nil),
+            SQLITE_OK
+        )
+        defer { sqlite3_close(rollback) }
+        var statement: OpaquePointer?
+        XCTAssertEqual(
+            sqlite3_prepare_v2(
+                rollback,
+                "SELECT app_name, window_title FROM Activities WHERE id = 7;",
+                -1,
+                &statement,
+                nil
+            ),
+            SQLITE_OK
+        )
+        defer { sqlite3_finalize(statement) }
+        XCTAssertEqual(sqlite3_step(statement), SQLITE_ROW)
+        XCTAssertEqual(String(cString: sqlite3_column_text(statement, 0)), "Legacy Editor")
+        XCTAssertEqual(String(cString: sqlite3_column_text(statement, 1)), "Release Notes")
     }
 
     func testWindowTitleMigrationPreservesExtendedTags() throws {
@@ -1301,21 +7175,56 @@ final class ChronicleTests: XCTestCase {
     }
 
     func testLegacyDatabaseMigrationIncludesCommittedWALData() throws {
+        let liveURL = makeTempDatabaseURL("legacy-wal-live")
         let sourceURL = makeTempDatabaseURL("legacy-wal-source")
         let destinationURL = makeTempDatabaseURL("legacy-wal-destination")
+        defer {
+            for databaseURL in [liveURL, sourceURL, destinationURL] {
+                for suffix in ["", "-wal", "-shm", "-journal"] {
+                    try? FileManager.default.removeItem(
+                        at: URL(fileURLWithPath: databaseURL.path + suffix)
+                    )
+                }
+            }
+        }
         var source: OpaquePointer?
-        XCTAssertEqual(sqlite3_open(sourceURL.path, &source), SQLITE_OK)
+        XCTAssertEqual(sqlite3_open(liveURL.path, &source), SQLITE_OK)
         defer { sqlite3_close(source) }
         XCTAssertEqual(sqlite3_exec(source, "PRAGMA journal_mode=WAL;", nil, nil, nil), SQLITE_OK)
         XCTAssertEqual(sqlite3_exec(source, "PRAGMA wal_autocheckpoint=0;", nil, nil, nil), SQLITE_OK)
         XCTAssertEqual(sqlite3_exec(source, "CREATE TABLE Sample (value TEXT NOT NULL);", nil, nil, nil), SQLITE_OK)
         XCTAssertEqual(sqlite3_exec(source, "INSERT INTO Sample VALUES ('preserved');", nil, nil, nil), SQLITE_OK)
+        let liveWALURL = URL(fileURLWithPath: liveURL.path + "-wal")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: liveWALURL.path))
+
+        // Copy a quiescent WAL-mode file set while its committed row still lives in the WAL, then
+        // migrate the copy with no live connection. This models crash-recovery input without
+        // contradicting the separate fail-closed contract for a still-running previous build.
+        try FileManager.default.copyItem(at: liveURL, to: sourceURL)
+        try FileManager.default.copyItem(
+            at: liveWALURL,
+            to: URL(fileURLWithPath: sourceURL.path + "-wal")
+        )
+        sqlite3_close(source)
+        source = nil
         XCTAssertTrue(FileManager.default.fileExists(atPath: sourceURL.path + "-wal"))
 
-        try AppRuntime.migrateSQLiteDatabase(from: sourceURL, to: destinationURL)
+        let testKey = Data(repeating: 0xA5, count: 32)
+        try AppRuntime.migrateSQLiteDatabase(
+            from: sourceURL,
+            to: destinationURL,
+            encryptionKey: testKey
+        )
+        XCTAssertFalse(FileManager.default.fileExists(atPath: sourceURL.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: sourceURL.path + "-wal"))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: sourceURL.path + "-shm"))
 
-        var destination: OpaquePointer?
-        XCTAssertEqual(sqlite3_open_v2(destinationURL.path, &destination, SQLITE_OPEN_READWRITE, nil), SQLITE_OK)
+        let opened = try SQLCipherDatabase.openEncryptedDatabase(
+            at: destinationURL,
+            key: testKey,
+            createIfMissing: false
+        )
+        let destination = opened.handle
         defer { sqlite3_close(destination) }
         var statement: OpaquePointer?
         let prepareResult = sqlite3_prepare_v2(destination, "SELECT value FROM Sample;", -1, &statement, nil)
@@ -1339,12 +7248,17 @@ final class ChronicleTests: XCTestCase {
         let destinationURL = makeTempDatabaseURL("legacy-corrupt-destination")
         try Data("not sqlite".utf8).write(to: sourceURL, options: .atomic)
 
-        XCTAssertThrowsError(try AppRuntime.migrateSQLiteDatabase(from: sourceURL, to: destinationURL))
+        XCTAssertThrowsError(try AppRuntime.migrateSQLiteDatabase(
+            from: sourceURL,
+            to: destinationURL,
+            encryptionKey: Data(repeating: 0xA5, count: 32)
+        ))
         XCTAssertFalse(FileManager.default.fileExists(atPath: destinationURL.path))
     }
 
-    func testWipeDatabaseReopensCleanDatabase() {
+    func testWipeDatabaseDisablesOldServiceUntilProcessRestart() {
         let db = makeTestDatabase("wipe-reopen")
+        let databaseURL = URL(fileURLWithPath: db.databasePath)
         let service = QuickMarkerService.makeTestInstance(database: db)
         let markerTimestamp: Int64 = 80_000
 
@@ -1371,8 +7285,30 @@ final class ChronicleTests: XCTestCase {
         }
         wait(for: [wipeExpectation], timeout: 5)
 
-        XCTAssertTrue(fetchMarkers(db: db, rangeStart: markerTimestamp, rangeEnd: markerTimestamp + 1).isEmpty)
-        XCTAssertEqual(fetchTags(db: db).count, DatabaseService.defaultTags.count)
+        let postWipeAccess = XCTestExpectation(description: "old service rejects access after wipe")
+        db.fetchMarkersOverlappingRange(start: markerTimestamp, end: markerTimestamp + 1) { result in
+            switch result {
+            case .success:
+                XCTFail("The wiped service unexpectedly reopened the archive.")
+            case .failure(let error):
+                guard let databaseError = error as? DatabaseError,
+                      case .archiveAccessDisabledAfterWipe = databaseError
+                else {
+                    XCTFail("Unexpected post-wipe error: \(error)")
+                    postWipeAccess.fulfill()
+                    return
+                }
+            }
+            postWipeAccess.fulfill()
+        }
+        wait(for: [postWipeAccess], timeout: 5)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: databaseURL.path))
+
+        // A new service models a deliberate process restart and may create a fresh archive.
+        db.context.archiveLifecycleLock = nil
+        let restarted = DatabaseService.makeTestInstance(databaseURL: databaseURL)
+        XCTAssertTrue(fetchMarkers(db: restarted, rangeStart: markerTimestamp, rangeEnd: markerTimestamp + 1).isEmpty)
+        XCTAssertEqual(fetchTags(db: restarted).count, DatabaseService.defaultTags.count)
     }
 
     func testWindowTitleCaptureDefaults() {
@@ -1427,14 +7363,14 @@ final class ChronicleTests: XCTestCase {
         defaults.removePersistentDomain(forName: suiteName)
 
         let state = AppState.makeTestInstance(defaults: defaults)
-        XCTAssertTrue(state.dailyReviewReminderEnabled)
+        XCTAssertFalse(state.dailyReviewReminderEnabled)
         XCTAssertEqual(state.dailyReviewReminderTimeMinutes, 18 * 60)
 
-        state.dailyReviewReminderEnabled = false
+        state.dailyReviewReminderEnabled = true
         state.dailyReviewReminderTimeMinutes = 9 * 60 + 30
 
         let reloaded = AppState.makeTestInstance(defaults: defaults)
-        XCTAssertFalse(reloaded.dailyReviewReminderEnabled)
+        XCTAssertTrue(reloaded.dailyReviewReminderEnabled)
         XCTAssertEqual(reloaded.dailyReviewReminderTimeMinutes, 9 * 60 + 30)
 
         state.dailyReviewReminderTimeMinutes = -15
@@ -1445,6 +7381,33 @@ final class ChronicleTests: XCTestCase {
 
         let clampedReloaded = AppState.makeTestInstance(defaults: defaults)
         XCTAssertEqual(clampedReloaded.dailyReviewReminderTimeMinutes, 23 * 60 + 59)
+    }
+
+    func testDailyReviewReminderRequiresPendingReviewAfterScheduledTime() {
+        XCTAssertFalse(DailyReviewReminderNotificationService.shouldShowReminder(
+            enabled: false,
+            nowMinutes: 18 * 60,
+            scheduledMinutes: 18 * 60,
+            hasPendingReview: true
+        ))
+        XCTAssertFalse(DailyReviewReminderNotificationService.shouldShowReminder(
+            enabled: true,
+            nowMinutes: 17 * 60 + 59,
+            scheduledMinutes: 18 * 60,
+            hasPendingReview: true
+        ))
+        XCTAssertFalse(DailyReviewReminderNotificationService.shouldShowReminder(
+            enabled: true,
+            nowMinutes: 18 * 60,
+            scheduledMinutes: 18 * 60,
+            hasPendingReview: false
+        ))
+        XCTAssertTrue(DailyReviewReminderNotificationService.shouldShowReminder(
+            enabled: true,
+            nowMinutes: 18 * 60,
+            scheduledMinutes: 18 * 60,
+            hasPendingReview: true
+        ))
     }
 
     func testDockFallbackAndTrackingPauseDefaultsAndPersists() {
@@ -1464,9 +7427,26 @@ final class ChronicleTests: XCTestCase {
         XCTAssertTrue(reloaded.trackingPaused)
     }
 
-    func testDashboardDefaultsToOverviewForFirstUse() {
-        XCTAssertEqual(DashboardView.Section.defaultSelection, .overview)
-        XCTAssertEqual(DashboardView.Section.allCases.first, .overview)
+    func testDashboardDefaultsToPendingReviewForFirstUse() {
+        XCTAssertEqual(DashboardView.Section.defaultSelection, .pendingReview)
+        XCTAssertEqual(DashboardView.Section.allCases.first, .pendingReview)
+    }
+
+    func testPreferencesUsesDashboardAsTheOnlyExportEntry() {
+        XCTAssertFalse(PreferencesView.Section.allCases.map(\.rawValue).contains("export"))
+        XCTAssertTrue(DashboardView.Section.allCases.contains(.integrations))
+    }
+
+    func testExportFormatsAndTemplatesWorkspaceExposesEveryFormatWithoutDashboardCloseout() {
+        XCTAssertEqual(
+            ReportsWorkspaceMode.formatsAndTemplates.sections,
+            [.exportReadiness, .csv, .dailyTemplate, .weeklyTemplate]
+        )
+        XCTAssertFalse(ReportsWorkspaceMode.formatsAndTemplates.sections.contains(.closeout))
+        XCTAssertEqual(
+            ReportsWorkspaceMode.dashboard.sections,
+            [.closeout, .dashboardWeekly, .reviewReminder]
+        )
     }
 
     func testDashboardNavigationDestinationSelectsReviewSurface() {
@@ -1474,7 +7454,10 @@ final class ChronicleTests: XCTestCase {
         let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
 
-        DashboardNavigationDestination.reports.apply(to: defaults)
+        DashboardNavigationDestination.pendingReview.apply(to: defaults)
+        XCTAssertEqual(defaults.string(forKey: "dashboard.selectedSection"), "overview")
+
+        DashboardNavigationDestination.integrations.apply(to: defaults)
         XCTAssertEqual(defaults.string(forKey: "dashboard.selectedSection"), "reports")
 
         DashboardNavigationDestination.timeline.apply(to: defaults)
@@ -2927,10 +8910,6 @@ final class ChronicleTests: XCTestCase {
             "preferences.advanced_tracking.live_status.detail.allowed_app",
             "preferences.advanced_tracking.live_status.detail.returning",
             "preferences.advanced_tracking.live_status.current_app_unknown",
-            "preferences.window_titles.blocklist.empty_detail",
-            "preferences.window_titles.blocklist.no_results",
-            "preferences.window_titles.blocklist.no_results_detail",
-            "preferences.window_titles.blocklist.row_detail",
             "preferences.duration.seconds",
             "preferences.duration.minutes_seconds",
             "preferences.duration.days",
@@ -2951,19 +8930,8 @@ final class ChronicleTests: XCTestCase {
             "privacy.capture.safety.detail",
             "privacy.capture.safety.manage",
             "privacy.capture.safety.status.app_only",
-            "privacy.capture.safety.status.review",
-            "privacy.capture.safety.status.sanitized",
-            "privacy.capture.safety.status.blocked_one",
-            "privacy.capture.safety.status.blocked_many",
             "privacy.capture.safety.mode_title",
             "privacy.capture.safety.mode_detail",
-            "privacy.capture.safety.blocked_title",
-            "privacy.capture.safety.blocked_empty",
-            "privacy.capture.safety.blocked_empty_detail",
-            "privacy.capture.safety.blocked_one",
-            "privacy.capture.safety.blocked_many",
-            "privacy.capture.safety.blocked_one_detail",
-            "privacy.capture.safety.blocked_many_detail",
             "privacy.storage.title",
             "privacy.storage.folder.heading",
             "privacy.storage.technical_details",
@@ -3100,10 +9068,62 @@ final class ChronicleTests: XCTestCase {
     }
 
     func testWindowTitleCaptureAuthorizationLogic() {
-        XCTAssertFalse(ActivityTracker.shouldCaptureWindowTitle(enabled: false, authorized: false))
-        XCTAssertFalse(ActivityTracker.shouldCaptureWindowTitle(enabled: true, authorized: false))
-        XCTAssertFalse(ActivityTracker.shouldCaptureWindowTitle(enabled: false, authorized: true))
-        XCTAssertTrue(ActivityTracker.shouldCaptureWindowTitle(enabled: true, authorized: true))
+        let xcodeBundleId = "com.apple.dt.Xcode"
+        let allowedBundleIds: Set<String> = [xcodeBundleId]
+        XCTAssertFalse(ActivityTracker.shouldCaptureWindowTitle(
+            enabled: false,
+            authorized: false,
+            bundleId: xcodeBundleId,
+            allowedBundleIds: allowedBundleIds
+        ))
+        XCTAssertFalse(ActivityTracker.shouldCaptureWindowTitle(
+            enabled: true,
+            authorized: false,
+            bundleId: xcodeBundleId,
+            allowedBundleIds: allowedBundleIds
+        ))
+        XCTAssertFalse(ActivityTracker.shouldCaptureWindowTitle(
+            enabled: false,
+            authorized: true,
+            bundleId: xcodeBundleId,
+            allowedBundleIds: allowedBundleIds
+        ))
+        XCTAssertFalse(ActivityTracker.shouldCaptureWindowTitle(
+            enabled: true,
+            authorized: true,
+            bundleId: xcodeBundleId,
+            allowedBundleIds: []
+        ))
+        XCTAssertTrue(ActivityTracker.shouldCaptureWindowTitle(
+            enabled: true,
+            authorized: true,
+            bundleId: xcodeBundleId,
+            allowedBundleIds: allowedBundleIds
+        ))
+    }
+
+    func testWindowTitleResolverDoesNotFallBackToUnrelatedFrontmostApplication() {
+        struct Application: Equatable {
+            let bundleId: String
+        }
+
+        let unrelatedFrontmost = Application(bundleId: "com.example.private")
+        let missing = AXWindowTitleProvider.resolveApplication(
+            requestedBundleId: "com.example.allowed",
+            frontmost: unrelatedFrontmost,
+            bundleIdentifier: { $0.bundleId },
+            matchingApplications: { _ in [unrelatedFrontmost] }
+        )
+        XCTAssertNil(missing)
+
+        let allowedApplication = Application(bundleId: "com.example.allowed")
+        let resolved = AXWindowTitleProvider.resolveApplication(
+            requestedBundleId: allowedApplication.bundleId,
+            frontmost: unrelatedFrontmost,
+            bundleIdentifier: { $0.bundleId },
+            matchingApplications: { _ in [allowedApplication] }
+        )
+        XCTAssertEqual(resolved, allowedApplication)
     }
 
     func testWindowTitleSanitizationModes() {
@@ -3111,7 +9131,7 @@ final class ChronicleTests: XCTestCase {
             "  Chronicle  ",
             bundleId: "com.apple.dt.Xcode",
             mode: .raw,
-            blockedBundleIds: []
+            allowedBundleIds: ["com.apple.dt.Xcode"]
         )
         XCTAssertEqual(raw, "Chronicle")
 
@@ -3119,7 +9139,7 @@ final class ChronicleTests: XCTestCase {
             "Hello World",
             bundleId: "com.apple.dt.Xcode",
             mode: .lengthOnly,
-            blockedBundleIds: []
+            allowedBundleIds: ["com.apple.dt.Xcode"]
         )
         XCTAssertEqual(lengthOnly, "length:11")
 
@@ -3127,21 +9147,21 @@ final class ChronicleTests: XCTestCase {
             "Secret Plan",
             bundleId: "com.apple.dt.Xcode",
             mode: .hashed,
-            blockedBundleIds: []
+            allowedBundleIds: ["com.apple.dt.Xcode"]
         )
         XCTAssertNotNil(hashed)
         XCTAssertTrue(hashed?.hasPrefix("sha256:") ?? false)
         XCTAssertEqual(hashed?.count, "sha256:".count + 64)
     }
 
-    func testWindowTitleSanitizationBlockedApp() {
-        let blocked = ActivityTracker.sanitizeWindowTitle(
+    func testWindowTitleSanitizationRejectsUnlistedApp() {
+        let rejected = ActivityTracker.sanitizeWindowTitle(
             "Visible",
             bundleId: "com.apple.Safari",
             mode: .raw,
-            blockedBundleIds: ["com.apple.Safari"]
+            allowedBundleIds: []
         )
-        XCTAssertNil(blocked)
+        XCTAssertNil(rejected)
     }
 
     func testWindowTitleSanitizationKeepsExistingTokens() {
@@ -3149,7 +9169,7 @@ final class ChronicleTests: XCTestCase {
             "length:11",
             bundleId: "com.apple.dt.Xcode",
             mode: .lengthOnly,
-            blockedBundleIds: []
+            allowedBundleIds: ["com.apple.dt.Xcode"]
         )
         XCTAssertEqual(lengthToken, "length:11")
 
@@ -3157,7 +9177,7 @@ final class ChronicleTests: XCTestCase {
             "sha256:0123456789abcdef",
             bundleId: "com.apple.dt.Xcode",
             mode: .hashed,
-            blockedBundleIds: []
+            allowedBundleIds: ["com.apple.dt.Xcode"]
         )
         XCTAssertEqual(hashToken, "sha256:0123456789abcdef")
 
@@ -3167,7 +9187,7 @@ final class ChronicleTests: XCTestCase {
                 fullHashToken,
                 bundleId: "com.apple.dt.Xcode",
                 mode: .hashed,
-                blockedBundleIds: []
+                allowedBundleIds: ["com.apple.dt.Xcode"]
             ),
             fullHashToken
         )
@@ -3184,6 +9204,60 @@ final class ChronicleTests: XCTestCase {
         let nextDay = calendar.date(byAdding: .day, value: 1, to: date)!
         let nextKey = ReportService.dayKey(for: nextDay)
         XCTAssertTrue(ReportService.shouldAttemptAutoExport(currentKey: nextKey, lastAttemptKey: dayKey, lastExportedKey: dayKey))
+    }
+
+    func testWorkBlockInsightSummaryPreservesFrozenTagIdentityAfterRenameAndDeletion() throws {
+        func historyItem(
+            id: String,
+            startTime: Int64,
+            endTime: Int64,
+            tagId: Int64?,
+            tagName: String?
+        ) -> WorkBlockHistoryItem {
+            WorkBlockHistoryItem(
+                id: id,
+                sourceWorkBlockId: nil,
+                reviewSnapshotId: 1,
+                reviewSnapshotBlockId: Int64(id) ?? 0,
+                startTime: startTime,
+                endTime: endTime,
+                title: "Focus",
+                tagId: tagId,
+                tagName: tagName,
+                source: .inferred,
+                evidenceCount: 0,
+                evidenceDeleted: false
+            )
+        }
+
+        let items = [
+            historyItem(id: "1", startTime: 0, endTime: 60, tagId: 7, tagName: "Old Focus"),
+            historyItem(id: "2", startTime: 60, endTime: 180, tagId: 7, tagName: "Renamed Focus"),
+            historyItem(id: "3", startTime: 180, endTime: 360, tagId: nil, tagName: "Deleted Client"),
+            historyItem(id: "4", startTime: 360, endTime: 600, tagId: nil, tagName: "Deleted Personal"),
+            historyItem(id: "5", startTime: 600, endTime: 900, tagId: nil, tagName: nil)
+        ]
+
+        let summary = WorkBlockInsightSummary.calculate(
+            items: items,
+            rangeStart: 0,
+            rangeEnd: 900
+        )
+        let categoriesByName = Dictionary(uniqueKeysWithValues: summary.categories.map {
+            ($0.tagName ?? "<untagged>", $0)
+        })
+
+        XCTAssertEqual(summary.categories.count, 5)
+        XCTAssertEqual(Set(summary.categories.map(\.id)).count, 5)
+        XCTAssertEqual(try XCTUnwrap(categoriesByName["Old Focus"]).seconds, 60)
+        XCTAssertEqual(try XCTUnwrap(categoriesByName["Renamed Focus"]).seconds, 120)
+        XCTAssertEqual(try XCTUnwrap(categoriesByName["Deleted Client"]).seconds, 180)
+        XCTAssertNil(try XCTUnwrap(categoriesByName["Deleted Client"]).tagId)
+        XCTAssertEqual(try XCTUnwrap(categoriesByName["Deleted Personal"]).seconds, 240)
+        XCTAssertNil(try XCTUnwrap(categoriesByName["Deleted Personal"]).tagId)
+        XCTAssertEqual(try XCTUnwrap(categoriesByName["<untagged>"]).seconds, 300)
+        XCTAssertNil(try XCTUnwrap(categoriesByName["<untagged>"]).tagName)
+        XCTAssertEqual(summary.contextSwitchCount, 4)
     }
 
     func testWorkBlockInsightBuilderFallsBackToStoredTagIdForLegacyRows() {
@@ -3232,17 +9306,133 @@ final class ChronicleTests: XCTestCase {
     }
 
     func testReportTemplatePresetsIncludeCoreVariables() {
+        let inferredClaims = [
+            "deep work",
+            "burnout",
+            "billable",
+            "billing",
+            "payment",
+            "proof",
+            "reduce context switching",
+            "client/invoice"
+        ]
         for preset in ReportTemplatePreset.allCases {
             XCTAssertTrue(preset.dailyTemplate.contains("{{notes}}"))
             XCTAssertTrue(preset.dailyTemplate.contains("{{top_tags_session_table}}"))
-            XCTAssertTrue(preset.dailyTemplate.contains("{{deep_work_blocks}}"))
-            XCTAssertTrue(preset.dailyTemplate.contains("{{peak_switch_slots}}"))
+            XCTAssertTrue(preset.dailyTemplate.contains("{{long_activity_blocks}}"))
+            XCTAssertTrue(preset.dailyTemplate.contains("{{high_switch_frequency_periods}}"))
 
             XCTAssertTrue(preset.weeklyTemplate.contains("{{notes}}"))
             XCTAssertTrue(preset.weeklyTemplate.contains("{{top_tags_session_table}}"))
-            XCTAssertTrue(preset.weeklyTemplate.contains("{{deep_work_blocks}}"))
-            XCTAssertTrue(preset.weeklyTemplate.contains("{{peak_switch_slots}}"))
+            XCTAssertTrue(preset.weeklyTemplate.contains("{{long_activity_blocks}}"))
+            XCTAssertTrue(preset.weeklyTemplate.contains("{{high_switch_frequency_periods}}"))
+
+            let renderedPresetText = (preset.dailyTemplate + preset.weeklyTemplate).lowercased()
+            for inferredClaim in inferredClaims {
+                XCTAssertFalse(renderedPresetText.contains(inferredClaim))
+            }
         }
+    }
+
+    func testLegacyShippedReportTemplatesMigrateWithoutRewritingCustomTemplates() {
+        func replacing(_ template: String, _ replacements: [(String, String)]) -> String {
+            replacements.reduce(template) { partial, replacement in
+                partial.replacingOccurrences(of: replacement.0, with: replacement.1)
+            }
+        }
+
+        let legacyDailyTemplates: [(String, ReportTemplatePreset)] = [
+            (replacing(ReportTemplatePreset.retrospective.dailyTemplate, [
+                ("## Longer Activity Blocks", "## Deep Work Blocks"),
+                ("{{long_activity_blocks}}", "{{deep_work_blocks}}"),
+                ("## Higher Switch-Frequency Periods", "## Switching Hotspots"),
+                ("{{high_switch_frequency_periods}}", "{{peak_switch_slots}}")
+            ]), .retrospective),
+            (replacing(ReportTemplatePreset.burnout.dailyTemplate, [
+                ("# Daily Activity Pattern", "# Burnout Check"),
+                ("## Observed Time", "## Load Check"),
+                ("- Sessions: {{sessions_count}}", "- Sessions: {{sessions_count}}\n- Notes: If switch hotspots dominate, reduce context switching tomorrow."),
+                ("## Longer Activity Blocks", "## Deep Work Coverage"),
+                ("{{long_activity_blocks}}", "{{deep_work_blocks}}"),
+                ("## Higher Switch-Frequency Periods", "## Highest Switch Frequency Periods"),
+                ("{{high_switch_frequency_periods}}", "{{peak_switch_slots}}")
+            ]), .burnout),
+            (replacing(ReportTemplatePreset.billing.dailyTemplate, [
+                ("# Daily Tagged Activity", "# Billing Draft"),
+                ("## Observed Timeline", "## Timeline (Evidence)"),
+                ("## Observed Time", "## Work Summary"),
+                ("- Active observed:", "- Billable window (active):"),
+                ("## Activity by Tag (Session Count)", "## Time by Tag (Session Count)"),
+                ("## Longer Activity Blocks", "## Deep Work Blocks"),
+                ("{{long_activity_blocks}}", "{{deep_work_blocks}}"),
+                ("## Higher Switch-Frequency Periods", "## Switching Hotspots"),
+                ("{{high_switch_frequency_periods}}", "{{peak_switch_slots}}"),
+                ("## Marker Sessions", "## Marker Sessions (Proof)"),
+                ("## User Notes", "## Client/Invoice Notes")
+            ]), .billing)
+        ]
+        for (legacyTemplate, preset) in legacyDailyTemplates {
+            XCTAssertEqual(
+                ReportTemplatePreset.migratingLegacyDailyTemplate(legacyTemplate),
+                preset.dailyTemplate
+            )
+        }
+
+        let legacyWeeklyTemplates: [(String, ReportTemplatePreset)] = [
+            (replacing(ReportTemplatePreset.retrospective.weeklyTemplate, [
+                ("## Longer Activity Blocks", "## Deep Work Blocks"),
+                ("{{long_activity_blocks}}", "{{deep_work_blocks}}"),
+                ("## Higher Switch-Frequency Periods", "## Switching Hotspots"),
+                ("{{high_switch_frequency_periods}}", "{{peak_switch_slots}}")
+            ]), .retrospective),
+            (replacing(ReportTemplatePreset.burnout.weeklyTemplate, [
+                ("# Weekly Activity Pattern", "# Weekly Burnout Check"),
+                ("## Observed Time", "## Load Trend"),
+                ("## Longer Activity Blocks", "## Deep Work Blocks (Top)"),
+                ("{{long_activity_blocks}}", "{{deep_work_blocks}}"),
+                ("## Higher Switch-Frequency Periods", "## Highest Switch Frequency Periods"),
+                ("{{high_switch_frequency_periods}}", "{{peak_switch_slots}}")
+            ]), .burnout),
+            (replacing(ReportTemplatePreset.billing.weeklyTemplate, [
+                ("# Weekly Tagged Activity", "# Weekly Billing Draft"),
+                ("## Observed Time", "## Work Summary"),
+                ("- Active observed:", "- Active (candidate billable):"),
+                ("## Activity by Tag (Session Count)", "## Time by Tag (Session Count)"),
+                ("## Longer Activity Blocks", "## Deep Work Blocks"),
+                ("{{long_activity_blocks}}", "{{deep_work_blocks}}"),
+                ("## Higher Switch-Frequency Periods", "## Switching Hotspots"),
+                ("{{high_switch_frequency_periods}}", "{{peak_switch_slots}}"),
+                ("## Marker Sessions", "## Marker Sessions (Proof)"),
+                ("## User Notes", "## Notes for Client Report")
+            ]), .billing)
+        ]
+        for (legacyTemplate, preset) in legacyWeeklyTemplates {
+            XCTAssertEqual(
+                ReportTemplatePreset.migratingLegacyWeeklyTemplate(legacyTemplate),
+                preset.weeklyTemplate
+            )
+        }
+
+        let suiteName = "chronicle-tests-template-migration-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        defaults.set(legacyDailyTemplates[0].0, forKey: "reports.dailyTemplateText")
+        defaults.set(legacyWeeklyTemplates[0].0, forKey: "reports.weeklyTemplateText")
+        let migratedSettings = ReportSettings.makeTestInstance(defaults: defaults)
+        XCTAssertEqual(migratedSettings.dailyTemplateText, ReportTemplatePreset.retrospective.dailyTemplate)
+        XCTAssertEqual(migratedSettings.weeklyTemplateText, ReportTemplatePreset.retrospective.weeklyTemplate)
+        XCTAssertEqual(
+            defaults.string(forKey: "reports.dailyTemplateText"),
+            ReportTemplatePreset.retrospective.dailyTemplate
+        )
+        XCTAssertEqual(
+            defaults.string(forKey: "reports.weeklyTemplateText"),
+            ReportTemplatePreset.retrospective.weeklyTemplate
+        )
+
+        let customTemplate = "# My explicit template\n{{notes}}"
+        XCTAssertEqual(ReportTemplatePreset.migratingLegacyDailyTemplate(customTemplate), customTemplate)
+        XCTAssertEqual(ReportTemplatePreset.migratingLegacyWeeklyTemplate(customTemplate), customTemplate)
     }
 
     func testCSVEscapeNeutralizesSpreadsheetFormulas() {
@@ -3255,6 +9445,21 @@ final class ChronicleTests: XCTestCase {
         )
         XCTAssertEqual(ReportService.shared.csvEscape("  =1+1"), "'  =1+1")
         XCTAssertEqual(ReportService.shared.csvEscape("safe,value"), "\"safe,value\"")
+    }
+
+    func testMarkdownEscapeNeutralizesCapturedRemoteResourceMarkup() {
+        let escaped = ReportService.escapeUntrustedMarkdownInline(
+            "![probe](https://attacker.invalid/pixel) <img src=x> A|B\n# heading &copy;"
+        )
+
+        XCTAssertFalse(escaped.contains("![probe]("))
+        XCTAssertFalse(escaped.contains("<img"))
+        XCTAssertFalse(escaped.contains("\n"))
+        XCTAssertTrue(escaped.contains("\\!\\[probe\\]"))
+        XCTAssertTrue(escaped.contains("&lt;img src=x&gt;"))
+        XCTAssertTrue(escaped.contains("A\\|B"))
+        XCTAssertTrue(escaped.contains("\\# heading"))
+        XCTAssertTrue(escaped.contains("&amp;copy;"))
     }
 
     func testReportExportsWriteDailyWeeklyAndSafeCSVFiles() throws {
@@ -3285,7 +9490,7 @@ final class ChronicleTests: XCTestCase {
             start: activityStart,
             end: activityEnd,
             appName: "Xcode",
-            windowTitle: "=SUM(A1:A2)",
+            windowTitle: "![probe](https://attacker.invalid/pixel) <img src=x>",
             isIdle: false,
             tagId: nil,
             bundleId: "com.apple.dt.Xcode"
@@ -3301,7 +9506,11 @@ final class ChronicleTests: XCTestCase {
         }
         wait(for: [insertedActivity, insertedMarker], timeout: 5)
 
-        let reports = ReportService.makeTestInstance(database: database, settings: settings)
+        let reports = ReportService.makeTestInstance(
+            database: database,
+            settings: settings,
+            allowedBundleIds: ["com.apple.dt.Xcode"]
+        )
 
         let dailyExported = expectation(description: "daily report exported")
         var dailyResult: Result<ReportExportResult, Error>?
@@ -3312,9 +9521,14 @@ final class ChronicleTests: XCTestCase {
         wait(for: [dailyExported], timeout: 5)
         let dailyURL = try XCTUnwrap(try dailyResult?.get().fileURL)
         let dailyContent = try String(contentsOf: dailyURL, encoding: .utf8)
+        XCTAssertEqual(dailyURL.lastPathComponent, "2025-01-15-report.md")
+        XCTAssertTrue(dailyContent.contains("chronicle:managed:start id=\"report-daily-2025-01-15\""))
         XCTAssertTrue(dailyContent.contains("Xcode"))
         XCTAssertTrue(dailyContent.contains("Release decision"))
         XCTAssertTrue(dailyContent.contains("Ship v0.2.0"))
+        XCTAssertFalse(dailyContent.contains("![probe]("))
+        XCTAssertFalse(dailyContent.contains("<img src=x>"))
+        XCTAssertTrue(dailyContent.contains("&lt;img src=x&gt;"))
 
         let weeklyExported = expectation(description: "weekly report exported")
         var weeklyResult: Result<ReportExportResult, Error>?
@@ -3341,7 +9555,7 @@ final class ChronicleTests: XCTestCase {
         let csvURL = try XCTUnwrap(try csvResult?.get().fileURL)
         let csvContent = try String(contentsOf: csvURL, encoding: .utf8)
         XCTAssertTrue(csvContent.contains("app_name,window_title,duration"))
-        XCTAssertTrue(csvContent.contains("Xcode,'=SUM(A1:A2),3600"))
+        XCTAssertTrue(csvContent.contains("Xcode,![probe](https://attacker.invalid/pixel) <img src=x>,3600"))
 
         let reloadedSettings = ReportSettings.makeTestInstance(defaults: defaults)
         let expectedFolderPath = exportFolder.resolvingSymlinksInPath().path
@@ -3355,27 +9569,11 @@ final class ChronicleTests: XCTestCase {
         XCTAssertEqual(ReportSettings.defaultWeeklyTemplate, ReportTemplatePreset.retrospective.weeklyTemplate)
     }
 
-    func testReportSettingsPersistenceUsesExistingDefaultsKeys() {
-        let defaults = UserDefaults.standard
-        let settings = ReportSettings.shared
-
-        let previousEnableAutoDailyExport = settings.enableAutoDailyExport
-        let previousEnableAutoWeeklyExport = settings.enableAutoWeeklyExport
-        let previousOverwriteCsvExports = settings.overwriteCsvExports
-        let previousLastDailyExportAt = settings.lastDailyExportAt
-        let previousLastCsvExportAt = settings.lastCsvExportAt
-        let previousLastDailyExportMessage = settings.lastDailyExportMessage
-        let previousLastDailyExportIsError = settings.lastDailyExportIsError
-
-        defer {
-            settings.enableAutoDailyExport = previousEnableAutoDailyExport
-            settings.enableAutoWeeklyExport = previousEnableAutoWeeklyExport
-            settings.overwriteCsvExports = previousOverwriteCsvExports
-            settings.lastDailyExportAt = previousLastDailyExportAt
-            settings.lastCsvExportAt = previousLastCsvExportAt
-            settings.lastDailyExportMessage = previousLastDailyExportMessage
-            settings.lastDailyExportIsError = previousLastDailyExportIsError
-        }
+    func testReportSettingsPersistenceUsesExistingDefaultsKeys() throws {
+        let suiteName = "chronicle-tests-report-settings-persistence-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        let settings = ReportSettings.makeTestInstance(defaults: defaults)
+        defer { defaults.removePersistentDomain(forName: suiteName) }
 
         settings.enableAutoDailyExport = true
         settings.enableAutoWeeklyExport = true
@@ -3392,6 +9590,39 @@ final class ChronicleTests: XCTestCase {
         XCTAssertEqual(defaults.double(forKey: "reports.lastCsvExportAt"), 84)
         XCTAssertEqual(defaults.string(forKey: "reports.lastDailyExportMessage"), "saved")
         XCTAssertTrue(defaults.bool(forKey: "reports.lastDailyExportIsError"))
+
+        let bookmarkRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent("chronicle-tests-stale-display-bookmark-\(UUID().uuidString)", isDirectory: true)
+        let originalFolder = bookmarkRoot.appendingPathComponent("original", isDirectory: true)
+        let movedFolder = bookmarkRoot.appendingPathComponent("moved", isDirectory: true)
+        try FileManager.default.createDirectory(at: originalFolder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: bookmarkRoot) }
+
+        let staleBookmark = try originalFolder.bookmarkData(
+            options: [],
+            includingResourceValuesForKeys: nil,
+            relativeTo: nil
+        )
+        try FileManager.default.moveItem(at: originalFolder, to: movedFolder)
+        settings.dailyFolderBookmark = staleBookmark
+
+        var publicationCount = 0
+        let publication = settings.objectWillChange.sink { publicationCount += 1 }
+
+        XCTAssertEqual(
+            URL(fileURLWithPath: settings.dailyFolderDisplayPath).resolvingSymlinksInPath().path,
+            movedFolder.resolvingSymlinksInPath().path
+        )
+        XCTAssertEqual(publicationCount, 0, "Rendering a display path must not publish observable changes.")
+        XCTAssertEqual(settings.dailyFolderBookmark, staleBookmark)
+
+        XCTAssertEqual(
+            try settings.resolveDailyFolderURL()?.resolvingSymlinksInPath().path,
+            movedFolder.resolvingSymlinksInPath().path
+        )
+        XCTAssertEqual(publicationCount, 1, "Imperative resolution should still refresh a stale bookmark.")
+        XCTAssertNotEqual(settings.dailyFolderBookmark, staleBookmark)
+        withExtendedLifetime(publication) {}
     }
 
     func testReportSettingsExportFolderReadinessRequiresCsvFolder() {
@@ -3641,5 +9872,192 @@ final class ChronicleTests: XCTestCase {
         XCTAssertEqual(xcodeSuggestion?.overrideCount, 4)
         XCTAssertEqual(xcodeSuggestion?.totalOverrides, 5)
         XCTAssertGreaterThanOrEqual(xcodeSuggestion?.confidence ?? 0, 0.8)
+    }
+}
+
+final class AppActivationCoordinatorTests: XCTestCase {
+    func testStandardMainWindowQualificationExcludesPanelsAndUntitledWindows() {
+        let standardWindow = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 480, height: 320),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        let quickMarkerPanel = NSPanel(
+            contentRect: NSRect(x: 0, y: 0, width: 320, height: 240),
+            styleMask: [.titled, .closable],
+            backing: .buffered,
+            defer: false
+        )
+        let untitledTransientWindow = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 320, height: 240),
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+
+        XCTAssertTrue(AppActivationCoordinator.isStandardMainWindow(standardWindow))
+        XCTAssertFalse(AppActivationCoordinator.isStandardMainWindow(quickMarkerPanel))
+        XCTAssertFalse(AppActivationCoordinator.isStandardMainWindow(untitledTransientWindow))
+    }
+}
+
+final class ManagedMarkdownBlockWriterTests: XCTestCase {
+    private let writer = ManagedMarkdownBlockWriter(blockID: "daily-2026-07-23")
+
+    func testCreateDocumentEscapesExactManagedMarkersInsideContent() {
+        let content = """
+        A user note
+        \(writer.startMarker)
+        nested text
+        \(writer.endMarker)
+        """
+
+        let document = writer.createDocument(content: content)
+
+        XCTAssertEqual(document.components(separatedBy: writer.startMarker).count - 1, 1)
+        XCTAssertEqual(document.components(separatedBy: writer.endMarker).count - 1, 1)
+        XCTAssertTrue(document.contains("&lt;!-- chronicle:managed:start"))
+        XCTAssertTrue(document.contains("&lt;!-- chronicle:managed:end"))
+    }
+
+    func testReplacementTouchesOnlyOneTopLevelExactBlock() throws {
+        let existing = """
+        User prefix
+        ```markdown
+        \(writer.startMarker)
+        fenced example
+        \(writer.endMarker)
+        ```
+        Inline example: \(writer.startMarker)
+        \(writer.startMarker)
+        stale Chronicle text
+        \(writer.endMarker)
+        User suffix
+        """
+
+        let updated = try writer.replacingManagedBlock(in: existing, content: "fresh Chronicle text")
+
+        XCTAssertTrue(updated.contains("User prefix"))
+        XCTAssertTrue(updated.contains("User suffix"))
+        XCTAssertTrue(updated.contains("fenced example"))
+        XCTAssertTrue(updated.contains("Inline example: \(writer.startMarker)"))
+        XCTAssertFalse(updated.contains("stale Chronicle text"))
+        XCTAssertTrue(updated.contains("fresh Chronicle text"))
+    }
+
+    func testMissingOrMalformedTopLevelDelimitersFailClosed() {
+        let fencedOnly = """
+        ```
+        \(writer.startMarker)
+        example
+        \(writer.endMarker)
+        ```
+        """
+        XCTAssertThrowsError(
+            try writer.replacingManagedBlock(in: fencedOnly, content: "replacement")
+        ) { error in
+            XCTAssertEqual(
+                error as? ManagedMarkdownBlockWriter.Error,
+                .missingDelimiters(blockID: writer.blockID)
+            )
+        }
+
+        let duplicated = """
+        \(writer.startMarker)
+        one
+        \(writer.endMarker)
+        \(writer.startMarker)
+        two
+        \(writer.endMarker)
+        """
+        XCTAssertThrowsError(
+            try writer.replacingManagedBlock(in: duplicated, content: "replacement")
+        ) { error in
+            XCTAssertEqual(
+                error as? ManagedMarkdownBlockWriter.Error,
+                .malformedDelimiters(blockID: writer.blockID)
+            )
+        }
+    }
+}
+
+final class LatestLoadStateTests: XCTestCase {
+    private enum StubError: Error {
+        case refreshFailed
+    }
+
+    func testNewestRequestWinsAndFailureRetainsLastSuccessfulValue() {
+        var state = LatestValueLoadState<[Int]>(initialValue: [])
+
+        let baselineToken = state.begin()
+        XCTAssertTrue(state.complete(
+            token: baselineToken,
+            result: Result<[Int], StubError>.success([1, 2]),
+            describeFailure: { _ in "failed" }
+        ))
+        XCTAssertEqual(state.value, [1, 2])
+        XCTAssertTrue(state.hasSuccessfulValue)
+        XCTAssertFalse(state.complete(
+            token: baselineToken,
+            result: Result<[Int], StubError>.success([7]),
+            describeFailure: { _ in "failed" }
+        ))
+        XCTAssertEqual(state.value, [1, 2])
+
+        let staleToken = state.begin()
+        let newestToken = state.begin()
+        XCTAssertFalse(state.complete(
+            token: staleToken,
+            result: Result<[Int], StubError>.success([99]),
+            describeFailure: { _ in "failed" }
+        ))
+        XCTAssertEqual(state.value, [1, 2])
+        XCTAssertTrue(state.isLoading)
+
+        XCTAssertTrue(state.complete(
+            token: newestToken,
+            result: Result<[Int], StubError>.failure(.refreshFailed),
+            describeFailure: { _ in "refresh failed" }
+        ))
+        XCTAssertEqual(state.value, [1, 2])
+        XCTAssertFalse(state.isLoading)
+        XCTAssertEqual(state.errorDescription, "refresh failed")
+        XCTAssertTrue(state.hasSuccessfulValue)
+    }
+
+    func testLaterSuccessReplacesValueAndClearsStaleError() {
+        var state = LatestValueLoadState(initialValue: "baseline")
+        let failedToken = state.begin()
+        XCTAssertTrue(state.complete(
+            token: failedToken,
+            result: Result<String, StubError>.failure(.refreshFailed),
+            describeFailure: { _ in "refresh failed" }
+        ))
+        XCTAssertEqual(state.value, "baseline")
+        XCTAssertEqual(state.errorDescription, "refresh failed")
+
+        let successToken = state.begin()
+        XCTAssertEqual(state.errorDescription, "refresh failed")
+        XCTAssertTrue(state.complete(
+            token: successToken,
+            result: Result<String, StubError>.success("fresh"),
+            describeFailure: { _ in "refresh failed" }
+        ))
+        XCTAssertEqual(state.value, "fresh")
+        XCTAssertNil(state.errorDescription)
+        XCTAssertTrue(state.hasSuccessfulValue)
+    }
+
+    func testPartialLoadFailurePreservesOnlyFailedSection() {
+        let successfulSection = PartialLoadResult<[Int]>.success([3, 4])
+        let failedSection = PartialLoadResult<[Int]>.failure("offline")
+
+        XCTAssertEqual(successfulSection.resolving(preserving: [1, 2]), [3, 4])
+        XCTAssertEqual(failedSection.resolving(preserving: [1, 2]), [1, 2])
+        XCTAssertTrue(successfulSection.didSucceed)
+        XCTAssertFalse(failedSection.didSucceed)
+        XCTAssertNil(successfulSection.errorDescription)
+        XCTAssertEqual(failedSection.errorDescription, "offline")
     }
 }

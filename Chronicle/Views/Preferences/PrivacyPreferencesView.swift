@@ -14,6 +14,7 @@ struct PrivacyPreferencesView: View {
 
     @State private var showWipeConfirm = false
     @State private var wipeStatus: StatusMessage?
+    @State private var isWiping = false
     @State private var diagnosticsStatus: StatusMessage?
     @State private var feedbackStatus: StatusMessage?
     @State private var telemetryStatus: StatusMessage?
@@ -354,7 +355,7 @@ struct PrivacyPreferencesView: View {
 
                 captureSafetyReviewRow
 
-                if appState.windowTitleCaptureEnabled && !appState.accessibilityAuthorized {
+                if appState.windowTitleCaptureRequiresAccessibility && !appState.accessibilityAuthorized {
                     capturePermissionWarningRow
                 }
             }
@@ -397,7 +398,7 @@ struct PrivacyPreferencesView: View {
         WindowTitleSafetyReviewView(
             isCaptureEnabled: appState.windowTitleCaptureEnabled,
             privacyMode: appState.windowTitlePrivacyMode,
-            blockedBundleCount: appState.windowTitleBlockedBundleIDs.count,
+            allowedBundleCount: appState.windowTitleAllowedBundleIDs.count,
             accessibilityIdentifier: "privacy.capture.safety"
         ) {
             AppWindowRouter.shared.open(.settings(.general))
@@ -481,6 +482,7 @@ struct PrivacyPreferencesView: View {
             }
             .buttonStyle(.bordered)
             .tint(.red)
+            .disabled(isWiping)
             .accessibilityIdentifier("privacy.wipeData")
         }
     }
@@ -733,7 +735,7 @@ struct PrivacyPreferencesView: View {
             get: { appState.windowTitleCaptureEnabled },
             set: { newValue in
                 appState.windowTitleCaptureEnabled = newValue
-                if newValue {
+                if newValue && !appState.windowTitleAllowedBundleIDs.isEmpty {
                     _ = AccessibilityPermissionManager.shared.requestPermission(prompt: true)
                 }
                 AccessibilityPermissionManager.shared.syncAppState(appState)
@@ -744,6 +746,9 @@ struct PrivacyPreferencesView: View {
     private var titleCaptureSummaryText: String {
         if !appState.windowTitleCaptureEnabled {
             return L("privacy.status.off")
+        }
+        if appState.windowTitleAllowedBundleIDs.isEmpty {
+            return L("privacy.status.no_apps_allowed")
         }
         if !appState.accessibilityAuthorized {
             return L("privacy.status.needs_permission")
@@ -759,6 +764,9 @@ struct PrivacyPreferencesView: View {
         if !appState.windowTitleCaptureEnabled {
             return "pause.circle"
         }
+        if appState.windowTitleAllowedBundleIDs.isEmpty {
+            return "app.badge"
+        }
         if !appState.accessibilityAuthorized {
             return "exclamationmark.triangle.fill"
         }
@@ -769,6 +777,9 @@ struct PrivacyPreferencesView: View {
         if !appState.windowTitleCaptureEnabled {
             return .neutral
         }
+        if appState.windowTitleAllowedBundleIDs.isEmpty {
+            return .neutral
+        }
         if !appState.accessibilityAuthorized {
             return .warning
         }
@@ -776,7 +787,7 @@ struct PrivacyPreferencesView: View {
     }
 
     private var permissionSummaryText: String {
-        if !appState.windowTitleCaptureEnabled {
+        if !appState.windowTitleCaptureRequiresAccessibility {
             return L("privacy.status.not_needed")
         }
         return appState.accessibilityAuthorized
@@ -785,7 +796,7 @@ struct PrivacyPreferencesView: View {
     }
 
     private var permissionTone: DesignSystem.StatusTone {
-        if !appState.windowTitleCaptureEnabled {
+        if !appState.windowTitleCaptureRequiresAccessibility {
             return .neutral
         }
         return appState.accessibilityAuthorized ? .success : .warning
@@ -814,13 +825,27 @@ struct PrivacyPreferencesView: View {
     }
 
     private func wipeDatabase() {
+        guard !isWiping else { return }
+        isWiping = true
+        wipeStatus = nil
+        // Clear the generic startup-error affordance before wiping: its global "Retry archive"
+        // button would be unsafe after a partial destructive operation.
+        appState.archiveReady = false
+        appState.archiveStartupErrorMessage = nil
+        NotificationCenter.default.post(name: .chroniclePrepareForArchiveWipe, object: nil)
         DatabaseService.shared.wipeDatabase { result in
             DispatchQueue.main.async {
                 switch result {
                 case .success:
                     wipeStatus = StatusMessage(text: L("privacy.wipe_done"), isError: false)
+                    NSApp.terminate(nil)
                 case .failure(let error):
+                    isWiping = false
                     wipeStatus = StatusMessage(text: String(format: L("privacy.wipe_failed"), error.localizedDescription), isError: true)
+                    // A partial wipe must never restart capture: doing so could recreate the
+                    // archive or re-import legacy history. The user may retry wipe or quit.
+                    appState.archiveReady = false
+                    appState.archiveStartupErrorMessage = nil
                 }
             }
         }

@@ -16,9 +16,16 @@ struct DashboardReportsView: View {
     }
 }
 
-struct ExportPreferencesView: View {
+struct ExportFormatsAndTemplatesView: View {
+    var showTitle: Bool = false
+    var useScrollView: Bool = true
+
     var body: some View {
-        ReportsWorkspaceView(showTitle: true, useScrollView: false, mode: .preferences)
+        ReportsWorkspaceView(
+            showTitle: showTitle,
+            useScrollView: useScrollView,
+            mode: .formatsAndTemplates
+        )
     }
 }
 

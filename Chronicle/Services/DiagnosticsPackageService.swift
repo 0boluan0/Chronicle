@@ -10,42 +10,75 @@ import Foundation
 final class DiagnosticsPackageService {
     static let shared = DiagnosticsPackageService()
 
-    private init() {}
+    typealias HealthCheckRunner = (@escaping (Result<HealthCheckReport, Error>) -> Void) -> Void
+
+    private let healthCheckRunner: HealthCheckRunner
+    private let healthReportAugmenter: (HealthCheckReport) -> HealthCheckReport
+    private let runtimeErrorPresenceProvider: () -> DiagnosticsRuntimeErrorPresence
+    private let nowProvider: () -> Date
+
+    init(
+        healthCheckRunner: @escaping HealthCheckRunner = { completion in
+            DatabaseService.shared.runHealthChecks(completion: completion)
+        },
+        healthReportAugmenter: @escaping (HealthCheckReport) -> HealthCheckReport = {
+            HealthCheckService.augmentedReport(from: $0)
+        },
+        runtimeErrorPresenceProvider: @escaping () -> DiagnosticsRuntimeErrorPresence = {
+            DiagnosticsRuntimeErrorPresence(
+                archiveStartupErrorMessage: AppState.shared.archiveStartupErrorMessage,
+                lastDbErrorMessage: AppState.shared.lastDbErrorMessage
+            )
+        },
+        nowProvider: @escaping () -> Date = Date.init
+    ) {
+        self.healthCheckRunner = healthCheckRunner
+        self.healthReportAugmenter = healthReportAugmenter
+        self.runtimeErrorPresenceProvider = runtimeErrorPresenceProvider
+        self.nowProvider = nowProvider
+    }
 
     func buildDiagnosticsJSON(completion: @escaping (Result<Data, Error>) -> Void) {
-        DatabaseService.shared.runHealthChecks { result in
+        healthCheckRunner { result in
             DispatchQueue.main.async {
                 do {
                     let healthSnapshot: DiagnosticsHealthSnapshot
                     switch result {
                     case .success(let report):
-                        let augmented = HealthCheckService.augmentedReport(from: report)
+                        let augmented = self.healthReportAugmenter(report)
                         healthSnapshot = DiagnosticsHealthSnapshot(
                             checkedAt: Self.iso8601String(for: augmented.checkedAt),
                             issues: augmented.issues.map {
                                 DiagnosticsHealthIssue(
                                     severity: $0.severity.rawValue,
                                     message: $0.message,
-                                    details: $0.details
+                                    details: DiagnosticsRedaction.redactHomePath(in: $0.details)
                                 )
                             },
                             metrics: augmented.metrics
                         )
-                    case .failure(let error):
+                    case .failure:
                         healthSnapshot = DiagnosticsHealthSnapshot(
                             checkedAt: nil,
                             issues: [
                                 DiagnosticsHealthIssue(
                                     severity: "error",
                                     message: "Health check failed",
-                                    details: error.localizedDescription
+                                    // A localized error can contain SQL, captured titles, notes, app
+                                    // identities, or arbitrary paths. The diagnostics contract records
+                                    // failure state without exporting that untrusted text.
+                                    details: nil
                                 )
                             ],
                             metrics: [:]
                         )
                     }
 
-                    let payload = DiagnosticsPayload.make(health: healthSnapshot)
+                    let payload = DiagnosticsPayload.make(
+                        health: healthSnapshot,
+                        runtimeErrors: self.runtimeErrorPresenceProvider(),
+                        generatedAt: self.nowProvider()
+                    )
                     let encoder = JSONEncoder()
                     encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
                     let data = try encoder.encode(payload)
@@ -89,29 +122,47 @@ struct FeedbackBundleResult {
 final class FeedbackBundleService {
     static let shared = FeedbackBundleService()
 
-    private let queue = DispatchQueue(label: "com.chronicle.feedback-bundle", qos: .utility)
+    private let diagnosticsService: DiagnosticsPackageService
+    private let baseFolderProvider: () -> URL
+    private let nowProvider: () -> Date
+    private let fileManager: FileManager
+    private let queue: DispatchQueue
 
-    private init() {}
+    init(
+        diagnosticsService: DiagnosticsPackageService = .shared,
+        baseFolderProvider: @escaping () -> URL = {
+            URL(fileURLWithPath: DatabaseService.shared.databasePath)
+                .deletingLastPathComponent()
+                .appendingPathComponent("feedback", isDirectory: true)
+        },
+        nowProvider: @escaping () -> Date = Date.init,
+        fileManager: FileManager = .default,
+        queue: DispatchQueue = DispatchQueue(label: "com.chronicle.feedback-bundle", qos: .utility)
+    ) {
+        self.diagnosticsService = diagnosticsService
+        self.baseFolderProvider = baseFolderProvider
+        self.nowProvider = nowProvider
+        self.fileManager = fileManager
+        self.queue = queue
+    }
 
     func createBundle(completion: @escaping (Result<FeedbackBundleResult, Error>) -> Void) {
-        DiagnosticsPackageService.shared.buildDiagnosticsJSON { result in
+        diagnosticsService.buildDiagnosticsJSON { result in
             switch result {
             case .failure(let error):
                 completion(.failure(error))
             case .success(let diagnosticsData):
                 self.queue.async {
                     do {
-                        let date = Date()
-                        let baseFolder = URL(fileURLWithPath: DatabaseService.shared.databasePath)
-                            .deletingLastPathComponent()
-                            .appendingPathComponent("feedback", isDirectory: true)
-                        try FileManager.default.createDirectory(at: baseFolder, withIntermediateDirectories: true)
+                        let date = self.nowProvider()
+                        let baseFolder = self.baseFolderProvider()
+                        try self.fileManager.createDirectory(at: baseFolder, withIntermediateDirectories: true)
 
                         let bundleFolder = baseFolder.appendingPathComponent(
                             "feedback-\(Self.bundleTimestampFormatter.string(from: date))",
                             isDirectory: true
                         )
-                        try FileManager.default.createDirectory(at: bundleFolder, withIntermediateDirectories: true)
+                        try self.fileManager.createDirectory(at: bundleFolder, withIntermediateDirectories: true)
 
                         let diagnosticsURL = bundleFolder.appendingPathComponent(
                             DiagnosticsPackageService.defaultFileName(for: date)
@@ -202,6 +253,25 @@ enum DiagnosticsRedaction {
     }
 }
 
+/// The only error information allowed across the diagnostics export boundary.
+///
+/// Runtime error messages are intentionally collapsed before payload construction because they can
+/// contain captured content or arbitrary filesystem paths. Keeping the raw strings out of this type
+/// makes it impossible for JSON or feedback-bundle code to accidentally encode them later.
+struct DiagnosticsRuntimeErrorPresence: Equatable {
+    let archiveStartupErrorRecorded: Bool
+    let databaseErrorRecorded: Bool
+
+    init(archiveStartupErrorMessage: String?, lastDbErrorMessage: String?) {
+        archiveStartupErrorRecorded = Self.isRecorded(archiveStartupErrorMessage)
+        databaseErrorRecorded = Self.isRecorded(lastDbErrorMessage)
+    }
+
+    private static func isRecorded(_ value: String?) -> Bool {
+        value?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+    }
+}
+
 private struct DiagnosticsPayload: Codable {
     let generatedAt: String
     let app: DiagnosticsAppSnapshot
@@ -210,12 +280,16 @@ private struct DiagnosticsPayload: Codable {
     let runtime: DiagnosticsRuntimeSnapshot
     let healthCheck: DiagnosticsHealthSnapshot
 
-    static func make(health: DiagnosticsHealthSnapshot) -> DiagnosticsPayload {
+    static func make(
+        health: DiagnosticsHealthSnapshot,
+        runtimeErrors: DiagnosticsRuntimeErrorPresence,
+        generatedAt: Date
+    ) -> DiagnosticsPayload {
         let appState = AppState.shared
         let reportSettings = ReportSettings.shared
 
         return DiagnosticsPayload(
-            generatedAt: DiagnosticsPackageService.iso8601String(for: Date()),
+            generatedAt: DiagnosticsPackageService.iso8601String(for: generatedAt),
             app: DiagnosticsAppSnapshot(
                 version: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0",
                 build: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0",
@@ -228,7 +302,7 @@ private struct DiagnosticsPayload: Codable {
                 accessibilityAuthorized: appState.accessibilityAuthorized,
                 windowTitleCaptureEnabled: appState.windowTitleCaptureEnabled,
                 windowTitlePrivacyMode: appState.windowTitlePrivacyMode.rawValue,
-                windowTitleBlockedBundleCount: appState.windowTitleBlockedBundleIDs.count,
+                windowTitleAllowedBundleCount: appState.windowTitleAllowedBundleIDs.count,
                 telemetryEnabled: appState.telemetryEnabled,
                 idleDetectionEnabled: appState.idleDetectionEnabled,
                 suppressIdleWhileMediaPlaying: appState.suppressIdleWhileMediaPlaying,
@@ -258,9 +332,8 @@ private struct DiagnosticsPayload: Codable {
             runtime: DiagnosticsRuntimeSnapshot(
                 isIdle: appState.isIdle,
                 idleSeconds: appState.idleSeconds,
-                currentActiveAppName: appState.currentActiveAppName,
-                currentActiveBundleId: appState.currentActiveAppBundleId,
-                lastDbErrorMessage: DiagnosticsRedaction.redactHomePath(in: appState.lastDbErrorMessage),
+                archiveStartupErrorRecorded: runtimeErrors.archiveStartupErrorRecorded,
+                databaseErrorRecorded: runtimeErrors.databaseErrorRecorded,
                 dbWriteBacklog: appState.runtimePerformance.dbWriteBacklog,
                 dbWriteLastLatencyMs: appState.runtimePerformance.dbWriteLastLatencyMs,
                 dbWriteAverageLatencyMs: appState.runtimePerformance.dbWriteAverageLatencyMs,
@@ -291,7 +364,7 @@ private struct DiagnosticsTrackingSnapshot: Codable {
     let accessibilityAuthorized: Bool
     let windowTitleCaptureEnabled: Bool
     let windowTitlePrivacyMode: String
-    let windowTitleBlockedBundleCount: Int
+    let windowTitleAllowedBundleCount: Int
     let telemetryEnabled: Bool
     let idleDetectionEnabled: Bool
     let suppressIdleWhileMediaPlaying: Bool
@@ -323,9 +396,8 @@ private struct DiagnosticsExportsSnapshot: Codable {
 private struct DiagnosticsRuntimeSnapshot: Codable {
     let isIdle: Bool
     let idleSeconds: Int
-    let currentActiveAppName: String
-    let currentActiveBundleId: String?
-    let lastDbErrorMessage: String?
+    let archiveStartupErrorRecorded: Bool
+    let databaseErrorRecorded: Bool
     let dbWriteBacklog: Int
     let dbWriteLastLatencyMs: Int
     let dbWriteAverageLatencyMs: Int

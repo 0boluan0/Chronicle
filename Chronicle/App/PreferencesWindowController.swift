@@ -22,6 +22,7 @@ final class PreferencesWindowController {
     private init() {}
 
     func show(destination: Destination? = nil) {
+        AppActivationCoordinator.shared.prepareForWindowPresentation()
         if let destination {
             applyDestination(destination)
         }
@@ -31,7 +32,9 @@ final class PreferencesWindowController {
            let settingsWindow = Self.nativeSettingsWindow() {
             NSApp.activate(ignoringOtherApps: true)
             settingsWindow.isRestorable = false
+            AppActivationCoordinator.shared.registerStandardWindow(settingsWindow)
             settingsWindow.makeKeyAndOrderFront(nil)
+            AppActivationCoordinator.shared.refreshSoon()
             AppLogger.log("Preferences opened", category: "ui")
             return
         }
@@ -56,6 +59,7 @@ final class PreferencesWindowController {
             window.isReleasedWhenClosed = false
             window.setFrameAutosaveName(Self.frameAutosaveName)
             prepareInitialFrame(for: window)
+            AppActivationCoordinator.shared.registerStandardWindow(window)
             self.window = window
         }
 
@@ -64,6 +68,7 @@ final class PreferencesWindowController {
             window?.deminiaturize(nil)
         }
         window?.makeKeyAndOrderFront(nil)
+        AppActivationCoordinator.shared.refreshSoon()
         AppLogger.log("Preferences opened", category: "ui")
     }
 

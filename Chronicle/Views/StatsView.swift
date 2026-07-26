@@ -533,8 +533,8 @@ struct StatsView: View {
     private func statsOpenTodayButton(isPrimary: Bool) -> some View {
         if isPrimary {
             Button {
-                selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
-                AppWindowRouter.shared.open(.dashboard)
+                selectedDashboardSectionRaw = DashboardView.Section.pendingReview.rawValue
+                AppWindowRouter.shared.openDashboard(destination: .pendingReview)
             } label: {
                 statsActionLabel(L("dashboard.stats.review.open_today"), systemImage: "sun.max")
             }
@@ -545,8 +545,8 @@ struct StatsView: View {
             .accessibilityIdentifier("stats.openToday")
         } else {
             Button {
-                selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
-                AppWindowRouter.shared.open(.dashboard)
+                selectedDashboardSectionRaw = DashboardView.Section.pendingReview.rawValue
+                AppWindowRouter.shared.openDashboard(destination: .pendingReview)
             } label: {
                 statsActionLabel(L("dashboard.stats.review.open_today"), systemImage: "sun.max")
             }
@@ -588,8 +588,8 @@ struct StatsView: View {
         if isPrimary {
             Button {
                 appState.trackingPaused = false
-                selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
-                AppWindowRouter.shared.open(.dashboard)
+                selectedDashboardSectionRaw = DashboardView.Section.pendingReview.rawValue
+                AppWindowRouter.shared.openDashboard(destination: .pendingReview)
             } label: {
                 statsActionLabel(L("dashboard.stats.review.resume_capture"), systemImage: "play.fill")
             }
@@ -601,8 +601,8 @@ struct StatsView: View {
         } else {
             Button {
                 appState.trackingPaused = false
-                selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
-                AppWindowRouter.shared.open(.dashboard)
+                selectedDashboardSectionRaw = DashboardView.Section.pendingReview.rawValue
+                AppWindowRouter.shared.openDashboard(destination: .pendingReview)
             } label: {
                 statsActionLabel(L("dashboard.stats.review.resume_capture"), systemImage: "play.fill")
             }
@@ -628,7 +628,7 @@ struct StatsView: View {
     private var statsOpenTimelineButton: some View {
         Button {
             selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
-            AppWindowRouter.shared.open(.dashboard)
+            AppWindowRouter.shared.openDashboard(destination: .timeline)
         } label: {
             statsActionLabel(L("dashboard.stats.review.open_timeline"), systemImage: "clock")
         }
@@ -640,8 +640,8 @@ struct StatsView: View {
 
     private var statsOpenMarkersButton: some View {
         Button {
-            selectedDashboardSectionRaw = DashboardView.Section.markers.rawValue
-            AppWindowRouter.shared.open(.dashboard)
+            selectedDashboardSectionRaw = DashboardView.Section.notes.rawValue
+            AppWindowRouter.shared.openDashboard(destination: .notes)
         } label: {
             statsActionLabel(L("dashboard.stats.review.open_markers"), systemImage: "note.text")
         }
@@ -655,8 +655,8 @@ struct StatsView: View {
     private func statsPrepareReportButton(isPrimary: Bool) -> some View {
         if isPrimary {
             Button {
-                selectedDashboardSectionRaw = DashboardView.Section.reports.rawValue
-                AppWindowRouter.shared.open(.dashboard)
+                selectedDashboardSectionRaw = DashboardView.Section.integrations.rawValue
+                AppWindowRouter.shared.openDashboard(destination: .integrations)
             } label: {
                 statsActionLabel(L("dashboard.stats.review.prepare_report"), systemImage: "doc.text.magnifyingglass")
             }
@@ -667,8 +667,8 @@ struct StatsView: View {
             .accessibilityIdentifier("stats.prepareReport")
         } else {
             Button {
-                selectedDashboardSectionRaw = DashboardView.Section.reports.rawValue
-                AppWindowRouter.shared.open(.dashboard)
+                selectedDashboardSectionRaw = DashboardView.Section.integrations.rawValue
+                AppWindowRouter.shared.openDashboard(destination: .integrations)
             } label: {
                 statsActionLabel(L("dashboard.stats.review.prepare_report"), systemImage: "doc.text.magnifyingglass")
             }
@@ -685,7 +685,7 @@ struct StatsView: View {
         appState.selectedAppFilterName = "All Apps"
         appState.includeIdleInTimeline = false
         selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
-        AppWindowRouter.shared.open(.dashboard)
+        AppWindowRouter.shared.openDashboard(destination: .timeline)
     }
 
     private var summarySection: some View {
@@ -1016,7 +1016,7 @@ struct StatsView: View {
 
             Button {
                 selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
-                AppWindowRouter.shared.open(.dashboard)
+                AppWindowRouter.shared.openDashboard(destination: .timeline)
             } label: {
                 statsActionLabel(L("markers.capture.open_timeline"), systemImage: "clock")
             }

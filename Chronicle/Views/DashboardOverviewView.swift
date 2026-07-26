@@ -771,9 +771,9 @@ struct DashboardOverviewView: View {
         case .needsMarkers:
             AppWindowRouter.shared.open(.quickMarker)
         case .needsFolder:
-            AppWindowRouter.shared.open(.settings(.export))
+            AppWindowRouter.shared.openDashboard(destination: .integrations)
         case .ready, .saveFailed, .saved:
-            selectedDashboardSectionRaw = DashboardView.Section.reports.rawValue
+            selectedDashboardSectionRaw = DashboardView.Section.integrations.rawValue
         }
     }
 
@@ -832,7 +832,7 @@ struct DashboardOverviewView: View {
             return
         }
         if reviewActionState == .saveFailed {
-            AppWindowRouter.shared.open(.settings(.export))
+            AppWindowRouter.shared.openDashboard(destination: .integrations)
             return
         }
         guard reviewActionState == .empty else {
@@ -1143,7 +1143,7 @@ struct DashboardOverviewView: View {
             .accessibilityIdentifier("dashboard.overview.weeklyReviewTimeline")
         case .needsFolder:
             Button {
-                AppWindowRouter.shared.open(.settings(.export))
+                AppWindowRouter.shared.openDashboard(destination: .integrations)
             } label: {
                 weeklySummaryActionLabel(L("overview.weekly_summary.setup_folder"), systemImage: "folder.badge.plus")
             }
@@ -1176,7 +1176,7 @@ struct DashboardOverviewView: View {
         ActionButtonGrid(minimumItemWidth: 170) {
             if weeklyReviewState != .loading && weeklyReviewState != .needsFolder {
                 Button {
-                    AppWindowRouter.shared.open(.settings(.export))
+                    AppWindowRouter.shared.openDashboard(destination: .integrations)
                 } label: {
                     weeklySummaryActionLabel(L("overview.weekly_summary.open_export"), systemImage: "gearshape")
                 }
@@ -1257,7 +1257,7 @@ struct DashboardOverviewView: View {
     private var weeklySummaryStatusActions: some View {
         if weeklyReportStatusIsError {
             Button {
-                AppWindowRouter.shared.open(.settings(.export))
+                AppWindowRouter.shared.openDashboard(destination: .integrations)
             } label: {
                 weeklySummaryActionLabel(L("overview.weekly_summary.open_export"), systemImage: "gearshape")
             }

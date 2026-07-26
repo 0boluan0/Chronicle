@@ -23,15 +23,13 @@ enum AppWindowMetrics {
     static let welcomeMinimum = CGSize(width: 600, height: 460)
     static let quickMarkerDefault = CGSize(width: 800, height: 560)
     static let quickMarkerMinimum = CGSize(width: 520, height: 420)
-    static let popoverDefault = CGSize(width: 480, height: 640)
-    static let popoverMinimum = CGSize(width: 360, height: 420)
+    static let popoverDefault = CGSize(width: 360, height: 390)
+    static let popoverMinimum = CGSize(width: 320, height: 340)
 }
 
 struct AppWindowRouterCommands: Commands {
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
-    @ObservedObject private var reportSettings = ReportSettings.shared
-    @ObservedObject private var dailyExportState = DailyLogExportAction.state
 
     var body: some Commands {
         AppWindowRouter.shared.registerSceneHandlers(
@@ -51,21 +49,20 @@ struct AppWindowRouterCommands: Commands {
             .keyboardShortcut("1", modifiers: [.command])
 
             Button(L("menu.quick_marker")) {
-                AppWindowRouter.shared.open(.quickMarker)
+                AppWindowRouter.shared.openQuickMarker(mode: .point)
             }
             .keyboardShortcut("m", modifiers: [.command, .shift])
 
-            Button(L("menu.closeout_today")) {
+            Button(L("menu.review_pending")) {
                 TelemetryService.shared.increment("dashboard_opened")
-                AppWindowRouter.shared.openDashboard(destination: .reports)
+                AppWindowRouter.shared.openDashboard(destination: .pendingReview)
             }
             .keyboardShortcut("r", modifiers: [.command, .shift])
 
-            Button(L(DailyLogExportAction.presentation(settings: reportSettings, isRunning: dailyExportState.isRunning).titleKey)) {
-                DailyLogExportAction.perform()
+            Button(L("menu.open_integrations")) {
+                AppWindowRouter.shared.openDashboard(destination: .integrations)
             }
             .keyboardShortcut("e", modifiers: [.command])
-            .disabled(dailyExportState.isRunning)
 
             Divider()
 
@@ -123,6 +120,7 @@ private struct WindowConfigurationBridge: NSViewRepresentable {
         let coordinator = context.coordinator
         DispatchQueue.main.async {
             guard let window = nsView.window else { return }
+            AppActivationCoordinator.shared.registerStandardWindow(window)
             window.title = title
             if let autosaveName = configuration.autosaveName, window.frameAutosaveName.isEmpty {
                 window.setFrameAutosaveName(autosaveName)

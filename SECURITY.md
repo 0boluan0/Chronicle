@@ -6,8 +6,9 @@ Chronicle is currently maintained as a single stable release line.
 
 | Version | Supported |
 | --- | --- |
-| Latest stable `0.x` release | Yes |
-| Prereleases and older builds | No |
+| Latest stable `1.x` release | Yes |
+| Current unreleased source and prereleases | Best effort |
+| `0.x` and older builds | No |
 
 ## Reporting a Vulnerability
 

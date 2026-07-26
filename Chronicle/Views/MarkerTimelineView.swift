@@ -175,7 +175,7 @@ struct MarkerTimelineView: View {
 
         if !groups.isEmpty {
             Button {
-                selectedDashboardSectionRaw = DashboardView.Section.reports.rawValue
+                selectedDashboardSectionRaw = DashboardView.Section.integrations.rawValue
             } label: {
                 markerTimelineActionLabel(L("markers.review.open_closeout"), systemImage: "doc.text.magnifyingglass")
             }
@@ -540,7 +540,7 @@ struct MarkerTimelineView: View {
 
     private var markerTimelineEmptyOpenTodayButton: some View {
         Button {
-            selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
+            selectedDashboardSectionRaw = DashboardView.Section.pendingReview.rawValue
         } label: {
             markerTimelineActionLabel(L("markers.timeline.empty_open_today"), systemImage: "sun.max")
         }
@@ -552,7 +552,7 @@ struct MarkerTimelineView: View {
     private var markerTimelineEmptyResumeButton: some View {
         Button {
             appState.trackingPaused = false
-            selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
+            selectedDashboardSectionRaw = DashboardView.Section.pendingReview.rawValue
         } label: {
             markerTimelineActionLabel(L("markers.timeline.empty_resume_capture"), systemImage: "play.fill")
         }

@@ -1132,7 +1132,7 @@ struct HealthCheckDetailsView: View {
         case .openPreferences:
             AppWindowRouter.shared.open(.settings())
         case .openExportSettings:
-            AppWindowRouter.shared.open(.settings(.export))
+            AppWindowRouter.shared.openDashboard(destination: .integrations)
         case .grantAccessibility:
             _ = AccessibilityPermissionManager.shared.requestPermission(prompt: true)
             AccessibilityPermissionManager.shared.syncAppState(appState)
@@ -1311,7 +1311,7 @@ struct HealthCheckDetailsView: View {
     }
 
     private var shouldShowAccessibilityAction: Bool {
-        appState.windowTitleCaptureEnabled && !appState.accessibilityAuthorized
+        appState.windowTitleCaptureRequiresAccessibility && !appState.accessibilityAuthorized
     }
 
     private func openAppSupportFolder() {

@@ -17,7 +17,7 @@ final class ReportService {
         windowTitlePolicy: {
             (
                 mode: AppState.shared.windowTitlePrivacyMode,
-                blockedBundleIds: Set(AppState.shared.windowTitleBlockedBundleIDs)
+                allowedBundleIds: Set(AppState.shared.windowTitleAllowedBundleIDs)
             )
         }
     )
@@ -27,20 +27,23 @@ final class ReportService {
     private let aggregation: AggregationService
     private let settings: ReportSettings
     private let countOverlaysInTotals: () -> Bool
-    private let windowTitlePolicy: () -> (mode: WindowTitlePrivacyMode, blockedBundleIds: Set<String>)
+    private let windowTitlePolicy: () -> (mode: WindowTitlePrivacyMode, allowedBundleIds: Set<String>)
+    private let fileWriter: CoordinatedFileWriter
 
     private init(
         database: DatabaseService,
         aggregation: AggregationService,
         settings: ReportSettings,
         countOverlaysInTotals: @escaping () -> Bool,
-        windowTitlePolicy: @escaping () -> (mode: WindowTitlePrivacyMode, blockedBundleIds: Set<String>)
+        windowTitlePolicy: @escaping () -> (mode: WindowTitlePrivacyMode, allowedBundleIds: Set<String>),
+        fileWriter: CoordinatedFileWriter = CoordinatedFileWriter()
     ) {
         self.database = database
         self.aggregation = aggregation
         self.settings = settings
         self.countOverlaysInTotals = countOverlaysInTotals
         self.windowTitlePolicy = windowTitlePolicy
+        self.fileWriter = fileWriter
     }
 
 #if DEBUG
@@ -49,14 +52,16 @@ final class ReportService {
         settings: ReportSettings,
         countOverlaysInTotals: Bool = false,
         windowTitlePrivacyMode: WindowTitlePrivacyMode = .raw,
-        blockedBundleIds: Set<String> = []
+        allowedBundleIds: Set<String> = [],
+        fileWriter: CoordinatedFileWriter = CoordinatedFileWriter()
     ) -> ReportService {
         ReportService(
             database: database,
             aggregation: .makeTestInstance(database: database),
             settings: settings,
             countOverlaysInTotals: { countOverlaysInTotals },
-            windowTitlePolicy: { (windowTitlePrivacyMode, blockedBundleIds) }
+            windowTitlePolicy: { (windowTitlePrivacyMode, allowedBundleIds) },
+            fileWriter: fileWriter
         )
     }
 #endif
@@ -308,6 +313,7 @@ final class ReportService {
                         content: content,
                         folderKind: kind.folderKind,
                         fileName: fileName,
+                        managedBlockID: self.managedBlockID(for: kind, date: date),
                         overwrite: self.overwriteSetting(for: kind)
                     )
                     self.updateLastExport(for: kind, date: date)
@@ -556,13 +562,13 @@ final class ReportService {
             rangeStart: bounds.start,
             rangeEnd: bounds.end
         )
-        let deepWorkBlocks = markdownDeepWorkBlocks(
+        let longActivityBlocks = markdownLongActivityBlocks(
             activities,
             tags: tags,
             rangeStart: bounds.start,
             rangeEnd: bounds.end
         )
-        let peakSwitchSlots = markdownPeakSwitchSlots(
+        let highSwitchFrequencyPeriods = markdownHighSwitchFrequencyPeriods(
             activities,
             kind: kind,
             rangeStart: bounds.start,
@@ -590,8 +596,11 @@ final class ReportService {
             "markers_list": markerList,
             "marker_spans": markerSpanList,
             "timeline_bullets": timelineBullets,
-            "deep_work_blocks": deepWorkBlocks,
-            "peak_switch_slots": peakSwitchSlots,
+            "long_activity_blocks": longActivityBlocks,
+            "high_switch_frequency_periods": highSwitchFrequencyPeriods,
+            // Keep rendering user-authored templates saved with the legacy placeholders.
+            "deep_work_blocks": longActivityBlocks,
+            "peak_switch_slots": highSwitchFrequencyPeriods,
             "top_tags_session_table": topTagsSessionTable,
             "notes": trimmedNotes,
             "notes_placeholder": L("reports.notes_placeholder")
@@ -613,17 +622,52 @@ final class ReportService {
         content: String,
         folderKind: ReportFolderKind,
         fileName: String,
+        managedBlockID: String,
         overwrite: Bool
     ) throws -> URL {
         return try withSecurityScopedFolder(kind: folderKind) { folderURL in
             let targetURL = folderURL.appendingPathComponent(fileName)
             let finalURL = overwrite ? targetURL : uniqueURL(for: targetURL)
+            let writer = ManagedMarkdownBlockWriter(blockID: managedBlockID)
             do {
-                try content.write(to: finalURL, atomically: true, encoding: .utf8)
+                let output: String
+                let baseline: CoordinatedFileWriter.Baseline
+                if overwrite {
+                    baseline = try fileWriter.baseline(at: finalURL)
+                } else {
+                    // `uniqueURL` selects a currently unused name. Preserve that intent even if
+                    // another app creates it before commit: O_EXCL must report a conflict instead
+                    // of turning a non-overwriting export into an overwrite.
+                    baseline = try fileWriter.newFileBaseline(at: finalURL)
+                }
+                if let originalData = baseline.originalData {
+                    guard let existing = String(data: originalData, encoding: .utf8) else {
+                        throw ReportError.writeFailed(
+                            "The existing report is not valid UTF-8: \(finalURL.path)"
+                        )
+                    }
+                    output = try writer.replacingManagedBlock(in: existing, content: content)
+                } else {
+                    output = writer.createDocument(content: content)
+                }
+                try fileWriter.write(Data(output.utf8), ifUnchanged: baseline)
+            } catch let error as ManagedMarkdownBlockWriter.Error {
+                throw error
+            } catch let error as CoordinatedFileWriter.Error {
+                throw error
             } catch {
                 throw ReportError.writeFailed(error.localizedDescription)
             }
             return finalURL
+        }
+    }
+
+    private func managedBlockID(for kind: ReportKind, date: Date) -> String {
+        switch kind {
+        case .daily:
+            return "report-daily-\(Self.dayKey(for: date))"
+        case .weekly:
+            return "weekly-\(Self.weekKey(for: date))"
         }
     }
 
@@ -637,7 +681,15 @@ final class ReportService {
             let targetURL = folderURL.appendingPathComponent(fileName)
             let finalURL = overwrite ? targetURL : uniqueURL(for: targetURL)
             do {
-                try content.write(to: finalURL, atomically: true, encoding: .utf8)
+                let baseline: CoordinatedFileWriter.Baseline
+                if overwrite {
+                    baseline = try fileWriter.baseline(at: finalURL)
+                } else {
+                    baseline = try fileWriter.newFileBaseline(at: finalURL)
+                }
+                try fileWriter.write(Data(content.utf8), ifUnchanged: baseline)
+            } catch let error as CoordinatedFileWriter.Error {
+                throw error
             } catch {
                 throw ReportError.writeFailed(error.localizedDescription)
             }
@@ -821,12 +873,13 @@ final class ReportService {
     private func rangeBounds(for kind: ReportKind, date: Date) -> (start: Int64, end: Int64) {
         switch kind {
         case .daily:
-            let calendar = Calendar.current
+            let calendar = Calendar.autoupdatingCurrent
             let startDate = calendar.startOfDay(for: date)
             let endDate = calendar.date(byAdding: .day, value: 1, to: startDate) ?? date
             return (start: Int64(startDate.timeIntervalSince1970), end: Int64(endDate.timeIntervalSince1970))
         case .weekly:
-            let calendar = Calendar(identifier: .iso8601)
+            var calendar = Calendar(identifier: .iso8601)
+            calendar.timeZone = .autoupdatingCurrent
             let interval = calendar.dateInterval(of: .weekOfYear, for: date)
             let startDate = interval?.start ?? calendar.startOfDay(for: date)
             let endDate = interval?.end ?? date
@@ -838,10 +891,10 @@ final class ReportService {
         guard !rows.isEmpty else {
             return "_No data_"
         }
-        let headerRow = "| " + headers.joined(separator: " | ") + " |"
+        let headerRow = "| " + headers.map(Self.escapeUntrustedMarkdownInline).joined(separator: " | ") + " |"
         let divider = "| " + headers.map { _ in "---" }.joined(separator: " | ") + " |"
         let body = rows.map { row in
-            "| " + row.joined(separator: " | ") + " |"
+            "| " + row.map(Self.escapeUntrustedMarkdownInline).joined(separator: " | ") + " |"
         }.joined(separator: "\n")
         return [headerRow, divider, body].joined(separator: "\n")
     }
@@ -853,13 +906,13 @@ final class ReportService {
         case .daily:
             return sorted.map {
                 let timeText = TimeFormatters.timeText(for: $0.timestamp, includeSeconds: false)
-                return "- \(timeText) \($0.text)"
+                return "- \(timeText) \(Self.escapeUntrustedMarkdownInline($0.text))"
             }.joined(separator: "\n")
         case .weekly:
             return sorted.map {
                 let dateText = Self.dayKey(for: Date(timeIntervalSince1970: TimeInterval($0.timestamp)))
                 let timeText = TimeFormatters.timeText(for: $0.timestamp, includeSeconds: false)
-                return "- \(dateText) \(timeText) \($0.text)"
+                return "- \(dateText) \(timeText) \(Self.escapeUntrustedMarkdownInline($0.text))"
             }.joined(separator: "\n")
         }
     }
@@ -876,7 +929,7 @@ final class ReportService {
                     ? "\(TimeFormatters.timeText(for: span.startTime, includeSeconds: false))–…"
                     : TimeFormatters.timeRange(start: span.startTime, end: end)
                 let duration = TimeFormatters.durationText(start: span.startTime, end: end)
-                return "- \(range) (\(duration)) \(span.text)"
+                return "- \(range) (\(duration)) \(Self.escapeUntrustedMarkdownInline(span.text))"
             }.joined(separator: "\n")
         case .weekly:
             return sorted.map { span in
@@ -886,7 +939,7 @@ final class ReportService {
                     ? "\(TimeFormatters.timeText(for: span.startTime, includeSeconds: false))–…"
                     : TimeFormatters.timeRange(start: span.startTime, end: end)
                 let duration = TimeFormatters.durationText(start: span.startTime, end: end)
-                return "- \(dateText) \(range) (\(duration)) \(span.text)"
+                return "- \(dateText) \(range) (\(duration)) \(Self.escapeUntrustedMarkdownInline(span.text))"
             }.joined(separator: "\n")
         }
     }
@@ -905,14 +958,15 @@ final class ReportService {
             guard end > start else { return nil }
             let range = TimeFormatters.timeRange(start: start, end: end)
             let duration = TimeFormatters.durationText(start: start, end: end)
-            let title = sanitizeWindowTitleForExport(activity, policy: policy) ?? ""
+            let title = sanitizeWindowTitleForExport(activity, policy: policy)
+                .map(Self.escapeUntrustedMarkdownInline) ?? ""
             let suffix = title.isEmpty ? "" : " — \(title)"
             let idleLabel = activity.isIdle ? " (Idle)" : ""
-            return "- \(range) \(activity.appName)\(idleLabel) (\(duration))\(suffix)"
+            return "- \(range) \(Self.escapeUntrustedMarkdownInline(activity.appName))\(idleLabel) (\(duration))\(suffix)"
         }.joined(separator: "\n")
     }
 
-    private func markdownDeepWorkBlocks(
+    private func markdownLongActivityBlocks(
         _ activities: [ActivityRow],
         tags: [TagRow],
         rangeStart: Int64,
@@ -930,7 +984,7 @@ final class ReportService {
             let range = TimeFormatters.timeRange(start: block.startTime, end: block.endTime)
             let duration = TimeFormatters.durationText(start: block.startTime, end: block.endTime)
             let apps = reportWorkBlockApps(block)
-            return "- \(range) (\(duration)) \(block.title) · \(reportWorkBlockSessionCount(block.sessionCount))\(apps)"
+            return "- \(range) (\(duration)) \(Self.escapeUntrustedMarkdownInline(block.title)) · \(reportWorkBlockSessionCount(block.sessionCount))\(apps)"
         }.joined(separator: "\n")
     }
 
@@ -943,10 +997,38 @@ final class ReportService {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
         guard !apps.isEmpty else { return "" }
-        return " · Apps: \(apps.prefix(3).joined(separator: ", "))"
+        return " · Apps: \(apps.prefix(3).map(Self.escapeUntrustedMarkdownInline).joined(separator: ", "))"
     }
 
-    private func markdownPeakSwitchSlots(
+    /// Automatic capture fields are plain text, even inside a Markdown report. User-authored
+    /// report notes remain deliberate Markdown and are inserted separately without this escape.
+    nonisolated static func escapeUntrustedMarkdownInline(_ value: String) -> String {
+        let flattened = value
+            .replacingOccurrences(of: "\r\n", with: " ")
+            .replacingOccurrences(of: "\r", with: " ")
+            .replacingOccurrences(of: "\n", with: " ")
+        let markdownMetacharacters = Set<Character>("\\`*_{}[]()#+-.!|")
+        var escaped = ""
+        escaped.reserveCapacity(flattened.count)
+        for character in flattened {
+            switch character {
+            case "&":
+                escaped.append("&amp;")
+            case "<":
+                escaped.append("&lt;")
+            case ">":
+                escaped.append("&gt;")
+            default:
+                if markdownMetacharacters.contains(character) {
+                    escaped.append("\\")
+                }
+                escaped.append(character)
+            }
+        }
+        return escaped
+    }
+
+    private func markdownHighSwitchFrequencyPeriods(
         _ activities: [ActivityRow],
         kind: ReportKind,
         rangeStart: Int64,
@@ -965,7 +1047,7 @@ final class ReportService {
             if kind == .daily {
                 rangeText = "\(Self.hourMinuteFormatter.string(from: start))-\(Self.hourMinuteFormatter.string(from: end))"
             } else {
-                rangeText = "\(Self.dayFormatter.string(from: start)) \(Self.hourMinuteFormatter.string(from: start))-\(Self.hourMinuteFormatter.string(from: end))"
+                rangeText = "\(Self.dayKey(for: start)) \(Self.hourMinuteFormatter.string(from: start))-\(Self.hourMinuteFormatter.string(from: end))"
             }
             return "- \(rangeText): \(slot.count) switches"
         }.joined(separator: "\n")
@@ -1010,7 +1092,7 @@ final class ReportService {
 
         guard sorted.count > 1 else { return [] }
 
-        let calendar = Calendar.current
+        let calendar = Calendar.autoupdatingCurrent
         var counts: [Int64: Int] = [:]
 
         for index in 1..<sorted.count {
@@ -1099,29 +1181,32 @@ final class ReportService {
     private func fileName(for kind: ReportKind, date: Date) -> String {
         switch kind {
         case .daily:
-            return "\(Self.dayKey(for: date)).md"
+            return "\(Self.dayKey(for: date))-report.md"
         case .weekly:
             return "\(Self.weekKey(for: date)).md"
         }
     }
 
-    static func dayKey(for date: Date) -> String {
-        dayFormatter.string(from: date)
+    static func dayKey(for date: Date, timeZone: TimeZone = .autoupdatingCurrent) -> String {
+        dayFormatter(timeZone: timeZone).string(from: date)
     }
 
-    static func weekKey(for date: Date) -> String {
-        let calendar = Calendar(identifier: .iso8601)
+    static func weekKey(for date: Date, timeZone: TimeZone = .autoupdatingCurrent) -> String {
+        var calendar = Calendar(identifier: .iso8601)
+        calendar.timeZone = timeZone
         let week = calendar.component(.weekOfYear, from: date)
         let year = calendar.component(.yearForWeekOfYear, from: date)
         return String(format: "%d-W%02d", year, week)
     }
 
-    static func weekRangeText(for date: Date) -> String {
-        let calendar = Calendar(identifier: .iso8601)
+    static func weekRangeText(for date: Date, timeZone: TimeZone = .autoupdatingCurrent) -> String {
+        var calendar = Calendar(identifier: .iso8601)
+        calendar.timeZone = timeZone
         let interval = calendar.dateInterval(of: .weekOfYear, for: date)
         let start = interval?.start ?? date
         let end = (interval?.end ?? date).addingTimeInterval(-1)
-        return "\(dayFormatter.string(from: start)) ~ \(dayFormatter.string(from: end))"
+        let formatter = dayFormatter(timeZone: timeZone)
+        return "\(formatter.string(from: start)) ~ \(formatter.string(from: end))"
     }
 
     static func shouldAttemptAutoExport(
@@ -1138,19 +1223,19 @@ final class ReportService {
         return true
     }
 
-    private static let dayFormatter: DateFormatter = {
+    private static func dayFormatter(timeZone: TimeZone) -> DateFormatter {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone.current
+        formatter.timeZone = timeZone
         return formatter
-    }()
+    }
 
     private static let hourMinuteFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm"
         formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone.current
+        formatter.timeZone = .autoupdatingCurrent
         return formatter
     }()
 
@@ -1289,19 +1374,19 @@ final class ReportService {
         return lines.joined(separator: "\n")
     }
 
-    private func currentWindowTitlePolicy() -> (mode: WindowTitlePrivacyMode, blockedBundleIds: Set<String>) {
+    private func currentWindowTitlePolicy() -> (mode: WindowTitlePrivacyMode, allowedBundleIds: Set<String>) {
         windowTitlePolicy()
     }
 
     private func sanitizeWindowTitleForExport(
         _ activity: ActivityRow,
-        policy: (mode: WindowTitlePrivacyMode, blockedBundleIds: Set<String>)
+        policy: (mode: WindowTitlePrivacyMode, allowedBundleIds: Set<String>)
     ) -> String? {
         ActivityTracker.sanitizeWindowTitle(
             activity.windowTitle,
             bundleId: activity.bundleId,
             mode: policy.mode,
-            blockedBundleIds: policy.blockedBundleIds
+            allowedBundleIds: policy.allowedBundleIds
         )
     }
 
@@ -1389,17 +1474,20 @@ enum CSVExportRange {
     case custom(start: Date, end: Date)
 
     var bounds: (start: Int64, end: Int64) {
-        let calendar = Calendar.current
+        bounds(calendar: .autoupdatingCurrent)
+    }
+
+    func bounds(calendar: Calendar) -> (start: Int64, end: Int64) {
         switch self {
         case .day(let date):
             return DateRangeMode.day.bounds(for: date, calendar: calendar)
         case .week(let date):
-            return DateRangeMode.week.bounds(for: date, calendar: calendar)
+            var isoCalendar = Calendar(identifier: .iso8601)
+            isoCalendar.timeZone = calendar.timeZone
+            return DateRangeMode.week.bounds(for: date, calendar: isoCalendar)
         case .month(let date):
             return DateRangeMode.month.bounds(for: date, calendar: calendar)
         case .custom(let start, let end):
-            var calendar = calendar
-            calendar.timeZone = .current
             let startDate = calendar.startOfDay(for: start)
             let endBase = calendar.startOfDay(for: end)
             let endDate = calendar.date(byAdding: .day, value: 1, to: endBase) ?? endBase
@@ -1411,20 +1499,24 @@ enum CSVExportRange {
     }
 
     var fileName: String {
+        fileName(timeZone: .autoupdatingCurrent)
+    }
+
+    func fileName(timeZone: TimeZone) -> String {
         switch self {
         case .day(let date):
-            return "\(ReportService.dayKey(for: date)).csv"
+            return "\(ReportService.dayKey(for: date, timeZone: timeZone)).csv"
         case .week(let date):
-            return "\(ReportService.weekKey(for: date)).csv"
+            return "\(ReportService.weekKey(for: date, timeZone: timeZone)).csv"
         case .month(let date):
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyy-MM"
             formatter.locale = Locale(identifier: "en_US_POSIX")
-            formatter.timeZone = TimeZone.current
+            formatter.timeZone = timeZone
             return "\(formatter.string(from: date)).csv"
         case .custom(let start, let end):
-            let startText = ReportService.dayKey(for: start)
-            let endText = ReportService.dayKey(for: end)
+            let startText = ReportService.dayKey(for: start, timeZone: timeZone)
+            let endText = ReportService.dayKey(for: end, timeZone: timeZone)
             return "\(startText)_to_\(endText).csv"
         }
     }
@@ -1442,16 +1534,7 @@ enum ReportError: LocalizedError {
     case bookmarkResolveFailed(String)
 
     var errorDescription: String? {
-        switch self {
-        case .missingFolderSelection:
-            return "No folder selected. Please choose a folder first."
-        case .permissionDenied:
-            return "Folder permission was denied. Please re-select the folder."
-        case .writeFailed(let message):
-            return "Failed to write report: \(message)"
-        case .bookmarkResolveFailed(let message):
-            return "Failed to access saved folder bookmark: \(message)"
-        }
+        UserFacingErrorMessage.message(for: self)
     }
 }
 

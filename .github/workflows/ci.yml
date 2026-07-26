@@ -23,6 +23,9 @@ on:
           - en
           - zh-Hans
 
+permissions:
+  contents: read
+
 jobs:
   build-and-unit-tests:
     runs-on: macos-26
@@ -32,15 +35,19 @@ jobs:
       LC_ALL: en_US.UTF-8
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           fetch-tags: true
+          persist-credentials: false
 
       - name: Set up Xcode
-        uses: maxim-lobanov/setup-xcode@v1
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
         with:
           xcode-version: "26.2"
+
+      - name: Run release guard fixture tests
+        run: script/test_release_guards.sh
 
       - name: Run Release Preflight
         run: script/run_release_preflight.sh
@@ -57,18 +64,29 @@ jobs:
             clean build
 
       - name: Run Unit Tests
-        run: |
-          xcodebuild \
-            -project Chronicle.xcodeproj \
-            -scheme Chronicle \
-            -configuration Debug \
-            -destination 'platform=macOS,arch=arm64' \
-            -derivedDataPath build \
-            CODE_SIGNING_ALLOWED=NO \
-            -parallel-testing-enabled NO \
-            -testLanguage en \
-            -testRegion US \
-            test
+        id: unit_tests
+        env:
+          UNIT_TEST_DERIVED_DATA_PATH: ${{ github.workspace }}/build
+          UNIT_TEST_RESULT_BUNDLE_PATH: ${{ github.workspace }}/build/unit-test-results/ChronicleTests.xcresult
+        run: script/run_unit_tests.sh
+
+      - name: Upload successful unit-test evidence
+        if: ${{ !cancelled() && steps.unit_tests.outcome == 'success' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: chronicle-ci-unit-${{ github.run_id }}-${{ github.run_attempt }}
+          path: build/unit-test-results/ChronicleTests.xcresult
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload failed unit-test diagnostics
+        if: ${{ !cancelled() && steps.unit_tests.outcome == 'failure' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: chronicle-ci-unit-failed-${{ github.run_id }}-${{ github.run_attempt }}
+          path: build/unit-test-results/ChronicleTests.xcresult
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Print crash diagnostics
         if: failure()
@@ -92,21 +110,76 @@ jobs:
           done
 
   ui-smoke:
-    if: ${{ vars.CHRONICLE_UI_SMOKE_ENABLED == '1' || (github.event_name == 'workflow_dispatch' && inputs.run_ui_smoke) }}
+    # Never execute untrusted pull-request or arbitrary push code on the persistent Mac runner.
+    # Release tags have their own gated smoke job; this CI path is explicit manual dispatch from main only.
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.run_ui_smoke }}
     runs-on: [self-hosted, macOS, chronicle-ui]
-    timeout-minutes: 45
+    timeout-minutes: 70
     env:
       UI_SMOKE_SCOPE: ${{ github.event_name == 'workflow_dispatch' && inputs.ui_smoke_scope || 'all' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Set up Xcode
-        uses: maxim-lobanov/setup-xcode@v1
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
         with:
           xcode-version: latest-stable
 
       - name: Run UI Smoke
+        id: ui_smoke
         run: |
           chmod +x script/run_ui_smoke.sh
           ./script/run_ui_smoke.sh "$UI_SMOKE_SCOPE"
+
+      - name: Select current UI-smoke evidence
+        id: ui_evidence
+        if: ${{ !cancelled() && (steps.ui_smoke.outcome == 'success' || steps.ui_smoke.outcome == 'failure') }}
+        shell: bash
+        run: |
+          case "$UI_SMOKE_SCOPE" in
+            all|public)
+              paths=(build/ui-smoke-results/public-en.xcresult build/ui-smoke-results/public-zh-Hans.xcresult)
+              ;;
+            full)
+              paths=(build/ui-smoke-results/full-en.xcresult build/ui-smoke-results/full-zh-Hans.xcresult)
+              ;;
+            surface)
+              paths=(build/ui-smoke-results/surface-en.xcresult build/ui-smoke-results/surface-zh-Hans.xcresult)
+              ;;
+            en)
+              paths=(build/ui-smoke-results/public-en.xcresult)
+              ;;
+            zh-Hans)
+              paths=(build/ui-smoke-results/public-zh-Hans.xcresult)
+              ;;
+            *)
+              echo "Unsupported UI smoke scope: $UI_SMOKE_SCOPE" >&2
+              exit 1
+              ;;
+          esac
+          {
+            echo 'paths<<EOF'
+            printf '%s\n' "${paths[@]}"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload successful UI-smoke evidence
+        if: ${{ !cancelled() && steps.ui_smoke.outcome == 'success' && steps.ui_evidence.outcome == 'success' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: chronicle-ci-ui-${{ env.UI_SMOKE_SCOPE }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ steps.ui_evidence.outputs.paths }}
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload failed UI-smoke diagnostics
+        if: ${{ !cancelled() && steps.ui_smoke.outcome == 'failure' && steps.ui_evidence.outcome == 'success' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: chronicle-ci-ui-failed-${{ env.UI_SMOKE_SCOPE }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ steps.ui_evidence.outputs.paths }}
+          if-no-files-found: warn
+          retention-days: 14

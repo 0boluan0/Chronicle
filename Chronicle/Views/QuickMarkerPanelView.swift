@@ -656,11 +656,11 @@ struct QuickMarkerPanelView: View {
 
     private func performDailyLogRouteAction() {
         if reportSettings.dailyFolderBookmark == nil {
-            AppWindowRouter.shared.open(.settings(.export))
+            AppWindowRouter.shared.openDashboard(destination: .integrations)
         } else {
             appState.selectedDate = Date()
-            selectedDashboardSectionRaw = DashboardView.Section.reports.rawValue
-            AppWindowRouter.shared.open(.dashboard)
+            selectedDashboardSectionRaw = DashboardView.Section.integrations.rawValue
+            AppWindowRouter.shared.openDashboard(destination: .integrations)
         }
         onClose()
     }
@@ -668,7 +668,7 @@ struct QuickMarkerPanelView: View {
     private func openTodayTimeline() {
         appState.selectedDate = Date()
         selectedDashboardSectionRaw = DashboardView.Section.timeline.rawValue
-        AppWindowRouter.shared.open(.dashboard)
+        AppWindowRouter.shared.openDashboard(destination: .timeline)
         onClose()
     }
 

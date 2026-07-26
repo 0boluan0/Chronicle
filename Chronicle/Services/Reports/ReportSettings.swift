@@ -126,13 +126,21 @@ final class ReportSettings: ObservableObject {
         weeklyFolderBookmark = defaults.data(forKey: Keys.weeklyFolderBookmark)
         csvFolderBookmark = defaults.data(forKey: Keys.csvFolderBookmark)
         if let storedDaily = defaults.string(forKey: Keys.dailyTemplateText) {
-            dailyTemplateText = storedDaily
+            let migratedDaily = ReportTemplatePreset.migratingLegacyDailyTemplate(storedDaily)
+            dailyTemplateText = migratedDaily
+            if migratedDaily != storedDaily {
+                defaults.set(migratedDaily, forKey: Keys.dailyTemplateText)
+            }
         } else {
             dailyTemplateText = Self.defaultDailyTemplate
             defaults.set(Self.defaultDailyTemplate, forKey: Keys.dailyTemplateText)
         }
         if let storedWeekly = defaults.string(forKey: Keys.weeklyTemplateText) {
-            weeklyTemplateText = storedWeekly
+            let migratedWeekly = ReportTemplatePreset.migratingLegacyWeeklyTemplate(storedWeekly)
+            weeklyTemplateText = migratedWeekly
+            if migratedWeekly != storedWeekly {
+                defaults.set(migratedWeekly, forKey: Keys.weeklyTemplateText)
+            }
         } else {
             weeklyTemplateText = Self.defaultWeeklyTemplate
             defaults.set(Self.defaultWeeklyTemplate, forKey: Keys.weeklyTemplateText)
@@ -236,35 +244,39 @@ final class ReportSettings: ObservableObject {
 
     func resolveDailyFolderURL() throws -> URL? {
         try resolveFolderURL(from: dailyFolderBookmark) { refreshed in
-            dailyFolderBookmark = refreshed
+            self.dailyFolderBookmark = refreshed
         }
     }
 
     func resolveWeeklyFolderURL() throws -> URL? {
         try resolveFolderURL(from: weeklyFolderBookmark) { refreshed in
-            weeklyFolderBookmark = refreshed
+            self.weeklyFolderBookmark = refreshed
         }
     }
 
     func resolveCsvFolderURL() throws -> URL? {
         try resolveFolderURL(from: csvFolderBookmark) { refreshed in
-            csvFolderBookmark = refreshed
+            self.csvFolderBookmark = refreshed
         }
     }
 
     var dailyFolderDisplayPath: String {
-        (try? resolveDailyFolderURL()?.path) ?? L("reports.folder.not_set")
+        displayPath(from: dailyFolderBookmark)
     }
 
     var weeklyFolderDisplayPath: String {
-        (try? resolveWeeklyFolderURL()?.path) ?? L("reports.folder.not_set")
+        displayPath(from: weeklyFolderBookmark)
     }
 
     var csvFolderDisplayPath: String {
-        (try? resolveCsvFolderURL()?.path) ?? L("reports.folder.not_set")
+        displayPath(from: csvFolderBookmark)
     }
 
-    private func resolveFolderURL(from data: Data?, refresh: (Data) -> Void) throws -> URL? {
+    private func displayPath(from data: Data?) -> String {
+        (try? resolveFolderURL(from: data, refresh: nil)?.path) ?? L("reports.folder.not_set")
+    }
+
+    private func resolveFolderURL(from data: Data?, refresh: ((Data) -> Void)?) throws -> URL? {
         guard let data else { return nil }
         var stale = false
         let url = try URL(
@@ -273,7 +285,7 @@ final class ReportSettings: ObservableObject {
             relativeTo: nil,
             bookmarkDataIsStale: &stale
         )
-        if stale {
+        if stale, let refresh {
             let refreshed = try url.bookmarkData(
                 options: bookmarkCreationOptions,
                 includingResourceValuesForKeys: nil,

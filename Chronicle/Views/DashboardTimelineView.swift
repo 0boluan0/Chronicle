@@ -1338,7 +1338,7 @@ struct DashboardTimelineView: View {
 
     private var emptyTimelineOpenTodayButton: some View {
         Button {
-            selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
+            selectedDashboardSectionRaw = DashboardView.Section.pendingReview.rawValue
         } label: {
             timelineActionLabel(L("timeline.empty.open_today"), systemImage: "sun.max")
         }
@@ -1350,7 +1350,7 @@ struct DashboardTimelineView: View {
     private var emptyTimelineResumeButton: some View {
         Button {
             appState.trackingPaused = false
-            selectedDashboardSectionRaw = DashboardView.Section.overview.rawValue
+            selectedDashboardSectionRaw = DashboardView.Section.pendingReview.rawValue
         } label: {
             timelineActionLabel(L("timeline.empty.resume_capture"), systemImage: "play.fill")
         }
@@ -2911,7 +2911,7 @@ struct DashboardTimelineView: View {
                 return
             }
         }
-        selectedDashboardSectionRaw = DashboardView.Section.reports.rawValue
+        selectedDashboardSectionRaw = DashboardView.Section.integrations.rawValue
     }
 
     private func showUntaggedActivities() {
@@ -2950,7 +2950,7 @@ struct DashboardTimelineView: View {
     }
 
     private func openMarkerTimeline() {
-        selectedDashboardSectionRaw = DashboardView.Section.markers.rawValue
+        selectedDashboardSectionRaw = DashboardView.Section.notes.rawValue
     }
 
     private func selectVisibleActivities() {

@@ -6,7 +6,12 @@
 import Foundation
 
 enum DatabaseError: Error, LocalizedError {
+    case archiveAccessDisabledAfterWipe
+    case archiveInUse
     case openFailed(String)
+    case keyManagementFailed(String)
+    case encryptionFailed(String)
+    case migrationFailed(String)
     case prepareFailed(String, sql: String)
     case bindFailed(String, sql: String)
     case stepFailed(String, sql: String)
@@ -15,7 +20,17 @@ enum DatabaseError: Error, LocalizedError {
 
     var logDescription: String {
         switch self {
+        case .archiveAccessDisabledAfterWipe:
+            return "Archive access is disabled because a data wipe was requested. Restart Chronicle before creating or opening another archive."
+        case .archiveInUse:
+            return "The encrypted archive lifecycle lock is held by another Chronicle process."
         case .openFailed(let message):
+            return message
+        case .keyManagementFailed(let message):
+            return message
+        case .encryptionFailed(let message):
+            return message
+        case .migrationFailed(let message):
             return message
         case .prepareFailed(let message, let sql):
             return "\(message) | SQL: \(sql)"
@@ -31,24 +46,11 @@ enum DatabaseError: Error, LocalizedError {
     }
 
     var userMessage: String {
-        switch self {
-        case .openFailed(let message):
-            return "Open failed: \(message)"
-        case .prepareFailed(let message, _):
-            return "Prepare failed: \(message)"
-        case .bindFailed(let message, _):
-            return "Bind failed: \(message)"
-        case .stepFailed(let message, _):
-            return "Step failed: \(message)"
-        case .executeFailed(let message, _):
-            return "Exec failed: \(message)"
-        case .unknown(let message):
-            return "Unknown error: \(message)"
-        }
+        UserFacingErrorMessage.message(for: self)
     }
 
     var errorDescription: String? {
-        logDescription
+        UserFacingErrorMessage.message(for: self)
     }
 }
 
