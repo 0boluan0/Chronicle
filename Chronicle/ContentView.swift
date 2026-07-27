@@ -234,6 +234,17 @@ struct ContentView: View {
                         .accessibilityIdentifier("popover.pendingReview.reminderDue")
                 }
 
+                if reviewInboxError != nil {
+                    Button {
+                        refreshReviewInbox()
+                    } label: {
+                        Label("actions.retry", systemImage: "arrow.clockwise")
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(isLoadingReviewInbox || !appState.archiveReady)
+                    .accessibilityIdentifier("popover.pendingReview.retry")
+                }
+
                 Button {
                     TelemetryService.shared.increment("dashboard_opened")
                     AppWindowRouter.shared.openDashboard(destination: .pendingReview)

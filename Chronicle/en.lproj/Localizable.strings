@@ -2882,7 +2882,8 @@
 "pending_review.metric.time" = "captured";
 "pending_review.loading" = "Building work blocks…";
 "pending_review.empty.title" = "You’re caught up";
-"pending_review.empty.detail" = "New work blocks will appear here after Chronicle records activity.";
+"pending_review.empty.detail" = "Chronicle is recording in the background. New work blocks will appear here after activity, or you can add time away from this Mac.";
+"pending_review.empty.paused_detail" = "Automatic capture is paused. Resume tracking to create new work blocks, or add work manually.";
 "pending_review.error.title" = "Pending review is unavailable";
 "pending_review.error.detail" = "Try refreshing the work-block projection.";
 "pending_review.day.block_count" = "%d blocks";

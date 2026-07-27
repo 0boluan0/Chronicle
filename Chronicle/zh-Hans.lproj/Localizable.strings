@@ -2881,7 +2881,8 @@
 "pending_review.metric.time" = "已记录";
 "pending_review.loading" = "正在整理工作块…";
 "pending_review.empty.title" = "已经复盘完了";
-"pending_review.empty.detail" = "Chronicle 记录到新活动后，工作块会出现在这里。";
+"pending_review.empty.detail" = "Chronicle 正在后台记录；产生新活动后，工作块会出现在这里。你也可以补记离开这台 Mac 时的工作。";
+"pending_review.empty.paused_detail" = "自动记录已暂停。恢复追踪后会生成新的工作块，你也可以手动补记工作。";
 "pending_review.error.title" = "暂时无法加载待复盘内容";
 "pending_review.error.detail" = "请尝试刷新工作块。";
 "pending_review.day.block_count" = "%d 个工作块";

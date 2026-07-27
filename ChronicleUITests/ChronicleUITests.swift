@@ -307,6 +307,12 @@ final class ChronicleUITests: XCTestCase {
             workspace: workspace,
             resetState: true
         )
+        let pausedFixture = try PropertyListSerialization.data(
+            fromPropertyList: ["settings.trackingPaused": true],
+            format: .binary,
+            options: 0
+        )
+        app.launchEnvironment["CHRONICLE_UI_TEST_DEFAULTS_FIXTURE_BASE64"] = pausedFixture.base64EncodedString()
         app.launch()
 
         let pendingReviewSection = app.descendants(matching: .any)["dashboard.section.pendingReview"]
@@ -325,8 +331,15 @@ final class ChronicleUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts[surfaceLabel(english: "Pending Review", simplifiedChinese: "待复盘")].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["pendingReview.refresh"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["pendingReview.addManualBlock"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.descendants(matching: .any)["pendingReview.empty"].waitForExistence(timeout: 10))
+        let resumeTracking = app.buttons["pendingReview.empty.resumeTracking"]
+        XCTAssertTrue(resumeTracking.waitForExistence(timeout: 5))
+        clickElement(resumeTracking, in: app)
+        XCTAssertTrue(waitUntil(timeout: 5) { !resumeTracking.exists })
 
-        clickElement(app.buttons["pendingReview.addManualBlock"], in: app)
+        let emptyAddManualBlock = app.buttons["pendingReview.empty.addManualBlock"]
+        XCTAssertTrue(emptyAddManualBlock.waitForExistence(timeout: 5))
+        clickElement(emptyAddManualBlock, in: app)
         let manualBlockTitle = app.textFields["manualBlock.title"]
         XCTAssertTrue(manualBlockTitle.waitForExistence(timeout: 5))
         replaceText("Pending review draft smoke", in: manualBlockTitle, app: app)

@@ -58,9 +58,12 @@ nonisolated enum PendingReviewRecoveryState: Equatable {
 }
 
 struct PendingReviewView: View {
+    @EnvironmentObject private var appState: AppState
+
     @State private var inbox: ReviewInbox?
     @State private var tags: [TagRow] = []
     @State private var isLoading = true
+    @State private var initialLoadError: String?
     @State private var isCompletingReview = false
     @State private var reviewNote = ""
     @State private var statusMessage: StatusMessage?
@@ -247,12 +250,40 @@ struct PendingReviewView: View {
             ProgressView("pending_review.loading")
                 .frame(maxWidth: .infinity, minHeight: 260)
                 .accessibilityIdentifier("pendingReview.loading")
-        } else if let inbox, inbox.isEmpty {
-            ContentUnavailableView(
-                "pending_review.empty.title",
-                systemImage: "checkmark.circle",
-                description: Text("pending_review.empty.detail")
+        } else if let initialLoadError, inbox == nil {
+            RecoverableContentUnavailableView(
+                title: "pending_review.error.title",
+                message: initialLoadError,
+                accessibilityIdentifier: "pendingReview.loadError",
+                retryAccessibilityIdentifier: "pendingReview.loadRetry",
+                onRetry: { refreshProjection() }
             )
+            .frame(maxWidth: .infinity, minHeight: 320)
+        } else if let inbox, inbox.isEmpty {
+            ContentUnavailableView {
+                Label(
+                    "pending_review.empty.title",
+                    systemImage: appState.trackingPaused ? "pause.circle" : "checkmark.circle"
+                )
+            } description: {
+                Text(LocalizedStringKey(
+                    appState.trackingPaused
+                        ? "pending_review.empty.paused_detail"
+                        : "pending_review.empty.detail"
+                ))
+            } actions: {
+                if appState.trackingPaused {
+                    Button {
+                        appState.trackingPaused = false
+                    } label: {
+                        Label("menu.resume_tracking", systemImage: "play.fill")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("pendingReview.empty.resumeTracking")
+                }
+
+                emptyManualAction
+            }
             .frame(maxWidth: .infinity, minHeight: 320)
             .accessibilityIdentifier("pendingReview.empty")
         } else if inbox != nil {
@@ -270,6 +301,26 @@ struct PendingReviewView: View {
             )
             .frame(maxWidth: .infinity, minHeight: 320)
         }
+    }
+
+    @ViewBuilder
+    private var emptyManualAction: some View {
+        if appState.trackingPaused {
+            emptyManualButton
+                .buttonStyle(.bordered)
+        } else {
+            emptyManualButton
+                .buttonStyle(.borderedProminent)
+        }
+    }
+
+    private var emptyManualButton: some View {
+        Button {
+            showsManualBlockSheet = true
+        } label: {
+            Label("pending_review.manual.add", systemImage: "plus.rectangle.on.rectangle")
+        }
+        .accessibilityIdentifier("pendingReview.empty.addManualBlock")
     }
 
     private func daySection(_ group: PendingReviewDayGroup) -> some View {
@@ -473,6 +524,7 @@ struct PendingReviewView: View {
                 switch result {
                 case .success(let loadedInbox):
                     inbox = loadedInbox
+                    initialLoadError = nil
                     let currentIDs = Set(loadedInbox.blocks.map(\.id))
                     selectedBlockIDs.formIntersection(currentIDs)
                     dirtyBlockIDs.formIntersection(currentIDs)
@@ -491,14 +543,17 @@ struct PendingReviewView: View {
                         statusMessage = nil
                         recoveryState = .refreshFailed
                     } else {
-                        statusMessage = StatusMessage(
-                            text: UserFacingErrorMessage.loggedMessage(
-                                for: error,
-                                context: "Prepare Pending Review failed",
-                                category: "review"
-                            ),
-                            isError: true
+                        let message = UserFacingErrorMessage.loggedMessage(
+                            for: error,
+                            context: "Prepare Pending Review failed",
+                            category: "review"
                         )
+                        if inbox == nil {
+                            initialLoadError = message
+                            statusMessage = nil
+                        } else {
+                            statusMessage = StatusMessage(text: message, isError: true)
+                        }
                     }
                 }
                 isLoading = false
@@ -525,6 +580,7 @@ struct PendingReviewView: View {
                     switch inboxResult {
                     case .success(let loadedInbox):
                         inbox = loadedInbox
+                        initialLoadError = nil
                         let currentIDs = Set(loadedInbox.blocks.map(\.id))
                         selectedBlockIDs.formIntersection(currentIDs)
                         dirtyBlockIDs.formIntersection(currentIDs)
@@ -532,14 +588,17 @@ struct PendingReviewView: View {
                             statusMessage = nil
                         }
                     case .failure(let error):
-                        statusMessage = StatusMessage(
-                            text: UserFacingErrorMessage.loggedMessage(
-                                for: error,
-                                context: "Load Pending Review failed",
-                                category: "review"
-                            ),
-                            isError: true
+                        let message = UserFacingErrorMessage.loggedMessage(
+                            for: error,
+                            context: "Load Pending Review failed",
+                            category: "review"
                         )
+                        if inbox == nil {
+                            initialLoadError = message
+                            statusMessage = nil
+                        } else {
+                            statusMessage = StatusMessage(text: message, isError: true)
+                        }
                     }
                     if let savedBlockID {
                         savingBlockIDs.remove(savedBlockID)
