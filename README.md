@@ -50,15 +50,15 @@ Chronicle is not a cloud analytics platform, employee monitoring tool, screensho
 
 Get the current build from [GitHub Releases](https://github.com/0boluan0/Chronicle/releases).
 
-The latest published stable build is [`v1.0.5`](https://github.com/0boluan0/Chronicle/releases/tag/v1.0.5):
+The latest published stable build is [`v1.1.0`](https://github.com/0boluan0/Chronicle/releases/tag/v1.1.0):
 
-- `Chronicle-v1.0.5.dmg`
-- `Chronicle-v1.0.5.dmg.sha256`
+- `Chronicle-v1.1.0.dmg`
+- `Chronicle-v1.1.0.dmg.sha256`
 
 Install it by opening the DMG and dragging `Chronicle.app` into `/Applications`.
-The published DMG is 4,382,132 bytes and its SHA-256 checksum is `5264c7ffafe1f4c069081126ba959c5f4c13c629b45fb8f420c5ecfdf3da5164`.
+The published DMG is 12,111,692 bytes and its SHA-256 checksum is `7f0327b8298ed7df8085e53118fa97ba1bbf5886d4d6d7e42a51fe996c788e10`.
 
-Historical builds may be unsigned or not notarized. If macOS blocks first launch, use Finder to right-click `Chronicle.app`, choose **Open**, and confirm that you trust the downloaded build. Future public stable releases remain blocked until Developer ID signing and notarization are available.
+Chronicle v1.1.0 is an explicitly approved unsigned and unnotarized release. If macOS blocks first launch, use Finder to right-click `Chronicle.app`, choose **Open**, and confirm that you trust the downloaded build. Verify the SHA-256 checksum before installing it. Future public stable releases remain blocked until Developer ID signing and notarization are available unless the owner explicitly approves another documented exception.
 
 ## Privacy Model
 
@@ -219,7 +219,7 @@ Stable releases require Developer ID signing, Apple notarization, stapling, and 
 
 Treat GitHub Releases as the public download source of truth. Local files under `dist/` may be developer or internal builds; do not update the Download section unless the matching tag, DMG, checksum, and release notes are published on GitHub.
 
-See [docs/stable-release-checklist.md](docs/stable-release-checklist.md), [docs/update-strategy.md](docs/update-strategy.md), and [docs/releases/v1.1.0.md](docs/releases/v1.1.0.md) for the current release checklist and draft validation record.
+See [docs/stable-release-checklist.md](docs/stable-release-checklist.md), [docs/update-strategy.md](docs/update-strategy.md), and [docs/releases/v1.1.0.md](docs/releases/v1.1.0.md) for the current release checklist and v1.1.0 publication record.
 
 ## Documentation
 
